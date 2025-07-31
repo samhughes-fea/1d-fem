@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from labellines import labelLines
 
-class VisualisationModule:
+class InternalForceVisualisationModule:
     def __init__(self, tsr_names: list, colors: dict):
         self.fig, self.axs = plt.subplots(3, 3, figsize=(13, 10), sharex="col")
         self.tsr_names = tsr_names

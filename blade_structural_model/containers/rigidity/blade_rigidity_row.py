@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 @dataclass
-class BladeInternalForceRow:
+class BladeRigidityRow:
     tsr: str
     r_over_R: np.ndarray
 

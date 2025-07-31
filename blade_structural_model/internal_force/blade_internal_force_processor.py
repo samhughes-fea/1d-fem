@@ -1,6 +1,6 @@
 import numpy as np
 
-class InternalResultantProcessor:
+class InternalForceProcessor:
     def __init__(self, loads: dict, dx: float):
         self.loads = loads
         self.dx = dx

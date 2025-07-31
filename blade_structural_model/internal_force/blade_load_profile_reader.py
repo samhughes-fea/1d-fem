@@ -2,7 +2,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-class BladeExternalLoadProfile:
+class LoadProfileReader:
     def __init__(self, csv_path: Path, R: float, L: float):
         self.csv_path = csv_path
         self.R = R

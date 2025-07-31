@@ -1,11 +1,11 @@
 from pathlib import Path
 import pandas as pd
 
-from blade_structural_model.containers.internal_forces.blade_internal_force_row import BladeInternalForceRow
-from blade_structural_model.containers.internal_forces.blade_internal_force_bin import BladeInternalForceBin
-from internal_forces.blade_load_profile_reader import BladeLoadProfileReader
-from action.internal_resultant_processor import InternalResultantProcessor
-from action.blade_internal_action_plotter import BladeInternalActionPlotter
+from blade_structural_model.containers.internal_force.blade_internal_force_row import BladeInternalForceRow
+from blade_structural_model.containers.internal_force.blade_internal_force_bin import BladeInternalForceBin
+from internal_force.blade_load_profile_reader import LoadProfileReader
+from internal_force.blade_internal_force_processor import InternalForceProcessor
+from internal_force.blade_internal_force_visualisation_module import InternalForceVisualisationModule
 
 class BladeInternalForceRunner:
     def __init__(self, load_dir: Path, out_dir: Path, tsr_names: list, R: float, L: float, colors: dict):
@@ -15,10 +15,10 @@ class BladeInternalForceRunner:
         self.R = R
         self.L = L
         self.colors = colors
-        self.result_bin = BladeInternalActionResultBin()
+        self.result_bin = BladeInternalForceBin()
 
     def run(self):
-        plotter = BladeInternalActionPlotter(self.tsr_names, self.colors)
+        plotter = InternalForceVisualisationModule(self.tsr_names, self.colors)
         self.out_dir.mkdir(parents=True, exist_ok=True)
 
         for tsr in self.tsr_names:
@@ -27,13 +27,13 @@ class BladeInternalForceRunner:
                 print(f"[WARNING] Skipping {tsr}: file not found → {path}")
                 continue
 
-            profile = LoadProfile(path, self.R, self.L)
+            profile = LoadProfileReader(path, self.R, self.L)
             profile.read()
 
-            calc = InternalResultantProcessor(profile.data, profile.dx)
+            calc = InternalForceProcessor(profile.data, profile.dx)
             calc.compute()
 
-            row = BladeInternalActionResultRow(
+            row = BladeInternalForceRow(
                 tsr=tsr,
                 r_over_R=profile.rR,
                 f_y=profile.data["F_y"],

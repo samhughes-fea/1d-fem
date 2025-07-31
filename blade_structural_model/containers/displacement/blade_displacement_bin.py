@@ -1,12 +1,12 @@
 from dataclasses import dataclass, field
 from typing import List
-from rigidity.blade_rigidity_row import BladeRigidityRow
+from displacement.blade_displacement_row import BladeDisplacementRow
 
 @dataclass
-class BladeRigidityBin:
-    rows: List[BladeRigidityRow] = field(default_factory=list)
+class BladeDisplacementBin:
+    rows: List[BladeDisplacementRow] = field(default_factory=list)
 
-    def get_by_tsr(self, tsr: str) -> BladeRigidityRow:
+    def get_by_tsr(self, tsr: str) -> BladeDisplacementRow:
         for row in self.rows:
             if row.tsr == tsr:
                 return row
