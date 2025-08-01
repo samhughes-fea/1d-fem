@@ -1,4 +1,4 @@
-# blade_structural_model\internal_force\blade_internal_force_visualisation_module.py
+# blade_structural_model\internal_force\internal_force_visualisation_module.py
 
 import matplotlib.pyplot as plt
 import numpy as np

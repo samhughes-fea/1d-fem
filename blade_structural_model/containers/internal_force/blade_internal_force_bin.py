@@ -1,6 +1,8 @@
+# blade_structural_model\containers\internal_force\blade_internal_force_bin.py
+
 from dataclasses import dataclass, field
 from typing import List
-from internal_forces.blade_internal_force_row import BladeInternalForceRow
+from internal_force.blade_internal_force_row import BladeInternalForceRow
 
 @dataclass
 class BladeInternalForceBin:

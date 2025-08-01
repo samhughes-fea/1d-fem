@@ -1,3 +1,5 @@
+# blade_structural_model\internal_force\blade_internal_force_processor.py
+
 import numpy as np
 
 class InternalForceProcessor:
