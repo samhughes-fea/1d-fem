@@ -1,11 +1,8 @@
 # processing_OOP\static\results\containers\nodal_results.py
 
-# processing_OOP\static\results\containers\nodal_results.py
-
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 import numpy as np
-import scipy.sparse as sp
 
 # ─────────────────────────────────────────────────────────────
 # Nodal-level results (interpolated field quantities at nodes)
@@ -15,17 +12,25 @@ import scipy.sparse as sp
 
 @dataclass
 class NodalResults:
-    internal_forces: Optional[np.ndarray] = None
-    # Shape: (n_nodes, 6)
-    # Components: [N, Vy, Vz, T, My, Mz] at each node
-
+    """
+    Container for nodal resolution results.
+    
+    Contains pure field quantities interpolated/extrapolated to nodes:
+    - Strain: kinematic field
+    - Stress: constitutive field
+    - Energy density: scalar energy field
+    
+    Note: Section forces [N, Vy, Vz, T, My, Mz] are integrated stress
+    resultants and belong in TertiaryResults, not as nodal field values.
+    """
+    
     strain: Optional[np.ndarray] = None
     # Shape: (n_nodes, 6)
-    # Components: [ε_xx, ε_yy, ε_zz, γ_xy, γ_yz, γ_xz] or beam-specific equivalents
+    # Components: [ε_xx, ε_yy, ε_zz, γ_xy, γ_yz, γ_xz]
 
     stress: Optional[np.ndarray] = None
     # Shape: (n_nodes, 6)
-    # Components: [σ_xx, σ_yy, σ_zz, τ_xy, τ_yz, τ_xz] or beam-specific equivalents
+    # Components: [σ_xx, σ_yy, σ_zz, τ_xy, τ_yz, τ_xz]
 
     strain_energy_density: Optional[np.ndarray] = None
     # Shape: (n_nodes,)

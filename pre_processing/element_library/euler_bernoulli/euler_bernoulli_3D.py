@@ -32,6 +32,9 @@ class EulerBernoulliBeamElement3D(Element1DBase):
     - Integrated logging system for stiffness matrices and force vectors
     """
     
+    # Element formulation identifier for tracking in multi-element meshes
+    element_type_name = "Euler-Bernoulli-3D"
+    
     def __init__(self,
                  *, 
                  element_id: int,

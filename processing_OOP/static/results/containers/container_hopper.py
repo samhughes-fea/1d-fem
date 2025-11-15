@@ -6,10 +6,11 @@ from .global_results import GlobalResults
 from .elemental_results import ElementalResults
 from .nodal_results import NodalResults
 from .gaussian_results import GaussianResults
+from .tertiary_results import TertiaryResults
 from .map_results import MapEntry
 
 # ─────────────────────────────────────────────────────────────
-# Primary and secondary results stratified by resolution
+# Primary, secondary, and tertiary results stratified by resolution
 # ─────────────────────────────────────────────────────────────
 
 @dataclass
@@ -35,6 +36,19 @@ class SecondaryResultSet:
     elemental_results: Optional[ElementalResults] = None
     nodal_results: Optional[NodalResults] = None
     gaussian_results: Optional[GaussianResults] = None
+
+@dataclass
+class TertiaryResultSet:
+    """
+    Holds all tertiary (highly derived) engineering results.
+    
+    These are design-critical quantities computed from secondary results:
+    - Section force resultants
+    - Principal stresses
+    - Von Mises stress
+    - Failure indices
+    """
+    tertiary_results: TertiaryResults
 
 # ─────────────────────────────────────────────────────────────
 # All intermediate DOF space transformation maps

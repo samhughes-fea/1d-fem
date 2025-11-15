@@ -1,0 +1,254 @@
+# processing_OOP\static\results\save_secondary_container.py
+
+import numpy as np
+import pandas as pd
+from pathlib import Path
+from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class SaveSecondaryResults:
+    """
+    Saves secondary results (strain, stress, energy) to CSV files.
+
+    Secondary results are derived field quantities at Gauss points and nodes:
+    - Gaussian resolution: strain, stress, internal forces at integration points
+    - Nodal resolution: extrapolated/interpolated field values at nodes
+    - Element resolution: integrated quantities (strain energy)
+
+    Parameters
+    ----------
+    secondary_results : SecondaryResultSet
+        Container with all secondary results
+    save_dir : str or Path
+        Base directory where results should be saved
+    save_gaussian : bool
+        Whether to save Gauss point data (can be large)
+    save_nodal : bool
+        Whether to save nodal data
+    """
+
+    def __init__(
+        self,
+        secondary_results,
+        save_dir: str | Path,
+        save_gaussian: bool = True,
+        save_nodal: bool = True
+    ):
+        self.results = secondary_results
+        self.save_dir = Path(save_dir)
+        self.save_gaussian = save_gaussian
+        self.save_nodal = save_nodal
+
+        # Create directory structure
+        self.secondary_dir = self.save_dir / "secondary_results"
+        self.gaussian_dir = self.secondary_dir / "gaussian"
+        self.nodal_dir = self.secondary_dir / "nodal"
+        self.elemental_dir = self.secondary_dir / "elemental"
+
+        for directory in [self.gaussian_dir, self.nodal_dir, self.elemental_dir]:
+            directory.mkdir(parents=True, exist_ok=True)
+
+    def save_all(self):
+        """Save all secondary results to disk."""
+        logger.info("=" * 70)
+        logger.info("SAVING SECONDARY RESULTS")
+        logger.info("=" * 70)
+
+        saved_count = 0
+
+        # Save Gaussian resolution results
+        if self.save_gaussian and self.results.gaussian_results:
+            logger.info("\n[1/3] Saving Gaussian resolution results...")
+            self._save_gaussian_results()
+            saved_count += 1
+
+        # Save nodal resolution results
+        if self.save_nodal and self.results.nodal_results:
+            logger.info("\n[2/3] Saving nodal resolution results...")
+            self._save_nodal_results()
+            saved_count += 1
+
+        # Save elemental resolution results
+        if self.results.elemental_results:
+            logger.info("\n[3/3] Saving elemental resolution results...")
+            self._save_elemental_results()
+            saved_count += 1
+
+        logger.info("\n" + "=" * 70)
+        logger.info(f"✅ SECONDARY RESULTS SAVED ({saved_count} categories)")
+        logger.info(f"   Location: {self.secondary_dir}")
+        logger.info("=" * 70)
+
+    def _save_gaussian_results(self):
+        """
+        Save Gauss point resolution results.
+        
+        Only pure field quantities (strain, stress, energy density) are saved here.
+        Section forces [N, Vy, Vz, T, My, Mz] are integrated stress resultants
+        and are saved via save_tertiary_container.py instead.
+        """
+        gauss_res = self.results.gaussian_results
+
+        # Create subdirectories for field quantities only
+        strain_dir = self.gaussian_dir / "strain"
+        stress_dir = self.gaussian_dir / "stress"
+        energy_dir = self.gaussian_dir / "energy_density"
+
+        for d in [strain_dir, stress_dir, energy_dir]:
+            d.mkdir(parents=True, exist_ok=True)
+
+        # Save strain at Gauss points
+        if gauss_res.strain:
+            for elem_idx, elem_strains in enumerate(gauss_res.strain):
+                # Stack all Gauss point strains for this element
+                strain_array = np.array(elem_strains)  # shape: (n_gauss, n_strain_components)
+                filename = strain_dir / f"strain_elem_{elem_idx:06d}.csv"
+                header = "ε_xx,ε_yy,ε_zz,γ_xy,γ_yz,γ_xz"
+                np.savetxt(filename, strain_array, delimiter=",", fmt="%.12e",
+                          header=header, comments='')
+            logger.info(f"   ✓ Strain saved: {len(gauss_res.strain)} elements")
+
+        # Save stress at Gauss points
+        if gauss_res.stress:
+            for elem_idx, elem_stresses in enumerate(gauss_res.stress):
+                stress_array = np.array(elem_stresses)  # shape: (n_gauss, n_stress_components)
+                filename = stress_dir / f"stress_elem_{elem_idx:06d}.csv"
+                header = "σ_xx,σ_yy,σ_zz,τ_xy,τ_yz,τ_xz"
+                np.savetxt(filename, stress_array, delimiter=",", fmt="%.12e",
+                          header=header, comments='')
+            logger.info(f"   ✓ Stress saved: {len(gauss_res.stress)} elements")
+
+        # Save energy density at Gauss points
+        if gauss_res.internal_energy_density:
+            for elem_idx, elem_energy in enumerate(gauss_res.internal_energy_density):
+                energy_array = np.array(elem_energy).reshape(-1, 1)
+                filename = energy_dir / f"energy_density_elem_{elem_idx:06d}.csv"
+                header = "strain_energy_density"
+                np.savetxt(filename, energy_array, delimiter=",", fmt="%.12e",
+                          header=header, comments='')
+            logger.info(f"   ✓ Energy density saved: {len(gauss_res.internal_energy_density)} elements")
+
+    def _save_nodal_results(self):
+        """
+        Save nodal resolution results.
+        
+        Only pure field quantities (strain, stress, energy density) are saved.
+        Section forces are integrated resultants, not nodal fields.
+        """
+        nodal_res = self.results.nodal_results
+
+        # Save nodal strain
+        if nodal_res.strain is not None:
+            filename = self.nodal_dir / "nodal_strain.csv"
+            header = "ε_xx,ε_yy,ε_zz,γ_xy,γ_yz,γ_xz"
+            np.savetxt(filename, nodal_res.strain, delimiter=",",
+                      fmt="%.12e", header=header, comments='')
+            logger.info(f"   ✓ Nodal strain saved: {nodal_res.strain.shape}")
+
+        # Save nodal stress
+        if nodal_res.stress is not None:
+            filename = self.nodal_dir / "nodal_stress.csv"
+            header = "σ_xx,σ_yy,σ_zz,τ_xy,τ_yz,τ_xz"
+            np.savetxt(filename, nodal_res.stress, delimiter=",",
+                      fmt="%.12e", header=header, comments='')
+            logger.info(f"   ✓ Nodal stress saved: {nodal_res.stress.shape}")
+
+        # Save nodal strain energy density
+        if nodal_res.strain_energy_density is not None:
+            filename = self.nodal_dir / "nodal_strain_energy_density.csv"
+            np.savetxt(filename, nodal_res.strain_energy_density.reshape(-1, 1),
+                      delimiter=",", fmt="%.12e", header="strain_energy_density", comments='')
+            logger.info(f"   ✓ Nodal energy density saved: {nodal_res.strain_energy_density.shape}")
+
+    def _save_elemental_results(self):
+        """Save element-level integrated results."""
+        elem_res = self.results.elemental_results
+
+        # Save total strain energy per element
+        if elem_res.total_strain_energy is not None:
+            data = {
+                'element_id': range(len(elem_res.total_strain_energy)),
+                'strain_energy': elem_res.total_strain_energy
+            }
+            df = pd.DataFrame(data)
+            filename = self.elemental_dir / "element_strain_energy.csv"
+            df.to_csv(filename, index=False, float_format='%.12e')
+            logger.info(f"   ✓ Element strain energy saved: {len(elem_res.total_strain_energy)} elements")
+
+
+class SaveSecondaryResultsSummary:
+    """
+    Generates and saves summary statistics for secondary results.
+
+    Creates summary files with min/max/mean values for quick assessment.
+    """
+
+    def __init__(
+        self,
+        secondary_results,
+        save_dir: str | Path
+    ):
+        self.results = secondary_results
+        self.save_dir = Path(save_dir)
+
+    def save(self):
+        """Generate and save summary statistics."""
+        summary_data = {}
+
+        # Gaussian results summary
+        if self.results.gaussian_results:
+            summary_data.update(self._summarize_gaussian())
+
+        # Nodal results summary
+        if self.results.nodal_results:
+            summary_data.update(self._summarize_nodal())
+
+        # Save summary to CSV
+        summary_file = self.save_dir / "secondary_results" / "secondary_summary.csv"
+        df = pd.DataFrame([summary_data])
+        df.to_csv(summary_file, index=False, float_format='%.6e')
+
+        logger.info(f"✅ Secondary results summary saved: {summary_file}")
+        return df
+
+    def _summarize_gaussian(self) -> dict:
+        """Summarize Gaussian resolution results."""
+        gauss_res = self.results.gaussian_results
+        summary = {}
+
+        if gauss_res.stress:
+            all_stresses = np.concatenate([
+                np.array(elem_stress) for elem_stress in gauss_res.stress
+            ])
+            summary['max_stress'] = np.max(np.abs(all_stresses))
+            summary['min_stress'] = np.min(np.abs(all_stresses))
+            summary['mean_stress'] = np.mean(np.abs(all_stresses))
+
+        if gauss_res.strain:
+            all_strains = np.concatenate([
+                np.array(elem_strain) for elem_strain in gauss_res.strain
+            ])
+            summary['max_strain'] = np.max(np.abs(all_strains))
+            summary['min_strain'] = np.min(np.abs(all_strains))
+            summary['mean_strain'] = np.mean(np.abs(all_strains))
+
+        return summary
+
+    def _summarize_nodal(self) -> dict:
+        """Summarize nodal resolution results."""
+        nodal_res = self.results.nodal_results
+        summary = {}
+
+        if nodal_res.stress is not None:
+            summary['max_nodal_stress'] = np.max(np.abs(nodal_res.stress))
+            summary['min_nodal_stress'] = np.min(np.abs(nodal_res.stress))
+
+        if nodal_res.strain is not None:
+            summary['max_nodal_strain'] = np.max(np.abs(nodal_res.strain))
+            summary['min_nodal_strain'] = np.min(np.abs(nodal_res.strain))
+
+        return summary
+
