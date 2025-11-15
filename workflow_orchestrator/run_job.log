@@ -1,3 +1,3 @@
-2025-07-21 19:08:41,730 - DEBUG - 🔧 Logging configured — output will be written to: \\mull.sms.ed.ac.uk\home\s1834431\Win7\Desktop\fem_model\workflow_orchestrator\run_job.log
-2025-07-21 19:08:41,731 - INFO - 🚀 Starting FEM Simulation Workflow
-2025-07-21 19:08:41,732 - INFO - 🟢 Running 3 jobs across 3 CPU cores.
+2025-11-15 15:10:12,869 - DEBUG - 🔧 Logging configured — output will be written to: C:\Users\s1834431\.cursor\worktrees\fem_model\CRudA\workflow_orchestrator\run_job.log
+2025-11-15 15:10:12,872 - INFO - 🚀 Starting FEM Simulation Workflow
+2025-11-15 15:10:12,874 - INFO - 🟢 Running 3 jobs across 3 CPU cores.

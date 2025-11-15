@@ -1,0 +1,11 @@
+2025-11-15 15:13:12,890 [DEBUG] 📁 Log file created at: C:\Users\s1834431\.cursor\worktrees\fem_model\CRudA\post_processing\results\job_0003_2025-11-15_15-10-13-634150_pid24568_88743caa\logs\ReconstructGlobalSystem.log (Module: reconstruction, Line: 89)
+2025-11-15 15:13:12,890 [DEBUG] ✅ Input validation passed (Module: reconstruction, Line: 143)
+2025-11-15 15:13:12,890 [INFO] 🚀 Starting displacement reconstruction (Module: reconstruction, Line: 154)
+2025-11-15 15:13:12,904 [INFO] 📊 Reconstruction Statistics:
+  Total DOFs: 3006
+  Active DOFs: 3000
+  Fixed DOFs: 6
+  Min displacement: -3.325e-04
+  Max displacement: -0.000e+00
+  Mean absolute displacement: 2.090e-05 (Module: reconstruction, Line: 260)
+2025-11-15 15:13:13,078 [INFO] ✅ Reconstruction completed in 0.20s (Module: reconstruction, Line: 168)

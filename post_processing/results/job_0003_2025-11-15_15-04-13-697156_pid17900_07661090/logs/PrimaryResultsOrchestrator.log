@@ -1,0 +1,3 @@
+2025-11-15 15:07:38,785 [DEBUG] 📁 Log file created at: C:\Users\s1834431\.cursor\worktrees\fem_model\CRudA\post_processing\results\job_0003_2025-11-15_15-04-13-697156_pid17900_07661090\logs\PrimaryResultsOrchestrator.log (Module: primary_results_orchestrator, Line: 91)
+2025-11-15 15:07:38,786 [INFO] ✅ Reactions evaluated & masked (Module: primary_results_orchestrator, Line: 45)
+2025-11-15 15:07:38,786 [INFO] ✅ Residual computed (Module: primary_results_orchestrator, Line: 46)
