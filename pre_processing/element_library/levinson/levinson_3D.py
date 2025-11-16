@@ -32,6 +32,9 @@ class LevinsonBeamElement3D(Element1DBase):
     - Integrated logging system for stiffness matrices and force vectors
     """
     
+    # Element formulation identifier for tracking in multi-element meshes
+    element_type_name = "Levinson-3D"
+    
     def __init__(self,
                  *, 
                  element_id: int,
@@ -168,16 +171,25 @@ class LevinsonBeamElement3D(Element1DBase):
         return self.material_stiffness_operator.assembly_form()
     
     # Ke tensor computations ---------------------------------------------------------
-    def element_stiffness_matrix(self) -> np.ndarray:
+    def element_stiffness_matrix(self):
         """
-        Compute stiffness matrix using operator classes with integrated logging
+        Compute stiffness matrix using operator classes with integrated logging.
+        
+        Returns
+        -------
+        ElementObject
+            Element formulation data with cached Gauss point information
         """
+        from pre_processing.element_library.gauss_point_data import ElementObject, GaussPointData
+        
         self._assert_logging_ready()
 
         Ke = np.zeros((12, 12), dtype=np.float64)
         L = np.array([[self.L]], dtype=np.float64)
         D = self.material_stiffness_operator.assembly_form()
         xi, w = self.integration_points
+        
+        gauss_cache = []
 
         if self.logger_operator:  # Modified logging block
             self.logger_operator.log_text("stiffness", f"\n=== Element {self.element_id} Stiffness Matrix Computation ===")
@@ -185,11 +197,22 @@ class LevinsonBeamElement3D(Element1DBase):
             self.logger_operator.log_matrix("stiffness", D, {"name": f"Material stiffness matrix  D  {D.shape}"})
         
         for g, (xi_g, w_g) in enumerate(zip(xi, w)):
-            _, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
             B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)[0]
             detJ = self.jacobian_determinant
             Ke_contribution = B.T @ D @ B * w_g * detJ # note B is in cartesian form, w_g is not and requires scaling
             Ke += Ke_contribution
+            
+            # Cache Gauss point data
+            gauss_cache.append(GaussPointData(
+                xi=float(xi_g),
+                weight=float(w_g),
+                B_matrix=B.copy(),
+                D_matrix=D.copy(),
+                jacobian=float(detJ),
+                shape_functions=N.copy(),
+                shape_derivatives=dN_dξ.copy()
+            ))
 
             if self.logger_operator:
                 self._log_gauss_point_stiffness(g, xi_g, w_g, dN_dξ, d2N_dξ2, B, Ke_contribution)
@@ -198,17 +221,22 @@ class LevinsonBeamElement3D(Element1DBase):
             self.logger_operator.log_matrix("stiffness", Ke, {"name": "Final Element Stiffness Matrix"})
             self.logger_operator.flush("stiffness")
 
-        return Ke
+        return ElementObject(
+            element_id=self.element_id,
+            element_type=self.element_type_name,
+            K_e=Ke,
+            gauss_data=gauss_cache,
+            integration_scheme="Gauss-Legendre"
+        )
 
     # Fe tensor computations ---------------------------------------------------------
-    def element_force_vector(self) -> np.ndarray:
+    def element_force_vector(self):
         """Compute the element force vector including distributed and point loads.
 
         Returns
         -------
-        np.ndarray [12]
-            Force vector in local coordinates ordered as:
-            [Fx1, Fy1, Fz1, Mx1, My1, Mz1, Fx2, Fy2, Fz2, Mx2, My2, Mz2]
+        ForceObject
+            Element force formulation data with cached Gauss point information
 
         Notes
         -----
@@ -216,33 +244,56 @@ class LevinsonBeamElement3D(Element1DBase):
         - Distributed loads: F_dist = ∫ N^T q dx
         - Point loads: F_point = N(x_p)^T P
         """
+        from pre_processing.element_library.gauss_point_data import ForceObject, ForceGaussPointData
+        
         self._assert_logging_ready()
 
         Fe = np.zeros(12, dtype=np.float64)
+        gauss_cache = []
         
         if self.logger_operator:  # Modified logging call
             self.logger_operator.log_text("force", f"\n=== Element {self.element_id} Force Vector Computation ===")
 
         # Process distributed loads
         if self.distributed_load_array.size > 0:
-            Fe += self._compute_distributed_load_contribution()
+            Fe_dist, dist_gauss_cache = self._compute_distributed_load_contribution()
+            Fe += Fe_dist
+            gauss_cache = dist_gauss_cache
 
         # Process point loads
+        point_loads_cache = None
         if self.point_load_array.size > 0:
             Fe += self._compute_point_load_contribution()
+            point_loads_cache = self.point_load_array.copy()
 
         if self.logger_operator:  # Modified logging block
             self.logger_operator.log_matrix("force", Fe.reshape(1, -1), {"name": "Final Force Vector"})
             self.logger_operator.flush("force")
 
-        return Fe
+        return ForceObject(
+            element_id=self.element_id,
+            element_type=self.element_type_name,
+            F_e=Fe,
+            gauss_data=gauss_cache,
+            point_loads=point_loads_cache
+        )
 
     # Fe - distributed load contribution ------------------------------------------------
-    def _compute_distributed_load_contribution(self) -> np.ndarray:
-        """Compute distributed load contribution using Gauss quadrature."""
+    def _compute_distributed_load_contribution(self):
+        """Compute distributed load contribution using Gauss quadrature.
+        
+        Returns
+        -------
+        tuple[np.ndarray, List[ForceGaussPointData]]
+            Force vector and Gauss point cache
+        """
+        from pre_processing.element_library.gauss_point_data import ForceGaussPointData
+        
         xi_gauss, weights = self.integration_points
         x_gauss = (xi_gauss + 1) * (self.L / 2) + self.x_start
         Fe_dist = np.zeros(12, dtype=np.float64)
+        gauss_cache = []
+        detJ = self.jacobian_determinant
 
         try:
             interpolator = LoadInterpolationOperator(
@@ -255,6 +306,16 @@ class LevinsonBeamElement3D(Element1DBase):
             N = np.stack([self.shape_function_operator.natural_coordinate_form(xi)[0][0]
                         for xi in xi_gauss])
             Fe_dist = np.einsum("gij,gj,g->i", N, q_gauss, weights) * (self.L / 2)
+            
+            # Cache Gauss point data
+            for g, (xi_g, w_g) in enumerate(zip(xi_gauss, weights)):
+                gauss_cache.append(ForceGaussPointData(
+                    xi=float(xi_g),
+                    weight=float(w_g),
+                    shape_functions=N[g].copy(),
+                    jacobian=float(detJ),
+                    distributed_load=q_gauss[g].copy() if g < len(q_gauss) else None
+                ))
 
             if self.logger_operator:
                 self._log_distributed_loads(xi_gauss, weights, N, q_gauss, Fe_dist)
@@ -263,7 +324,7 @@ class LevinsonBeamElement3D(Element1DBase):
             logger.error(f"Distributed load error: {str(e)}")
             raise
 
-        return Fe_dist
+        return Fe_dist, gauss_cache
     
     # Fe - point load contribution
     def _compute_point_load_contribution(self) -> np.ndarray:
