@@ -158,7 +158,7 @@ class AssembleGlobalSystem:
         for elem in self.elements:
             try:
                 element_id = int(elem.element_id)  # Ensure Python int
-                dof = elem.assemble_global_dof_indices(element_id)
+                dof = elem.assemble_global_dof_indices()
                 validated_dof = np.asarray(dof, dtype=np.int32).ravel()  # contiguous int32 buffer
 
 
