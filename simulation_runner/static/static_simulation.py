@@ -55,7 +55,8 @@ class StaticSimulationRunner:
         element_objects,           # NEW: ElementObject[]
         force_objects,             # NEW: ForceObject[]
         job_name,
-        job_results_dir
+        job_results_dir,
+        simulation_settings=None   # NEW: Optional simulation settings dict
     ):
         from processing_OOP.static.results.containers import FormulationResultSet
         
@@ -126,8 +127,37 @@ class StaticSimulationRunner:
         logger.debug("Total DOFs initialised: %d (nodes %d × 6)", self.total_dof, len(self.node_ids))
 # -----------------------------------------------------------------------
 
+        # Extract simulation settings with defaults
+        if simulation_settings is None:
+            simulation_settings = {}
+        
+        # Extract solver configuration with defaults
+        self.solver_config = simulation_settings.get("solver", {
+            "type": "cg",
+            "tolerance": 1e-6,
+            "max_iterations": 1000,
+            "restart": 20,
+            "ilu_drop_tol": 1e-6,
+            "ilu_fill_factor": 1.0,
+            "disable_scaling": False,
+        })
+        
+        # Extract condensation configuration with defaults
+        self.condensation_config = simulation_settings.get("condensation", {
+            "base_tol": 1e-12,
+        })
+        
+        # Extract integration configuration with defaults (for future use)
+        self.integration_config = simulation_settings.get("integration", {})
+        
+        # Extract output configuration with defaults (for future use)
+        self.output_config = simulation_settings.get("output", {})
+        
         # General simulation settings (optional or future expansion)
-        self.solver_name = None
+        self.solver_name = self.solver_config.get("type", "cg")
+        
+        # Prescribed displacements (set externally via setter or passed in)
+        self.prescribed_displacements = None
 
         # Initialize intermediate system storage
         self.K_global = None
@@ -243,9 +273,25 @@ class StaticSimulationRunner:
             local_global_dof_map,
             job_results_dir: str,
             *,
-            fixed_dofs: np.ndarray | None = None):
+            fixed_dofs: np.ndarray | None = None,
+            prescribed_displacements: dict | None = None):
         """
         Apply boundary conditions to the global system.
+
+        Parameters
+        ----------
+        K_global : csr_matrix
+            Global stiffness matrix
+        F_global : np.ndarray
+            Global force vector
+        local_global_dof_map : list
+            Local to global DOF mapping
+        job_results_dir : str
+            Results directory
+        fixed_dofs : np.ndarray | None, optional
+            Fixed DOF indices (for backward compatibility)
+        prescribed_displacements : dict | None, optional
+            Dictionary with 'global_dof' and 'value' arrays for prescribed displacements
 
         Returns
         -------
@@ -261,6 +307,7 @@ class StaticSimulationRunner:
             F_global=np.asarray(F_global).ravel(),
             job_results_dir=job_results_dir,
             fixed_dofs=fixed_dofs,
+            prescribed_displacements=prescribed_displacements,
             local_global_dof_map=local_global_dof_map  # ← pass map once
         )
 
@@ -382,7 +429,13 @@ class StaticSimulationRunner:
                             job_results_dir: str,
                             *,
                             solver_name: str = "cg",
-                            preconditioner: str | None = "auto"):
+                            preconditioner: str | None = "auto",
+                            tolerance: float = 1e-6,
+                            max_iterations: int = 1000,
+                            restart: int = 20,
+                            ilu_drop_tol: float = 1e-6,
+                            ilu_fill_factor: float = 1.0,
+                            disable_scaling: bool = False):
         """
         Solve the condensed linear system K_cond · U_cond = F_cond.
 
@@ -396,6 +449,18 @@ class StaticSimulationRunner:
             Which registered solver to use (default "cg").
         preconditioner : {"auto","ilu","jacobi",None}, optional
             Preconditioning strategy (default "auto").
+        tolerance : float, optional
+            Solver tolerance (default 1e-6).
+        max_iterations : int, optional
+            Maximum solver iterations (default 1000).
+        restart : int, optional
+            Restart parameter for GMRES (default 20).
+        ilu_drop_tol : float, optional
+            ILU drop tolerance (default 1e-6).
+        ilu_fill_factor : float, optional
+            ILU fill factor (default 1.0).
+        disable_scaling : bool, optional
+            Disable row/column scaling (default False).
 
         Returns
         -------
@@ -409,7 +474,13 @@ class StaticSimulationRunner:
             F_cond=F_cond,
             solver_name=solver_name,
             job_results_dir=job_results_dir,
-            preconditioner=preconditioner
+            preconditioner=preconditioner,
+            tolerance=tolerance,
+            max_iterations=max_iterations,
+            restart=restart,
+            ilu_drop_tol=ilu_drop_tol,
+            ilu_fill_factor=ilu_fill_factor,
+            disable_scaling=disable_scaling
         )
 
         U_cond = cond_solver.solve()
@@ -651,10 +722,13 @@ class StaticSimulationRunner:
             with self.monitor.stage("ModifyGlobalSystem"):
                 (self.K_mod,
                  self.F_mod,
-                 self.fixed_dofs) = self.modify_global_system(self.K_global,
-                                                              self.F_global,
-                                                              self.local_global_dof_map,
-                                                              self.primary_results_dir)
+                 self.fixed_dofs) = self.modify_global_system(
+                    self.K_global,
+                    self.F_global,
+                    self.local_global_dof_map,
+                    self.primary_results_dir,
+                    prescribed_displacements=getattr(self, 'prescribed_displacements', None)
+                )
 
             DiagnoseLinearStaticSystem(stage="Modified System",
                                        A_current       = self.K_mod,
@@ -672,11 +746,14 @@ class StaticSimulationRunner:
                 (self.condensed_dofs,
                  self.inactive_dofs,
                  self.K_cond,
-                 self.F_cond) = self.condense_modified_system(self.K_mod, 
-                                                              self.F_mod,
-                                                              self.fixed_dofs,
-                                                              self.local_global_dof_map,
-                                                              self.primary_results_dir)
+                 self.F_cond) = self.condense_modified_system(
+                    self.K_mod, 
+                    self.F_mod,
+                    self.fixed_dofs,
+                    self.local_global_dof_map,
+                    self.primary_results_dir,
+                    base_tol=self.condensation_config.get("base_tol", 1e-12)
+                )
 
             DiagnoseLinearStaticSystem(stage="Condensed System",
                                        A_current       = self.K_cond,
@@ -691,11 +768,19 @@ class StaticSimulationRunner:
             # 4  Solve condensed system
             # -----------------------------------------------------------------
             with self.monitor.stage("SolveCondensedSystem"):
-                self.U_cond = self.solve_condensed_system(self.K_cond, 
-                                                          self.F_cond,
-                                                          self.primary_results_dir,
-                                                          solver_name="cg", 
-                                                          preconditioner="auto")
+                self.U_cond = self.solve_condensed_system(
+                    self.K_cond, 
+                    self.F_cond,
+                    self.primary_results_dir,
+                    solver_name=self.solver_config.get("type", "cg"),
+                    preconditioner="auto",
+                    tolerance=self.solver_config.get("tolerance", 1e-6),
+                    max_iterations=self.solver_config.get("max_iterations", 1000),
+                    restart=self.solver_config.get("restart", 20),
+                    ilu_drop_tol=self.solver_config.get("ilu_drop_tol", 1e-6),
+                    ilu_fill_factor=self.solver_config.get("ilu_fill_factor", 1.0),
+                    disable_scaling=self.solver_config.get("disable_scaling", False)
+                )
 
             # -----------------------------------------------------------------
             # 5  Reconstruct full-length displacement vector

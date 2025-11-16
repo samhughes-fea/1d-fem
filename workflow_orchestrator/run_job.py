@@ -33,6 +33,7 @@ from pre_processing.parsing.section_parser import SectionParser
 from pre_processing.parsing.simulation_settings_parser import parse_simulation_settings
 from pre_processing.parsing.point_load_parser import parse_point_load
 from pre_processing.parsing.distributed_load_parser import parse_distributed_load
+from pre_processing.parsing.prescribed_displacement_parser import parse_prescribed_displacement
 
 #from pre_processing.element_library.element_factory import ElementFactory # lazy import in process job
 
@@ -210,6 +211,7 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times):
         simulation_settings = parse_simulation_settings(os.path.join(job_dir, "simulation_settings.txt"))
         point_load_array = np.array([])
         distributed_load_array = np.array([])
+        prescribed_displacement_dict = None
 
         point_load_path = os.path.join(job_dir, "point_load.txt")
         if os.path.exists(point_load_path):
@@ -218,6 +220,19 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times):
         distributed_load_path = os.path.join(job_dir, "distributed_load.txt")
         if os.path.exists(distributed_load_path):
             distributed_load_array = parse_distributed_load(distributed_load_path)
+
+        prescribed_displacement_path = os.path.join(job_dir, "prescribed_displacement.txt")
+        if os.path.exists(prescribed_displacement_path):
+            prescribed_displacement_dict = parse_prescribed_displacement(prescribed_displacement_path)
+            # Convert to format expected by ModifyGlobalSystem
+            if len(prescribed_displacement_dict['global_dof']) > 0:
+                prescribed_displacement_dict = {
+                    'global_dof': prescribed_displacement_dict['global_dof'],
+                    'value': prescribed_displacement_dict['value']
+                }
+                logger.info(f"Loaded {len(prescribed_displacement_dict['global_dof'])} prescribed displacement conditions")
+            else:
+                prescribed_displacement_dict = None
 
         parsing_time = time.time() - step_start
         performance_data.append(["Parsing", parsing_time, *track_usage().values()])
@@ -230,6 +245,21 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times):
         from pre_processing.element_library.element_factory import ElementFactory
         factory = ElementFactory(job_results_dir=job_results_dir)
 
+        # Get parallel configuration for element instantiation
+        parallel_config = simulation_settings.get("parallel", {})
+        enable_parallel_instantiation = parallel_config.get("enable_parallel_instantiation", True)
+        num_processes_instantiation = parallel_config.get("num_processes", "auto")
+        
+        # Handle "auto" for num_processes
+        if num_processes_instantiation == "auto":
+            num_processes_instantiation = os.cpu_count() or 1
+        elif isinstance(num_processes_instantiation, str):
+            try:
+                num_processes_instantiation = int(num_processes_instantiation)
+            except ValueError:
+                logger.warning(f"Invalid num_processes value '{num_processes_instantiation}', using 'auto'")
+                num_processes_instantiation = os.cpu_count() or 1
+
         all_elements = factory.create_elements_batch(
             element_ids            = element_ids,
             element_dictionary     = element_dictionary,
@@ -238,6 +268,8 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times):
             section_dictionary     = section_dictionary,
             point_load_array       = point_load_array,
             distributed_load_array = distributed_load_array,
+            enable_parallel        = enable_parallel_instantiation,
+            num_processes          = num_processes_instantiation,
         )
 
         # -------------------------------------------------------------------------
@@ -260,15 +292,56 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times):
         )
 
         # --- ELEMENT COMPUTATIONS ---
+        # Get parallel configuration
+        parallel_config = simulation_settings.get("parallel", {})
+        enable_parallel_computation = parallel_config.get("enable_parallel_computation", True)
+        num_processes = parallel_config.get("num_processes", "auto")
+        
+        # Handle "auto" for num_processes
+        if num_processes == "auto":
+            num_processes = os.cpu_count() or 1
+        elif isinstance(num_processes, str):
+            try:
+                num_processes = int(num_processes)
+            except ValueError:
+                logger.warning(f"Invalid num_processes value '{num_processes}', using 'auto'")
+                num_processes = os.cpu_count() or 1
+        
+        # Compute element stiffness matrices
         step_start = time.time()
-        vectorized_stiffness = np.vectorize(lambda elem: elem.element_stiffness_matrix() if elem else None, otypes=[object])
-        element_objects = vectorized_stiffness(all_elements)  # Returns ElementObject[]
+        if enable_parallel_computation:
+            try:
+                from pre_processing.element_library.parallel_compute import compute_element_stiffness_parallel
+                element_objects = compute_element_stiffness_parallel(
+                    all_elements,
+                    num_processes=num_processes
+                )
+            except Exception as e:
+                logger.warning(f"Parallel stiffness computation failed: {e}, falling back to sequential")
+                vectorized_stiffness = np.vectorize(lambda elem: elem.element_stiffness_matrix() if elem else None, otypes=[object])
+                element_objects = vectorized_stiffness(all_elements)
+        else:
+            vectorized_stiffness = np.vectorize(lambda elem: elem.element_stiffness_matrix() if elem else None, otypes=[object])
+            element_objects = vectorized_stiffness(all_elements)
         stiffness_time = time.time() - step_start
         performance_data.append(["Element Stiffness Computation", stiffness_time, *track_usage().values()])
 
+        # Compute element force vectors
         step_start = time.time()
-        vectorized_force = np.vectorize(lambda elem: elem.element_force_vector() if elem else None, otypes=[object])
-        force_objects = vectorized_force(all_elements)  # Returns ForceObject[]
+        if enable_parallel_computation:
+            try:
+                from pre_processing.element_library.parallel_compute import compute_element_force_parallel
+                force_objects = compute_element_force_parallel(
+                    all_elements,
+                    num_processes=num_processes
+                )
+            except Exception as e:
+                logger.warning(f"Parallel force computation failed: {e}, falling back to sequential")
+                vectorized_force = np.vectorize(lambda elem: elem.element_force_vector() if elem else None, otypes=[object])
+                force_objects = vectorized_force(all_elements)
+        else:
+            vectorized_force = np.vectorize(lambda elem: elem.element_force_vector() if elem else None, otypes=[object])
+            force_objects = vectorized_force(all_elements)
         force_time = time.time() - step_start
         performance_data.append(["Element Force Computation", force_time, *track_usage().values()])
 
@@ -289,23 +362,38 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times):
                 element_objects            = element_objects,      # NEW: ElementObject[]
                 force_objects              = force_objects,        # NEW: ForceObject[]
                 job_name                   = case_name,
-                job_results_dir            = job_results_dir
+                job_results_dir            = job_results_dir,
+                simulation_settings        = simulation_settings   # NEW: Pass simulation settings
             )
+            # Set prescribed displacements if provided
+            if prescribed_displacement_dict is not None:
+                runner.prescribed_displacements = prescribed_displacement_dict
 
         elif solver_type == "modal":
             from simulation_runner.modal.modal_simulation import ModalSimulationRunner
+            # Extract stiffness matrices and force vectors from element/force objects
+            element_stiffness_matrices = np.array([obj.K_e for obj in element_objects], dtype=object)
+            element_force_vectors = np.array([obj.F_e for obj in force_objects], dtype=object)
+            # Create settings dictionary for modal runner (it expects a settings dict)
+            modal_settings = {
+                "elements": all_elements,
+                "mesh_dictionary": {
+                    "node_ids": grid_dictionary.get("ids", []),
+                    "coordinates": grid_dictionary.get("coordinates", [])
+                },
+                "element_stiffness_matrices": element_stiffness_matrices,
+                "element_force_vectors": element_force_vectors,
+                "element_dictionary": element_dictionary,
+                "grid_dictionary": grid_dictionary,
+                "material_dictionary": material_dictionary,
+                "section_dictionary": section_dictionary,
+                "point_load_array": point_load_array,
+                "distributed_load_array": distributed_load_array,
+                "job_results_dir": job_results_dir
+            }
             runner = ModalSimulationRunner(
-                elements                   = all_elements,
-                grid_dictionary            = grid_dictionary,
-                element_dictionary         = element_dictionary,
-                material_dictionary        = material_dictionary,
-                section_dictionary         = section_dictionary,
-                point_load_array           = point_load_array,
-                distributed_load_array     = distributed_load_array,
-                element_stiffness_matrices = element_stiffness_matrices,
-                element_force_vectors      = element_force_vectors,
-                job_name                   = case_name,
-                job_results_dir            = job_results_dir
+                settings=modal_settings,
+                job_name=case_name
             )
 
         #elif solver_type == "dynamic":

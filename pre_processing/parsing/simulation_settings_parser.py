@@ -6,22 +6,82 @@ import re
 
 VALID_SIMULATION_TYPES = {"static", "modal", "dynamic"}
 
+def _get_defaults():
+    """Return default values for all configuration sections."""
+    return {
+        "type": "static",
+        "solver": {
+            "type": "cg",
+            "tolerance": 1e-6,
+            "max_iterations": 1000,
+            "restart": 20,
+            "ilu_drop_tol": 1e-6,
+            "ilu_fill_factor": 1.0,
+            "disable_scaling": False,
+        },
+        "condensation": {
+            "base_tol": 1e-12,
+        },
+        "parallel": {
+            "num_processes": "auto",
+            "enable_parallel_instantiation": True,
+            "enable_parallel_computation": True,
+        },
+    }
+
+def _validate_parallel_config(parallel_config):
+    """Validate parallel configuration parameters."""
+    if "num_processes" in parallel_config:
+        num_proc = parallel_config["num_processes"]
+        if num_proc != "auto" and not isinstance(num_proc, (int, str)):
+            raise ValueError("num_processes must be 'auto' or an integer")
+        if isinstance(num_proc, str) and num_proc != "auto":
+            try:
+                num_proc = int(num_proc)
+                if num_proc < 1:
+                    raise ValueError("num_processes must be >= 1")
+            except ValueError:
+                raise ValueError(f"Invalid num_processes value: {num_proc}")
+    
+    for key in ["enable_parallel_instantiation", "enable_parallel_computation"]:
+        if key in parallel_config:
+            val = parallel_config[key]
+            if isinstance(val, str):
+                parallel_config[key] = val.lower() in ("true", "1", "yes", "on")
+            elif not isinstance(val, bool):
+                raise ValueError(f"{key} must be a boolean or boolean-like string")
+
+def _parse_key_value(line):
+    """Parse a key = value line, handling case insensitivity."""
+    if "=" not in line:
+        return None, None
+    parts = line.split("=", 1)
+    key = parts[0].strip().lower()
+    value = parts[1].strip()
+    return key, value
+
+def _convert_value(value, expected_type):
+    """Convert string value to expected type."""
+    if expected_type == bool:
+        if isinstance(value, bool):
+            return value
+        return value.lower() in ("true", "1", "yes", "on")
+    elif expected_type == int:
+        return int(float(value))  # Handle "1e6" style numbers
+    elif expected_type == float:
+        return float(value)
+    else:
+        return value
+
 def parse_simulation_settings(file_path):
     """
-    Parses simulation type from a structured simulation_settings.txt file.
+    Parses simulation settings from a structured simulation_settings.txt file.
 
-    =============================
-    Simulation Properties Mapping
-    =============================
-
-    Simulation Type    Description
-    ----------------------------------------
-    Static             Quasi-static structural analysis
-    Dynamic            Time-dependent simulation (future use)
-    Modal              Eigenvalue modal analysis (future use)
-
-    The function reads a simulation configuration file and extracts the simulation type,
-    validating it against the allowed set: {"static", "modal", "dynamic"}.
+    Supports multiple sections:
+    - [Simulation][Type]: simulation type (static, modal, dynamic)
+    - [Solver]: solver configuration (type, tolerance, max_iterations, etc.)
+    - [Condensation]: condensation configuration (base_tol)
+    - [Parallel]: parallel processing configuration
 
     Parameters
     ----------
@@ -31,8 +91,8 @@ def parse_simulation_settings(file_path):
     Returns
     -------
     dict
-        Dictionary named `simulation_settings` with a single key `'type'`, containing one of:
-        `'static'`, `'modal'`, or `'dynamic'`.
+        Dictionary with keys: 'type', 'solver', 'condensation', 'parallel'
+        All sections have defaults if not specified.
 
     Raises
     ------
@@ -40,7 +100,7 @@ def parse_simulation_settings(file_path):
         If the file does not exist.
 
     ValueError
-        If the simulation type is missing or unrecognized.
+        If the simulation type is missing or unrecognized, or if config values are invalid.
 
     Example
     -------
@@ -48,23 +108,30 @@ def parse_simulation_settings(file_path):
         [Simulation]
         [Type]
         Static
-
-    >>> simulation_settings = parse_simulation_settings("simulation_settings.txt")
-    >>> print(simulation_settings)
-    {'type': 'static'}
-
-    Notes
-    -----
-    - The parser is case-insensitive for both headers and values.
-    - Headers [Simulation] and [Type] must appear before the value.
-    - Inline comments (`#`) are ignored.
+        
+        [Solver]
+        type = cg
+        tolerance = 1e-6
+        max_iterations = 1000
+        
+        [Parallel]
+        num_processes = auto
+        enable_parallel_computation = true
     """
     if not os.path.exists(file_path):
         logging.error(f"Simulation settings file not found: {file_path}")
         raise FileNotFoundError(f"{file_path} not found")
 
+    defaults = _get_defaults()
+    simulation_settings = {
+        "type": defaults["type"],
+        "solver": defaults["solver"].copy(),
+        "condensation": defaults["condensation"].copy(),
+        "parallel": defaults["parallel"].copy(),
+    }
+
     current_section = None
-    type_found = None
+    type_found = False
 
     with open(file_path, 'r') as f:
         for line_number, raw_line in enumerate(f, 1):
@@ -73,30 +140,84 @@ def parse_simulation_settings(file_path):
             if not line:
                 continue
 
-            # Detect [Simulation] section
-            if re.match(r"\[.*?simulation.*?\]", line, re.IGNORECASE):
-                current_section = "simulation"
+            # Detect section headers (case-insensitive)
+            section_match = re.match(r"\[(.+?)\]", line, re.IGNORECASE)
+            if section_match:
+                section_name = section_match.group(1).strip().lower()
+                
+                if section_name == "simulation":
+                    current_section = "simulation"
+                elif section_name == "type":
+                    if current_section == "simulation":
+                        current_section = "type"
+                    else:
+                        current_section = None
+                elif section_name == "solver":
+                    current_section = "solver"
+                elif section_name == "condensation":
+                    current_section = "condensation"
+                elif section_name == "parallel":
+                    current_section = "parallel"
+                else:
+                    current_section = None
                 continue
 
-            # Detect [Type] section
-            if current_section == "simulation" and re.match(r"\[.*?type.*?\]", line, re.IGNORECASE):
-                current_section = "type"
-                continue
-
-            # Read the actual simulation type value
+            # Parse content based on current section
             if current_section == "type":
                 sim_type = line.lower()
                 if sim_type not in VALID_SIMULATION_TYPES:
                     logging.error(f"[Simulation] Line {line_number}: Invalid simulation type '{line}'. "
                                   f"Expected one of {list(VALID_SIMULATION_TYPES)}.")
                     raise ValueError(f"Invalid simulation type: '{line}'")
-                type_found = sim_type
-                break
+                simulation_settings["type"] = sim_type
+                type_found = True
+                current_section = None  # Reset after reading type
+            
+            elif current_section == "solver":
+                key, value = _parse_key_value(line)
+                if key and value:
+                    if key == "type":
+                        simulation_settings["solver"]["type"] = value.lower()
+                    elif key == "tolerance":
+                        simulation_settings["solver"]["tolerance"] = _convert_value(value, float)
+                    elif key == "max_iterations":
+                        simulation_settings["solver"]["max_iterations"] = _convert_value(value, int)
+                    elif key == "restart":
+                        simulation_settings["solver"]["restart"] = _convert_value(value, int)
+                    elif key == "ilu_drop_tol":
+                        simulation_settings["solver"]["ilu_drop_tol"] = _convert_value(value, float)
+                    elif key == "ilu_fill_factor":
+                        simulation_settings["solver"]["ilu_fill_factor"] = _convert_value(value, float)
+                    elif key == "disable_scaling":
+                        simulation_settings["solver"]["disable_scaling"] = _convert_value(value, bool)
+            
+            elif current_section == "condensation":
+                key, value = _parse_key_value(line)
+                if key and value:
+                    if key == "base_tol":
+                        simulation_settings["condensation"]["base_tol"] = _convert_value(value, float)
+            
+            elif current_section == "parallel":
+                key, value = _parse_key_value(line)
+                if key and value:
+                    if key == "num_processes":
+                        simulation_settings["parallel"]["num_processes"] = value.lower() if value.lower() == "auto" else _convert_value(value, int)
+                    elif key == "enable_parallel_instantiation":
+                        simulation_settings["parallel"]["enable_parallel_instantiation"] = _convert_value(value, bool)
+                    elif key == "enable_parallel_computation":
+                        simulation_settings["parallel"]["enable_parallel_computation"] = _convert_value(value, bool)
 
-    if not type_found:
-        raise ValueError("Simulation type not specified in simulation_settings.txt")
+    # Validate simulation type was found (backward compatibility: allow missing if defaults are acceptable)
+    if not type_found and simulation_settings["type"] == defaults["type"]:
+        logging.warning("Simulation type not specified, using default: 'static'")
+    
+    # Validate parallel config
+    try:
+        _validate_parallel_config(simulation_settings["parallel"])
+    except ValueError as e:
+        logging.error(f"Invalid parallel configuration: {e}")
+        raise
 
-    simulation_settings = {"type": type_found}
     return simulation_settings
 
 # ------------------------------------------------

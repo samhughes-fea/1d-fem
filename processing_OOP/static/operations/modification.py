@@ -28,6 +28,7 @@ class ModifyGlobalSystem:
         local_global_dof_map: Sequence[np.ndarray],
         job_results_dir: Optional[str] = None,
         fixed_dofs: Optional[Union[Sequence[int], np.ndarray]] = None,
+        prescribed_displacements: Optional[dict] = None,
     ):
         """
         Parameters
@@ -40,6 +41,14 @@ class ModifyGlobalSystem:
             Directory for diagnostic logs
         fixed_dofs : Optional[np.ndarray]
             Array of DOF indices to constrain (default: first 6 DOFs)
+            Note: If prescribed_displacements is provided, fixed_dofs will be
+            computed from prescribed_displacements with zero values.
+        prescribed_displacements : Optional[dict]
+            Dictionary with keys:
+            - 'global_dof': np.ndarray of global DOF indices
+            - 'value': np.ndarray of prescribed displacement values
+            If provided, these will be applied as boundary conditions.
+            Zero values are treated as fixed supports.
         """
         self.K_orig = K_global.astype(np.float64)
         self.F_orig = F_global.astype(np.float64)
@@ -52,10 +61,37 @@ class ModifyGlobalSystem:
             np.asarray(a, dtype=np.int32) for a in local_global_dof_map
         ]
 
-
-        raw_fixed = fixed_dofs if fixed_dofs is not None else range(6)
-        # single, explicit conversion → contiguous C buffer
-        self.fixed_dofs = np.asarray(raw_fixed, dtype=np.int32)
+        # Handle prescribed displacements
+        if prescribed_displacements is not None:
+            prescribed_dofs = np.asarray(prescribed_displacements['global_dof'], dtype=np.int32)
+            prescribed_values = np.asarray(prescribed_displacements['value'], dtype=np.float64)
+            
+            # Separate zero and non-zero prescribed displacements
+            zero_mask = np.abs(prescribed_values) < 1e-12
+            self.prescribed_dofs_zero = prescribed_dofs[zero_mask]
+            self.prescribed_dofs_nonzero = prescribed_dofs[~zero_mask]
+            self.prescribed_values_nonzero = prescribed_values[~zero_mask]
+            
+            # Fixed DOFs are those with zero prescribed displacement
+            # If fixed_dofs was also provided, combine them
+            if fixed_dofs is not None:
+                raw_fixed = np.unique(np.concatenate([
+                    np.asarray(fixed_dofs, dtype=np.int32),
+                    self.prescribed_dofs_zero
+                ]))
+            else:
+                raw_fixed = self.prescribed_dofs_zero
+            
+            self.fixed_dofs = np.asarray(raw_fixed, dtype=np.int32)
+            self.has_prescribed_displacements = True
+        else:
+            # No prescribed displacements, use fixed_dofs as before
+            raw_fixed = fixed_dofs if fixed_dofs is not None else range(6)
+            self.fixed_dofs = np.asarray(raw_fixed, dtype=np.int32)
+            self.prescribed_dofs_zero = np.array([], dtype=np.int32)
+            self.prescribed_dofs_nonzero = np.array([], dtype=np.int32)
+            self.prescribed_values_nonzero = np.array([], dtype=np.float64)
+            self.has_prescribed_displacements = False
 
         self.logger = self._init_logging()
         self._validate_inputs()
@@ -174,17 +210,41 @@ class ModifyGlobalSystem:
         self.logger.debug(f"Computed penalty value: {self.penalty:.2e}")
 
     def _apply_penalty_method(self):
-        """Apply penalty method to fixed DOFs."""
-        # Zero out rows/columns
-        self.K_work[self.fixed_dofs, :] = 0.0
-        self.K_work[:, self.fixed_dofs] = 0.0
+        """Apply penalty method to fixed DOFs and prescribed displacements."""
+        # Handle all prescribed DOFs (both zero and non-zero)
+        if self.has_prescribed_displacements and len(self.prescribed_dofs_nonzero) > 0:
+            all_prescribed_dofs = np.unique(np.concatenate([
+                self.fixed_dofs,
+                self.prescribed_dofs_nonzero
+            ]))
+        else:
+            all_prescribed_dofs = self.fixed_dofs
         
-        # Set diagonal entries
+        # Zero out rows/columns for all prescribed DOFs
+        self.K_work[all_prescribed_dofs, :] = 0.0
+        self.K_work[:, all_prescribed_dofs] = 0.0
+        
+        # Set diagonal entries for fixed DOFs (zero prescribed displacement)
         for dof in self.fixed_dofs:
             self.K_work[dof, dof] = self.penalty
+        
+        # Set diagonal entries and force for non-zero prescribed displacements
+        if len(self.prescribed_dofs_nonzero) > 0:
+            for dof, value in zip(self.prescribed_dofs_nonzero, self.prescribed_values_nonzero):
+                self.K_work[dof, dof] = self.penalty
+                self.F_work[dof] = self.penalty * value
             
-        # Zero force vector entries
-        self.F_work[self.fixed_dofs] = 0.0
+            # Modify force vector for free DOFs due to prescribed displacements
+            # F_free = F_free - K_free_prescribed * u_prescribed
+            if len(self.free_dofs) > 0 and len(self.prescribed_dofs_nonzero) > 0:
+                K_free_prescribed = self.K_orig[self.free_dofs][:, self.prescribed_dofs_nonzero]
+                if K_free_prescribed.nnz > 0:  # Only if there are non-zero entries
+                    correction = K_free_prescribed @ self.prescribed_values_nonzero
+                    self.F_work[self.free_dofs] -= correction
+                    self.logger.debug(f"Applied prescribed displacement correction to {len(self.free_dofs)} free DOFs")
+        else:
+            # Zero force vector entries for fixed DOFs (zero prescribed displacement)
+            self.F_work[self.fixed_dofs] = 0.0
 
     #def _apply_stabilization(self, include_off_diagonal: bool = False):
         #"""Add numerical stabilization to matrix."""

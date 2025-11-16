@@ -67,12 +67,17 @@ def _row_col_scale(A: sp.spmatrix, F: np.ndarray):
     return D @ A @ D, D @ F, s
 
 
-def _build_ilu(A: sp.spmatrix, lg: logging.Logger) -> LinearOperator:
-    """Zero-fill ILU with drop/fill taken from the environment."""
-    lg.debug(f"Building ILU (drop_tol={_DEF_ILU_DROP}, fill_factor={_DEF_ILU_FILL})")
+def _build_ilu(A: sp.spmatrix, lg: logging.Logger, 
+               drop_tol: float = None, fill_factor: float = None) -> LinearOperator:
+    """Zero-fill ILU with drop/fill from parameters or environment."""
+    if drop_tol is None:
+        drop_tol = _DEF_ILU_DROP
+    if fill_factor is None:
+        fill_factor = _DEF_ILU_FILL
+    lg.debug(f"Building ILU (drop_tol={drop_tol}, fill_factor={fill_factor})")
     ilu = spla.spilu(A.tocsc(),
-                     drop_tol   = _DEF_ILU_DROP,
-                     fill_factor= _DEF_ILU_FILL)
+                     drop_tol   = drop_tol,
+                     fill_factor= fill_factor)
     fill_ratio = (ilu.L.nnz + ilu.U.nnz) / A.nnz
     lg.debug(f"ILU fill-ratio = {fill_ratio:.2f}")
     return LinearOperator(A.shape, ilu.solve)
@@ -90,13 +95,22 @@ class SolveCondensedSystem:
     * extensive diagnostics + CSV exports
     """
 
-    _PRECONDITIONER_BUILDERS: Dict[str, Callable[[sp.csr_matrix, logging.Logger],
-                                                 LinearOperator]] = {
-        "jacobi": lambda A, _: LinearOperator(
+    @staticmethod
+    def _build_preconditioner_jacobi(A: sp.csr_matrix, _: logging.Logger) -> LinearOperator:
+        """Build Jacobi preconditioner."""
+        return LinearOperator(
             A.shape, dtype=A.dtype,
             matvec=lambda x: np.where(np.abs(A.diagonal()) > 1e-14,
-                                      x / A.diagonal(), 0.0)),
-        "ilu": _build_ilu
+                                      x / A.diagonal(), 0.0))
+    
+    def _build_preconditioner_ilu(self, A: sp.csr_matrix, lg: logging.Logger) -> LinearOperator:
+        """Build ILU preconditioner using instance parameters."""
+        return _build_ilu(A, lg, 
+                         drop_tol=self.ilu_drop_tol,
+                         fill_factor=self.ilu_fill_factor)
+    
+    _PRECONDITIONER_BUILDERS_BASE = {
+        "jacobi": _build_preconditioner_jacobi,
     }
 
     # ───────── construction ──────────────────────────────────────────
@@ -108,7 +122,13 @@ class SolveCondensedSystem:
         job_results_dir: str,
         *,
         preconditioner: str | None = "auto",     # "jacobi" | "ilu" | "auto" | None
-        max_mem_gb: float = 10.0
+        max_mem_gb: float = 10.0,
+        tolerance: float = 1e-6,
+        max_iterations: int = 1000,
+        restart: int = 20,
+        ilu_drop_tol: float = 1e-6,
+        ilu_fill_factor: float = 1.0,
+        disable_scaling: bool = False
     ):
         # store data
         self.K_cond = K_cond.tocsr().astype(np.float64)
@@ -116,6 +136,14 @@ class SolveCondensedSystem:
         self.solver_name  = solver_name.lower()
         self.preconditioner = preconditioner
         self.max_mem = max_mem_gb * 1e9
+        
+        # Solver parameters
+        self.tolerance = tolerance
+        self.max_iterations = max_iterations
+        self.restart = restart
+        self.ilu_drop_tol = ilu_drop_tol
+        self.ilu_fill_factor = ilu_fill_factor
+        self.disable_scaling = disable_scaling
 
         # dirs & logging
         self.job_results_dir = Path(job_results_dir)
@@ -130,7 +158,7 @@ class SolveCondensedSystem:
         # size checks + optional scaling
         self._validate_sizes()
         self._scale_vec: Optional[np.ndarray] = None
-        if os.getenv("FEM_DISABLE_SCALING") is None:
+        if not self.disable_scaling and os.getenv("FEM_DISABLE_SCALING") is None:
             self.K_cond, self.F_cond, self._scale_vec = _row_col_scale(
                 self.K_cond, self.F_cond)
             self.logger.debug("Row/column scaling applied.")
@@ -228,17 +256,24 @@ class SolveCondensedSystem:
         if name == "auto":
             name = "ilu" if self.K_cond.nnz < _ILU_NNZ_LIMIT else "jacobi"
 
-        builder = self._PRECONDITIONER_BUILDERS.get(name)
-        if builder is None:
+        # Get builder function
+        if name == "jacobi":
+            builder = SolveCondensedSystem._build_preconditioner_jacobi
+        elif name == "ilu":
+            builder = self._build_preconditioner_ilu
+        else:
             self.logger.warning(f"Unknown preconditioner '{name}', "
                                 "continuing without.")
             self.preconditioner = None
             return registry
 
         try:
-            M = builder(self.K_cond, self.logger)
+            if name == "ilu":
+                M = builder(self.K_cond, self.logger)
+            else:
+                M = builder(self.K_cond, self.logger)
         except RuntimeError as err:
-            # often “factor is exactly singular” from spilu
+            # often "factor is exactly singular" from spilu
             self.logger.warning(f"Preconditioner '{name}' failed "
                                 f"({err}); proceeding without it.")
             self.preconditioner = None
@@ -258,7 +293,7 @@ class SolveCondensedSystem:
                 x = self.K_cond @ x
                 x /= np.linalg.norm(x)
             normA = np.linalg.norm(self.K_cond @ x)
-            y, info = _cg_with_compat(self.K_cond, x, rtol=1e-2, maxiter=30)
+            y, info = _cg_with_compat(self.K_cond, x, rtol=1e-2, maxiter=min(30, self.max_iterations))
             return np.inf if info else normA * np.linalg.norm(y)
         except Exception as exc:
             self.logger.debug(f"Condition estimate failed: {exc}")
@@ -295,7 +330,11 @@ class SolveCondensedSystem:
         # ── first attempt
         try:
             t0 = time.perf_counter()
-            U, info = solver_fn(self.K_cond, self.F_cond, callback=cb)
+            # Pass tolerance and max_iterations to solver
+            solver_kwargs = {"rtol": self.tolerance, "maxiter": self.max_iterations}
+            if "gmres" in self.solver_name:
+                solver_kwargs["restart"] = self.restart
+            U, info = solver_fn(self.K_cond, self.F_cond, callback=cb, **solver_kwargs)
             self.diagnostics["solve_phase"]["iterative"] = time.perf_counter() - t0
             if info == 0:
                 return U

@@ -2,8 +2,9 @@
 
 import importlib
 import logging
+import multiprocessing
 import os
-from typing import Any, Dict, List, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 import numpy as np
 
@@ -55,6 +56,8 @@ class ElementFactory:
         section_dictionary: Dict[str, Any],
         point_load_array: np.ndarray,
         distributed_load_array: np.ndarray,
+        enable_parallel: bool = False,
+        num_processes: Optional[int] = None,
     ) -> List["Element1DBase"]:
         """
         Instantiate one element object for every ID in *element_ids*.
@@ -77,6 +80,11 @@ class ElementFactory:
             ``(N, 4)`` array or empty array of point-load data.
         distributed_load_array
             ``(N, 5)`` array or empty array of distributed-load data.
+        enable_parallel : bool, optional
+            Enable parallel instantiation (default False).
+        num_processes : int, optional
+            Number of processes for parallel instantiation. If None or "auto",
+            uses os.cpu_count(). Ignored if enable_parallel=False.
 
         Returns
         -------
@@ -96,23 +104,59 @@ class ElementFactory:
             )
             raise ValueError("Mismatch between element IDs and types.")
 
-        modules = self._load_element_modules(element_types_array)
-
-        elements: List["Element1DBase"] = []
-        for etype, eid in zip(element_types_array, element_ids_array):
-            params = {
-                "element_id":             int(eid),
-                "element_dictionary":     element_dictionary,
-                "grid_dictionary":        grid_dictionary,
-                "material_dictionary":    material_dictionary,
-                "section_dictionary":     section_dictionary,
-                "point_load_array":       point_load_array,
-                "distributed_load_array": distributed_load_array,
-                "job_results_dir":        self.job_results_dir,
-            }
-            elem = self._instantiate_element(etype, eid, params, modules)
-            elements.append(elem)
-            self.logger.debug("✅ Element %s (%s) instantiated.", eid, etype)
+        # Determine if we should use parallel processing
+        num_elements = len(element_ids_array)
+        threshold = 50  # Minimum elements for parallel
+        
+        use_parallel = (
+            enable_parallel and 
+            num_elements >= threshold and
+            num_processes != 1
+        )
+        
+        if use_parallel:
+            # Handle "auto" for num_processes
+            if num_processes is None or num_processes == "auto":
+                num_processes = os.cpu_count() or 1
+            
+            try:
+                elements = self._instantiate_elements_parallel(
+                    element_ids_array,
+                    element_types_array,
+                    element_dictionary,
+                    grid_dictionary,
+                    material_dictionary,
+                    section_dictionary,
+                    point_load_array,
+                    distributed_load_array,
+                    num_processes
+                )
+            except Exception as e:
+                self.logger.warning(
+                    f"Parallel instantiation failed ({type(e).__name__}: {e}), "
+                    "falling back to sequential"
+                )
+                elements = self._instantiate_elements_sequential(
+                    element_ids_array,
+                    element_types_array,
+                    element_dictionary,
+                    grid_dictionary,
+                    material_dictionary,
+                    section_dictionary,
+                    point_load_array,
+                    distributed_load_array
+                )
+        else:
+            elements = self._instantiate_elements_sequential(
+                element_ids_array,
+                element_types_array,
+                element_dictionary,
+                grid_dictionary,
+                material_dictionary,
+                section_dictionary,
+                point_load_array,
+                distributed_load_array
+            )
 
         self._validate_logging_infrastructure(elements)
         self.logger.info("✅ Batch element creation complete.")
@@ -209,6 +253,86 @@ class ElementFactory:
         return modules
 
     # .................................................................. #
+    def _instantiate_elements_sequential(
+        self,
+        element_ids_array: np.ndarray,
+        element_types_array: np.ndarray,
+        element_dictionary: Dict[str, Any],
+        grid_dictionary: Dict[str, Any],
+        material_dictionary: Dict[str, Any],
+        section_dictionary: Dict[str, Any],
+        point_load_array: np.ndarray,
+        distributed_load_array: np.ndarray,
+    ) -> List["Element1DBase"]:
+        """Sequential element instantiation (original implementation)."""
+        modules = self._load_element_modules(element_types_array)
+        
+        elements: List["Element1DBase"] = []
+        for etype, eid in zip(element_types_array, element_ids_array):
+            params = {
+                "element_id":             int(eid),
+                "element_dictionary":     element_dictionary,
+                "grid_dictionary":        grid_dictionary,
+                "material_dictionary":    material_dictionary,
+                "section_dictionary":     section_dictionary,
+                "point_load_array":       point_load_array,
+                "distributed_load_array": distributed_load_array,
+                "job_results_dir":        self.job_results_dir,
+            }
+            elem = self._instantiate_element(etype, eid, params, modules)
+            elements.append(elem)
+            self.logger.debug("✅ Element %s (%s) instantiated.", eid, etype)
+        
+        return elements
+    
+    # .................................................................. #
+    def _instantiate_elements_parallel(
+        self,
+        element_ids_array: np.ndarray,
+        element_types_array: np.ndarray,
+        element_dictionary: Dict[str, Any],
+        grid_dictionary: Dict[str, Any],
+        material_dictionary: Dict[str, Any],
+        section_dictionary: Dict[str, Any],
+        point_load_array: np.ndarray,
+        distributed_load_array: np.ndarray,
+        num_processes: int,
+    ) -> List["Element1DBase"]:
+        """Parallel element instantiation using multiprocessing."""
+        self.logger.info(f"Instantiating {len(element_ids_array)} elements in parallel ({num_processes} processes)")
+        
+        # Prepare arguments for worker function
+        args = [
+            (
+                int(eid),
+                str(etype),
+                element_dictionary,
+                grid_dictionary,
+                material_dictionary,
+                section_dictionary,
+                point_load_array,
+                distributed_load_array,
+                self.job_results_dir,
+                i  # index for ordering
+            )
+            for i, (eid, etype) in enumerate(zip(element_ids_array, element_types_array))
+        ]
+        
+        try:
+            with multiprocessing.Pool(processes=num_processes) as pool:
+                results = pool.map(_worker_instantiate_element, args)
+            
+            # Sort by index and extract elements
+            results.sort(key=lambda x: x[0])
+            elements = [r[1] for r in results]
+            
+            self.logger.info("Parallel element instantiation completed successfully")
+            return elements
+            
+        except (multiprocessing.PicklingError, AttributeError, TypeError) as e:
+            raise RuntimeError(f"Parallel instantiation failed: {e}") from e
+    
+    # .................................................................. #
     def _instantiate_element(
         self,
         etype: str,
@@ -258,3 +382,62 @@ class ElementFactory:
                 raise RuntimeError(
                     f"Logging validation failed for element {elem.element_id}"
                 ) from exc
+
+
+# Worker function for parallel element instantiation (must be at module level for pickling)
+def _worker_instantiate_element(args):
+    """Worker function for parallel element instantiation."""
+    (
+        eid,
+        etype,
+        element_dictionary,
+        grid_dictionary,
+        material_dictionary,
+        section_dictionary,
+        point_load_array,
+        distributed_load_array,
+        job_results_dir,
+        index
+    ) = args
+    
+    try:
+        # Re-import modules in worker process (required for multiprocessing)
+        import importlib
+        from pre_processing.element_library.element_1D_base import Element1DBase
+        
+        ELEMENT_CLASS_MAP = {
+            "EulerBernoulliBeamElement3D":
+                "pre_processing.element_library.euler_bernoulli.euler_bernoulli_3D",
+            "TimoshenkoBeamElement3D":
+                "pre_processing.element_library.timoshenko.timoshenko_3D",
+            "LevinsonBeamElement3D":
+                "pre_processing.element_library.levinson.levinson_3D",
+        }
+        
+        # Import the module
+        module_path = ELEMENT_CLASS_MAP[etype]
+        module = importlib.import_module(module_path)
+        cls = getattr(module, etype)
+        
+        if not issubclass(cls, Element1DBase):
+            raise TypeError(f"Class {etype} must inherit from Element1DBase.")
+        
+        # Instantiate element
+        params = {
+            "element_id":             eid,
+            "element_dictionary":     element_dictionary,
+            "grid_dictionary":        grid_dictionary,
+            "material_dictionary":    material_dictionary,
+            "section_dictionary":     section_dictionary,
+            "point_load_array":       point_load_array,
+            "distributed_load_array": distributed_load_array,
+            "job_results_dir":       job_results_dir,
+        }
+        element = cls(**params)
+        
+        return (index, element)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error instantiating element {eid} ({etype}) at index {index}: {e}")
+        return (index, None)

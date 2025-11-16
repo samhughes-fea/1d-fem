@@ -73,7 +73,31 @@ class LevinsonBeamElement3D(Element1DBase):
             dof_per_node=6,
         )
 
-        self.quadrature_order = quadrature_order
+        # Determine quadrature order from element_array integration orders
+        # element_array indices: [id, n1, n2, axial, bending_y, bending_z, shear_y, shear_z, torsion, load]
+        # For Levinson, shear terms are critical - use max of all orders, ensuring shear is at least 3
+        if quadrature_order is None or quadrature_order == 3:  # Default case - use element_array orders
+            # Get integration orders from element_array
+            axial_order = self.element_array[3]
+            bending_y_order = self.element_array[4]
+            bending_z_order = self.element_array[5]
+            shear_y_order = self.element_array[6]
+            shear_z_order = self.element_array[7]
+            torsion_order = self.element_array[8]
+            
+            # For Levinson, shear terms MUST be integrated (order >= 3 for higher-order shape functions)
+            # If shear orders are 0, use default of 3
+            if shear_y_order == 0:
+                shear_y_order = 3
+            if shear_z_order == 0:
+                shear_z_order = 3
+            
+            # Use maximum of all orders
+            max_order = max(axial_order, bending_y_order, bending_z_order, 
+                          shear_y_order, shear_z_order, torsion_order)
+            self.quadrature_order = max(max_order, 3)  # Ensure at least order 3
+        else:
+            self.quadrature_order = quadrature_order
 
         # Geometry
         self.node_coords = self.grid_array                         
@@ -182,6 +206,7 @@ class LevinsonBeamElement3D(Element1DBase):
     def element_stiffness_matrix(self):
         """
         Compute stiffness matrix using operator classes with integrated logging.
+        Uses selective integration: different quadrature orders for bending vs shear terms.
         
         Returns
         -------
@@ -195,21 +220,50 @@ class LevinsonBeamElement3D(Element1DBase):
         Ke = np.zeros((12, 12), dtype=np.float64)
         L = np.array([[self.L]], dtype=np.float64)
         D = self.material_stiffness_operator.assembly_form()
-        xi, w = self.integration_points
+        
+        # Get integration orders from element_array
+        # element_array indices: [id, n1, n2, axial, bending_y, bending_z, shear_y, shear_z, torsion, load]
+        axial_order = max(self.element_array[3], 1)
+        bending_y_order = max(self.element_array[4], 2)
+        bending_z_order = max(self.element_array[5], 2)
+        shear_y_order = max(self.element_array[6], 3) if self.element_array[6] > 0 else 3
+        shear_z_order = max(self.element_array[7], 3) if self.element_array[7] > 0 else 3
+        torsion_order = max(self.element_array[8], 1)
+        
+        # Use maximum order for overall integration (for coupling terms)
+        max_order = max(axial_order, bending_y_order, bending_z_order, 
+                      shear_y_order, shear_z_order, torsion_order)
         
         gauss_cache = []
 
         if self.logger_operator:  # Modified logging block
-            self.logger_operator.log_text("stiffness", f"\n=== Element {self.element_id} Stiffness Matrix Computation ===")
+            self.logger_operator.log_text("stiffness", f"\n=== Element {self.element_id} Stiffness Matrix Computation (Selective Integration) ===")
+            self.logger_operator.log_text("stiffness", f"Integration orders: axial={axial_order}, bending_y={bending_y_order}, bending_z={bending_z_order}, shear_y={shear_y_order}, shear_z={shear_z_order}, torsion={torsion_order}")
             self.logger_operator.log_matrix("stiffness", L, {"name": f"Element length  L  {(1,1)}"})
             self.logger_operator.log_matrix("stiffness", D, {"name": f"Material stiffness matrix  D  {D.shape}"})
         
-        for g, (xi_g, w_g) in enumerate(zip(xi, w)):
+        # D-matrix structure (may have coupling terms for warping):
+        # D[0,0] = EA (axial)
+        # D[1,1] = EI_z (bending about z)
+        # D[2,2] = EI_y (bending about y)
+        # D[3,3] = GA (shear xy, no kappa for Levinson)
+        # D[4,4] = GA (shear xz, no kappa for Levinson)
+        # D[5,5] = GJ_t (torsion)
+        # B-matrix rows: [0:axial, 1:bending_z, 2:bending_y, 3:shear_xy, 4:shear_xz, 5:torsion]
+        
+        # Strategy: Integrate full matrix with max order, then replace bending/shear blocks
+        # with selectively integrated versions
+        
+        # First, integrate everything with max order (baseline)
+        xi_full, w_full = np.polynomial.legendre.leggauss(max_order)
+        Ke_full = np.zeros((12, 12), dtype=np.float64)
+        
+        for g, (xi_g, w_g) in enumerate(zip(xi_full, w_full)):
             N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
             B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
             detJ = self.jacobian_determinant
-            Ke_contribution = B.T @ D @ B * w_g * detJ # note B is in cartesian form, w_g is not and requires scaling
-            Ke += Ke_contribution
+            Ke_contrib = B.T @ D @ B * w_g * detJ
+            Ke_full += Ke_contrib
             
             # Cache Gauss point data
             gauss_cache.append(GaussPointData(
@@ -221,11 +275,65 @@ class LevinsonBeamElement3D(Element1DBase):
                 shape_functions=N.copy(),
                 shape_derivatives=dN_dξ.copy()
             ))
-
-            if self.logger_operator:
-                self._log_gauss_point_stiffness(g, xi_g, w_g, dN_dξ, d2N_dξ2, B, Ke_contribution)
+        
+        # Now compute bending contribution with bending order
+        bending_order = max(bending_y_order, bending_z_order)
+        xi_bending, w_bending = np.polynomial.legendre.leggauss(bending_order)
+        Ke_bending_block = np.zeros((12, 12), dtype=np.float64)
+        
+        for g, (xi_g, w_g) in enumerate(zip(xi_bending, w_bending)):
+            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
+            detJ = self.jacobian_determinant
+            
+            # Extract bending rows (1,2) - D may have coupling, so extract submatrix
+            B_bending = B[[1, 2], :]  # Shape (2, 12)
+            D_bending = D[np.ix_([1, 2], [1, 2])]  # Shape (2, 2) - bending submatrix (includes coupling if present)
+            Ke_contrib_bending = B_bending.T @ D_bending @ B_bending * w_g * detJ
+            Ke_bending_block += Ke_contrib_bending
+        
+        # Compute shear contribution with shear order
+        shear_order = max(shear_y_order, shear_z_order)
+        xi_shear, w_shear = np.polynomial.legendre.leggauss(shear_order)
+        Ke_shear_block = np.zeros((12, 12), dtype=np.float64)
+        
+        for g, (xi_g, w_g) in enumerate(zip(xi_shear, w_shear)):
+            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
+            detJ = self.jacobian_determinant
+            
+            # Extract shear rows (3,4) - D is diagonal for shear (no coupling)
+            B_shear = B[[3, 4], :]  # Shape (2, 12)
+            D_shear_diag = np.array([D[3, 3], D[4, 4]])  # GA for both (no kappa)
+            Ke_contrib_shear = B_shear.T @ np.diag(D_shear_diag) @ B_shear * w_g * detJ
+            Ke_shear_block += Ke_contrib_shear
+        
+        # Extract bending and shear contributions from full integration
+        Ke_full_bending = np.zeros((12, 12), dtype=np.float64)
+        for g, (xi_g, w_g) in enumerate(zip(xi_full, w_full)):
+            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
+            detJ = self.jacobian_determinant
+            B_bending = B[[1, 2], :]
+            D_bending = D[np.ix_([1, 2], [1, 2])]
+            Ke_full_bending += B_bending.T @ D_bending @ B_bending * w_g * detJ
+        
+        Ke_full_shear = np.zeros((12, 12), dtype=np.float64)
+        for g, (xi_g, w_g) in enumerate(zip(xi_full, w_full)):
+            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
+            detJ = self.jacobian_determinant
+            B_shear = B[[3, 4], :]
+            D_shear_diag = np.array([D[3, 3], D[4, 4]])
+            Ke_full_shear += B_shear.T @ np.diag(D_shear_diag) @ B_shear * w_g * detJ
+        
+        # Replace: Ke = Ke_full - Ke_full_bending - Ke_full_shear + Ke_bending_block + Ke_shear_block
+        Ke = Ke_full - Ke_full_bending - Ke_full_shear + Ke_bending_block + Ke_shear_block
 
         if self.logger_operator:  # Modified logging block
+            self.logger_operator.log_matrix("stiffness", Ke_bending_block, {"name": "Bending contribution (selective)"})
+            self.logger_operator.log_matrix("stiffness", Ke_shear_block, {"name": "Shear contribution (selective)"})
+            self.logger_operator.log_matrix("stiffness", Ke_full - Ke_full_bending - Ke_full_shear, {"name": "Other terms contribution"})
             self.logger_operator.log_matrix("stiffness", Ke, {"name": "Final Element Stiffness Matrix"})
             self.logger_operator.flush("stiffness")
 
@@ -234,7 +342,7 @@ class LevinsonBeamElement3D(Element1DBase):
             element_type=self.element_type_name,
             K_e=Ke,
             gauss_data=gauss_cache,
-            integration_scheme="Gauss-Legendre"
+            integration_scheme="Gauss-Legendre (Selective)"
         )
 
     # Fe tensor computations ---------------------------------------------------------
