@@ -227,7 +227,7 @@ class Element1DBase(ABC):
         raise NotImplementedError
 
 
-    def assemble_global_dof_indices(self, element_id: int) -> np.ndarray:
+    def assemble_global_dof_indices(self) -> np.ndarray:
         """Compute global DOF indices for element assembly.
 
         Parameters
