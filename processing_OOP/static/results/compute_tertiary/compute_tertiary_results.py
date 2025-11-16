@@ -7,6 +7,7 @@ import logging
 
 from .section_force import ComputeSectionForce
 from .principal_stress import ComputePrincipalStress, ComputeFailureIndex
+from .integrated_elemental_results import ComputeIntegratedElementalResults
 from ..containers.tertiary_results import TertiaryResults
 
 logger = logging.getLogger(__name__)
@@ -40,10 +41,12 @@ class TertiaryResultsOrchestrator:
     def __init__(
         self,
         secondary_results,
+        formulation_cache=None,
         material_properties: Optional[dict] = None,
         job_results_dir: Optional[str | Path] = None,
     ):
         self.secondary_results = secondary_results
+        self.formulation_cache = formulation_cache
         self.material_properties = material_properties or {}
         self.job_results_dir = Path(job_results_dir) if job_results_dir else None
         self.logger = self._init_logging()
@@ -74,19 +77,40 @@ class TertiaryResultsOrchestrator:
             return TertiaryResults()
 
         # 1. Compute section forces
-        self.logger.info("\n[1/3] Computing section force resultants...")
+        self.logger.info("\n[1/4] Computing section force resultants...")
         section_force_computer = ComputeSectionForce(stress_gauss)
         section_forces = section_force_computer.compute()
 
         # 2. Compute principal stresses and stress invariants
-        self.logger.info("\n[2/3] Computing principal stresses and invariants...")
+        self.logger.info("\n[2/4] Computing principal stresses and invariants...")
         principal_computer = ComputePrincipalStress(stress_gauss)
         principal_stresses, von_mises, max_shear = principal_computer.compute_all()
 
-        # 3. Compute failure indices (optional)
+        # 3. Compute integrated elemental results
+        total_strain_energy = None
+        integrated_section_forces = None
+        
+        if self.formulation_cache is not None:
+            self.logger.info("\n[3/4] Computing integrated elemental results...")
+            integrated_computer = ComputeIntegratedElementalResults(
+                secondary_results=self.secondary_results,
+                formulation_cache=self.formulation_cache
+            )
+            
+            # Compute total strain energy per element
+            total_strain_energy = integrated_computer.compute_total_strain_energy()
+            
+            # Compute integrated section forces per element
+            integrated_section_forces = integrated_computer.compute_integrated_section_forces(
+                section_forces
+            )
+        else:
+            self.logger.warning("⚠️  No formulation_cache provided, skipping integrated elemental results")
+
+        # 4. Compute failure indices (optional)
         failure_indices = None
         if compute_failure:
-            self.logger.info("\n[3/3] Computing failure indices...")
+            self.logger.info("\n[4/4] Computing failure indices...")
             if 'yield_strength' in self.material_properties:
                 yield_strength = self.material_properties['yield_strength']
                 safety_factor = self.material_properties.get('safety_factor', 1.0)
@@ -100,7 +124,7 @@ class TertiaryResultsOrchestrator:
             else:
                 self.logger.warning("⚠️  yield_strength not provided, skipping failure analysis")
         else:
-            self.logger.info("\n[3/3] Skipping failure index computation")
+            self.logger.info("\n[4/4] Skipping failure index computation")
 
         # Package results
         tertiary_results = TertiaryResults(
@@ -108,7 +132,9 @@ class TertiaryResultsOrchestrator:
             principal_stresses=principal_stresses,
             von_mises_stress=von_mises,
             max_shear_stress=max_shear,
-            failure_index=failure_indices
+            failure_index=failure_indices,
+            total_strain_energy=total_strain_energy,
+            integrated_section_forces=integrated_section_forces
         )
 
         self.logger.info("\n" + "=" * 70)

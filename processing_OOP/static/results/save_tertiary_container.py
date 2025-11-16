@@ -37,14 +37,18 @@ class SaveTertiaryResults:
         self.results = tertiary_results
         self.save_dir = Path(save_dir)
 
-        # Create directory structure
+        # Create directory structure (resolution-first, consistent with primary/secondary)
         self.tertiary_dir = self.save_dir / "tertiary_results"
-        self.section_forces_dir = self.tertiary_dir / "section_forces"
-        self.principal_stress_dir = self.tertiary_dir / "principal_stress"
+        self.gaussian_dir = self.tertiary_dir / "gaussian"
+        self.section_forces_dir = self.gaussian_dir / "section_forces"
+        self.principal_stress_dir = self.gaussian_dir / "principal_stress"
+        self.elemental_dir = self.tertiary_dir / "elemental"
 
         for directory in [
+            self.gaussian_dir,
             self.section_forces_dir,
-            self.principal_stress_dir
+            self.principal_stress_dir,
+            self.elemental_dir
         ]:
             directory.mkdir(parents=True, exist_ok=True)
 
@@ -65,16 +69,22 @@ class SaveTertiaryResults:
 
         saved_count = 0
 
-        # Save section forces
+        # Save section forces (Gaussian resolution)
         if self.results.section_forces:
-            logger.info("\n[1/2] Saving section force resultants...")
+            logger.info("\n[1/3] Saving section force resultants (Gaussian resolution)...")
             self._save_section_forces()
             saved_count += 1
 
-        # Save principal stresses
+        # Save principal stresses (Gaussian resolution)
         if self.results.principal_stresses:
-            logger.info("\n[2/2] Saving principal stresses...")
+            logger.info("\n[2/3] Saving principal stresses (Gaussian resolution)...")
             self._save_principal_stresses()
+            saved_count += 1
+
+        # Save integrated elemental results
+        if self.results.total_strain_energy or self.results.integrated_section_forces:
+            logger.info("\n[3/3] Saving integrated elemental results...")
+            self._save_integrated_elemental_results()
             saved_count += 1
 
         logger.info("\n" + "=" * 70)
@@ -107,6 +117,29 @@ class SaveTertiaryResults:
 
         logger.info(f"   ✓ Principal stresses saved: {len(self.results.principal_stresses)} elements")
 
+    def _save_integrated_elemental_results(self):
+        """Save integrated elemental results (total strain energy and integrated section forces)."""
+        # Save total strain energy per element
+        if self.results.total_strain_energy is not None:
+            data = {
+                'element_id': range(len(self.results.total_strain_energy)),
+                'total_strain_energy': self.results.total_strain_energy
+            }
+            df = pd.DataFrame(data)
+            filename = self.elemental_dir / "total_strain_energy.csv"
+            df.to_csv(filename, index=False, float_format='%.12e')
+            logger.info(f"   ✓ Total strain energy saved: {len(self.results.total_strain_energy)} elements")
+
+        # Save integrated section forces per element
+        if self.results.integrated_section_forces is not None:
+            # Stack all integrated section forces
+            integrated_forces_array = np.array(self.results.integrated_section_forces)  # shape: (n_elements, 6)
+            filename = self.elemental_dir / "integrated_section_forces.csv"
+            header = "N,Vy,Vz,T,My,Mz"
+            np.savetxt(filename, integrated_forces_array, delimiter=",",
+                      fmt="%.12e", header=header, comments='')
+            logger.info(f"   ✓ Integrated section forces saved: {len(self.results.integrated_section_forces)} elements")
+
 
 class SaveTertiaryResultsSummary:
     """
@@ -127,6 +160,7 @@ class SaveTertiaryResultsSummary:
     ):
         self.results = tertiary_results
         self.save_dir = Path(save_dir)
+        self.tertiary_dir = self.save_dir / "tertiary_results"
         self.element_info = element_info or {}
 
     def save(self):
@@ -169,7 +203,7 @@ class SaveTertiaryResultsSummary:
 
         # Create DataFrame and save
         df = pd.DataFrame(summary_data)
-        summary_file = self.save_dir / "tertiary_results" / "tertiary_summary.csv"
+        summary_file = self.tertiary_dir / "tertiary_summary.csv"
         df.to_csv(summary_file, index=False, float_format='%.6e')
 
         logger.info(f"✅ Tertiary results summary saved: {summary_file}")
@@ -214,7 +248,7 @@ class SaveTertiaryResultsSummary:
         df_sorted = df.sort_values('von_mises_stress', ascending=False)
 
         # Save top 100 critical locations
-        critical_file = self.save_dir / "tertiary_results" / "critical_locations.csv"
+        critical_file = self.tertiary_dir / "critical_locations.csv"
         df_sorted.head(100).to_csv(critical_file, index=False, float_format='%.6e')
 
         logger.info(f"✅ Critical locations saved: {critical_file}")

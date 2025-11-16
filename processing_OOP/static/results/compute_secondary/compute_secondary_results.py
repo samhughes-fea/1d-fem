@@ -174,7 +174,7 @@ class SecondaryResultsOrchestrator:
     
     def compute_nodal_results(self, gaussian_results: GaussianResults) -> NodalResults:
         """
-        Interpolate Gaussian results to nodes (if needed).
+        Interpolate Gaussian results to nodes using shape function extrapolation.
         
         Parameters
         ----------
@@ -188,11 +188,19 @@ class SecondaryResultsOrchestrator:
         """
         self.logger.info("  Computing nodal field quantities...")
         
-        # For now, return empty nodal results - can implement extrapolation later
-        # This would involve extrapolating from Gauss points to element nodes
-        
-        return NodalResults(
-            strain=None,
-            stress=None,
-            strain_energy_density=None
+        from processing_OOP.static.results.compute_secondary.nodal_result_projector import (
+            NodalResultProjector
         )
+        
+        # Project Gaussian results to nodes
+        projector = NodalResultProjector(
+            elements=self.elements,
+            element_dictionary=self.element_dictionary,
+            grid_dictionary=self.grid_dictionary,
+            gaussian_results=gaussian_results,
+            formulation_cache=self.formulation_cache
+        )
+        
+        nodal_results = projector.project()
+        
+        return nodal_results

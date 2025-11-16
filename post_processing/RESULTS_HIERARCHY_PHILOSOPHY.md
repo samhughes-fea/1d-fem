@@ -256,6 +256,45 @@ secondary_results/
 
 ---
 
+## Tertiary Results Structure
+
+### Current Structure (Resolution-First)
+
+```
+tertiary_results/
+├── gaussian/                    # ✅ Native: Gaussian resolution
+│   ├── section_forces/
+│   │   └── section_forces_elem_*.csv
+│   └── principal_stress/
+│       └── principal_stress_elem_*.csv
+├── elemental/                   # ✅ Native: Elemental resolution (integrated)
+│   ├── total_strain_energy.csv
+│   └── integrated_section_forces.csv
+└── tertiary_summary.csv         # Summary statistics
+```
+
+**Analysis**:
+- ✅ Section forces correctly stored at native Gaussian resolution
+- ✅ Principal stresses correctly stored at native Gaussian resolution
+- ✅ Integrated elemental results correctly stored at native elemental resolution
+- ✅ **Structure consistent**: Uses resolution-first organization (aligned with primary/secondary)
+
+### Tertiary Results Mapping
+
+| Quantity | Native Resolution | Computation | Storage Location | Status |
+|----------|------------------|-------------|------------------|--------|
+| Section Forces | Gaussian | Direct mapping from stress tensor | `tertiary_results/gaussian/section_forces/` | ✅ Correct |
+| Principal Stresses | Gaussian | Eigenvalue decomposition of stress | `tertiary_results/gaussian/principal_stress/` | ✅ Correct |
+| Von Mises Stress | Gaussian | `√(½[(σ1-σ2)² + (σ2-σ3)² + (σ3-σ1)²])` | Summary CSV only | ✅ Correct |
+| Max Shear Stress | Gaussian | `(σ1 - σ3) / 2` | Summary CSV only | ✅ Correct |
+| Failure Index | Gaussian | `σ_vm / (σ_yield / SF)` | Summary CSV only | ✅ Correct |
+| Total Strain Energy | Elemental (integrated) | `∫ w dΩ` via quadrature | `tertiary_results/elemental/total_strain_energy.csv` | ✅ Correct |
+| Integrated Section Forces | Elemental (integrated) | Weighted average over element | `tertiary_results/elemental/integrated_section_forces.csv` | ✅ Correct |
+
+**Note**: See `TERTIARY_RESULTS_PHILOSOPHY.md` for detailed analysis.
+
+---
+
 ## Summary of Native Resolutions
 
 ### By Quantity Type
@@ -268,14 +307,19 @@ secondary_results/
 | Stress | Gaussian | Nodal (interpolation) | Elemental (integration) |
 | Energy Density | Gaussian | Nodal (interpolation) | Elemental (integration) |
 | Total Strain Energy | Elemental | N/A | Global (sum) |
+| Section Forces | Gaussian | Nodal (if needed) | Elemental (integrated) |
+| Principal Stresses | Gaussian | Nodal (if needed) | N/A |
+| Von Mises Stress | Gaussian | Nodal (if needed) | N/A |
+| Total Strain Energy (Tertiary) | Elemental | N/A | Global (sum) |
+| Integrated Section Forces | Elemental | N/A | N/A |
 
 ### By Resolution Level
 
 | Resolution | Native Quantities | Projected Quantities | Integrated Quantities |
 |-----------|-------------------|---------------------|---------------------|
 | **Global** | U_global, R_global, K_global, F_global | None | None |
-| **Elemental** | K_e, F_e (formulation) | U_e, R_e (disassembled) | Total strain energy (integrated) |
-| **Gaussian** | ε, σ, w (energy density) | None | None |
+| **Elemental** | K_e, F_e (formulation) | U_e, R_e (disassembled) | Total strain energy (secondary), Total strain energy (tertiary), Integrated section forces (from Gaussian) |
+| **Gaussian** | ε, σ, w (energy density), Section forces, Principal stresses, Von Mises stress, Max shear stress, Failure index | None | None |
 | **Nodal** | None | All (projected from Gaussian) | None |
 
 ---

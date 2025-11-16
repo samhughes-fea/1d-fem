@@ -3,16 +3,12 @@ Deformation visualisation utility – July 2025
 ---------------------------------------------
 
 Reads every *_U_global.csv under post_processing/results/**/primary_results
-and produces translation / rotation profiles.  Mesh geometry is supplied by
-``grid.txt`` files parsed with ``GridParser``; each parser result is expected
-to look like::
+and produces translation / rotation profiles with:
+- Nodal markers at node locations
+- Continuous interpolated fields using element shape functions
 
-    {
-        "grid_dictionary": {
-            "ids":         ndarray[int64],
-            "coordinates": ndarray[float64]  # shape (N, 3)
-        }
-    }
+Mesh geometry is supplied by ``grid.txt`` and ``element.txt`` files parsed
+with ``GridParser`` and ``ElementParser``.
 """
 
 from __future__ import annotations
@@ -38,8 +34,17 @@ PROJECT_ROOT: Final[Path] = next(
 )
 sys.path.append(str(PROJECT_ROOT))
 
-# --- grid parser -----------------------------------------------------------#
+# --- parsers ---------------------------------------------------------------#
 from pre_processing.parsing.grid_parser import GridParser  # type: ignore
+from pre_processing.parsing.element_parser import ElementParser  # type: ignore
+
+# --- resolution plotting utilities -----------------------------------------#
+from post_processing.graphical_visualisers.resolution_plotting_utils import (
+    get_element_node_coords,
+    plot_nodal_points,
+    plot_interpolated_field,
+    interpolate_field_nodal_to_continuous,
+)
 
 
 # ---------------------------------------------------------------------------#
@@ -96,12 +101,33 @@ class VisualiseDeformation:
         self,
         U: np.ndarray,
         node_positions: np.ndarray,
+        element_dictionary: dict,
+        grid_dictionary: dict,
         *,
         scale: float = 1.0,
         title_suffix: str = "",
         save_path: Optional[Path] = None,
     ) -> None:
-        """Plot raw global displacement/rotation with beam-end anchors."""
+        """
+        Plot displacement/rotation profiles with nodal markers and interpolated continuous fields.
+        
+        Parameters
+        ----------
+        U : np.ndarray
+            Global displacements, shape (n_nodes, 6) with columns [u_x, u_y, u_z, θ_x, θ_y, θ_z]
+        node_positions : np.ndarray
+            Node x-coordinates, shape (n_nodes,)
+        element_dictionary : dict
+            Element dictionary with connectivity and types
+        grid_dictionary : dict
+            Grid dictionary with node coordinates
+        scale : float
+            Scale factor for displacements
+        title_suffix : str
+            Suffix for plot title
+        save_path : Optional[Path]
+            Path to save figure
+        """
         if U.shape[1] != 6:
             raise ValueError("U must be shaped (n_nodes, 6)")
 
@@ -109,41 +135,100 @@ class VisualiseDeformation:
 
         fig, axes = plt.subplots(3, 2, figsize=(15, 10), sharex=True)
         fig.suptitle(
-            rf"Raw $U_g(x)${' – ' + title_suffix if title_suffix else ''}",
+            rf"Deformation profiles${' – ' + title_suffix if title_suffix else ''}",
             fontsize=16,
             fontweight="bold",
         )
 
+        # Component pairs: (displacement_index, displacement_label, rotation_index, rotation_label)
         pairs = [
-            (
-                U[:, 0] * 1000 * scale,
-                r"$u_x(x)\ \mathrm{[mm]}$",
-                U[:, 3],
-                r"$\theta_x(x)\ [^\circ]$",
-            ),
-            (
-                U[:, 1] * 1000 * scale,
-                r"$u_y(x)\ \mathrm{[mm]}$",
-                U[:, 5],
-                r"$\theta_z(x)\ [^\circ]$",
-            ),
-            (
-                U[:, 2] * 1000 * scale,
-                r"$u_z(x)\ \mathrm{[mm]}$",
-                U[:, 4],
-                r"$\theta_y(x)\ [^\circ]$",
-            ),
+            (0, r"$u_x(x)\ \mathrm{[mm]}$", 3, r"$\theta_x(x)\ [^\circ]$"),
+            (1, r"$u_y(x)\ \mathrm{[mm]}$", 4, r"$\theta_y(x)\ [^\circ]$"),
+            (2, r"$u_z(x)\ \mathrm{[mm]}$", 5, r"$\theta_z(x)\ [^\circ]$"),
         ]
 
-        for i, (ax_l, ax_r, (disp, disp_lbl, rot, rot_lbl)) in enumerate(
+        # Check if we have element data for interpolation
+        has_elements = (
+            element_dictionary and 
+            "ids" in element_dictionary and 
+            "connectivity" in element_dictionary and
+            grid_dictionary and
+            "coordinates" in grid_dictionary
+        )
+
+        # Process each component pair
+        for i, (ax_l, ax_r, (disp_idx, disp_lbl, rot_idx, rot_lbl)) in enumerate(
             zip(axes[:, 0], axes[:, 1], pairs)
         ):
-            # translations
-            ax_l.plot(node_positions, disp, color=self._BLUE, marker="o")
-            # rotations
-            ax_r.plot(node_positions, np.degrees(rot) * scale, color=self._BLUE, marker="o")
+            # Get displacement and rotation components
+            disp_values = U[:, disp_idx] * 1000 * scale  # Convert to mm
+            rot_values = np.degrees(U[:, rot_idx]) * scale  # Convert to degrees
 
-            # beam-end anchors + baseline
+            # Plot interpolated continuous fields for each element (if available)
+            if has_elements:
+                element_ids = element_dictionary["ids"]
+                for elem_id in element_ids:
+                    try:
+                        # Get element node coordinates
+                        elem_node_coords = get_element_node_coords(
+                            elem_id, element_dictionary, grid_dictionary
+                        )
+                        
+                        # Get node IDs for this element
+                        elem_idx = int(np.where(element_dictionary["ids"] == elem_id)[0][0])
+                        node_ids = element_dictionary["connectivity"][elem_idx]
+                        
+                        # Get displacements at element nodes
+                        # node_ids are indices into the node array
+                        elem_disp = disp_values[node_ids]
+                        elem_rot = rot_values[node_ids]
+                        
+                        # Interpolate displacement field
+                        x_interp_disp, disp_interp = interpolate_field_nodal_to_continuous(
+                            nodal_values=elem_disp,
+                            element_id=elem_id,
+                            element_dictionary=element_dictionary,
+                            grid_dictionary=grid_dictionary,
+                            n_points=50  # Fine interpolation for smooth curves
+                        )
+                        
+                        # Interpolate rotation field
+                        x_interp_rot, rot_interp = interpolate_field_nodal_to_continuous(
+                            nodal_values=elem_rot,
+                            element_id=elem_id,
+                            element_dictionary=element_dictionary,
+                            grid_dictionary=grid_dictionary,
+                            n_points=50
+                        )
+                        
+                        # Plot interpolated fields
+                        plot_interpolated_field(
+                            ax_l, x_interp_disp, disp_interp,
+                            linestyle='-', linewidth=2.0, alpha=0.7,
+                            color=self._BLUE, label=None  # Don't label each element
+                        )
+                        plot_interpolated_field(
+                            ax_r, x_interp_rot, rot_interp,
+                            linestyle='-', linewidth=2.0, alpha=0.7,
+                            color=self._BLUE, label=None
+                        )
+                    except Exception as exc:
+                        # Skip elements that fail (e.g., missing data)
+                        continue
+
+            # Plot nodal markers (all nodes)
+            plot_nodal_points(
+                ax_l, node_positions.reshape(-1, 1), disp_values,
+                marker='s', color=self._BLUE, size=60.0, alpha=0.9,
+                label="Nodes" if i == 0 else None
+            )
+            plot_nodal_points(
+                ax_r, node_positions.reshape(-1, 1), rot_values,
+                marker='s', color=self._BLUE, size=60.0, alpha=0.9,
+                label="Nodes" if i == 0 else None
+            )
+
+            # Beam-end anchors + baseline
             for ax in (ax_l, ax_r):
                 ax.plot([x_min], [0], marker="o", color="k", ms=3, zorder=3)
                 ax.plot([x_max], [0], marker="o", color="k", ms=3, zorder=3)
@@ -156,6 +241,9 @@ class VisualiseDeformation:
             if i == 0:
                 ax_l.set_title("Translation profiles", fontweight="bold")
                 ax_r.set_title("Rotation profiles", fontweight="bold")
+                # Add legend only once
+                if has_elements:
+                    ax_l.legend(loc='best', fontsize=9)
 
         axes[-1, 0].set_xlabel(r"$x$ [m]")
         axes[-1, 1].set_xlabel(r"$x$ [m]")
@@ -202,6 +290,7 @@ class VisualiseDeformation:
 
             job_id, timestamp = m.group("id"), m.group("ts")
             grid_file = self.jobs_dir / f"job_{job_id}" / "grid.txt"
+            element_file = self.jobs_dir / f"job_{job_id}" / "element.txt"
 
             print(f"→ Processing job {job_id} ({timestamp})")
 
@@ -223,11 +312,29 @@ class VisualiseDeformation:
                 print(f"⚠️  {exc} for job {job_id}, skipping.")
                 continue
 
+            # ---- Element data (for interpolation) ---------------------- #
+            if not element_file.is_file():
+                print(f"⚠️  Element file missing for job {job_id}, skipping interpolation.")
+                element_dictionary = None
+                grid_dictionary = None
+            else:
+                try:
+                    element_parsed = ElementParser(str(element_file), str(job_dir)).parse()
+                    element_dictionary = element_parsed["element_dictionary"]
+                    grid_dictionary = grid["grid_dictionary"]
+                except Exception as exc:
+                    print(f"⚠️  Could not parse element file for job {job_id}: {exc}")
+                    print("   Plotting nodal points only (no interpolation).")
+                    element_dictionary = None
+                    grid_dictionary = None
+
             # ---- Plot ---------------------------------------------------- #
             fig_name = f"deformation_job_{job_id}_{timestamp}.png"
             self._plot(
                 U,
                 node_coords[:, 0],
+                element_dictionary=element_dictionary if element_dictionary else {},
+                grid_dictionary=grid_dictionary if grid_dictionary else {},
                 title_suffix=f"job_{job_id}_{timestamp}",
                 save_path=self.figure_output_dir / fig_name,
             )
