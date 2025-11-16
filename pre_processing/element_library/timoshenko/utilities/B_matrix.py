@@ -1,4 +1,4 @@
-# pre_processing\element_library\euler_bernoulli\utilities\B_matrix.py
+# pre_processing\element_library\timoshenko\utilities\B_matrix.py
 
 import numpy as np
 from typing import Tuple
@@ -7,7 +7,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class StrainDisplacementOperator:
     """
-    Builds the strain–displacement matrix **B** for a 2-node 3-D Euler–Bernoulli beam element.
+    Builds the strain–displacement matrix **B** for a 2-node 3-D Timoshenko beam element.
 
     The operator transforms derivatives of shape functions into physical strain measures.
 
@@ -16,10 +16,10 @@ class StrainDisplacementOperator:
 
     where:
         ε_x   = ∂uₓ/∂x        (axial)
-        κ_y   = ∂²w /∂x²      (bending about y, x–z plane)
-        κ_z   = ∂²v /∂x²      (bending about z, x–y plane)
-        γ_xy  = 0             (shear xy not modelled in Euler-Bernoulli theory)
-        γ_xz  = 0             (shear xz not modelled in Euler-Bernoulli theory)
+        κ_y   = ∂θ_y/∂x       (bending about y, x–z plane) - Timoshenko: rotation-based
+        κ_z   = ∂θ_z/∂x       (bending about z, x–y plane) - Timoshenko: rotation-based
+        γ_xy  = ∂u_y/∂x - θ_z (shear xy - Timoshenko includes shear deformation)
+        γ_xz  = ∂u_z/∂x - θ_y (shear xz - Timoshenko includes shear deformation)
         φ_x   = ∂θₓ/∂x        (torsion)
 
     Coordinate mapping:
@@ -68,7 +68,8 @@ class StrainDisplacementOperator:
 
     def natural_coordinate_form(self,
                                 dN_dξ: np.ndarray,
-                                d2N_dξ2: np.ndarray) -> np.ndarray:
+                                d2N_dξ2: np.ndarray,
+                                N: np.ndarray = None) -> np.ndarray:
         """
         Construct strain-displacement matrix `B̃` in natural coordinates (ξ-space).
 
@@ -77,7 +78,9 @@ class StrainDisplacementOperator:
         dN_dξ : np.ndarray (n_gauss, 12, 6)
             First derivatives of shape functions
         d2N_dξ2 : np.ndarray (n_gauss, 12, 6)
-            Second derivatives of shape functions
+            Second derivatives of shape functions (not used for Timoshenko bending)
+        N : np.ndarray (n_gauss, 12, 6), optional
+            Shape functions (required for Timoshenko shear terms)
 
         Returns
         -------
@@ -90,13 +93,21 @@ class StrainDisplacementOperator:
         # Axial strain: ε_x = ∂u_x/∂ξ
         B[:, 0, [0, 6]] = dN_dξ[:, [0, 6], 0]       # u_x
 
-        # Bending about y-axis: κ_y = ∂²u_z/∂ξ²
-        B[:, 1, [2, 8]] = d2N_dξ2[:, [2, 8], 2]     # u_z
-        B[:, 1, [4, 10]] = d2N_dξ2[:, [4, 10], 4]   # θ_y
+        # Bending about y-axis: κ_y = ∂θ_y/∂ξ (Timoshenko: rotation-based, not displacement-based)
+        B[:, 1, [4, 10]] = dN_dξ[:, [4, 10], 4]     # θ_y
 
-        # Bending about z-axis: κ_z = ∂²u_y/∂ξ²
-        B[:, 2, [1, 7]] = d2N_dξ2[:, [1, 7], 1]     # u_y
-        B[:, 2, [5, 11]] = d2N_dξ2[:, [5, 11], 5]   # θ_z
+        # Bending about z-axis: κ_z = ∂θ_z/∂ξ (Timoshenko: rotation-based, not displacement-based)
+        B[:, 2, [5, 11]] = dN_dξ[:, [5, 11], 5]     # θ_z
+
+        # Shear strain: γ_xy = ∂u_y/∂ξ - θ_z (Timoshenko includes shear)
+        if N is not None:
+            B[:, 3, [1, 7]] = dN_dξ[:, [1, 7], 1]   # du_y/dx term
+            B[:, 3, [5, 11]] = -N[:, [5, 11], 5]   # -θ_z term
+
+        # Shear strain: γ_xz = ∂u_z/∂ξ - θ_y (Timoshenko includes shear)
+        if N is not None:
+            B[:, 4, [2, 8]] = dN_dξ[:, [2, 8], 2]   # du_z/dx term
+            B[:, 4, [4, 10]] = -N[:, [4, 10], 4]   # -θ_y term
 
         # Torsional strain: φ_x = ∂θ_x/∂ξ
         B[:, 5, [3, 9]] = dN_dξ[:, [3, 9], 3]       # θ_x
@@ -105,7 +116,8 @@ class StrainDisplacementOperator:
 
     def physical_coordinate_form(self,
                                  dN_dξ: np.ndarray,
-                                 d2N_dξ2: np.ndarray) -> np.ndarray:
+                                 d2N_dξ2: np.ndarray,
+                                 N: np.ndarray = None) -> np.ndarray:
         """
         Construct strain-displacement matrix `B` in physical coordinates (x-space).
 
@@ -114,7 +126,9 @@ class StrainDisplacementOperator:
         dN_dξ : np.ndarray (n_gauss, 12, 6)
             First derivatives of shape functions
         d2N_dξ2 : np.ndarray (n_gauss, 12, 6)
-            Second derivatives of shape functions
+            Second derivatives of shape functions (not used for Timoshenko bending)
+        N : np.ndarray (n_gauss, 12, 6), optional
+            Shape functions (required for Timoshenko shear terms)
 
         Returns
         -------
@@ -127,15 +141,23 @@ class StrainDisplacementOperator:
         # Axial strain: ε_x = ∂u_x/∂x
         B[:, 0, [0, 6]] = dN_dξ[:, [0, 6], 0] * self.dξ_dx           # u_x
 
-        # Bending about y-axis: κ_y = ∂²u_z/∂ξ²
-        B[:, 1, [2, 8]] = d2N_dξ2[:, [2, 8], 2] * self.d2ξ_dx2       # u_z
-        B[:, 1, [4, 10]] = d2N_dξ2[:, [4, 10], 4] * self.d2ξ_dx2     # θ_y
- 
-        # Bending about z-axis: κ_z = ∂²u_y/∂ξ²
-        B[:, 2, [1, 7]] = d2N_dξ2[:, [1, 7], 1] * self.d2ξ_dx2       # u_y
-        B[:, 2, [5, 11]] = d2N_dξ2[:, [5, 11], 5] * self.d2ξ_dx2     # θ_z
+        # Bending about y-axis: κ_y = ∂θ_y/∂x (Timoshenko: rotation-based)
+        B[:, 1, [4, 10]] = dN_dξ[:, [4, 10], 4] * self.dξ_dx         # θ_y
 
-        # Torsional strain: φ_x = ∂θ_x/∂ξ
+        # Bending about z-axis: κ_z = ∂θ_z/∂x (Timoshenko: rotation-based)
+        B[:, 2, [5, 11]] = dN_dξ[:, [5, 11], 5] * self.dξ_dx         # θ_z
+
+        # Shear strain: γ_xy = ∂u_y/∂x - θ_z (Timoshenko includes shear)
+        if N is not None:
+            B[:, 3, [1, 7]] = dN_dξ[:, [1, 7], 1] * self.dξ_dx      # du_y/dx term
+            B[:, 3, [5, 11]] = -N[:, [5, 11], 5]                    # -θ_z term (no coordinate transform needed)
+
+        # Shear strain: γ_xz = ∂u_z/∂x - θ_y (Timoshenko includes shear)
+        if N is not None:
+            B[:, 4, [2, 8]] = dN_dξ[:, [2, 8], 2] * self.dξ_dx      # du_z/dx term
+            B[:, 4, [4, 10]] = -N[:, [4, 10], 4]                    # -θ_y term (no coordinate transform needed)
+
+        # Torsional strain: φ_x = ∂θ_x/∂x
         B[:, 5, [3, 9]] = dN_dξ[:, [3, 9], 3] * self.dξ_dx           # θ_x
 
         return B

@@ -18,8 +18,9 @@ class ShapeFunctionOperator:
     
     - Transverse displacements (u_y, u_z):
       Quintic polynomials (O(ξ^5)) with C2 continuity:
-        N1_v = 1 - (10/3)ξ^3 + (5/3)ξ^5
-        N2_v = (10/3)ξ^3 - (5/3)ξ^5
+        N1_v = 0.5 - 0.9375*ξ + 0.625*ξ^3 - 0.1875*ξ^5
+        N2_v = 0.5 + 0.9375*ξ - 0.625*ξ^3 + 0.1875*ξ^5
+        Satisfies: N1_v(-1)=1, N1_v(1)=0, N2_v(-1)=0, N2_v(1)=1
     
     - Rotations (θ_y, θ_z):
       Cubic polynomials (O(ξ^3)) with C1 continuity:
@@ -75,19 +76,23 @@ class ShapeFunctionOperator:
         dN_dξ[:, [0,6], 0] = 0.5 * np.array([-1, 1])
 
         # ----- Bending XY Plane (Quintic u_y, Cubic θ_z) -----
-        # u_y: Quintic polynomial (ξ^5 terms for higher-order shear)
-        N[:, [1,7], 1] = np.array([
-            1 - (10/3)*ξ**3 + (5/3)*ξ**5, 
-            (10/3)*ξ**3 - (5/3)*ξ**5
-        ]).squeeze().T
-        dN_dξ[:, [1,7], 1] = np.array([
-            -10*ξ**2 + (25/3)*ξ**4, 
-            10*ξ**2 - (25/3)*ξ**4
-        ]).squeeze().T
-        d2N_dξ2[:, [1,7], 1] = np.array([
-            -20*ξ + (100/3)*ξ**3, 
-            20*ξ - (100/3)*ξ**3
-        ]).squeeze().T
+        # u_y: Quintic polynomial (C2 continuity, satisfies N1(-1)=1, N1(1)=0, etc.)
+        # N1 = 0.5 - 0.9375*ξ + 0.625*ξ^3 - 0.1875*ξ^5
+        # N2 = 0.5 + 0.9375*ξ - 0.625*ξ^3 + 0.1875*ξ^5
+        ξ_flat = ξ.squeeze()
+        N1_v = 0.5 - 0.9375*ξ_flat + 0.625*ξ_flat**3 - 0.1875*ξ_flat**5
+        N2_v = 0.5 + 0.9375*ξ_flat - 0.625*ξ_flat**3 + 0.1875*ξ_flat**5
+        N[:, [1,7], 1] = np.array([N1_v, N2_v]).T
+        
+        # First derivatives
+        dN1_v_dξ = -0.9375 + 1.875*ξ_flat**2 - 0.9375*ξ_flat**4
+        dN2_v_dξ = 0.9375 - 1.875*ξ_flat**2 + 0.9375*ξ_flat**4
+        dN_dξ[:, [1,7], 1] = np.array([dN1_v_dξ, dN2_v_dξ]).T
+        
+        # Second derivatives
+        d2N1_v_dξ2 = 3.75*ξ_flat - 3.75*ξ_flat**3
+        d2N2_v_dξ2 = -3.75*ξ_flat + 3.75*ξ_flat**3
+        d2N_dξ2[:, [1,7], 1] = np.array([d2N1_v_dξ2, d2N2_v_dξ2]).T
         
         # θ_z: Cubic polynomial
         N[:, [5,11], 5] = 0.25 * np.array([

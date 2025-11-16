@@ -162,9 +162,9 @@ class TimoshenkoBeamElement3D(Element1DBase):
         """Shape functions and natural derivatives for Kᵉ assembly."""
         return self.shape_function_operator.natural_coordinate_form(xi)
 
-    def B_matrix(self, dN_dξ: np.ndarray, d2N_dξ2: np.ndarray) -> np.ndarray:
+    def B_matrix(self, dN_dξ: np.ndarray, d2N_dξ2: np.ndarray, N: np.ndarray = None) -> np.ndarray:
         """B̃-matrix in natural coordinates (∫ B̃ᵀ D B̃ |J| dξ)."""
-        return self.strain_displacement_operator.natural_coordinate_form(dN_dξ, d2N_dξ2)
+        return self.strain_displacement_operator.natural_coordinate_form(dN_dξ, d2N_dξ2, N)
 
     def D_matrix(self) -> np.ndarray:
         """D-matrix for stiffness assembly (4×4)."""
@@ -198,7 +198,7 @@ class TimoshenkoBeamElement3D(Element1DBase):
         
         for g, (xi_g, w_g) in enumerate(zip(xi, w)):
             N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)[0]
+            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
             detJ = self.jacobian_determinant
             Ke_contribution = B.T @ D @ B * w_g * detJ # note B is in cartesian form, w_g is not and requires scaling
             Ke += Ke_contribution

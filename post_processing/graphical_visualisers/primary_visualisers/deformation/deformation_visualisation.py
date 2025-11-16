@@ -91,7 +91,7 @@ class VisualiseDeformation:
             return getattr(grid_obj, "node_coordinates")  # type: ignore[arg-type]
 
         raise KeyError(
-            "grid data does not contain 'grid_dictionary' → 'coordinates'"
+            "grid data does not contain 'grid_dictionary' -> 'coordinates'"
         )
 
     # ------------------------------------------------------------------#
@@ -201,11 +201,12 @@ class VisualiseDeformation:
                             n_points=50
                         )
                         
-                        # Plot interpolated fields
+                        # Plot interpolated fields (label only once per subplot)
                         plot_interpolated_field(
                             ax_l, x_interp_disp, disp_interp,
                             linestyle='-', linewidth=2.0, alpha=0.7,
-                            color=self._BLUE, label=None  # Don't label each element
+                            color=self._BLUE, 
+                            label="Interpolated (shape functions)" if i == 0 and elem_id == element_ids[0] else None
                         )
                         plot_interpolated_field(
                             ax_r, x_interp_rot, rot_interp,
@@ -216,16 +217,18 @@ class VisualiseDeformation:
                         # Skip elements that fail (e.g., missing data)
                         continue
 
-            # Plot nodal markers (all nodes)
+            # Plot nodal markers (all nodes) - label only once
             plot_nodal_points(
                 ax_l, node_positions.reshape(-1, 1), disp_values,
-                marker='s', color=self._BLUE, size=60.0, alpha=0.9,
+                marker='s', color=self._BLUE, size=70.0, alpha=0.9,
+                edgecolors='black', linewidths=1.0,
                 label="Nodes" if i == 0 else None
             )
             plot_nodal_points(
                 ax_r, node_positions.reshape(-1, 1), rot_values,
-                marker='s', color=self._BLUE, size=60.0, alpha=0.9,
-                label="Nodes" if i == 0 else None
+                marker='s', color=self._BLUE, size=70.0, alpha=0.9,
+                edgecolors='black', linewidths=1.0,
+                label=None  # Only label on left subplot
             )
 
             # Beam-end anchors + baseline
@@ -241,14 +244,28 @@ class VisualiseDeformation:
             if i == 0:
                 ax_l.set_title("Translation profiles", fontweight="bold")
                 ax_r.set_title("Rotation profiles", fontweight="bold")
-                # Add legend only once
-                if has_elements:
-                    ax_l.legend(loc='best', fontsize=9)
 
         axes[-1, 0].set_xlabel(r"$x$ [m]")
         axes[-1, 1].set_xlabel(r"$x$ [m]")
+        
+        # Add unified legend at bottom of figure
+        if has_elements:
+            # Create custom legend entries
+            from matplotlib.lines import Line2D
+            legend_elements = [
+                Line2D([0], [0], linestyle='-', linewidth=2.0, color=self._BLUE, 
+                       label='Interpolated (shape functions)'),
+                Line2D([0], [0], marker='s', linestyle='None', markersize=8, 
+                       color=self._BLUE, markeredgecolor='black', markeredgewidth=1.0,
+                       label='Nodes'),
+                Line2D([0], [0], marker='o', linestyle='None', markersize=5, 
+                       color='red', label='Gauss points'),
+            ]
+            fig.legend(handles=legend_elements, loc='lower center', ncol=3, 
+                      fontsize=9, frameon=True, bbox_to_anchor=(0.5, 0.02))
+        
         fig.tight_layout()
-        fig.subplots_adjust(top=0.9)
+        fig.subplots_adjust(top=0.9, bottom=0.08 if has_elements else 0.1)
 
         if save_path:
             fig.savefig(save_path, dpi=300)
@@ -292,29 +309,29 @@ class VisualiseDeformation:
             grid_file = self.jobs_dir / f"job_{job_id}" / "grid.txt"
             element_file = self.jobs_dir / f"job_{job_id}" / "element.txt"
 
-            print(f"→ Processing job {job_id} ({timestamp})")
+            print(f"> Processing job {job_id} ({timestamp})")
 
             # ---- Displacements ------------------------------------------ #
             U = self._read_U_global(csv_file)
             if U is None:
-                print(f"⚠️  Could not read displacements for job {job_id}, skipping.")
+                print(f"WARNING: Could not read displacements for job {job_id}, skipping.")
                 continue
 
             # ---- Geometry (grid) ---------------------------------------- #
             if not grid_file.is_file():
-                print(f"⚠️  Grid file missing for job {job_id}, skipping.")
+                print(f"WARNING: Grid file missing for job {job_id}, skipping.")
                 continue
 
             grid = GridParser(str(grid_file), str(job_dir)).parse()
             try:
                 node_coords = self._get_node_coordinates(grid)
             except (AttributeError, KeyError) as exc:
-                print(f"⚠️  {exc} for job {job_id}, skipping.")
+                print(f"WARNING: {exc} for job {job_id}, skipping.")
                 continue
 
             # ---- Element data (for interpolation) ---------------------- #
             if not element_file.is_file():
-                print(f"⚠️  Element file missing for job {job_id}, skipping interpolation.")
+                print(f"WARNING: Element file missing for job {job_id}, skipping interpolation.")
                 element_dictionary = None
                 grid_dictionary = None
             else:
@@ -323,7 +340,7 @@ class VisualiseDeformation:
                     element_dictionary = element_parsed["element_dictionary"]
                     grid_dictionary = grid["grid_dictionary"]
                 except Exception as exc:
-                    print(f"⚠️  Could not parse element file for job {job_id}: {exc}")
+                    print(f"WARNING: Could not parse element file for job {job_id}: {exc}")
                     print("   Plotting nodal points only (no interpolation).")
                     element_dictionary = None
                     grid_dictionary = None

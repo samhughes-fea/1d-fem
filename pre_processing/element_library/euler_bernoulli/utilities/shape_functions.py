@@ -98,15 +98,44 @@ class ShapeFunctionOperator:
         dN_dξ[:, [0,6], 0] = 0.5 * np.array([-1, 1])
 
         # ----- Bending in XY Plane (Hermite Cubic) -----
-        # Displacement terms
-        N[:, [1,7], 1] = np.array([1 - 3*ξ**2 + 2*ξ**3, 3*ξ**2 - 2*ξ**3]).squeeze().T
-        dN_dξ[:, [1,7], 1] = np.array([-6*ξ + 6*ξ**2, 6*ξ - 6*ξ**2]).squeeze().T
-        d2N_dξ2[:, [1,7], 1] = np.array([-6 + 12*ξ, 6 - 12*ξ]).squeeze().T
+        # Standard Hermite cubic shape functions:
+        # N1 = (1/4)(1-ξ)²(2+ξ) = 0.5 - 0.75*ξ + 0.25*ξ³
+        # N2 = (L/8)(1-ξ)²(1+ξ) = (L/8)(1 - ξ - ξ² + ξ³)
+        # N3 = (1/4)(1+ξ)²(2-ξ) = 0.5 + 0.75*ξ - 0.25*ξ³
+        # N4 = -(L/8)(1+ξ)²(1-ξ) = -(L/8)(1 + ξ - ξ² - ξ³)
+        
+        L = self.element_length
+        ξ_flat = ξ.squeeze()
+        
+        # Displacement shape functions (N1, N3)
+        N1 = 0.5 - 0.75*ξ_flat + 0.25*ξ_flat**3
+        N3 = 0.5 + 0.75*ξ_flat - 0.25*ξ_flat**3
+        N[:, [1,7], 1] = np.array([N1, N3]).T
+        
+        # First derivatives of displacement shape functions
+        dN1_dξ = -0.75 + 0.75*ξ_flat**2
+        dN3_dξ = 0.75 - 0.75*ξ_flat**2
+        dN_dξ[:, [1,7], 1] = np.array([dN1_dξ, dN3_dξ]).T
+        
+        # Second derivatives of displacement shape functions
+        d2N1_dξ2 = 1.5*ξ_flat
+        d2N3_dξ2 = -1.5*ξ_flat
+        d2N_dξ2[:, [1,7], 1] = np.array([d2N1_dξ2, d2N3_dξ2]).T
 
-        # Rotation terms
-        N[:, [5,11], 5] = np.array([ξ - 2*ξ**2 + ξ**3, -ξ**2 + ξ**3]).squeeze().T
-        dN_dξ[:, [5,11], 5] = np.array([1 - 4*ξ + 3*ξ**2, -2*ξ + 3*ξ**2]).squeeze().T
-        d2N_dξ2[:, [5,11], 5] = np.array([-4 + 6*ξ, -2 + 6*ξ]).squeeze().T
+        # Rotation shape functions (N2, N4) - scaled by L/8
+        N2 = (L/8) * (1 - ξ_flat - ξ_flat**2 + ξ_flat**3)
+        N4 = -(L/8) * (1 + ξ_flat - ξ_flat**2 - ξ_flat**3)
+        N[:, [5,11], 5] = np.array([N2, N4]).T
+        
+        # First derivatives of rotation shape functions
+        dN2_dξ = (L/8) * (-1 - 2*ξ_flat + 3*ξ_flat**2)
+        dN4_dξ = -(L/8) * (1 - 2*ξ_flat - 3*ξ_flat**2)
+        dN_dξ[:, [5,11], 5] = np.array([dN2_dξ, dN4_dξ]).T
+        
+        # Second derivatives of rotation shape functions
+        d2N2_dξ2 = (L/8) * (-2 + 6*ξ_flat)
+        d2N4_dξ2 = -(L/8) * (-2 - 6*ξ_flat)
+        d2N_dξ2[:, [5,11], 5] = np.array([d2N2_dξ2, d2N4_dξ2]).T
 
         # ----- Bending in XZ Plane (Hermite Cubic) -----
         N[:, [2,8], 2] = N[:, [1,7], 1]

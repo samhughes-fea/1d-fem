@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class MaterialStiffnessOperator:
-    """Constitutive operator for 3D Euler-Bernoulli beam elements.
+    """Constitutive operator for 3D Levinson beam elements.
     
     Encapsulates the material stiffness matrix (D-matrix) with dual representations:
     - Assembly form: Optimized for stiffness matrix assembly (Kᵉ = ∫BᵀDB dx)
@@ -14,14 +14,17 @@ class MaterialStiffnessOperator:
 
     Mathematical Formulation
     -----------------------
-    The constitutive relation follows Timoshenko beam theory with warping effects:
+    Levinson beam theory includes shear deformation without correction factor (no κ):
     
-    ⎡ N  ⎤   ⎡ EA     0       0       0   ⎤ ⎡ ε_x ⎤
-    ⎢ M_z⎥ = ⎢ 0     EI_z     0     -EI_wz⎥ ⎢ κ_z ⎥
-    ⎢ M_y⎥   ⎢ 0      0     EI_y     EI_wy⎥ ⎢ κ_y ⎥
-    ⎣ M_x⎦   ⎣ 0    -EI_wz  EI_wy    GJ_t ⎦ ⎣ φ_x ⎦
+    ⎡ N  ⎤   ⎡ EA     0       0       0       0       0   ⎤ ⎡ ε_x  ⎤
+    ⎢ M_z⎥   ⎢ 0     EI_z     0       0       0       0   ⎥ ⎢ κ_z  ⎥
+    ⎢ M_y⎥ = ⎢ 0      0     EI_y      0       0       0   ⎥ ⎢ κ_y  ⎥
+    ⎢ V_y⎥   ⎢ 0      0       0      GA       0       0   ⎥ ⎢ γ_xy ⎥
+    ⎢ V_z⎥   ⎢ 0      0       0       0      GA       0   ⎥ ⎢ γ_xz ⎥
+    ⎣ M_x⎦   ⎣ 0      0       0       0       0    GJ_t ⎦ ⎣ φ_x  ⎦
 
-    where coupling terms emerge when the shear center ≠ centroid (EI_wy, EI_wz ≠ 0).
+    Note: Levinson theory eliminates the need for shear correction factor κ.
+    The higher-order shape functions naturally account for shear deformation.
 
     Parameters
     ----------
@@ -80,7 +83,7 @@ class MaterialStiffnessOperator:
         Returns
         -------
         np.ndarray
-            4×4 material stiffness matrix in assembly-optimized form
+            6×6 material stiffness matrix in assembly-optimized form
         """
         return self._D_assembly
 
@@ -96,7 +99,7 @@ class MaterialStiffnessOperator:
         Returns
         -------
         np.ndarray 
-            4×4 material stiffness matrix in complete form
+            6×6 material stiffness matrix in complete form
         """
         return self._D_postprocess
 
@@ -106,13 +109,13 @@ class MaterialStiffnessOperator:
         
         Parameters
         ----------
-        strain : np.ndarray, shape (4,) or (4,n)
-            Strain vector/matrix in Voigt notation [ε_x, κ_z, κ_y, φ_x]
+        strain : np.ndarray, shape (6,) or (6,n)
+            Strain vector/matrix in Voigt notation [ε_x, κ_z, κ_y, γ_xy, γ_xz, φ_x]
 
         Returns
         -------
         np.ndarray
-            Stress resultants [N, M_z, M_y, M_x] in same shape as input
+            Stress resultants [N, M_z, M_y, V_y, V_z, M_x] in same shape as input
         """
         return self.postprocessing_form() @ strain
 
@@ -129,6 +132,8 @@ class MaterialStiffnessOperator:
             - 'bending_z' : Bending about z-axis energy
             - 'bending_y' : Bending about y-axis energy  
             - 'torsion' : Torsional energy
+            - 'shear_xy' : Shear xy deformation energy
+            - 'shear_xz' : Shear xz deformation energy
             - 'coupling_z' : Z-axis bending-torsion coupling energy
             - 'coupling_y' : Y-axis bending-torsion coupling energy
         """
@@ -160,16 +165,25 @@ class MaterialStiffnessOperator:
         EI_z = self.youngs_modulus * self.moment_inertia_z
         EI_y = self.youngs_modulus * self.moment_inertia_y
         GJ_t = self.shear_modulus * self.torsion_constant
+        GA = self.shear_modulus * self.cross_section_area  # Levinson: no κ factor
         EIw_z = self.youngs_modulus * self.warping_inertia_z
         EIw_y = self.youngs_modulus * self.warping_inertia_y
 
-        # Construct base matrix (same for both forms in this formulation)
-        D = np.array([
-            [EA,     0,     0,      0],    # Axial
-            [0,    EI_z,     0,  -EIw_z],  # Bending-Z + warping
-            [0,      0,   EI_y,   EIw_y],  # Bending-Y + warping
-            [0,  -EIw_z, EIw_y,    GJ_t]   # Torsion + couplings
-        ], dtype=np.float64)
+        # Construct 6x6 matrix for Levinson (includes shear terms)
+        D = np.zeros((6, 6), dtype=np.float64)
+        D[0, 0] = EA          # Axial
+        D[1, 1] = EI_z        # Bending-Z
+        D[2, 2] = EI_y        # Bending-Y
+        D[3, 3] = GA          # Shear xy (Levinson: no κ)
+        D[4, 4] = GA          # Shear xz (Levinson: no κ)
+        D[5, 5] = GJ_t        # Torsion
+        
+        # Warping coupling terms (if present)
+        if self.has_warping_coupling:
+            D[1, 5] = -EIw_z  # Bending-Z / Torsion coupling
+            D[5, 1] = -EIw_z
+            D[2, 5] = EIw_y   # Bending-Y / Torsion coupling
+            D[5, 2] = EIw_y
 
         object.__setattr__(self, '_D_assembly', D)
         object.__setattr__(self, '_D_postprocess', D.copy())
@@ -178,10 +192,18 @@ class MaterialStiffnessOperator:
             raise ValueError("Warping terms violate D-matrix symmetry")
 
         object.__setattr__(self, '_energy_components', {
-            'axial': np.diag([EA, 0, 0, 0]),
-            'bending_z': np.diag([0, EI_z, 0, 0]),
-            'bending_y': np.diag([0, 0, EI_y, 0]),
-            'torsion': np.diag([0, 0, 0, GJ_t]),
-            'coupling_z': np.array([[0,0,0,0], [0,0,0,-EIw_z], [0,0,0,0], [0,-EIw_z,0,0]]),
-            'coupling_y': np.array([[0,0,0,0], [0,0,0,0], [0,0,0,EIw_y], [0,0,EIw_y,0]])
+            'axial': np.diag([EA, 0, 0, 0, 0, 0]),
+            'bending_z': np.diag([0, EI_z, 0, 0, 0, 0]),
+            'bending_y': np.diag([0, 0, EI_y, 0, 0, 0]),
+            'torsion': np.diag([0, 0, 0, 0, 0, GJ_t]),
+            'shear_xy': np.diag([0, 0, 0, GA, 0, 0]),
+            'shear_xz': np.diag([0, 0, 0, 0, GA, 0]),
+            'coupling_z': np.zeros((6, 6)) if not self.has_warping_coupling else np.array([
+                [0,0,0,0,0,0], [0,0,0,0,0,-EIw_z], [0,0,0,0,0,0], 
+                [0,0,0,0,0,0], [0,0,0,0,0,0], [0,-EIw_z,0,0,0,0]
+            ]),
+            'coupling_y': np.zeros((6, 6)) if not self.has_warping_coupling else np.array([
+                [0,0,0,0,0,0], [0,0,0,0,0,0], [0,0,0,0,0,EIw_y], 
+                [0,0,0,0,0,0], [0,0,0,0,0,0], [0,0,EIw_y,0,0,0]
+            ])
         })

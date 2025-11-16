@@ -18,8 +18,8 @@ import numpy as np
 # --------------------------------------------------------------------------- #
 L: float = 2.0            # Beam length [m]
 growth_factor: float = 0  # 0 = uniform; >0 = exponential tip clustering
-num_uniform_nodes: int = 501
-max_num_nodes: int = 501
+num_uniform_nodes: int = 11
+max_num_nodes: int = 11
 # --------------------------------------------------------------------------- #
 
 
@@ -61,7 +61,7 @@ def save_grid_file(node_positions: np.ndarray, save_dir: str) -> None:
 
 def save_element_file(elements: List[Tuple[int, int]],
                       save_dir: str,
-                      element_type: str = "EulerBernoulliBeamElement3D") -> None:
+                      element_type: str = "LevinsonBeamElement3D") -> None:
     """Write element.txt with uniform, parser-friendly column spacing."""
     os.makedirs(save_dir, exist_ok=True)
     path = os.path.join(save_dir, "element.txt")

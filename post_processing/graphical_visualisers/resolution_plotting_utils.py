@@ -503,6 +503,8 @@ def plot_nodal_points(
     size: float = 80.0,
     alpha: float = 0.9,
     label: Optional[str] = None,
+    edgecolors: Optional[str] = None,
+    linewidths: Optional[float] = None,
     **kwargs
 ) -> None:
     """
@@ -540,18 +542,19 @@ def plot_nodal_points(
     
     if values.ndim == 1:
         # Scalar field
-        ax.scatter(
-            x_coords,
-            values,
-            marker=marker,
-            color=color,
-            s=size,
-            alpha=alpha,
-            label=label,
-            edgecolors='black',
-            linewidths=1.0,
-            **kwargs
-        )
+        scatter_kwargs = {
+            'marker': marker,
+            'color': color,
+            's': size,
+            'alpha': alpha,
+            'label': label,
+        }
+        if edgecolors is not None:
+            scatter_kwargs['edgecolors'] = edgecolors
+        if linewidths is not None:
+            scatter_kwargs['linewidths'] = linewidths
+        scatter_kwargs.update(kwargs)
+        ax.scatter(x_coords, values, **scatter_kwargs)
     else:
         # Vector field: plot each component
         n_components = values.shape[1]
@@ -559,18 +562,19 @@ def plot_nodal_points(
         
         for comp in range(n_components):
             comp_label = f"{label} (comp {comp})" if label else f"Node (comp {comp})"
-            ax.scatter(
-                x_coords,
-                values[:, comp],
-                marker=marker,
-                color=colors[comp],
-                s=size,
-                alpha=alpha,
-                label=comp_label,
-                edgecolors='black',
-                linewidths=1.0,
-                **kwargs
-            )
+            scatter_kwargs = {
+                'marker': marker,
+                'color': colors[comp],
+                's': size,
+                'alpha': alpha,
+                'label': comp_label,
+            }
+            if edgecolors is not None:
+                scatter_kwargs['edgecolors'] = edgecolors
+            if linewidths is not None:
+                scatter_kwargs['linewidths'] = linewidths
+            scatter_kwargs.update(kwargs)
+            ax.scatter(x_coords, values[:, comp], **scatter_kwargs)
 
 
 def plot_interpolated_field(

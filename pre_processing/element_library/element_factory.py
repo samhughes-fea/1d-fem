@@ -27,6 +27,10 @@ class ElementFactory:
     ELEMENT_CLASS_MAP = {
         "EulerBernoulliBeamElement3D":
             "pre_processing.element_library.euler_bernoulli.euler_bernoulli_3D",
+        "TimoshenkoBeamElement3D":
+            "pre_processing.element_library.timoshenko.timoshenko_3D",
+        "LevinsonBeamElement3D":
+            "pre_processing.element_library.levinson.levinson_3D",
     }
 
     # ------------------------------------------------------------------ #

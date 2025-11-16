@@ -1,4 +1,4 @@
-# pre_processing\element_library\euler_bernoulli\utilities\D_matrix.py
+# pre_processing\element_library\timoshenko\utilities\D_matrix.py
 
 import numpy as np
 from typing import Dict
@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 @dataclass(frozen=True)
 class MaterialStiffnessOperator:
     """
-    Constitutive operator for 3-D Euler–Bernoulli beam elements.
+    Constitutive operator for 3-D Timoshenko beam elements.
 
     This class builds and stores the element-level material stiffness
     tensor (**D-matrix**) in two convenient forms:
@@ -40,7 +40,7 @@ class MaterialStiffnessOperator:
     Parameters
     ----------
     youngs_modulus : float
-        Young’s modulus *E* [Pa].
+        Young's modulus *E* [Pa].
     shear_modulus : float
         Shear modulus *G* [Pa].
     cross_section_area : float
@@ -51,6 +51,9 @@ class MaterialStiffnessOperator:
         Second moment of area about **z** (*I_z*) [m⁴].
     torsion_constant : float
         Torsional constant *J_t* [m⁴].
+    shear_correction_factor : float, optional
+        Shear correction factor κ (default: 5/6 for rectangular sections).
+        Accounts for non-uniform shear stress distribution across the cross-section.
 
     Attributes
     ----------
@@ -60,7 +63,7 @@ class MaterialStiffnessOperator:
         Copy of *D* kept intact for stress / energy work.
     _energy_components : dict[str, ndarray]
         Pre-factored diagonal blocks for axial, bending-y, bending-z,
-        torsion, shear-xy (zero) and shear-xz (zero).
+        torsion, shear-xy and shear-xz.
 
     Public API
     ----------
@@ -83,6 +86,7 @@ class MaterialStiffnessOperator:
     moment_inertia_y: float
     moment_inertia_z: float
     torsion_constant: float
+    shear_correction_factor: float = 5.0 / 6.0  # Default κ = 5/6 for rectangular sections
 
     # --- Internal container matrices --- 
 
@@ -103,6 +107,7 @@ class MaterialStiffnessOperator:
             self.moment_inertia_y,
             self.moment_inertia_z,
             self.torsion_constant,
+            self.shear_correction_factor,
         )):
             raise ValueError("All stiffness parameters must be strictly positive")
 
@@ -145,7 +150,7 @@ class MaterialStiffnessOperator:
         Parameters
         ----------
         strain : np.ndarray, shape (6,) or (6,n)
-            Strain vector/matrix in Voigt notation ε = [ εₓ  κᵧ  κ_z  γ_xy  γ_xz  φₓ ]ᵀ, γ_xy = γ_xz= 0
+            Strain vector/matrix in Voigt notation ε = [ εₓ  κᵧ  κ_z  γ_xy  γ_xz  φₓ ]ᵀ
 
         Returns
         -------
@@ -167,6 +172,8 @@ class MaterialStiffnessOperator:
             - 'bending_z' : Bending about z-axis energy
             - 'bending_y' : Bending about y-axis energy  
             - 'torsion' : Torsional energy
+            - 'shear_xy' : Shear xy deformation energy
+            - 'shear_xz' : Shear xz deformation energy
         """
         return {
             'total': 0.5 * strain.T @ self._D_postprocess @ strain,
@@ -175,16 +182,16 @@ class MaterialStiffnessOperator:
         }
 
     def _build_constitutive_matrices(self) -> None:
-        """Constructs and validates all constitutive matrices.
+        r"""Constructs and validates all constitutive matrices.
         
         | Voigt component | Meaning                    | Row/col in D | Filled with |
         | --------------- | -------------------------- | -------------| ----------- |
         | 0               | ε_x  (axial)               | 0            | **EA**      |
-        | 1               | κ_y (bending about y)      | 1            | **EI\_y**   |
-        | 2               | κ_z (bending about z)      | 2            | **EI\_z**   |
-        | 3               | γ_xy (shear-xy)            | 3            | 0           |
-        | 4               | γ_xz (shear-xz)            | 4            | 0           |
-        | 5               | φ_x  (torsion)             | 5            | **GJ\_t**   |
+        | 1               | κ_y (bending about y)      | 1            | **EI_y**    |
+        | 2               | κ_z (bending about z)      | 2            | **EI_z**    |
+        | 3               | γ_xy (shear-xy)            | 3            | **κGA**     |
+        | 4               | γ_xz (shear-xz)            | 4            | **κGA**     |
+        | 5               | φ_x  (torsion)             | 5            | **GJ_t**    |
 
         """
         # Compute stiffness terms (consistent units)
@@ -192,12 +199,15 @@ class MaterialStiffnessOperator:
         EI_z = self.youngs_modulus * self.moment_inertia_z
         EI_y = self.youngs_modulus * self.moment_inertia_y
         GJ_t = self.shear_modulus * self.torsion_constant
+        kappa_GA = self.shear_correction_factor * self.shear_modulus * self.cross_section_area
 
         # --- main constitutive matrix ---
         D = np.zeros((6, 6), dtype=np.float64)
         D[0, 0] = EA
         D[1, 1] = EI_y          # bending about y
         D[2, 2] = EI_z          # bending about z
+        D[3, 3] = kappa_GA      # shear xy (Timoshenko)
+        D[4, 4] = kappa_GA      # shear xz (Timoshenko)
         D[5, 5] = GJ_t          # torsion
 
         object.__setattr__(self, '_D_assembly', D)
@@ -208,6 +218,6 @@ class MaterialStiffnessOperator:
             'bending_y' : np.diag([0, EI_y, 0, 0, 0, 0]),
             'bending_z' : np.diag([0, 0, EI_z, 0, 0, 0]),
             'torsion'   : np.diag([0, 0, 0, 0, 0, GJ_t]),
-            'shear_xy'  : np.zeros((6, 6)),
-            'shear_xz'  : np.zeros((6, 6)),
+            'shear_xy'  : np.diag([0, 0, 0, kappa_GA, 0, 0]),
+            'shear_xz'  : np.diag([0, 0, 0, 0, kappa_GA, 0]),
         })
