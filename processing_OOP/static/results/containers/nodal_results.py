@@ -15,10 +15,16 @@ class NodalResults:
     """
     Container for nodal resolution results.
     
-    Contains pure field quantities interpolated/extrapolated to nodes:
-    - Strain: kinematic field
-    - Stress: constitutive field
-    - Energy density: scalar energy field
+    **Native Resolution**: None - all nodal results are PROJECTIONS from Gaussian.
+    
+    Contains pure field quantities interpolated/extrapolated to nodes using
+    cached shape functions:
+    - Strain: projected from Gaussian resolution
+    - Stress: projected from Gaussian resolution
+    - Energy density: projected from Gaussian resolution
+    
+    These quantities are derived from GaussianResults via shape function
+    interpolation/extrapolation, not computed directly at nodes.
     
     Note: Section forces [N, Vy, Vz, T, My, Mz] are integrated stress
     resultants and belong in TertiaryResults, not as nodal field values.

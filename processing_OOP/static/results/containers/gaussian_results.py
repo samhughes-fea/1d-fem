@@ -9,10 +9,17 @@ class GaussianResults:
     """
     Container for Gaussian (integration point) resolution results.
     
+    **Native Resolution**: Gaussian - these quantities are FIRST computed at 
+    integration points (Gauss points) within elements.
+    
     These are pure field quantities computed directly at integration points:
-    - Strain: kinematic field derived from displacements
-    - Stress: constitutive response from strain
-    - Energy density: scalar energy field
+    - Strain: kinematic field derived from displacements via `ε = B @ U_e`
+    - Stress: constitutive response from strain via `σ = D @ ε`
+    - Energy density: scalar energy field via `w = 0.5 * ε^T @ σ`
+    
+    These quantities can be:
+    - Projected to nodal resolution using shape functions
+    - Integrated to elemental resolution via quadrature
     
     Note: Section forces [N, Vy, Vz, T, My, Mz] are integrated stress
     resultants and belong in TertiaryResults, not here.

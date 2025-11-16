@@ -43,7 +43,8 @@ class SaveSecondaryResults:
         self.save_nodal = save_nodal
 
         # Create directory structure
-        self.secondary_dir = self.save_dir / "secondary_results"
+        # Note: save_dir is already secondary_results_dir, so no need to nest
+        self.secondary_dir = self.save_dir
         self.gaussian_dir = self.secondary_dir / "gaussian"
         self.nodal_dir = self.secondary_dir / "nodal"
         self.elemental_dir = self.secondary_dir / "elemental"
@@ -107,8 +108,9 @@ class SaveSecondaryResults:
                 strain_array = np.array(elem_strains)  # shape: (n_gauss, n_strain_components)
                 filename = strain_dir / f"strain_elem_{elem_idx:06d}.csv"
                 header = "ε_xx,ε_yy,ε_zz,γ_xy,γ_yz,γ_xz"
-                np.savetxt(filename, strain_array, delimiter=",", fmt="%.12e",
-                          header=header, comments='')
+                with open(filename, 'w', encoding='utf-8') as f:
+                    np.savetxt(f, strain_array, delimiter=",", fmt="%.12e",
+                              header=header, comments='')
             logger.info(f"   ✓ Strain saved: {len(gauss_res.strain)} elements")
 
         # Save stress at Gauss points
@@ -117,8 +119,9 @@ class SaveSecondaryResults:
                 stress_array = np.array(elem_stresses)  # shape: (n_gauss, n_stress_components)
                 filename = stress_dir / f"stress_elem_{elem_idx:06d}.csv"
                 header = "σ_xx,σ_yy,σ_zz,τ_xy,τ_yz,τ_xz"
-                np.savetxt(filename, stress_array, delimiter=",", fmt="%.12e",
-                          header=header, comments='')
+                with open(filename, 'w', encoding='utf-8') as f:
+                    np.savetxt(f, stress_array, delimiter=",", fmt="%.12e",
+                              header=header, comments='')
             logger.info(f"   ✓ Stress saved: {len(gauss_res.stress)} elements")
 
         # Save energy density at Gauss points
@@ -127,8 +130,9 @@ class SaveSecondaryResults:
                 energy_array = np.array(elem_energy).reshape(-1, 1)
                 filename = energy_dir / f"energy_density_elem_{elem_idx:06d}.csv"
                 header = "strain_energy_density"
-                np.savetxt(filename, energy_array, delimiter=",", fmt="%.12e",
-                          header=header, comments='')
+                with open(filename, 'w', encoding='utf-8') as f:
+                    np.savetxt(f, energy_array, delimiter=",", fmt="%.12e",
+                              header=header, comments='')
             logger.info(f"   ✓ Energy density saved: {len(gauss_res.internal_energy_density)} elements")
 
     def _save_nodal_results(self):
@@ -144,23 +148,26 @@ class SaveSecondaryResults:
         if nodal_res.strain is not None:
             filename = self.nodal_dir / "nodal_strain.csv"
             header = "ε_xx,ε_yy,ε_zz,γ_xy,γ_yz,γ_xz"
-            np.savetxt(filename, nodal_res.strain, delimiter=",",
-                      fmt="%.12e", header=header, comments='')
+            with open(filename, 'w', encoding='utf-8') as f:
+                np.savetxt(f, nodal_res.strain, delimiter=",",
+                          fmt="%.12e", header=header, comments='')
             logger.info(f"   ✓ Nodal strain saved: {nodal_res.strain.shape}")
 
         # Save nodal stress
         if nodal_res.stress is not None:
             filename = self.nodal_dir / "nodal_stress.csv"
             header = "σ_xx,σ_yy,σ_zz,τ_xy,τ_yz,τ_xz"
-            np.savetxt(filename, nodal_res.stress, delimiter=",",
-                      fmt="%.12e", header=header, comments='')
+            with open(filename, 'w', encoding='utf-8') as f:
+                np.savetxt(f, nodal_res.stress, delimiter=",",
+                          fmt="%.12e", header=header, comments='')
             logger.info(f"   ✓ Nodal stress saved: {nodal_res.stress.shape}")
 
         # Save nodal strain energy density
         if nodal_res.strain_energy_density is not None:
             filename = self.nodal_dir / "nodal_strain_energy_density.csv"
-            np.savetxt(filename, nodal_res.strain_energy_density.reshape(-1, 1),
-                      delimiter=",", fmt="%.12e", header="strain_energy_density", comments='')
+            with open(filename, 'w', encoding='utf-8') as f:
+                np.savetxt(f, nodal_res.strain_energy_density.reshape(-1, 1),
+                          delimiter=",", fmt="%.12e", header="strain_energy_density", comments='')
             logger.info(f"   ✓ Nodal energy density saved: {nodal_res.strain_energy_density.shape}")
 
     def _save_elemental_results(self):

@@ -9,6 +9,11 @@ import scipy.sparse as sp
 # Element-level results (stored per element)
 # These results are defined in local element space, and their
 # ordering matches the mesh element numbering.
+# 
+# Native Resolution: Elemental - quantities are either:
+#   - Formulated at element level (K_e, F_e)
+#   - Disassembled from global (U_e, R_e)
+#   - Integrated from Gaussian (total_strain_energy)
 # ─────────────────────────────────────────────────────────────
 
 @dataclass

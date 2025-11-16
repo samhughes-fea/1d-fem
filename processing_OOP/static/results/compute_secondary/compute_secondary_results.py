@@ -167,9 +167,9 @@ class SecondaryResultsOrchestrator:
         self.logger.info(f"  ✅ Computed results for {len(strains_all)} elements")
         
         return GaussianResults(
-            strains=strains_all,
-            stresses=stresses_all,
-            energy_density=energy_all
+            strain=strains_all,
+            stress=stresses_all,
+            internal_energy_density=energy_all
         )
     
     def compute_nodal_results(self, gaussian_results: GaussianResults) -> NodalResults:
@@ -192,7 +192,7 @@ class SecondaryResultsOrchestrator:
         # This would involve extrapolating from Gauss points to element nodes
         
         return NodalResults(
-            strains=None,
-            stresses=None,
-            energy_density=None
+            strain=None,
+            stress=None,
+            strain_energy_density=None
         )

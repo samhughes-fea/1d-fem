@@ -230,11 +230,6 @@ class Element1DBase(ABC):
     def assemble_global_dof_indices(self) -> np.ndarray:
         """Compute global DOF indices for element assembly.
 
-        Parameters
-        ----------
-        element_id : int
-            Target element identifier
-
         Returns
         -------
         np.ndarray
@@ -243,7 +238,7 @@ class Element1DBase(ABC):
         Raises
         ------
         ValueError
-            For invalid element_id or negative node indices
+            For negative node indices
 
         Notes
         -----
@@ -251,9 +246,6 @@ class Element1DBase(ABC):
         Index mapping formula: global_dof = node_id * dof_per_node + local_dof
         """
         eid, n1, n2 = self.element_array[:3]
-
-        if element_id != eid:
-            raise ValueError(f"Invalid element_id {element_id} for this object")
 
         dof_indices = []
         for nid in (n1, n2):

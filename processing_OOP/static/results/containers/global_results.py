@@ -7,6 +7,9 @@ import scipy.sparse as sp
 
 # ─────────────────────────────────────────────────────────────
 # Global-level results (system-wide matrices and vectors)
+# 
+# Native Resolution: Global - quantities are FIRST computed at the
+# assembled system level (smallest resolution for system-wide quantities).
 # ─────────────────────────────────────────────────────────────
 
 @dataclass

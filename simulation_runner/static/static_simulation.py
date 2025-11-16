@@ -601,7 +601,7 @@ class StaticSimulationRunner:
         
         # Save secondary results
         saver = SaveSecondaryResults(
-            secondary_results_set=self.secondary_results_set,
+            secondary_results=self.secondary_results_set,
             save_dir=self.secondary_results_dir
         )
         saver.save_all()
