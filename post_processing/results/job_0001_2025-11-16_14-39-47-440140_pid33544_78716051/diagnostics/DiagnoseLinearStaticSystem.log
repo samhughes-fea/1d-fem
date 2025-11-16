@@ -1,0 +1,69 @@
+--------------------------------------------------------------------------
+### Global System
+
+                   │ CURRENT            │ EVOLUTION         
+Equations          │ 606                │ 606               
+Dirichlet          │ 0                  │ 0                 
+Eliminated         │ 0                  │ 0                 
+Unknowns           │ 606                │ 606               
+nnz                │ 3010               │ 3010              
+Density            │ 8.20e-03           │ 8.20e-03          
+Zero rows          │ 0                  │ 0                 
+Zero cols          │ 0                  │ 0                 
+Bandwidth          │ 10                 │ 10                
+Symmetric          │ yes                │ yes               
+Rank               │ 599                │ 599               
+Cond-no            │ 7.1e+17            │ 7.1e+17           
+λmin/λmax          │ —                  │ —                 
+Inertia            │ —                  │ —                 
+b-min/max          │ -5.0e+02/0.0e+00   │ -5.0e+02/0.0e+00  
+Σb                 │ -5.0e+02           │ -5.0e+02          
+Top|b|             │ 601:-5.0e+02, 592:0.0e+00, 591:0.0e+00 │ 601:-5.0e+02, 592:0.0e+00, 591:0.0e+00
+
+2025-11-16 14:39:52,748 [INFO] 🩺  Global System diagnostics appended → C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\post_processing\results\job_0001_2025-11-16_14-39-47-440140_pid33544_78716051\diagnostics\DiagnoseLinearStaticSystem.log
+--------------------------------------------------------------------------
+### Modified System
+
+                   │ CURRENT            │ EVOLUTION         
+Equations          │ 606                │ 606               
+Dirichlet          │ 0                  │ 6                 
+Eliminated         │ 0                  │ 0                 
+Unknowns           │ 606                │ 600               
+nnz                │ 2986               │ 3010              
+Density            │ 8.13e-03           │ 8.20e-03          
+Zero rows          │ 0                  │ 0                 
+Zero cols          │ 0                  │ 0                 
+Bandwidth          │ 10                 │ 10                
+Symmetric          │ yes                │ yes               
+Rank               │ 6                  │ 599               
+Cond-no            │ 3.9e+34            │ 7.1e+17           
+λmin/λmax          │ —                  │ —                 
+Inertia            │ —                  │ —                 
+b-min/max          │ -5.0e+02/0.0e+00   │ -5.0e+02/0.0e+00  
+Σb                 │ -5.0e+02           │ -5.0e+02          
+Top|b|             │ 601:-5.0e+02, 592:0.0e+00, 591:0.0e+00 │ 601:-5.0e+02, 592:0.0e+00, 591:0.0e+00
+
+2025-11-16 14:39:53,743 [INFO] 🩺  Modified System diagnostics appended → C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\post_processing\results\job_0001_2025-11-16_14-39-47-440140_pid33544_78716051\diagnostics\DiagnoseLinearStaticSystem.log
+--------------------------------------------------------------------------
+### Condensed System
+
+                   │ CURRENT            │ EVOLUTION         
+Equations          │ 600                │ 606               
+Dirichlet          │ 0                  │ 6                 
+Eliminated         │ 0                  │ 6                 
+Unknowns           │ 600                │ 594               
+nnz                │ 2980               │ 3010              
+Density            │ 8.28e-03           │ 8.20e-03          
+Zero rows          │ 0                  │ 0                 
+Zero cols          │ 0                  │ 0                 
+Bandwidth          │ 10                 │ 10                
+Symmetric          │ yes                │ yes               
+Rank               │ 598                │ 599               
+Cond-no            │ 1.1e+13            │ 7.1e+17           
+λmin/λmax          │ —                  │ —                 
+Inertia            │ —                  │ —                 
+b-min/max          │ -5.0e+02/0.0e+00   │ -5.0e+02/0.0e+00  
+Σb                 │ -5.0e+02           │ -5.0e+02          
+Top|b|             │ 595:-5.0e+02, 592:0.0e+00, 591:0.0e+00 │ 601:-5.0e+02, 592:0.0e+00, 591:0.0e+00
+
+2025-11-16 14:39:54,806 [INFO] 🩺  Condensed System diagnostics appended → C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\post_processing\results\job_0001_2025-11-16_14-39-47-440140_pid33544_78716051\diagnostics\DiagnoseLinearStaticSystem.log

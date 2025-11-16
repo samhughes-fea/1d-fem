@@ -1,0 +1,17 @@
+--------------------------------------------------------------------------
+Machine specifications – written 2025-11-16 14:58:48.864867
+OS          : Windows 11 (10.0.26100)
+CPU         : 12th Gen Intel(R) Core(TM) i7-12700
+   logical  : 20
+   physical : 12
+RAM         : 31.24 GB
+Disk        : 943.72 GB total  /  504.04 GB free
+Python      : 3.12.5  (C:\Users\s1834431\AppData\Local\Programs\Python\Python312\python.exe)
+GPU(s)      : Intel(R) UHD Graphics 770
+--------------------------------------------------------------------------
+
+Runtime telemetry header written → C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\post_processing\results\job_0003_2025-11-16_14-58-42-906159_pid28592_1e319e58\diagnostics\RuntimeMonitorTelemetry.log
+2025-11-16 14:58:49 │ PrepareLocalSystem BEGIN   │ Δt  0.00 s │ RAM   135.2 MB │ CPU   9.2 % │ Disk  439.7 GB
+2025-11-16 14:58:49 │ PrepareLocalSystem END     │ Δt  0.23 s │ RAM   135.8 MB │ CPU  18.5 % │ Disk  439.7 GB
+2025-11-16 14:58:49 │ AssembleGlobalSystem BEGIN │ Δt  0.20 s │ RAM   135.8 MB │ CPU  21.8 % │ Disk  439.7 GB
+2025-11-16 14:58:49 │ AssembleGlobalSystem END   │ Δt  0.22 s │ RAM   135.9 MB │ CPU  15.0 % │ Disk  439.7 GB

@@ -1,0 +1,131 @@
+2025-11-16 14:58:47,215 [DEBUG] 📁 Log file created at: C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\post_processing\results\job_0001_2025-11-16_14-58-42-903159_pid28592_2612f596\logs\AssembleGlobalSystem.log (Module: assembly, Line: 91)
+2025-11-16 14:58:47,215 [INFO] 🔧 Starting global matrix assembly... (Module: assembly, Line: 109)
+2025-11-16 14:58:47,216 [ERROR] Element 0 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,216 [ERROR] Element 1 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 2 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 3 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 4 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 5 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 6 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 7 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 8 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 9 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 10 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 11 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 12 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 13 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 14 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 15 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 16 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 17 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 18 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 19 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 20 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 21 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 22 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 23 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 24 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 25 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 26 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 27 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 28 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 29 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 30 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 31 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 32 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 33 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 34 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 35 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 36 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 37 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 38 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 39 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 40 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 41 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 42 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 43 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 44 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 45 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 46 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 47 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 48 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 49 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 50 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 51 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 52 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 53 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,217 [ERROR] Element 54 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 55 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 56 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 57 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 58 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 59 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 60 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 61 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 62 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 63 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 64 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 65 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 66 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 67 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 68 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 69 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 70 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 71 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 72 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 73 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 74 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 75 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 76 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 77 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 78 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 79 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 80 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 81 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 82 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 83 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 84 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 85 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 86 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 87 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 88 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 89 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 90 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,218 [ERROR] Element 91 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,219 [ERROR] Element 92 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,219 [ERROR] Element 93 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,219 [ERROR] Element 94 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,219 [ERROR] Element 95 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,219 [ERROR] Element 96 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,219 [ERROR] Element 97 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,219 [ERROR] Element 98 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,219 [ERROR] Element 99 failed validation: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given (Module: assembly, Line: 194)
+2025-11-16 14:58:47,219 [CRITICAL] ❌ Assembly failed: Assembly aborted due to invalid DOF mappings:
+0: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+1: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+2: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+3: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+4: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+5: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+6: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+7: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+8: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+9: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+... 90 additional errors (Module: assembly, Line: 122)
+Traceback (most recent call last):
+  File "C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\processing_OOP\static\operations\assembly.py", line 113, in assemble
+    self._compute_local_global_dof_map()
+  File "C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\processing_OOP\static\operations\assembly.py", line 200, in _compute_local_global_dof_map
+    raise RuntimeError("Assembly aborted due to invalid DOF mappings:\n" + "\n".join(msgs))
+RuntimeError: Assembly aborted due to invalid DOF mappings:
+0: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+1: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+2: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+3: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+4: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+5: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+6: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+7: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+8: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+9: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+... 90 additional errors

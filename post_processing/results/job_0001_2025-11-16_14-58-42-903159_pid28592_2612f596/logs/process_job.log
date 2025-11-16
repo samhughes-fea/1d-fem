@@ -1,0 +1,41 @@
+2025-11-16 14:58:43,253 - INFO - 🟢 Starting job: job_0001
+2025-11-16 14:58:47,422 - ERROR - ❌ Error in job job_0001: Simulation aborted
+Traceback (most recent call last):
+  File "C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\processing_OOP\static\operations\assembly.py", line 113, in assemble
+    self._compute_local_global_dof_map()
+  File "C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\processing_OOP\static\operations\assembly.py", line 200, in _compute_local_global_dof_map
+    raise RuntimeError("Assembly aborted due to invalid DOF mappings:\n" + "\n".join(msgs))
+RuntimeError: Assembly aborted due to invalid DOF mappings:
+0: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+1: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+2: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+3: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+4: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+5: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+6: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+7: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+8: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+9: TypeError - Element1DBase.assemble_global_dof_indices() takes 1 positional argument but 2 were given
+... 90 additional errors
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\simulation_runner\static\static_simulation.py", line 637, in run
+    self.local_global_dof_map) = self.assemble_global_system(self.primary_results_dir)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\simulation_runner\static\static_simulation.py", line 215, in assemble_global_system
+    K_global, F_global, local_global_dof_map, assembly_map = assembler.assemble()
+                                                             ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\processing_OOP\static\operations\assembly.py", line 123, in assemble
+    raise RuntimeError("Global assembly failed") from e
+RuntimeError: Global assembly failed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\workflow_orchestrator\run_job.py", line 324, in process_job
+    runner.run()
+  File "C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\simulation_runner\static\static_simulation.py", line 740, in run
+    raise RuntimeError("Simulation aborted") from exc
+RuntimeError: Simulation aborted

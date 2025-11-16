@@ -1,0 +1,3 @@
+2025-11-16 14:43:48,860 [DEBUG] 📁 Log file created at: C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\post_processing\results\job_0002_2025-11-16_14-43-17-705354_pid16164_60053488\logs\PrimaryResultsOrchestrator.log (Module: primary_results_orchestrator, Line: 91)
+2025-11-16 14:43:48,860 [INFO] ✅ Reactions evaluated & masked (Module: primary_results_orchestrator, Line: 45)
+2025-11-16 14:43:48,860 [INFO] ✅ Residual computed (Module: primary_results_orchestrator, Line: 46)

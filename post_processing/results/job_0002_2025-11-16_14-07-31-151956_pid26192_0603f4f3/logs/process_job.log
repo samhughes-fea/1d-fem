@@ -1,0 +1,24 @@
+2025-11-16 14:07:31,490 - INFO - 🟢 Starting job: job_0002
+2025-11-16 14:08:43,565 - ERROR - ❌ Error in job job_0002: Simulation aborted
+Traceback (most recent call last):
+  File "C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\simulation_runner\static\static_simulation.py", line 734, in run
+    self.compute_secondary_results()
+  File "C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\simulation_runner\static\static_simulation.py", line 600, in compute_secondary_results
+    self.secondary_results_set = orchestrator.compute_all()
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\processing_OOP\static\results\compute_secondary\compute_secondary_results.py", line 117, in compute_all
+    gaussian_results = self.compute_gaussian_results()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\processing_OOP\static\results\compute_secondary\compute_secondary_results.py", line 145, in compute_gaussian_results
+    dof_indices = element.assemble_global_dof_indices()
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Element1DBase.assemble_global_dof_indices() missing 1 required positional argument: 'element_id'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\workflow_orchestrator\run_job.py", line 324, in process_job
+    runner.run()
+  File "C:\Users\s1834431\.cursor\worktrees\fem_model\kXxtc\simulation_runner\static\static_simulation.py", line 740, in run
+    raise RuntimeError("Simulation aborted") from exc
+RuntimeError: Simulation aborted
