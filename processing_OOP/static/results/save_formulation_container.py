@@ -14,21 +14,20 @@ class SaveFormulationData:
     """
     Saves element formulation data including Gauss-level matrices.
 
-    This module persists the cached element formulation data (ElementObject
-    and ForceObject) that includes:
+    This module persists the cached element formulation data (FormulationResultSet)
+    that includes:
     - Element stiffness matrices K_e
     - Element force vectors F_e
     - Gauss point data (B, D, J, weights, coordinates)
+    - Element type tracking
 
     This enables post-processing of stresses, strains, and section forces
     without recomputing shape functions.
 
     Parameters
     ----------
-    element_objects : List[ElementObject]
-        Element stiffness formulation data for all elements
-    force_objects : List[ForceObject]
-        Element force formulation data for all elements
+    formulation_cache : FormulationResultSet
+        Cached element formulation data with ElementObject and ForceObject lists
     save_dir : str or Path
         Base directory where formulation data should be saved
     save_gauss_data : bool
@@ -37,13 +36,12 @@ class SaveFormulationData:
 
     def __init__(
         self,
-        element_objects: Optional[List] = None,
-        force_objects: Optional[List] = None,
+        formulation_cache = None,
         save_dir: str | Path = None,
         save_gauss_data: bool = False
     ):
-        self.element_objects = element_objects or []
-        self.force_objects = force_objects or []
+        self.element_objects = formulation_cache.element_objects if formulation_cache else []
+        self.force_objects = formulation_cache.force_objects if formulation_cache else []
         self.save_dir = Path(save_dir)
         self.save_gauss_data = save_gauss_data
 
@@ -52,6 +50,7 @@ class SaveFormulationData:
         self.stiffness_dir = self.formulation_dir / "stiffness"
         self.force_dir = self.formulation_dir / "force"
         self.gauss_dir = self.formulation_dir / "gauss_points"
+        self.element_type_file = self.formulation_dir / "element_types.csv"
 
         for directory in [self.stiffness_dir, self.force_dir]:
             directory.mkdir(parents=True, exist_ok=True)
@@ -65,27 +64,45 @@ class SaveFormulationData:
         logger.info("SAVING ELEMENT FORMULATION DATA")
         logger.info("=" * 70)
 
+        # Save element type mapping
+        if self.element_objects:
+            logger.info(f"\n[1/4] Saving element type mapping...")
+            self._save_element_types()
+
         # Save element stiffness matrices
         if self.element_objects:
-            logger.info(f"\n[1/3] Saving {len(self.element_objects)} element stiffness matrices...")
+            logger.info(f"\n[2/4] Saving {len(self.element_objects)} element stiffness matrices...")
             self._save_stiffness_matrices()
 
         # Save element force vectors
         if self.force_objects:
-            logger.info(f"\n[2/3] Saving {len(self.force_objects)} element force vectors...")
+            logger.info(f"\n[3/4] Saving {len(self.force_objects)} element force vectors...")
             self._save_force_vectors()
 
         # Save Gauss point data (optional, can be large)
         if self.save_gauss_data and self.element_objects:
-            logger.info(f"\n[3/3] Saving Gauss point formulation data...")
+            logger.info(f"\n[4/4] Saving Gauss point formulation data...")
             self._save_gauss_point_data()
         else:
-            logger.info(f"\n[3/3] Skipping Gauss point data (save_gauss_data=False)")
+            logger.info(f"\n[4/4] Skipping Gauss point data (save_gauss_data=False)")
 
         logger.info("\n" + "=" * 70)
         logger.info("✅ FORMULATION DATA SAVED SUCCESSFULLY")
         logger.info(f"   Location: {self.formulation_dir}")
         logger.info("=" * 70)
+
+    def _save_element_types(self):
+        """Save element type mapping to CSV."""
+        type_data = []
+        for elem_obj in self.element_objects:
+            type_data.append({
+                'element_id': elem_obj.element_id,
+                'element_type': elem_obj.element_type
+            })
+        
+        df = pd.DataFrame(type_data)
+        df.to_csv(self.element_type_file, index=False)
+        logger.info(f"   ✓ Saved to: {self.element_type_file}")
 
     def _save_stiffness_matrices(self):
         """Save element stiffness matrices to CSV files."""
@@ -156,6 +173,7 @@ class SaveFormulationSummary:
 
     Creates a summary CSV file with key formulation metadata:
     - Element ID
+    - Element Type
     - Number of Gauss points
     - Integration scheme
     - Stiffness matrix condition number
@@ -164,10 +182,10 @@ class SaveFormulationSummary:
 
     def __init__(
         self,
-        element_objects: List,
+        formulation_cache,
         save_dir: str | Path
     ):
-        self.element_objects = element_objects
+        self.element_objects = formulation_cache.element_objects if formulation_cache else []
         self.save_dir = Path(save_dir)
 
     def save(self):
@@ -185,6 +203,7 @@ class SaveFormulationSummary:
             
             summary_data.append({
                 'element_id': elem_obj.element_id,
+                'element_type': elem_obj.element_type,
                 'n_gauss_points': elem_obj.n_gauss_points,
                 'integration_scheme': elem_obj.integration_scheme,
                 'K_condition_number': cond_number,

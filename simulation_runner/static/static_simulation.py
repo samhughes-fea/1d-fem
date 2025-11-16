@@ -52,11 +52,13 @@ class StaticSimulationRunner:
         section_dictionary,
         point_load_array,
         distributed_load_array,
-        element_stiffness_matrices,
-        element_force_vectors,
+        element_objects,           # NEW: ElementObject[]
+        force_objects,             # NEW: ForceObject[]
         job_name,
         job_results_dir
     ):
+        from processing_OOP.static.results.containers import FormulationResultSet
+        
         self.elements = elements
         self.grid_dictionary = grid_dictionary
         self.element_dictionary = element_dictionary
@@ -64,9 +66,17 @@ class StaticSimulationRunner:
         self.section_dictionary = section_dictionary
         self.point_load_array = point_load_array
         self.distributed_load_array = distributed_load_array
-        self.element_stiffness_matrices = element_stiffness_matrices
-        self.element_force_vectors = element_force_vectors
         self.job_name = job_name
+        
+        # Create FormulationResultSet from objects
+        self.formulation_cache = FormulationResultSet(
+            element_objects=list(element_objects),
+            force_objects=list(force_objects)
+        )
+        
+        # Extract matrices/vectors for backward compatibility with assembly
+        self.element_stiffness_matrices = np.array([obj.K_e for obj in element_objects], dtype=object)
+        self.element_force_vectors = np.array([obj.F_e for obj in force_objects], dtype=object)
 
         self.results_root = job_results_dir  # Use exact path passed from run_job.py
         self.primary_results_dir = os.path.join(self.results_root, "primary_results")
@@ -570,28 +580,33 @@ class StaticSimulationRunner:
     # -------------------------------------------------------------------------
     def compute_secondary_results(self) -> None:
         """Compute and save secondary results (stresses, strains, etc.)."""
-        logger.info("📈 Computing secondary results…")
-
-        # computer = ComputeSecondaryResults(
-            #element_dictionary    = self.element_dictionary,
-            #grid_dictionary       = self.grid_dictionary,
-            #material_dictionary   = self.material_dictionary,
-            #section_dictionary    = self.section_dictionary,
-            #job_results_dir       = self.secondary_results_dir,
-        #)
-
-        # from reading the element type, the code needs to reach into the appropriate MaterialStiffnessOperator, 
-        # StrainDisplacementOperator, ShapeFunctionOperators and gauss points in an element etc.
-
-        #GaussianResults()
-
-        #NodalResults()
-
-        #ElementalResults()
-
-        #SecondaryResultSet()
-
-        #SaveSecondaryResults(
+        logger.info("📈 Computing secondary results using cached formulation data...")
+        
+        from processing_OOP.static.results.compute_secondary.compute_secondary_results import SecondaryResultsOrchestrator
+        from processing_OOP.static.results.save_secondary_container import SaveSecondaryResults
+        
+        # Compute secondary results using cached Gauss point data
+        orchestrator = SecondaryResultsOrchestrator(
+            elements=self.elements,
+            grid_dictionary=self.grid_dictionary,
+            element_dictionary=self.element_dictionary,
+            material_dictionary=self.material_dictionary,
+            section_dictionary=self.section_dictionary,
+            global_displacement=self.U_global,
+            formulation_cache=self.formulation_cache,
+            job_results_dir=self.secondary_results_dir
+        )
+        
+        self.secondary_results_set = orchestrator.compute_all()
+        
+        # Save secondary results
+        saver = SaveSecondaryResults(
+            secondary_results_set=self.secondary_results_set,
+            save_dir=self.secondary_results_dir
+        )
+        saver.save_all()
+        
+        logger.info("✅ Secondary results computed and saved")
     
 
     # -------------------------------------------------------------------------
@@ -699,12 +714,24 @@ class StaticSimulationRunner:
             # -----------------------------------------------------------------
             with self.monitor.stage("ComputePrimaryResults"):
                 self.compute_primary_results()
+            
+            # -----------------------------------------------------------------
+            # 6.5 Save formulation cache
+            # -----------------------------------------------------------------
+            with self.monitor.stage("SaveFormulationCache"):
+                from processing_OOP.static.results.save_formulation_container import SaveFormulationData
+                saver = SaveFormulationData(
+                    formulation_cache=self.formulation_cache,
+                    save_dir=self.primary_results_dir,
+                    save_gauss_data=False  # Can be enabled for debugging
+                )
+                saver.save_all()
 
             # -----------------------------------------------------------------
             # 7  Secondary (derived) results
             # -----------------------------------------------------------------
-            # with self.monitor.stage("ComputeSecondaryResults"):
-            #     self.compute_secondary_results()
+            with self.monitor.stage("ComputeSecondaryResults"):
+                self.compute_secondary_results()
 
             logger.info("🏁 Simulation completed successfully → %s", self.results_root)
 

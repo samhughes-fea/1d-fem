@@ -262,13 +262,13 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times):
         # --- ELEMENT COMPUTATIONS ---
         step_start = time.time()
         vectorized_stiffness = np.vectorize(lambda elem: elem.element_stiffness_matrix() if elem else None, otypes=[object])
-        element_stiffness_matrices = vectorized_stiffness(all_elements)
+        element_objects = vectorized_stiffness(all_elements)  # Returns ElementObject[]
         stiffness_time = time.time() - step_start
         performance_data.append(["Element Stiffness Computation", stiffness_time, *track_usage().values()])
 
         step_start = time.time()
         vectorized_force = np.vectorize(lambda elem: elem.element_force_vector() if elem else None, otypes=[object])
-        element_force_vectors = vectorized_force(all_elements)
+        force_objects = vectorized_force(all_elements)  # Returns ForceObject[]
         force_time = time.time() - step_start
         performance_data.append(["Element Force Computation", force_time, *track_usage().values()])
 
@@ -286,8 +286,8 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times):
                 section_dictionary         = section_dictionary,
                 point_load_array           = point_load_array,
                 distributed_load_array     = distributed_load_array,
-                element_stiffness_matrices = element_stiffness_matrices,
-                element_force_vectors      = element_force_vectors,
+                element_objects            = element_objects,      # NEW: ElementObject[]
+                force_objects              = force_objects,        # NEW: ForceObject[]
                 job_name                   = case_name,
                 job_results_dir            = job_results_dir
             )

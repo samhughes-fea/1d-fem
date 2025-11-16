@@ -6,6 +6,7 @@ from .nodal_results import NodalResults
 from .gaussian_results import GaussianResults
 from .tertiary_results import TertiaryResults
 from .map_results import MapEntry
+from .formulation_results import FormulationResultSet
 from .container_hopper import (
     PrimaryResultSet,
     SecondaryResultSet,
@@ -20,6 +21,7 @@ __all__ = [
     "GaussianResults",
     "TertiaryResults",
     "MapEntry",
+    "FormulationResultSet",
     "PrimaryResultSet",
     "SecondaryResultSet",
     "TertiaryResultSet",
