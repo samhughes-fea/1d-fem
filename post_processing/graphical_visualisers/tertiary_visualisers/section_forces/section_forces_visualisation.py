@@ -1,12 +1,12 @@
 """
-Principal stress visualisation (tertiary results, Gaussian resolution).
+Section forces visualisation (tertiary results, Gaussian resolution).
 
-Reads job_*/tertiary_results/gaussian/principal_stress/principal_stress_elem_*.csv
-and plots σ1, σ2, σ3 vs position along structure.
+Reads job_*/tertiary_results/gaussian/section_forces/section_forces_elem_*.csv
+and plots N, Vy, Vz, T, My, Mz vs position along structure.
 - B2: red small solid circle at Gauss points; projected nodal = hollow circle;
   interpolated = thin black line (shape functions).
-GP positions from element geometry and 3-point Gauss-Legendre rule.
-Nodal values extrapolated from Gauss point data for consistency with other plots.
+GP positions are inferred from element geometry and 3-point Gauss-Legendre rule.
+Nodal values are extrapolated from Gauss point data for consistency with secondary plots.
 """
 
 from __future__ import annotations
@@ -46,17 +46,19 @@ from post_processing.graphical_visualisers.resolution_plotting_utils import (
 # 3-point Gauss-Legendre (same as EB 3D default quadrature)
 GAUSS_3PT_XI: Final[np.ndarray] = np.polynomial.legendre.leggauss(3)[0]
 
-COMPONENTS = [r"$\sigma_1$", r"$\sigma_2$", r"$\sigma_3$"]
+COMPONENTS = ["N", "Vy", "Vz", "T", "My", "Mz"]
 
 
 def _nodal_shape_matrix_at_xi(xi: np.ndarray, n_nodes: int) -> np.ndarray:
     """Shape function matrix N at natural coords xi. Shape (len(xi), n_nodes)."""
     if n_nodes == 2:
+        # Linear: N1 = (1-xi)/2, N2 = (1+xi)/2
         N = np.zeros((len(xi), 2))
         N[:, 0] = (1 - xi) / 2
         N[:, 1] = (1 + xi) / 2
         return N
     if n_nodes == 3:
+        # Quadratic: N1 = xi*(xi-1)/2, N2 = 1-xi^2, N3 = xi*(xi+1)/2
         N = np.zeros((len(xi), 3))
         N[:, 0] = xi * (xi - 1) / 2
         N[:, 1] = 1 - xi**2
@@ -85,13 +87,13 @@ def _gauss_point_x_for_element(
     return natural_to_physical_coords(xi, node_coords)
 
 
-class VisualisePrincipalStress:
-    """Produce principal stress from tertiary_results (Gauss + projected nodal + interpolated)."""
+class VisualiseSectionForces:
+    """Produce section forces from tertiary_results (Gauss + projected nodal + interpolated)."""
 
     _BLUE: Final[str] = "#4F81BD"
 
     def __init__(self) -> None:
-        self.figure_output_dir: Final[Path] = SCRIPT_DIR / "principal_stress_plots"
+        self.figure_output_dir: Final[Path] = SCRIPT_DIR / "section_forces_plots"
         self.figure_output_dir.mkdir(exist_ok=True)
         self.results_dir: Final[Path] = PROJECT_ROOT / "post_processing" / "results"
         self.jobs_dir: Final[Path] = PROJECT_ROOT / "jobs"
@@ -99,16 +101,16 @@ class VisualisePrincipalStress:
     def _plot(
         self,
         x_gauss: np.ndarray,
-        stress_gauss: np.ndarray,
+        forces_gauss: np.ndarray,
         node_positions: np.ndarray,
-        stress_nodal: np.ndarray,
+        forces_nodal: np.ndarray,
         element_dictionary: dict,
         grid_dictionary: dict,
         *,
         title_suffix: str = "",
         save_path: Optional[Path] = None,
     ) -> None:
-        # stress_gauss (n_gp, 3), stress_nodal (n_nodes, 3)
+        # forces_gauss (n_gp, 6), forces_nodal (n_nodes, 6)
         has_elements = (
             element_dictionary
             and "ids" in element_dictionary
@@ -118,15 +120,17 @@ class VisualisePrincipalStress:
         )
         has_gauss = x_gauss is not None and len(x_gauss) > 0
 
-        fig, axes = plt.subplots(3, 1, figsize=(8, 8), sharex=True)
+        fig, axes = plt.subplots(2, 3, figsize=(12, 6), sharex=True)
+        axes = axes.ravel()
         for k, (ax, name) in enumerate(zip(axes, COMPONENTS)):
+            # Interpolated field per element (B2: thin black line)
             if has_elements:
                 element_ids = element_dictionary["ids"]
                 for elem_id in element_ids:
                     try:
                         elem_idx = int(np.where(element_dictionary["ids"] == elem_id)[0][0])
                         node_ids = element_dictionary["connectivity"][elem_idx]
-                        elem_vals = stress_nodal[node_ids, k]
+                        elem_vals = forces_nodal[node_ids, k]
                         x_interp, val_interp = interpolate_field_nodal_to_continuous(
                             nodal_values=elem_vals,
                             element_id=elem_id,
@@ -142,15 +146,17 @@ class VisualisePrincipalStress:
                     except Exception:
                         continue
 
+            # Nodal markers (B2: projected = hollow circle)
             plot_nodal_points(
-                ax, node_positions.reshape(-1, 1), stress_nodal[:, k],
+                ax, node_positions.reshape(-1, 1), forces_nodal[:, k],
                 color=self._BLUE, size=NODAL_MARKER_SIZE, alpha=0.9,
                 nodal_data_type="projected",
                 label="Nodes" if k == 0 else None,
             )
 
+            # Gauss point markers (B2: red small solid circle)
             plot_gauss_points(
-                ax, x_gauss, stress_gauss[:, k],
+                ax, x_gauss, forces_gauss[:, k],
                 color="red", size=GAUSS_MARKER_SIZE, alpha=0.9,
                 label="Gauss points" if k == 0 else None,
             )
@@ -158,8 +164,16 @@ class VisualisePrincipalStress:
             ax.set_ylabel(name)
             ax.grid(ls="--", alpha=0.6)
             ax.axhline(0, color="k", linestyle="--", linewidth=0.8)
-        axes[-1].set_xlabel(r"$x$ [m]")
-        fig.suptitle(f"Principal stresses {title_suffix}".strip(), fontweight="bold")
+
+        axes[0].set_title("Axial N")
+        axes[1].set_title("Shear Vy")
+        axes[2].set_title("Shear Vz")
+        axes[3].set_title("Torque T")
+        axes[4].set_title("Moment My")
+        axes[5].set_title("Moment Mz")
+        for ax in axes[3:]:
+            ax.set_xlabel(r"$x$ [m]")
+        fig.suptitle(f"Section forces {title_suffix}".strip(), fontweight="bold")
 
         # Legend: only resolution levels present (B2 convention)
         from matplotlib.lines import Line2D
@@ -189,16 +203,19 @@ class VisualisePrincipalStress:
             plt.show()
 
     def process_all(self) -> None:
-        pattern = str(self.results_dir / "job_*" / "tertiary_results" / "gaussian" / "principal_stress" / "principal_stress_elem_*.csv")
+        # Discover jobs that have section_forces dir
+        pattern = str(self.results_dir / "job_*" / "tertiary_results" / "gaussian" / "section_forces" / "section_forces_elem_*.csv")
         csv_files = sorted(glob.glob(pattern))
         if not csv_files:
-            print("No principal_stress files found.")
+            print("No section_forces files found.")
             return
 
+        # Group by job (job_dir is parent of gaussian/section_forces)
         by_job: dict[str, list[Path]] = {}
         for p in csv_files:
             path = Path(p)
-            job_dir = path.parent.parent.parent.parent  # principal_stress -> gaussian -> tertiary_results -> job_XXX
+            # .../job_XXX_ts/tertiary_results/gaussian/section_forces/section_forces_elem_000000.csv
+            job_dir = path.parent.parent.parent.parent  # section_forces -> gaussian -> tertiary_results -> job_XXX
             key = job_dir.name
             by_job.setdefault(key, []).append(path)
 
@@ -217,8 +234,9 @@ class VisualisePrincipalStress:
                 print(f"WARNING: Grid or element file missing for job {job_id}, skipping.")
                 continue
 
+            # Sort by element index
             def elem_index(path: Path) -> int:
-                stem = path.stem
+                stem = path.stem  # section_forces_elem_000000
                 num = stem.split("_")[-1]
                 return int(num)
 
@@ -243,11 +261,11 @@ class VisualisePrincipalStress:
             coords = grid_dictionary.get("coordinates")
             n_nodes = coords.shape[0] if coords is not None else 0
             node_positions = coords[:, 0] if coords is not None else np.array([])
-            stress_nodal = np.zeros((n_nodes, 3))
+            forces_nodal = np.zeros((n_nodes, 6))
             weight = np.zeros(n_nodes)
 
             x_list = []
-            stress_list = []
+            forces_list = []
             for i, csv_path in enumerate(files_sorted):
                 elem_id = int(ids[i]) if hasattr(ids, "__getitem__") else i
                 node_ids = element_dictionary["connectivity"][i]
@@ -264,13 +282,13 @@ class VisualisePrincipalStress:
                     continue
                 if data.ndim == 1:
                     data = data.reshape(1, -1)
-                if data.shape[1] != 3:
+                if data.shape[1] != 6:
                     continue
                 n_gp = data.shape[0]
                 xi_used = GAUSS_3PT_XI if n_gp == 3 else np.polynomial.legendre.leggauss(n_gp)[0]
                 x_gp = _gauss_point_x_for_element(node_coords, xi_used)
                 x_list.append(x_gp)
-                stress_list.append(data)
+                forces_list.append(data)
 
                 if n_nodes_elem not in (2, 3):
                     continue
@@ -282,27 +300,27 @@ class VisualisePrincipalStress:
                 for node_idx in range(n_nodes_elem):
                     nid = node_ids[node_idx]
                     if nid < n_nodes:
-                        stress_nodal[nid] += nodal_elem[node_idx]
+                        forces_nodal[nid] += nodal_elem[node_idx]
                         weight[nid] += 1.0
 
             if not x_list:
-                print(f"No valid principal stress data for job {job_id}, skipping.")
+                print(f"No valid section force data for job {job_id}, skipping.")
                 continue
 
             nonzero = weight > 0
             if np.any(nonzero):
-                stress_nodal[nonzero] /= weight[nonzero, np.newaxis]
+                forces_nodal[nonzero] /= weight[nonzero, np.newaxis]
 
             x_gauss = np.concatenate(x_list)
-            stress_gauss = np.vstack(stress_list)
+            forces_gauss = np.vstack(forces_list)
 
-            fig_name = f"principal_stress_job_{job_id}_{timestamp}.png"
+            fig_name = f"section_forces_job_{job_id}_{timestamp}.png"
             save_path = self.figure_output_dir / fig_name
             self._plot(
                 x_gauss,
-                stress_gauss,
+                forces_gauss,
                 node_positions,
-                stress_nodal,
+                forces_nodal,
                 element_dictionary,
                 grid_dictionary,
                 title_suffix=f"job_{job_id}_{timestamp}",
@@ -312,4 +330,4 @@ class VisualisePrincipalStress:
 
 
 if __name__ == "__main__":
-    VisualisePrincipalStress().process_all()
+    VisualiseSectionForces().process_all()

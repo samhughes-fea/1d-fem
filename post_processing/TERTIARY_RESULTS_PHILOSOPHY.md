@@ -47,10 +47,7 @@ Unlike primary and secondary results, tertiary results have **multiple native re
   - Computation: `τ_max = (σ1 - σ3) / 2`
   - Shape: `List[element] -> List[gauss_point] -> float`
 
-- **Failure Index**: Material failure criterion
-  - Native Resolution: **Gaussian** (computed from Von Mises and yield strength)
-  - Computation: `FI = σ_vm / (σ_yield / SF)`
-  - Shape: `List[element] -> List[gauss_point] -> float`
+*(Failure index is not currently computed; it may be reintroduced when material/design workflow and yield strength are required.)*
 
 #### 2. Integrated Elemental Quantities (Elemental Resolution)
 - **Total Strain Energy**: Energy stored per element
@@ -102,7 +99,7 @@ tertiary_results/
 | Principal Stresses | Gaussian | Eigenvalue decomposition of stress | `tertiary_results/gaussian/principal_stress/` | ✅ Correct |
 | Von Mises Stress | Gaussian | `√(½[(σ1-σ2)² + (σ2-σ3)² + (σ3-σ1)²])` | Summary CSV only | ✅ Correct |
 | Max Shear Stress | Gaussian | `(σ1 - σ3) / 2` | Summary CSV only | ✅ Correct |
-| Failure Index | Gaussian | `σ_vm / (σ_yield / SF)` | Summary CSV only | ✅ Correct |
+| Failure Index | Gaussian (deferred) | `σ_vm / (σ_yield / SF)` | Not computed currently | Deferred |
 | Total Strain Energy | Elemental (integrated) | `∫ w dΩ` via quadrature | `tertiary_results/elemental/total_strain_energy.csv` | ✅ Correct |
 | Integrated Section Forces | Elemental (integrated) | Weighted average over element | `tertiary_results/elemental/integrated_section_forces.csv` | ✅ Correct |
 
@@ -120,11 +117,11 @@ tertiary_results/
 
 ### 2. Derived vs. Native Quantities
 
-**Observation**: Some tertiary quantities are stored individually (section forces, principal stresses), while others are only in summary (Von Mises, max shear, failure index).
+**Observation**: Some tertiary quantities are stored individually (section forces, principal stresses), while others are only in summary (Von Mises, max shear). Failure index is not currently computed.
 
 **Rationale**: 
 - Section forces and principal stresses are **core engineering quantities** used for design
-- Von Mises, max shear, and failure index are **derived metrics** primarily used for summary/analysis
+- Von Mises and max shear are **derived metrics** primarily used for summary/analysis
 
 **Status**: ✅ **Acceptable** - Design choice to reduce file count while preserving critical data
 
@@ -210,7 +207,7 @@ tertiary_results/
 
 ### 3. Summary-Only Quantities
 
-**Issue**: Von Mises stress, max shear stress, and failure index are only saved in summary CSV, not as individual files.
+**Issue**: Von Mises stress and max shear stress are only saved in summary CSV, not as individual files.
 
 **Current**: Only in `tertiary_summary.csv`
 **Alternative**: Could save as individual files per element (like section forces)
@@ -307,7 +304,7 @@ tertiary_results/
 | Principal Stresses | Gaussian | Nodal (if needed) | N/A |
 | Von Mises Stress | Gaussian | Nodal (if needed) | N/A |
 | Max Shear Stress | Gaussian | Nodal (if needed) | N/A |
-| Failure Index | Gaussian | Nodal (if needed) | N/A |
+| Failure Index (deferred) | Gaussian | Nodal (if needed) | N/A |
 | Total Strain Energy | Elemental | N/A | Global (sum) |
 | Integrated Section Forces | Elemental | N/A | N/A |
 
@@ -315,7 +312,7 @@ tertiary_results/
 
 | Resolution | Native Quantities | Derived Quantities | Integrated Quantities |
 |-----------|-------------------|-------------------|---------------------|
-| **Gaussian** | Section forces, Principal stresses | Von Mises, Max shear, Failure index | None |
+| **Gaussian** | Section forces, Principal stresses | Von Mises, Max shear | None |
 | **Elemental** | Total strain energy, Integrated section forces | None | None |
 
 ---
@@ -330,9 +327,18 @@ tertiary_results/
 
 ### Future Enhancements
 
-1. **Optional Individual Files**: Consider saving Von Mises, max shear, and failure index as individual files if needed
+1. **Optional Individual Files**: Consider saving Von Mises and max shear as individual files if needed
 2. **Nodal Projections**: Add nodal projections of section forces and principal stresses if needed for visualization
 3. **Metadata**: Add JSON/YAML files describing computation methods and native resolutions
+
+---
+
+## Graphical visualisers
+
+Tertiary result plots are produced by scripts under `post_processing/graphical_visualisers/tertiary_visualisers/`. They read from `job_*/tertiary_results/` (same discovery pattern as primary/secondary visualisers; mesh from `jobs/job_{id}/`).
+
+- **Elemental:** Total strain energy and integrated section forces are plotted vs element midpoint x (no GP positions needed).
+- **Gaussian:** Section forces and principal stress are plotted vs position along the structure. The saved CSVs do not contain Gauss point coordinates; the visualisers **infer GP physical positions** from element geometry and a **fixed quadrature rule** (3-point Gauss-Legendre, matching the default Euler-Bernoulli 3D integration order). See `tertiary_visualisers/README.md` for details. A future option is to save GP ξ or x in the tertiary export so visualisers do not depend on this assumption.
 
 ---
 
