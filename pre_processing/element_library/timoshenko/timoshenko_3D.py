@@ -205,7 +205,7 @@ class TimoshenkoBeamElement3D(Element1DBase):
         ElementObject
             Element formulation data with cached Gauss point information
         """
-        from pre_processing.element_library.gauss_point_data import ElementObject, GaussPointData
+        from pre_processing.element_library.gauss_point_data import ElementObject, StiffnessGaussPointData
         
         self._assert_logging_ready()
 
@@ -230,7 +230,7 @@ class TimoshenkoBeamElement3D(Element1DBase):
 
         if self.logger_operator:  # Modified logging block
             self.logger_operator.log_text("stiffness", f"\n=== Element {self.element_id} Stiffness Matrix Computation (Selective Integration) ===")
-            self.logger_operator.log_text("stiffness", f"Integration orders: axial={axial_order}, bending_y={bending_y_order}, bending_z={bending_z_order}, shear_y={shear_y_order}, shear_z={shear_z_order}, torsion={torsion_order}")
+            self.logger_operator.log_text("stiffness", f"Integration orders: axial={axial_order}, bending_y={bending_y_order}, bending_z={bending_z_order}, shear_y={shear_y_order}, shear_z={shear_z_order}, torsion={torsion_order} (shear block uses 1-point reduced integration)")
             self.logger_operator.log_matrix("stiffness", L, {"name": f"Element length  L  {(1,1)}"})
             self.logger_operator.log_matrix("stiffness", D, {"name": f"Material stiffness matrix  D  {D.shape}"})
         
@@ -258,7 +258,7 @@ class TimoshenkoBeamElement3D(Element1DBase):
             Ke_full += Ke_contrib
             
             # Cache Gauss point data
-            gauss_cache.append(GaussPointData(
+            gauss_cache.append(StiffnessGaussPointData(
                 xi=float(xi_g),
                 weight=float(w_g),
                 B_matrix=B.copy(),
@@ -284,8 +284,8 @@ class TimoshenkoBeamElement3D(Element1DBase):
             Ke_contrib_bending = B_bending.T @ np.diag(D_bending_diag) @ B_bending * w_g * detJ
             Ke_bending_block += Ke_contrib_bending
         
-        # Compute shear contribution with shear order
-        shear_order = max(shear_y_order, shear_z_order)
+        # Compute shear contribution with 1-point quadrature (reduced integration to avoid shear locking)
+        shear_order = 1
         xi_shear, w_shear = np.polynomial.legendre.leggauss(shear_order)
         Ke_shear_block = np.zeros((12, 12), dtype=np.float64)
         
@@ -611,11 +611,13 @@ class TimoshenkoBeamElement3D(Element1DBase):
 
     # Utility methods ----------------------------------------------------------
     def _is_point_in_element(self, x: float) -> bool:
-        """Check if point x is within element bounds with tolerance."""
+        """Check if point x is within element bounds. Uses half-open [x_start, x_end)
+        for non-end elements so a point load at an interior node is assigned to
+        exactly one element (the one to the right of the node). Avoids double-counting."""
         tol = 1e-12 * self.L
         if np.isclose(self.x_end, self.x_global_end):
             return (self.x_start - tol <= x <= self.x_end + tol)
-        return (self.x_start - tol <= x < self.x_end + tol)
+        return (self.x_start - tol <= x < self.x_end)
 
     def __repr__(self) -> str:
         return (f"TimoshenkBeamElement3D(id={self.element_id}, L={self.L:.2e}m, "

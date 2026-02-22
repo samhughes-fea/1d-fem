@@ -1,4 +1,4 @@
-# pre_processing\element_library\euler_bernoulli\utilities\shape_functions.py
+# pre_processing\element_library\timoshenko\utilities\shape_functions.py
 
 import numpy as np
 from typing import Tuple
@@ -7,14 +7,15 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class ShapeFunctionOperator:
     """
-    Operator for evaluating 3D Euler-Bernoulli beam shape functions and their derivatives.
+    Operator for evaluating 3D Timoshenko beam shape functions and their derivatives.
     Provides rigorous transformation between natural (ξ ∈ [-1,1]) and physical (x ∈ [0,L]) coordinates.
 
     Mathematical Formulation
     -----------------------
-    Shape functions follow standard beam theory with:
+    Shape functions use independent displacement and rotation fields (no θ = du/dx):
     - Axial displacement: Linear Lagrange polynomials
-    - Bending displacement: Hermite cubic polynomials
+    - Bending displacement and rotation: Linear Lagrange for both u_y, u_z and θ_z, θ_y
+      so that shear strain γ = du/dx − θ is not forced to zero (avoids shear locking).
     - Torsional rotation: Linear Lagrange polynomials
 
     Coordinate Transformation:
@@ -75,17 +76,19 @@ class ShapeFunctionOperator:
         dN_dξ : np.ndarray
             First derivatives ∂N/∂ξ [n_points, 12, 6]
         d2N_dξ2 : np.ndarray
-            Second derivatives ∂²N/∂ξ² [n_points, 12, 6]
+            Second derivatives ∂²N/∂ξ² [n_points, 12, 6] (zero for bending DOFs; B-matrix does not use them)
 
         Notes
         -----
         Shape function organization:
         Node 1: [u_x, u_y, u_z, θ_x, θ_y, θ_z]
         Node 2: [u_x, u_y, u_z, θ_x, θ_y, θ_z]
+        Bending uses linear Lagrange so u and θ are independent; γ = du/dx − θ can be non-zero.
         """
         ξ = np.asarray(ξ, dtype=np.float64)
         n_points = ξ.size
         ξ = ξ.reshape(-1, 1, 1)  # Prepare for broadcasting
+        ξ_flat = ξ.squeeze()
 
         # Initialize output arrays
         N = np.zeros((n_points, 12, 6))
@@ -94,62 +97,30 @@ class ShapeFunctionOperator:
 
         # ----- Axial Displacement (Linear Lagrange) -----
         # N₁(ξ) = 0.5(1-ξ), N₇(ξ) = 0.5(1+ξ)
-        N[:, [0,6], 0] = 0.5 * np.array([1 - ξ.squeeze(), 1 + ξ.squeeze()]).T
-        dN_dξ[:, [0,6], 0] = 0.5 * np.array([-1, 1])
+        N[:, [0, 6], 0] = 0.5 * np.array([1 - ξ_flat, 1 + ξ_flat]).T
+        dN_dξ[:, [0, 6], 0] = 0.5 * np.array([-1, 1])
 
-        # ----- Bending in XY Plane (Hermite Cubic) -----
-        # Standard Hermite cubic shape functions:
-        # N1 = (1/4)(1-ξ)²(2+ξ) = 0.5 - 0.75*ξ + 0.25*ξ³
-        # N2 = (L/8)(1-ξ)²(1+ξ) = (L/8)(1 - ξ - ξ² + ξ³)
-        # N3 = (1/4)(1+ξ)²(2-ξ) = 0.5 + 0.75*ξ - 0.25*ξ³
-        # N4 = -(L/8)(1+ξ)²(1-ξ) = -(L/8)(1 + ξ - ξ² - ξ³)
-        
-        L = self.element_length
-        ξ_flat = ξ.squeeze()
-        
-        # Displacement shape functions (N1, N3)
-        N1 = 0.5 - 0.75*ξ_flat + 0.25*ξ_flat**3
-        N3 = 0.5 + 0.75*ξ_flat - 0.25*ξ_flat**3
-        N[:, [1,7], 1] = np.array([N1, N3]).T
-        
-        # First derivatives of displacement shape functions
-        dN1_dξ = -0.75 + 0.75*ξ_flat**2
-        dN3_dξ = 0.75 - 0.75*ξ_flat**2
-        dN_dξ[:, [1,7], 1] = np.array([dN1_dξ, dN3_dξ]).T
-        
-        # Second derivatives of displacement shape functions
-        d2N1_dξ2 = 1.5*ξ_flat
-        d2N3_dξ2 = -1.5*ξ_flat
-        d2N_dξ2[:, [1,7], 1] = np.array([d2N1_dξ2, d2N3_dξ2]).T
+        # ----- Bending in XY Plane (Linear Lagrange – Timoshenko) -----
+        # u_y and θ_z independent: N1 = (1-ξ)/2, N2 = (1+ξ)/2 for each
+        N1 = 0.5 * (1 - ξ_flat)
+        N2 = 0.5 * (1 + ξ_flat)
+        N[:, [1, 7], 1] = np.array([N1, N2]).T
+        dN_dξ[:, [1, 7], 1] = 0.5 * np.array([-1, 1])
+        # d2N_dξ2 remains zero
 
-        # Rotation shape functions (N2, N4) - scaled by L/8
-        N2 = (L/8) * (1 - ξ_flat - ξ_flat**2 + ξ_flat**3)
-        N4 = -(L/8) * (1 + ξ_flat - ξ_flat**2 - ξ_flat**3)
-        N[:, [5,11], 5] = np.array([N2, N4]).T
-        
-        # First derivatives of rotation shape functions
-        dN2_dξ = (L/8) * (-1 - 2*ξ_flat + 3*ξ_flat**2)
-        dN4_dξ = -(L/8) * (1 - 2*ξ_flat - 3*ξ_flat**2)
-        dN_dξ[:, [5,11], 5] = np.array([dN2_dξ, dN4_dξ]).T
-        
-        # Second derivatives of rotation shape functions
-        d2N2_dξ2 = (L/8) * (-2 + 6*ξ_flat)
-        d2N4_dξ2 = -(L/8) * (-2 - 6*ξ_flat)
-        d2N_dξ2[:, [5,11], 5] = np.array([d2N2_dξ2, d2N4_dξ2]).T
+        N[:, [5, 11], 5] = np.array([N1, N2]).T   # θ_z
+        dN_dξ[:, [5, 11], 5] = 0.5 * np.array([-1, 1])
 
-        # ----- Bending in XZ Plane (Hermite Cubic) -----
-        N[:, [2,8], 2] = N[:, [1,7], 1]
-        dN_dξ[:, [2,8], 2] = dN_dξ[:, [1,7], 1]
-        d2N_dξ2[:, [2,8], 2] = d2N_dξ2[:, [1,7], 1]
-
-        # Rotation terms (negative sign convention)
-        N[:, [4,10], 4] = -N[:, [5,11], 5]
-        dN_dξ[:, [4,10], 4] = -dN_dξ[:, [5,11], 5]
-        d2N_dξ2[:, [4,10], 4] = -d2N_dξ2[:, [5,11], 5]
+        # ----- Bending in XZ Plane (Linear Lagrange – Timoshenko) -----
+        N[:, [2, 8], 2] = N[:, [1, 7], 1]   # u_z same as u_y
+        dN_dξ[:, [2, 8], 2] = dN_dξ[:, [1, 7], 1]
+        # θ_y sign convention consistent with B-matrix (XZ plane)
+        N[:, [4, 10], 4] = -N[:, [5, 11], 5]
+        dN_dξ[:, [4, 10], 4] = -dN_dξ[:, [5, 11], 5]
 
         # ----- Torsional Rotation (Linear Lagrange) -----
-        N[:, [3,9], 3] = N[:, [0,6], 0]
-        dN_dξ[:, [3,9], 3] = dN_dξ[:, [0,6], 0]
+        N[:, [3, 9], 3] = N[:, [0, 6], 0]
+        dN_dξ[:, [3, 9], 3] = dN_dξ[:, [0, 6], 0]
 
         return N, dN_dξ, d2N_dξ2
 
