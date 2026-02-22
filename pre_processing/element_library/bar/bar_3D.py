@@ -2,14 +2,15 @@
 
 """
 2-node 3D Bar element: axial and torsion only (no transverse).
+Stiffness assembled as K_e = ∫ Bᵀ D B dx (Gauss-Legendre quadrature).
 """
 
 import numpy as np
+from typing import Optional, Tuple
 
 from pre_processing.element_library.element_1D_base import Element1DBase
 from pre_processing.element_library.bar.utilities import (
     direction_cosines,
-    build_L_matrix_4x12,
     ShapeFunctionOperator,
     StrainDisplacementOperator,
     MaterialStiffnessOperator,
@@ -21,7 +22,7 @@ class BarElement3D(Element1DBase):
     """
     2-node 3D Bar element: axial and torsion only.
 
-    K_local 4×4: block_diag(axial 2×2, torsion 2×2). K_e = L.T @ K_local @ L (12×12).
+    K_e = ∫ Bᵀ D B dx via Gauss-Legendre quadrature (one point exact for constant B).
     """
 
     element_type_name = "Bar-3D"
@@ -37,6 +38,7 @@ class BarElement3D(Element1DBase):
         point_load_array: np.ndarray,
         distributed_load_array: np.ndarray,
         job_results_dir: str,
+        quadrature_order: Optional[int] = None,
     ):
         super().__init__(
             element_id=element_id,
@@ -52,16 +54,24 @@ class BarElement3D(Element1DBase):
 
         self.node_coords = self.grid_array
         self.L = float(np.linalg.norm(self.node_coords[1] - self.node_coords[0]))
+        self.x_start, *_, self.x_end = self.node_coords[[0, 1], 0]
         self._validate_element_properties()
         self._assert_logging_ready()
 
+        # Quadrature order: from integration_orders when not provided (axial, torsion)
+        if quadrature_order is not None:
+            self.quadrature_order = quadrature_order
+        else:
+            axial_order = int(self.element_array[3])
+            torsion_order = int(self.element_array[8])
+            self.quadrature_order = max(axial_order, torsion_order, 1)
+
         self._axial = direction_cosines(self.node_coords)
-        self._L_matrix = build_L_matrix_4x12(self._axial)
-        self._shape_function_operator = ShapeFunctionOperator(element_length=self.L)
-        self._strain_displacement_operator = StrainDisplacementOperator(
+        self.shape_function_operator = ShapeFunctionOperator(element_length=self.L)
+        self.strain_displacement_operator = StrainDisplacementOperator(
             element_length=self.L, axial=self._axial
         )
-        self._material_stiffness_operator = MaterialStiffnessOperator(
+        self.material_stiffness_operator = MaterialStiffnessOperator(
             youngs_modulus=self.E,
             shear_modulus=self.G,
             cross_section_area=self.A,
@@ -90,117 +100,148 @@ class BarElement3D(Element1DBase):
     def G(self) -> float:
         return float(self.material_array[1])
 
-    def _build_K_local(self) -> np.ndarray:
-        """K_local 4×4: axial 2×2 + torsion 2×2."""
-        EA = self.E * self.A
-        GJ = self.G * self.J_t
-        L = self.L
-        if L < 1e-12:
-            return np.zeros((4, 4))
-        k_axial = (EA / L) * np.array([[1, -1], [-1, 1]], dtype=np.float64)
-        k_torsion = (GJ / L) * np.array([[1, -1], [-1, 1]], dtype=np.float64)
-        K_local = np.zeros((4, 4))
-        K_local[0:2, 0:2] = k_axial
-        K_local[2:4, 2:4] = k_torsion
-        return K_local
+    @property
+    def integration_points(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Gauss-Legendre points and weights for stiffness/force quadrature."""
+        return np.polynomial.legendre.leggauss(self.quadrature_order)
+
+    @property
+    def jacobian_determinant(self) -> float:
+        return self.L / 2
+
+    def _build_shape_function_coefficients_b2(
+        self,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """B2 coefficient arrays (12, 6, 4) for N, dN/dξ, d²N/dξ² in monomial basis ξ^0..ξ^3. Bar: linear only."""
+        c = np.zeros((12, 6, 4), dtype=np.float64)
+        dc = np.zeros((12, 6, 4), dtype=np.float64)
+        d2c = np.zeros((12, 6, 4), dtype=np.float64)
+        # Axial: N1 = 0.5(1-ξ), N2 = 0.5(1+ξ) -> comp 0, DOF 0 and 6
+        c[0, 0, 0], c[0, 0, 1] = 0.5, -0.5
+        c[6, 0, 0], c[6, 0, 1] = 0.5, 0.5
+        dc[0, 0, 0] = -0.5
+        dc[6, 0, 0] = 0.5
+        # Torsion: comp 3, DOF 3 and 9
+        c[3, 3, 0], c[3, 3, 1] = 0.5, -0.5
+        c[9, 3, 0], c[9, 3, 1] = 0.5, 0.5
+        dc[3, 3, 0] = -0.5
+        dc[9, 3, 0] = 0.5
+        return c, dc, d2c
+
+    def _is_point_in_element(self, x: float) -> bool:
+        """True if x is within element bounds [x_start, x_end] with small tolerance."""
+        tol = 1e-12 * max(self.L, 1.0)
+        return (self.x_start - tol <= x <= self.x_end + tol)
+
+    def _compute_point_load_contribution(self) -> np.ndarray:
+        """Point load contribution using shape-function operator; all 6 load components."""
+        Fe_point = np.zeros(12, dtype=np.float64)
+        for load in self.point_load_array:
+            x_p = float(load[0])
+            F_p = load[3:9].astype(np.float64)
+            if not self._is_point_in_element(x_p):
+                continue
+            xi_p = 2 * (x_p - self.x_start) / self.L - 1
+            N_p = self.shape_function_operator.natural_coordinate_form(np.array([xi_p]))[0][0]
+            Fe_trans = np.einsum("ij,j->i", N_p[[0, 1, 2, 6, 7, 8], :3], F_p[:3])
+            Fe_rot = np.einsum("ij,j->i", N_p[[3, 4, 5, 9, 10, 11], 3:], F_p[3:])
+            Fe_point[[0, 1, 2, 6, 7, 8]] += Fe_trans
+            Fe_point[[3, 4, 5, 9, 10, 11]] += Fe_rot
+        return Fe_point
+
+    def _compute_distributed_load_contribution(self) -> Tuple[np.ndarray, list]:
+        """Distributed load via multi-GP quadrature: F_dist = ∫ Nᵀ q dx."""
+        from pre_processing.element_library.gauss_point_data import ForceGaussPointData
+
+        xi_gauss, weights = self.integration_points
+        x_gauss = (xi_gauss + 1) * (self.L / 2) + self.x_start
+        Fe_dist = np.zeros(12, dtype=np.float64)
+        gauss_cache = []
+        detJ = self.jacobian_determinant
+        interpolator = LoadInterpolationOperator(
+            distributed_loads_array=self.distributed_load_array,
+            boundary_mode="clamp",
+            interpolation_order="linear",
+            n_gauss_points=self.quadrature_order,
+        )
+        q_gauss = interpolator.interpolate(x_gauss)
+        if q_gauss.ndim == 1:
+            q_gauss = q_gauss.reshape(1, -1)
+        N_stack = np.stack([
+            self.shape_function_operator.natural_coordinate_form(np.array([xi]))[0][0]
+            for xi in xi_gauss
+        ])
+        Fe_dist = np.einsum("gij,gj,g->i", N_stack, q_gauss, weights) * detJ
+        for g, (xi_g, w_g) in enumerate(zip(xi_gauss, weights)):
+            gauss_cache.append(ForceGaussPointData(
+                xi=float(xi_g),
+                weight=float(w_g),
+                shape_functions=N_stack[g].copy(),
+                jacobian=float(detJ),
+                distributed_load=q_gauss[g].copy(),
+            ))
+        return Fe_dist, gauss_cache
 
     def element_stiffness_matrix(self):
-        """K_e = L.T @ K_local @ L (12×12)."""
+        """K_e = ∫ Bᵀ D B dx via Gauss-Legendre quadrature."""
         from pre_processing.element_library.gauss_point_data import ElementObject, StiffnessGaussPointData
 
         self._assert_logging_ready()
-        K_local = self._build_K_local()
-        L_mat = self._L_matrix
-        K_e = L_mat.T @ K_local @ L_mat
+        Ke = np.zeros((12, 12), dtype=np.float64)
+        D = self.material_stiffness_operator.assembly_form()
+        xi, w = self.integration_points
+        gauss_cache = []
 
-        if self.logger_operator:
-            self.logger_operator.log_matrix("stiffness", K_e, {"name": "Bar Element Stiffness"})
-            self.logger_operator.flush("stiffness")
-
-        xi_g = np.array([0.0])
-        N, dN_dξ, _ = self._shape_function_operator.natural_coordinate_form(xi_g)
-        B = self._strain_displacement_operator.physical_coordinate_form(dN_dξ)[0]
-        D = self._material_stiffness_operator.assembly_form()
-        gauss_data = [
-            StiffnessGaussPointData(
-                xi=0.0,
-                weight=2.0,
-                B_matrix=B,
-                D_matrix=D,
-                jacobian=self.L / 2,
+        for xi_g, w_g in zip(xi, w):
+            N, dN_dξ, _ = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ)[0]
+            detJ = self.jacobian_determinant
+            Ke += B.T @ D @ B * w_g * detJ
+            gauss_cache.append(StiffnessGaussPointData(
+                xi=float(xi_g),
+                weight=float(w_g),
+                B_matrix=B.copy(),
+                D_matrix=D.copy(),
+                jacobian=float(detJ),
                 shape_functions=N[0].copy(),
                 shape_derivatives=dN_dξ[0].copy(),
-            )
-        ]
-        op = self._shape_function_operator
+            ))
+
+        if self.logger_operator:
+            self.logger_operator.log_matrix("stiffness", Ke, {"name": "Bar Element Stiffness"})
+            self.logger_operator.flush("stiffness")
+
+        op = self.shape_function_operator
         evaluate_shape_functions = lambda xi: op.natural_coordinate_form(np.asarray(xi))
+        N_coeffs, dN_coeffs, d2N_coeffs = self._build_shape_function_coefficients_b2()
 
         return ElementObject(
             element_id=self.element_id,
             element_type=self.element_type_name,
-            K_e=K_e,
-            gauss_data=gauss_data,
-            integration_scheme="exact",
+            K_e=Ke,
+            gauss_data=gauss_cache,
+            integration_scheme="Gauss-Legendre",
             evaluate_shape_functions=evaluate_shape_functions,
-            shape_function_N_coefficients=None,
-            shape_function_dN_dxi_coefficients=None,
-            shape_function_d2N_dxi2_coefficients=None,
+            shape_function_N_coefficients=N_coeffs,
+            shape_function_dN_dxi_coefficients=dN_coeffs,
+            shape_function_d2N_dxi2_coefficients=d2N_coeffs,
         )
 
     def element_force_vector(self):
-        """F_e (12,): point and distributed loads."""
-        from pre_processing.element_library.gauss_point_data import ForceObject, ForceGaussPointData
+        """F_e = point loads (via shape-function operator) + distributed loads (multi-GP quadrature)."""
+        from pre_processing.element_library.gauss_point_data import ForceObject
 
         self._assert_logging_ready()
         F_e = np.zeros(12, dtype=np.float64)
+        gauss_cache = []
+
+        if self.distributed_load_array.size > 0:
+            Fe_dist, gauss_cache = self._compute_distributed_load_contribution()
+            F_e += Fe_dist
 
         if self.point_load_array.size > 0:
-            for row in self.point_load_array:
-                x_pos = row[0]
-                Fx, Fy, Fz = row[3], row[4], row[5]
-                Mx = row[6]
-                coords = self.grid_array
-                x1, x2 = coords[0, 0], coords[1, 0]
-                L = self.L
-                if L < 1e-12:
-                    continue
-                t = (x_pos - x1) / L if abs(x2 - x1) > 1e-12 else 0.5
-                t = np.clip(t, 0.0, 1.0)
-                N1, N2 = 1 - t, t
-                F_e[0] += N1 * Fx
-                F_e[1] += N1 * Fy
-                F_e[2] += N1 * Fz
-                F_e[3] += N1 * Mx
-                F_e[6] += N2 * Fx
-                F_e[7] += N2 * Fy
-                F_e[8] += N2 * Fz
-                F_e[9] += N2 * Mx
-
+            F_e += self._compute_point_load_contribution()
         point_loads_cache = self.point_load_array.copy() if self.point_load_array.size > 0 else None
-        gauss_data = []
-        if self.distributed_load_array.size > 0:
-            interpolator = LoadInterpolationOperator(
-                distributed_loads_array=self.distributed_load_array,
-                boundary_mode="clamp",
-                interpolation_order="linear",
-                n_gauss_points=1,
-            )
-            x_mid = (self.node_coords[0, 0] + self.node_coords[1, 0]) / 2.0
-            q = np.asarray(interpolator.interpolate(x_mid), dtype=np.float64)
-            if q.shape == ():
-                q = np.atleast_1d(q)
-            N_gp, _, _ = self._shape_function_operator.natural_coordinate_form(np.array([0.0]))
-            N = N_gp[0]
-            F_e += (N @ q) * 2.0 * (self.L / 2)
-            gauss_data.append(
-                ForceGaussPointData(
-                    xi=0.0,
-                    weight=2.0,
-                    shape_functions=N.copy(),
-                    jacobian=self.L / 2,
-                    distributed_load=q.copy(),
-                )
-            )
 
         if self.logger_operator:
             self.logger_operator.log_matrix("force", F_e.reshape(1, -1), {"name": "Bar Force Vector"})
@@ -210,6 +251,6 @@ class BarElement3D(Element1DBase):
             element_id=self.element_id,
             element_type=self.element_type_name,
             F_e=F_e,
-            gauss_data=gauss_data,
+            gauss_data=gauss_cache,
             point_loads=point_loads_cache,
         )
