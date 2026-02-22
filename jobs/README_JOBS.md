@@ -25,6 +25,17 @@ Same cantilever with tip (end) point load; only the beam element type changes.
 
 Use these to compare element formulations (Timoshenko vs Levinson) under the same end load.
 
+## Truss and Bar elements
+
+| Element type        | Carries                    | Use case                          |
+|---------------------|----------------------------|-----------------------------------|
+| TrussElement3D      | Axial, transverse, torsion | Pin-jointed + shear + torsion     |
+| BarElement3D        | Axial, torsion only        | Axial + torsion, no transverse    |
+
+Both use 6 DOF per node and return 12×12 K_e, 12×1 F_e. Register in the [Element] file as `TrussElement3D` or `BarElement3D`.
+
+**Optional job**: `job_bar_single` – one Bar element, fixed at node 0, axial point load at node 1; for pipeline check.
+
 ## Distributed loads – Euler–Bernoulli (job_0005, job_0006, job_0007)
 
 Same cantilever, Euler–Bernoulli element; load type varies (UDL, triangular, parabolic).

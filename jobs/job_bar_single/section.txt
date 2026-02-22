@@ -1,0 +1,4 @@
+# Bar: A, J_t
+[Section]
+[element_id]  [A]       [I_x]   [I_y]   [I_z]   [J_t]
+0             0.001    0.0     0.0     0.0     1e-8

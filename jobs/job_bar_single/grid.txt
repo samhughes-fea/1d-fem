@@ -1,0 +1,5 @@
+# Single bar element: 2 nodes
+[Grid]
+[node_id]   [x]         [y]       [z]
+0           0.0         0.0       0.0
+1           1.0         0.0       0.0
