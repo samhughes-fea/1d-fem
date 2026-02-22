@@ -213,7 +213,7 @@ class LevinsonBeamElement3D(Element1DBase):
         ElementObject
             Element formulation data with cached Gauss point information
         """
-        from pre_processing.element_library.gauss_point_data import ElementObject, GaussPointData
+        from pre_processing.element_library.gauss_point_data import ElementObject, StiffnessGaussPointData
         
         self._assert_logging_ready()
 
@@ -266,7 +266,7 @@ class LevinsonBeamElement3D(Element1DBase):
             Ke_full += Ke_contrib
             
             # Cache Gauss point data
-            gauss_cache.append(GaussPointData(
+            gauss_cache.append(StiffnessGaussPointData(
                 xi=float(xi_g),
                 weight=float(w_g),
                 B_matrix=B.copy(),
@@ -607,11 +607,13 @@ class LevinsonBeamElement3D(Element1DBase):
 
     # Utility methods ----------------------------------------------------------
     def _is_point_in_element(self, x: float) -> bool:
-        """Check if point x is within element bounds with tolerance."""
+        """Check if point x is within element bounds. Uses half-open [x_start, x_end)
+        for non-end elements so a point load at an interior node is assigned to
+        exactly one element (the one to the right of the node). Avoids double-counting."""
         tol = 1e-12 * self.L
         if np.isclose(self.x_end, self.x_global_end):
             return (self.x_start - tol <= x <= self.x_end + tol)
-        return (self.x_start - tol <= x < self.x_end + tol)
+        return (self.x_start - tol <= x < self.x_end)
 
     def __repr__(self) -> str:
         return (f"LevinsonBeamElement3D(id={self.element_id}, L={self.L:.2e}m, "

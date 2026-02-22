@@ -10,6 +10,7 @@ with automatic threshold detection and graceful fallback to sequential processin
 import logging
 import multiprocessing
 import os
+import pickle
 from typing import List, Any, Callable, Optional
 import numpy as np
 
@@ -133,7 +134,7 @@ def compute_element_stiffness_parallel(
         logger.info("Parallel stiffness computation completed successfully")
         return result_array
         
-    except (multiprocessing.PicklingError, AttributeError, TypeError) as e:
+    except (pickle.PicklingError, AttributeError, TypeError) as e:
         logger.warning(f"Parallel computation failed ({type(e).__name__}: {e}), falling back to sequential")
         return _sequential_stiffness_compute(elements)
     except Exception as e:
@@ -196,7 +197,7 @@ def compute_element_force_parallel(
         logger.info("Parallel force computation completed successfully")
         return result_array
         
-    except (multiprocessing.PicklingError, AttributeError, TypeError) as e:
+    except (pickle.PicklingError, AttributeError, TypeError) as e:
         logger.warning(f"Parallel computation failed ({type(e).__name__}: {e}), falling back to sequential")
         return _sequential_force_compute(elements)
     except Exception as e:
