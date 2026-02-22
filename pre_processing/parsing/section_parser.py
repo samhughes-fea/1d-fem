@@ -19,16 +19,25 @@ class SectionParser:
                 "I_y":        np.ndarray[float64],
                 "I_z":        np.ndarray[float64],
                 "J_t":        np.ndarray[float64],
+                "kappa":      np.ndarray[float64],  # optional; shear correction factor (Timoshenko)
+                "alpha":      np.ndarray[float64],  # optional; higher-order shear coeff (Levinson)
             }
         }
+
+    Sub-header may be 6 columns (element_id, A, I_x, I_y, I_z, J_t) or 8 columns
+    with [kappa] and [alpha] for general-section preprocessing (geometry-derived).
     """
 
     def __init__(self, filepath: str, job_results_dir: str) -> None:
         self.filepath: str = filepath
         self.job_results_dir: str = job_results_dir
         self.output_filename: str = "section_properties_parsed.csv"
-        self.expected_subheader: List[str] = [
+        self.expected_subheader_6: List[str] = [
             "[element_id]", "[A]", "[I_x]", "[I_y]", "[I_z]", "[J_t]"
+        ]
+        self.expected_subheader_8: List[str] = [
+            "[element_id]", "[A]", "[I_x]", "[I_y]", "[I_z]", "[J_t]",
+            "[kappa]", "[alpha]"
         ]
 
     # ------------------------------------------------------------------ #
@@ -63,6 +72,7 @@ class SectionParser:
             "I_z": [],
             "J_t": [],
         }
+        has_kappa_alpha = False
         seen_ids: set[int] = set()
 
         # ---- Read & clean ---------------------------------------------- #
@@ -74,14 +84,28 @@ class SectionParser:
         except StopIteration:
             raise ValueError("Missing [Section] section header.")
 
-        # Validate sub-header
-        self._assert_exact_subheader(lines[start_idx + 1], self.expected_subheader)
+        subheader_line = lines[start_idx + 1]
+        subheader_tokens = [t.lower() for t in subheader_line.split()]
+        if subheader_tokens == [h.lower() for h in self.expected_subheader_8]:
+            has_kappa_alpha = True
+            lists["kappa"] = []
+            lists["alpha"] = []
+            self._assert_exact_subheader(subheader_line, self.expected_subheader_8)
+        elif subheader_tokens == [h.lower() for h in self.expected_subheader_6]:
+            self._assert_exact_subheader(subheader_line, self.expected_subheader_6)
+        else:
+            raise ValueError(
+                f"Sub-header must be 6 columns {self.expected_subheader_6} or "
+                f"8 columns {self.expected_subheader_8} (case-insensitive)."
+            )
+
+        n_cols = 8 if has_kappa_alpha else 6
 
         # ---- Parse rows ------------------------------------------------- #
         for ln in lines[start_idx + 2:]:
             parts = ln.split()
-            if len(parts) != 6:
-                raise ValueError(f"Malformed section row: {ln!r}")
+            if len(parts) != n_cols:
+                raise ValueError(f"Malformed section row (expected {n_cols} columns): {ln!r}")
 
             try:
                 eid = int(parts[0])
@@ -99,6 +123,14 @@ class SectionParser:
             lists["I_y"].append(Iy)
             lists["I_z"].append(Iz)
             lists["J_t"].append(Jt)
+
+            if has_kappa_alpha:
+                try:
+                    kappa, alpha = float(parts[6]), float(parts[7])
+                except ValueError as exc:
+                    raise TypeError(f"Bad kappa/alpha in line {ln!r} → {exc}") from exc
+                lists["kappa"].append(kappa)
+                lists["alpha"].append(alpha)
 
         # ---- Convert to NumPy arrays ----------------------------------- #
         parsed: Dict[str, npt.NDArray] = {

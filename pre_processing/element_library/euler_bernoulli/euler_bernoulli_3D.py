@@ -22,14 +22,21 @@ from pre_processing.element_library.base_logger_operator import BaseLoggerOperat
 
 class EulerBernoulliBeamElement3D(Element1DBase):
     """
-    2-node 3D Euler-Bernoulli Beam Element with full matrix computation capabilities
-    
+    2-node 3D Euler-Bernoulli Beam Element with full matrix computation capabilities.
+
     Features:
     - Exact shape function implementation
     - Configurable quadrature order
     - Combined point/distributed load handling
     - Property-based access to material/geometry parameters
     - Integrated logging system for stiffness matrices and force vectors
+
+    Shear force in Euler-Bernoulli:
+    - The theory has no shear deformation (γ_xy = γ_xz = 0), so the strain–displacement
+      matrix B does not produce shear strains and σ = D @ ε yields V_y = V_z = 0 at
+      every Gauss point. The element therefore does not "produce" shear force from the
+      constitutive law. In EB theory, shear force is defined by equilibrium (V = dM/dx);
+      if needed, obtain V by differentiating the computed bending moment M along the beam.
     """
     
     # Element formulation identifier for tracking in multi-element meshes
@@ -103,7 +110,7 @@ class EulerBernoulliBeamElement3D(Element1DBase):
         """Validate critical element properties"""
         if self.L <= 0:
             raise ValueError(f"Invalid element length {self.L:.2e} for element {self.element_id}")
-        if self.material_array.size != 4 or self.section_array.size != 5:
+        if self.material_array.size != 4 or self.section_array.size not in (5, 7):
             raise ValueError("Material/section arrays not properly initialised")
     
         # quick access to node-id pair (n1, n2) from the slice array

@@ -32,6 +32,10 @@ class ElementFactory:
             "pre_processing.element_library.timoshenko.timoshenko_3D",
         "LevinsonBeamElement3D":
             "pre_processing.element_library.levinson.levinson_3D",
+        "TrussElement3D":
+            "pre_processing.element_library.truss.truss_3D",
+        "BarElement3D":
+            "pre_processing.element_library.bar.bar_3D",
     }
 
     # ------------------------------------------------------------------ #

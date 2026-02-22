@@ -118,16 +118,17 @@ class TimoshenkoBeamElement3D(Element1DBase):
             youngs_modulus=self.E,
             shear_modulus=self.G,
             cross_section_area=self.A,
-            moment_inertia_y=self.I_y, 
+            moment_inertia_y=self.I_y,
             moment_inertia_z=self.I_z,
             torsion_constant=self.J_t,
+            shear_correction_factor=self.kappa,
         )
 
     def _validate_element_properties(self) -> None:
         """Validate critical element properties"""
         if self.L <= 0:
             raise ValueError(f"Invalid element length {self.L:.2e} for element {self.element_id}")
-        if self.material_array.size != 4 or self.section_array.size != 5:
+        if self.material_array.size != 4 or self.section_array.size not in (5, 7):
             raise ValueError("Material/section arrays not properly initialised")
     
         # quick access to node-id pair (n1, n2) from the slice array
@@ -160,7 +161,14 @@ class TimoshenkoBeamElement3D(Element1DBase):
     def J_t(self) -> float:
         """Torsional constant (m⁴)"""
         return self.section_array[4]
-    
+
+    @property
+    def kappa(self) -> float:
+        """Shear correction factor κ (from section preprocessing if available, else 5/6)."""
+        if self.section_array.size >= 7:
+            return float(self.section_array[5])
+        return 5.0 / 6.0  # default for rectangular section
+
     @property
     def E(self) -> float:
         """Young's modulus (Pa)"""
@@ -247,6 +255,9 @@ class TimoshenkoBeamElement3D(Element1DBase):
         # with selectively integrated versions
         
         # First, integrate everything with max order (baseline)
+        # Note: gauss_cache uses this full-order loop so post-processing (strain, stress,
+        # section forces) has max_order GPs per element. Reduced integration below only
+        # replaces the shear/bending blocks in Ke; it does not change the cached GP set.
         xi_full, w_full = np.polynomial.legendre.leggauss(max_order)
         Ke_full = np.zeros((12, 12), dtype=np.float64)
         
@@ -257,7 +268,7 @@ class TimoshenkoBeamElement3D(Element1DBase):
             Ke_contrib = B.T @ D @ B * w_g * detJ
             Ke_full += Ke_contrib
             
-            # Cache Gauss point data
+            # Cache Gauss point data (same xi order as leggauss: ascending)
             gauss_cache.append(StiffnessGaussPointData(
                 xi=float(xi_g),
                 weight=float(w_g),

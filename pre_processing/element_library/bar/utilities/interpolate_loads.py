@@ -1,0 +1,115 @@
+# pre_processing\element_library\bar\utilities\interpolate_loads.py
+
+import numpy as np
+from scipy import interpolate
+from dataclasses import dataclass, field
+from typing import Tuple
+
+
+@dataclass(frozen=True)
+class LoadInterpolationOperator:
+    """
+    Interpolates distributed loads for bar/truss 6-DOF elements.
+    Same API as beam: array shape (N, 9) [x, y, z, Fx, Fy, Fz, Mx, My, Mz],
+    interpolate(x_phys) returns (M, 6) [Fx, Fy, Fz, Mx, My, Mz].
+
+    Parameters
+    ----------
+    distributed_loads_array : np.ndarray, shape (N, 9)
+        Columns: [x, y, z, Fx, Fy, Fz, Mx, My, Mz].
+    boundary_mode : {'error', 'clamp', 'zero'}, default='error'
+    interpolation_order : {'nearest', 'linear', 'quadratic', 'cubic'}, default='linear'
+    n_gauss_points : int, default=3
+    """
+
+    distributed_loads_array: np.ndarray
+    boundary_mode: str = "error"
+    interpolation_order: str = "linear"
+    n_gauss_points: int = 3
+
+    _active_components: Tuple[bool, ...] = field(init=False)
+    _interpolators: dict = field(init=False, default_factory=dict)
+
+    def __post_init__(self):
+        self._validate_loads()
+        self._validate_interpolation_order()
+        self._ensure_monotonic_positions()
+        self._identify_active_components()
+        self._build_interpolators()
+
+    def _validate_loads(self) -> None:
+        if self.distributed_loads_array.ndim != 2 or self.distributed_loads_array.shape[1] != 9:
+            raise ValueError(f"Expected shape (N, 9), got {self.distributed_loads_array.shape}.")
+        if not np.isfinite(self.distributed_loads_array).all():
+            raise ValueError("Load array contains NaN or Inf.")
+        if np.any(np.diff(self.distributed_loads_array[:, 0]) == 0):
+            raise ValueError("Duplicate x-coordinates detected in load array.")
+
+    def _validate_interpolation_order(self) -> None:
+        supported_kinds = ['nearest', 'linear', 'quadratic', 'cubic']
+        min_points_required = {'nearest': 1, 'linear': 2, 'quadratic': 3, 'cubic': 4}
+        degree = {'nearest': 0, 'linear': 1, 'quadratic': 2, 'cubic': 3}
+        max_integrable_degree = 2 * self.n_gauss_points - 1
+        n_points = self.distributed_loads_array.shape[0]
+        valid_orders = [
+            k for k in supported_kinds
+            if min_points_required[k] <= n_points and degree[k] <= max_integrable_degree
+        ]
+        if not valid_orders:
+            raise ValueError(
+                f"No valid interpolation scheme for {n_points} points and "
+                f"{self.n_gauss_points} Gauss points."
+            )
+        if self.interpolation_order not in valid_orders:
+            object.__setattr__(self, 'interpolation_order', valid_orders[-1])
+
+    def _ensure_monotonic_positions(self) -> None:
+        x = self.distributed_loads_array[:, 0]
+        if not np.all(np.diff(x) > 0):
+            sort_idx = np.argsort(x)
+            sorted_array = self.distributed_loads_array[sort_idx]
+            object.__setattr__(self, 'distributed_loads_array', sorted_array)
+            if not np.all(np.diff(sorted_array[:, 0]) > 0):
+                raise ValueError("Non-monotonic x-coordinates persist after sorting.")
+
+    def _identify_active_components(self) -> None:
+        active = np.any(self.distributed_loads_array[:, 3:9] != 0.0, axis=0)
+        object.__setattr__(self, '_active_components', tuple(active))
+
+    def _build_interpolators(self) -> None:
+        x = self.distributed_loads_array[:, 0]
+        for i, is_active in enumerate(self._active_components):
+            if not is_active:
+                continue
+            y = self.distributed_loads_array[:, 3 + i]
+            fill_val = (y[0], y[-1]) if self.boundary_mode == "clamp" else (
+                0.0 if self.boundary_mode == "zero" else None
+            )
+            interp_fn = interpolate.interp1d(
+                x, y,
+                kind=self.interpolation_order,
+                bounds_error=(self.boundary_mode == "error"),
+                fill_value=fill_val,
+                assume_sorted=True,
+            )
+            self._interpolators[i] = interp_fn
+
+    def interpolate(self, x_phys: np.ndarray) -> np.ndarray:
+        """
+        Interpolate [Fx, Fy, Fz, Mx, My, Mz] at positions x_phys.
+        Returns shape (M, 6) or (6,) if single point.
+        """
+        x_phys = np.atleast_1d(np.asarray(x_phys, dtype=np.float64))
+        result = np.zeros((x_phys.shape[0], 6), dtype=np.float64)
+        for i, is_active in enumerate(self._active_components):
+            if is_active:
+                try:
+                    result[:, i] = self._interpolators[i](x_phys)
+                except ValueError as e:
+                    x_min = self.distributed_loads_array[0, 0]
+                    x_max = self.distributed_loads_array[-1, 0]
+                    raise ValueError(
+                        f"Interpolation failed for component {i} at positions {x_phys}. "
+                        f"Valid range: [{x_min:.3e}, {x_max:.3e}]. {e}"
+                    ) from e
+        return result.squeeze() if result.shape[0] == 1 else result

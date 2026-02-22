@@ -22,6 +22,10 @@ class StrainDisplacementOperator:
         γ_xz  = 0             (shear xz not modelled in Euler-Bernoulli theory)
         φ_x   = ∂θₓ/∂x        (torsion)
 
+    Consequence: stress resultants from σ = D @ ε give V_y = V_z = 0 for EB.
+    Shear force in Euler-Bernoulli is from equilibrium (V = dM/dx), not from
+    this constitutive output.
+
     Coordinate mapping:
         - x(ξ) = ((1 - ξ)/2)x₁ + ((1 + ξ)/2)x₂
         - dx/dξ = L/2 ⇒ ∂ξ/∂x = 2/L

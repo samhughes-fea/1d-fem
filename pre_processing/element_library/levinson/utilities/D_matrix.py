@@ -14,8 +14,12 @@ class MaterialStiffnessOperator:
 
     Mathematical Formulation
     -----------------------
-    Levinson beam theory includes shear deformation without correction factor (no κ):
-    
+    Levinson beam theory includes shear deformation. Higher-order kinematics
+    (e.g. α(∂²θ/∂x²) in the shear strain in the B-matrix) give a better
+    approximation of shear stress distribution over the section, so no
+    empirical shear correction factor κ is needed; the constitutive shear
+    stiffness is **GA** (κ = 1 implicitly), unlike Timoshenko which uses κGA.
+
     ⎡ N  ⎤   ⎡ EA     0       0       0       0       0   ⎤ ⎡ ε_x  ⎤
     ⎢ M_z⎥   ⎢ 0     EI_z     0       0       0       0   ⎥ ⎢ κ_z  ⎥
     ⎢ M_y⎥ = ⎢ 0      0     EI_y      0       0       0   ⎥ ⎢ κ_y  ⎥
@@ -23,8 +27,12 @@ class MaterialStiffnessOperator:
     ⎢ V_z⎥   ⎢ 0      0       0       0      GA       0   ⎥ ⎢ γ_xz ⎥
     ⎣ M_x⎦   ⎣ 0      0       0       0       0    GJ_t ⎦ ⎣ φ_x  ⎦
 
-    Note: Levinson theory eliminates the need for shear correction factor κ.
-    The higher-order shape functions naturally account for shear deformation.
+    Symbol definitions:
+        EA   = E · A       (axial stiffness)
+        EI_y = E · I_y     (bending about y)
+        EI_z = E · I_z     (bending about z)
+        GA   = G · A       (shear stiffness; no κ, unlike Timoshenko)
+        GJ_t = G · J_t     (torsional stiffness)
 
     Parameters
     ----------
@@ -44,6 +52,10 @@ class MaterialStiffnessOperator:
         Warping constant about y-axis (I_wy) in m⁶, default=0
     warping_inertia_z : float, optional
         Warping constant about z-axis (I_wz) in m⁶, default=0
+
+    This operator intentionally has **no** shear_correction_factor parameter;
+    Levinson theory accounts for shear via higher-order terms in the
+    strain-displacement relation (B-matrix), not via a constitutive κ.
 
     Attributes
     ----------

@@ -32,10 +32,16 @@ class MaterialStiffnessOperator:
                        ⎢  0    0     0     0     0     0 ⎥
                        ⎣  0    0     0     0     0   GJ_t⎦
 
-        EA   = E · A       (axial stiffness)  
-        EI_y = E · I_y     (bending about y)  
-        EI_z = E · I_z     (bending about z)  
+        EA   = E · A       (axial stiffness)
+        EI_y = E · I_y     (bending about y)
+        EI_z = E · I_z     (bending about z)
         GJ_t = G · J_t     (torsional stiffness)
+
+    The fourth and fifth rows (shear) are zero, so V_y = V_z = 0 from D @ ε.
+    The EB element does not produce shear force from the constitutive law;
+    shear in EB is from equilibrium (V = dM/dx). Shear-deformable elements
+    (e.g. Timoshenko, Levinson) use non-zero shear stiffness and do produce
+    V_y, V_z from D @ ε.
 
     Parameters
     ----------

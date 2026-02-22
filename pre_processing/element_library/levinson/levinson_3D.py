@@ -111,17 +111,19 @@ class LevinsonBeamElement3D(Element1DBase):
         self._validate_element_properties()
         self._assert_logging_ready()
     
-        # Compute alpha coefficient for higher-order shear (typically h²/12 for rectangular)
-        # For general sections: α ≈ I_z/A (approximation)
-        # For rectangular: h² = 12*I_z/A, so α = h²/12 = I_z/A
-        alpha_coeff = self.I_z / self.A if self.A > 0 else 0.0
-        
+        # Alpha coefficient for higher-order shear: from section preprocessing if available,
+        # else fallback I_z/A (exact for rectangular, approximation for general sections).
+        alpha_coeff = float(self.section_array[6]) if self.section_array.size >= 7 else (
+            self.I_z / self.A if self.A > 0 else 0.0
+        )
+
         # Initialize operator classes
         self.shape_function_operator = ShapeFunctionOperator(element_length=self.L)
         self.strain_displacement_operator = StrainDisplacementOperator(
             element_length=self.L,
             alpha_coefficient=alpha_coeff
         )
+        # Levinson formulation does not use a shear correction factor; do not pass or use κ from section/material here.
         self.material_stiffness_operator = MaterialStiffnessOperator(
             youngs_modulus=self.E,
             shear_modulus=self.G,
@@ -135,7 +137,7 @@ class LevinsonBeamElement3D(Element1DBase):
         """Validate critical element properties"""
         if self.L <= 0:
             raise ValueError(f"Invalid element length {self.L:.2e} for element {self.element_id}")
-        if self.material_array.size != 4 or self.section_array.size != 5:
+        if self.material_array.size != 4 or self.section_array.size not in (5, 7):
             raise ValueError("Material/section arrays not properly initialised")
     
         # quick access to node-id pair (n1, n2) from the slice array

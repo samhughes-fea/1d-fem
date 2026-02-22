@@ -19,22 +19,23 @@ class MaterialStiffnessOperator:
 
     Mathematical Formulation
     ------------------------
-    Classical Euler–Bernoulli theory couples axial, bending and torsional
-    actions while shear terms remain identically zero:
+    Timoshenko theory couples axial, bending, shear and torsional actions.
+    Strain and stress resultants in Voigt order:
 
         ε = [ εₓ  κᵧ  κ_z  γ_xy  γ_xz  φₓ ]ᵀ
         N = [ N   Mᵧ  M_z  V_xy  V_xz  Mₓ ]ᵀ
 
-                       ⎡ EA    0     0     0     0     0 ⎤
-                       ⎢  0   EI_y   0     0     0     0 ⎥
-    N = D · ε  ,   D = ⎢  0    0   EI_z    0     0     0 ⎥
-                       ⎢  0    0     0     0     0     0 ⎥
-                       ⎢  0    0     0     0     0     0 ⎥
-                       ⎣  0    0     0     0     0   GJ_t⎦
+                       ⎡ EA      0      0      0      0     0 ⎤
+                       ⎢  0    EI_y    0      0      0     0 ⎥
+    N = D · ε  ,   D = ⎢  0      0   EI_z     0      0     0 ⎥
+                       ⎢  0      0      0   κGA      0     0 ⎥
+                       ⎢  0      0      0     0    κGA     0 ⎥
+                       ⎣  0      0      0     0      0  GJ_t⎦
 
-        EA   = E · A       (axial stiffness)  
-        EI_y = E · I_y     (bending about y)  
-        EI_z = E · I_z     (bending about z)  
+        EA   = E · A       (axial stiffness)
+        EI_y = E · I_y     (bending about y)
+        EI_z = E · I_z     (bending about z)
+        κGA  = κ · G · A   (shear stiffness; κ = shear correction factor)
         GJ_t = G · J_t     (torsional stiffness)
 
     Parameters
