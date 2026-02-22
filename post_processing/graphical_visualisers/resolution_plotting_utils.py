@@ -12,13 +12,63 @@ Coordinate Systems:
 - Natural coordinates: ξ ∈ [-1, 1] (Gauss points, node natural positions)
 - Physical coordinates: x ∈ [0, L] (actual spatial positions)
 - Transformation: x = x_node1 + (ξ + 1) * L / 2
+
+Plotting convention (B2):
+- Gauss point values: small solid circle.
+- Elemental values (one per element at midpoint): filled square.
+- Projected nodal values: hollow circle (e.g. from NodalResultProjector).
+- Explicit nodal values: solid triangle (e.g. primary solution at nodes).
+- Continuous interpolant: thin black line (linewidth 0.25); shape-function interpolation, not a curve fit.
+See docs/plans/b2_shape_function_coefficients_eb_implementation_plan.md.
 """
 
-from typing import List, Optional, Tuple, Dict, Any, Union
+from typing import List, Optional, Tuple, Dict, Any, Union, Literal
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.axes
 import importlib
+
+# B2 plotting convention defaults (single source of truth)
+INTERPOLANT_LINEWIDTH: float = 0.75
+INTERPOLANT_COLOR: str = "black"
+GAUSS_MARKER_SIZE: float = 2.0  # small solid circle
+ELEMENTAL_MARKER_SIZE: float = 15.0  # filled square at element midpoints
+NODAL_MARKER_SIZE: float = 15.0  # scatter s= for nodal points (plot_nodal_points)
+LEGEND_MARKER_SIZE: float = 8.0  # legend proxy primary (e.g. nodal marker)
+LEGEND_MARKER_SIZE_SECONDARY: float = 6.0  # legend proxy secondary (e.g. other type)
+
+
+class _CacheShapeFunctionAdapter:
+    """
+    Adapter so ElementObject.evaluate_shape_functions (B1 cache) can be used
+    where code expects a ShapeFunctionOperator with .natural_coordinate_form(xi).
+    """
+
+    def __init__(self, evaluate_fn: Any):
+        self._evaluate = evaluate_fn
+
+    def natural_coordinate_form(self, xi: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        return self._evaluate(np.asarray(xi))
+
+
+class _B2CoefficientAdapter:
+    """
+    Adapter so ElementObject B2 coefficient arrays can be used where code expects
+    a ShapeFunctionOperator with .natural_coordinate_form(xi).
+    """
+
+    def __init__(self, N_coeffs: np.ndarray, dN_coeffs: np.ndarray, d2N_coeffs: np.ndarray):
+        self._N = N_coeffs
+        self._dN = dN_coeffs
+        self._d2N = d2N_coeffs
+
+    def natural_coordinate_form(self, xi: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        from pre_processing.element_library.utilities.shape_function_coefficient_evaluator import (
+            evaluate_shape_functions_from_coefficients,
+        )
+        return evaluate_shape_functions_from_coefficients(
+            self._N, self._dN, self._d2N, np.asarray(xi)
+        )
 
 
 def get_element_node_coords(
@@ -231,6 +281,17 @@ def get_shape_function_operator_for_element(
     ShapeFunctionOperator
         Appropriate shape function operator for this element
     """
+    # B2: prefer coefficient arrays when present (serializable; works after load)
+    if element_object is not None:
+        n_coeff = getattr(element_object, "shape_function_N_coefficients", None)
+        dn_coeff = getattr(element_object, "shape_function_dN_dxi_coefficients", None)
+        d2n_coeff = getattr(element_object, "shape_function_d2N_dxi2_coefficients", None)
+        if n_coeff is not None and dn_coeff is not None and d2n_coeff is not None:
+            return _B2CoefficientAdapter(n_coeff, dn_coeff, d2n_coeff)
+    # B1: use cache callable when present (e.g. Euler-Bernoulli ElementObject)
+    if element_object is not None and getattr(element_object, "evaluate_shape_functions", None) is not None:
+        return _CacheShapeFunctionAdapter(element_object.evaluate_shape_functions)
+
     # Get element type
     if element_object is not None and hasattr(element_object, 'element_type'):
         element_type = element_object.element_type
@@ -298,7 +359,7 @@ def get_gauss_point_physical_coords(
     
     Parameters
     ----------
-    gauss_data : List[GaussPointData]
+    gauss_data : List[StiffnessGaussPointData]
         List of Gauss point data objects with 'xi' attribute
     node_coords : np.ndarray
         Element node coordinates of shape (n_nodes, 3)
@@ -432,13 +493,13 @@ def plot_gauss_points(
     values: np.ndarray,
     marker: str = 'o',
     color: str = 'red',
-    size: float = 50.0,
+    size: float = GAUSS_MARKER_SIZE,
     alpha: float = 0.8,
     label: Optional[str] = None,
     **kwargs
 ) -> None:
     """
-    Plot discrete Gauss point markers.
+    Plot discrete Gauss point markers (B2 convention: small solid circle).
     
     Parameters
     ----------
@@ -449,11 +510,11 @@ def plot_gauss_points(
     values : np.ndarray
         Field values at Gauss points, shape (n_gauss,) or (n_gauss, n_components)
     marker : str, optional
-        Marker style (default: 'o')
+        Marker style (default: 'o', solid circle)
     color : str, optional
         Marker color (default: 'red')
     size : float, optional
-        Marker size (default: 50.0)
+        Marker size (default: GAUSS_MARKER_SIZE for small solid circle)
     alpha : float, optional
         Marker transparency (default: 0.8)
     label : str, optional
@@ -494,21 +555,87 @@ def plot_gauss_points(
             )
 
 
+def plot_elemental_points(
+    ax: matplotlib.axes.Axes,
+    x_coords: np.ndarray,
+    values: np.ndarray,
+    marker: str = 's',
+    color: str = 'red',
+    size: float = ELEMENTAL_MARKER_SIZE,
+    alpha: float = 0.8,
+    label: Optional[str] = None,
+    **kwargs
+) -> None:
+    """
+    Plot discrete elemental-level markers (B2 convention: filled square at element midpoints).
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Matplotlib axes to plot on
+    x_coords : np.ndarray
+        Physical x-coordinates (e.g. element midpoints), shape (n_elements,)
+    values : np.ndarray
+        Field values per element, shape (n_elements,) or (n_elements, n_components)
+    marker : str, optional
+        Marker style (default: 's', filled square)
+    color : str, optional
+        Marker color (default: 'red')
+    size : float, optional
+        Marker size (default: ELEMENTAL_MARKER_SIZE)
+    alpha : float, optional
+        Marker transparency (default: 0.8)
+    label : str, optional
+        Label for legend
+    **kwargs
+        Additional arguments passed to scatter()
+    """
+    values = np.asarray(values)
+    if values.ndim == 1:
+        ax.scatter(
+            x_coords,
+            values,
+            marker=marker,
+            color=color,
+            s=size,
+            alpha=alpha,
+            label=label,
+            **kwargs
+        )
+    else:
+        n_components = values.shape[1]
+        colors = plt.cm.get_cmap('tab10')(np.linspace(0, 1, n_components))
+        for comp in range(n_components):
+            comp_label = f"{label} (comp {comp})" if label else f"Element (comp {comp})"
+            ax.scatter(
+                x_coords,
+                values[:, comp],
+                marker=marker,
+                color=colors[comp],
+                s=size,
+                alpha=alpha,
+                label=comp_label,
+                **kwargs
+            )
+
+
 def plot_nodal_points(
     ax: matplotlib.axes.Axes,
     node_coords: np.ndarray,
     values: np.ndarray,
     marker: str = 's',
     color: str = 'blue',
-    size: float = 80.0,
+    size: float = NODAL_MARKER_SIZE,
     alpha: float = 0.9,
     label: Optional[str] = None,
     edgecolors: Optional[str] = None,
     linewidths: Optional[float] = None,
+    nodal_data_type: Optional[Literal["projected", "explicit"]] = None,
     **kwargs
 ) -> None:
     """
-    Plot nodal markers.
+    Plot nodal markers. B2 convention: pass nodal_data_type='projected' for
+    hollow circle, 'explicit' for solid triangle; when None, legacy default (square).
     
     Parameters
     ----------
@@ -520,15 +647,17 @@ def plot_nodal_points(
     values : np.ndarray
         Field values at nodes, shape (n_nodes,) or (n_nodes, n_components)
     marker : str, optional
-        Marker style (default: 's' for square)
+        Marker style (default: 's'); ignored when nodal_data_type is set
     color : str, optional
-        Marker color (default: 'blue')
+        Marker color (default: 'blue'); edge color for projected
     size : float, optional
-        Marker size (default: 80.0)
+        Marker size (default: NODAL_MARKER_SIZE)
     alpha : float, optional
         Marker transparency (default: 0.9)
     label : str, optional
         Label for legend
+    nodal_data_type : {"projected", "explicit"}, optional
+        B2 convention: "projected" = hollow circle, "explicit" = solid triangle
     **kwargs
         Additional arguments passed to scatter()
     """
@@ -539,6 +668,17 @@ def plot_nodal_points(
         x_coords = node_coords
     
     values = np.asarray(values)
+    
+    # B2 convention: override marker/edge/face when nodal_data_type is set
+    if nodal_data_type == "projected":
+        marker = 'o'
+        edgecolors = color if edgecolors is None else edgecolors
+        linewidths = 1.0 if linewidths is None else linewidths
+        kwargs = {**kwargs, 'facecolors': 'none'}
+    elif nodal_data_type == "explicit":
+        marker = '^'
+        edgecolors = edgecolors
+        linewidths = linewidths
     
     if values.ndim == 1:
         # Scalar field
@@ -553,6 +693,9 @@ def plot_nodal_points(
             scatter_kwargs['edgecolors'] = edgecolors
         if linewidths is not None:
             scatter_kwargs['linewidths'] = linewidths
+        if nodal_data_type == "projected":
+            scatter_kwargs['facecolors'] = 'none'
+            scatter_kwargs['edgecolors'] = color
         scatter_kwargs.update(kwargs)
         ax.scatter(x_coords, values, **scatter_kwargs)
     else:
@@ -573,6 +716,9 @@ def plot_nodal_points(
                 scatter_kwargs['edgecolors'] = edgecolors
             if linewidths is not None:
                 scatter_kwargs['linewidths'] = linewidths
+            if nodal_data_type == "projected":
+                scatter_kwargs['facecolors'] = 'none'
+                scatter_kwargs['edgecolors'] = colors[comp]
             scatter_kwargs.update(kwargs)
             ax.scatter(x_coords, values[:, comp], **scatter_kwargs)
 
@@ -582,13 +728,14 @@ def plot_interpolated_field(
     x_coords: np.ndarray,
     interpolated_values: np.ndarray,
     linestyle: str = '-',
-    linewidth: float = 2.0,
+    linewidth: float = INTERPOLANT_LINEWIDTH,
     alpha: float = 0.7,
     label: Optional[str] = None,
+    color: str = INTERPOLANT_COLOR,
     **kwargs
 ) -> None:
     """
-    Plot continuous interpolated field.
+    Plot continuous interpolated field (B2 convention: thin black line by default).
     
     Parameters
     ----------
@@ -601,11 +748,13 @@ def plot_interpolated_field(
     linestyle : str, optional
         Line style (default: '-')
     linewidth : float, optional
-        Line width (default: 2.0)
+        Line width (default: INTERPOLANT_LINEWIDTH, 0.25)
     alpha : float, optional
         Line transparency (default: 0.7)
     label : str, optional
         Label for legend
+    color : str, optional
+        Line color (default: INTERPOLANT_COLOR, black)
     **kwargs
         Additional arguments passed to plot()
     """
@@ -619,14 +768,13 @@ def plot_interpolated_field(
             linestyle=linestyle,
             linewidth=linewidth,
             alpha=alpha,
+            color=color,
             label=label,
             **kwargs
         )
     else:
-        # Vector field: plot each component
+        # Vector field: plot each component (default thin black line per B2)
         n_components = interpolated_values.shape[1]
-        colors = plt.cm.get_cmap('tab10')(np.linspace(0, 1, n_components))
-        
         for comp in range(n_components):
             comp_label = f"{label} (comp {comp})" if label else f"Interpolated (comp {comp})"
             ax.plot(
@@ -635,7 +783,7 @@ def plot_interpolated_field(
                 linestyle=linestyle,
                 linewidth=linewidth,
                 alpha=alpha,
-                color=colors[comp],
+                color=color,
                 label=comp_label,
                 **kwargs
             )

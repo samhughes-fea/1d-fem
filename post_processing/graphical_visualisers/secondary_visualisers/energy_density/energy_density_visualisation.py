@@ -2,7 +2,8 @@
 Strain energy density visualisation utility.
 
 Reads energy density results from secondary_results and produces energy density profiles with:
-- Nodal markers at node locations
+- Nodal markers at node locations (B2: projected = hollow circle)
+- Gauss point markers when gaussian energy density is saved (B2: small solid circle)
 - Continuous interpolated fields using element shape functions
 """
 
@@ -37,8 +38,15 @@ from pre_processing.parsing.element_parser import ElementParser  # type: ignore
 from post_processing.graphical_visualisers.resolution_plotting_utils import (
     get_element_node_coords,
     plot_nodal_points,
+    plot_gauss_points,
     plot_interpolated_field,
     interpolate_field_nodal_to_continuous,
+    natural_to_physical_coords,
+    INTERPOLANT_LINEWIDTH,
+    NODAL_MARKER_SIZE,
+    LEGEND_MARKER_SIZE,
+    LEGEND_MARKER_SIZE_SECONDARY,
+    GAUSS_MARKER_SIZE,
 )
 
 
@@ -92,11 +100,13 @@ class VisualiseEnergyDensity:
         element_dictionary: dict,
         grid_dictionary: dict,
         *,
+        x_gauss: Optional[np.ndarray] = None,
+        energy_gauss: Optional[np.ndarray] = None,
         title_suffix: str = "",
         save_path: Optional[Path] = None,
     ) -> None:
         """
-        Plot strain energy density profile with nodal markers and interpolated continuous field.
+        Plot strain energy density profile with nodal markers, optional Gauss point markers, and interpolated continuous field.
         
         Parameters
         ----------
@@ -108,6 +118,10 @@ class VisualiseEnergyDensity:
             Element dictionary with connectivity and types
         grid_dictionary : dict
             Grid dictionary with node coordinates
+        x_gauss : Optional[np.ndarray]
+            Gauss point x-coordinates (when gaussian data is loaded)
+        energy_gauss : Optional[np.ndarray]
+            Strain energy density at Gauss points, shape (n_gauss,)
         title_suffix : str
             Suffix for plot title
         save_path : Optional[Path]
@@ -117,6 +131,10 @@ class VisualiseEnergyDensity:
             raise ValueError("Energy density must be 1D array, shape (n_nodes,)")
 
         x_min, x_max = float(node_positions.min()), float(node_positions.max())
+        has_gauss = (
+            x_gauss is not None and energy_gauss is not None
+            and len(x_gauss) == len(energy_gauss) and len(x_gauss) > 0
+        )
 
         fig, ax = plt.subplots(1, 1, figsize=(12, 6))
         fig.suptitle(
@@ -160,24 +178,31 @@ class VisualiseEnergyDensity:
                         n_points=50
                     )
                     
-                    # Plot interpolated field (label only once)
+                    # Plot interpolated field (B2: thin black line)
                     plot_interpolated_field(
                         ax, x_interp, energy_interp,
-                        linestyle='-', linewidth=2.0, alpha=0.7,
-                        color=self._BLUE,
+                        linestyle='-', alpha=0.7,
                         label="Interpolated (shape functions)" if elem_id == element_ids[0] else None
                     )
                 except Exception:
                     # Skip elements that fail
                     continue
 
-        # Plot nodal markers
+        # Plot nodal markers (B2: projected = hollow circle)
         plot_nodal_points(
             ax, node_positions.reshape(-1, 1), energy_density,
-            marker='s', color=self._BLUE, size=70.0, alpha=0.9,
-            edgecolors='black', linewidths=1.0,
+            color=self._BLUE, size=NODAL_MARKER_SIZE, alpha=0.9,
+            nodal_data_type='projected',
             label="Nodes"
         )
+
+        # Plot Gauss point markers (B2: small solid circle) when gaussian data is available
+        if has_gauss:
+            plot_gauss_points(
+                ax, x_gauss, energy_gauss,
+                color="red", size=GAUSS_MARKER_SIZE, alpha=0.9,
+                label="Gauss points",
+            )
 
         # Beam-end anchors + baseline
         ax.plot([x_min], [0], marker="o", color="k", ms=3, zorder=3)
@@ -187,23 +212,27 @@ class VisualiseEnergyDensity:
         ax.set_ylabel(r"$w$ [J/m³]")
         ax.set_xlabel(r"$x$ [m]")
         
-        # Add unified legend at bottom of figure
+        # Add unified legend at bottom of figure (B2 convention; only resolution levels present)
+        from matplotlib.lines import Line2D
+        legend_elements = []
         if has_elements:
-            from matplotlib.lines import Line2D
-            legend_elements = [
-                Line2D([0], [0], linestyle='-', linewidth=2.0, color=self._BLUE, 
-                       label='Interpolated (shape functions)'),
-                Line2D([0], [0], marker='s', linestyle='None', markersize=8, 
-                       color=self._BLUE, markeredgecolor='black', markeredgewidth=1.0,
-                       label='Nodes'),
-                Line2D([0], [0], marker='o', linestyle='None', markersize=5, 
-                       color='red', label='Gauss points'),
-            ]
-            fig.legend(handles=legend_elements, loc='lower center', ncol=3, 
-                      fontsize=9, frameon=True, bbox_to_anchor=(0.5, 0.02))
+            legend_elements.append(
+                Line2D([0], [0], linestyle='-', linewidth=INTERPOLANT_LINEWIDTH, color='black',
+                       label='Interpolated (shape functions)'))
+        legend_elements.append(
+            Line2D([0], [0], marker='o', linestyle='None', markersize=LEGEND_MARKER_SIZE,
+                   markerfacecolor='none', markeredgecolor=self._BLUE, markeredgewidth=1.0,
+                   label='Nodes'))
+        if has_gauss:
+            legend_elements.append(
+                Line2D([0], [0], marker='o', linestyle='None', markersize=LEGEND_MARKER_SIZE_SECONDARY,
+                       color='red', label='Gauss points'))
+        if legend_elements:
+            fig.legend(handles=legend_elements, loc='lower center', ncol=len(legend_elements),
+                      fontsize=9, frameon=True, bbox_to_anchor=(0.5, 0.06))
 
         fig.tight_layout()
-        fig.subplots_adjust(top=0.9, bottom=0.08 if has_elements else 0.1)
+        fig.subplots_adjust(top=0.9, bottom=0.14 if legend_elements else 0.1)
 
         if save_path:
             fig.savefig(save_path, dpi=300)
@@ -227,6 +256,58 @@ class VisualiseEnergyDensity:
         except Exception as exc:
             print(f"Error reading {file}: {exc}")
             return None
+
+    def _load_gaussian_energy_density(
+        self,
+        job_dir: Path,
+        element_dictionary: dict,
+        grid_dictionary: dict,
+    ) -> tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+        """
+        Load strain energy density at Gauss points and compute their x-coordinates.
+        Returns (x_gauss, energy_gauss) or (None, None) if not available.
+        """
+        energy_dir = job_dir / "secondary_results" / "gaussian" / "energy_density"
+        if not energy_dir.is_dir():
+            return None, None
+        files = sorted(
+            energy_dir.glob("energy_density_elem_*.csv"),
+            key=lambda p: int(p.stem.split("_")[-1]),
+        )
+        if not files:
+            return None, None
+        ids = element_dictionary.get("ids", np.arange(len(files)))
+        if len(ids) != len(files):
+            return None, None
+        x_list = []
+        energy_list = []
+        for elem_idx, csv_path in enumerate(files):
+            try:
+                data = np.genfromtxt(csv_path, delimiter=",", skip_header=1)
+            except Exception:
+                continue
+            data = np.atleast_1d(data).flatten()
+            elem_id = int(ids[elem_idx]) if hasattr(ids, "__getitem__") else elem_idx
+            try:
+                node_coords = get_element_node_coords(
+                    elem_id, element_dictionary, grid_dictionary
+                )
+            except Exception:
+                continue
+            n_gp = len(data)
+            xi = (
+                np.polynomial.legendre.leggauss(3)[0]
+                if n_gp == 3
+                else np.polynomial.legendre.leggauss(n_gp)[0]
+            )
+            x_gp = natural_to_physical_coords(xi, node_coords)
+            x_list.append(x_gp)
+            energy_list.append(data)
+        if not x_list:
+            return None, None
+        x_gauss = np.concatenate(x_list)
+        energy_gauss = np.concatenate(energy_list)
+        return x_gauss, energy_gauss
 
     # ------------------------------------------------------------------#
     #  Driver
@@ -286,6 +367,13 @@ class VisualiseEnergyDensity:
                     element_dictionary = None
                     grid_dictionary = None
 
+            # ---- Gaussian energy density (optional) ------------------------ #
+            x_gauss, energy_gauss = None, None
+            if element_dictionary and grid_dictionary:
+                x_gauss, energy_gauss = self._load_gaussian_energy_density(
+                    job_dir, element_dictionary, grid_dictionary
+                )
+
             # ---- Plot ---------------------------------------------------- #
             fig_name = f"energy_density_job_{job_id}_{timestamp}.png"
             self._plot(
@@ -293,6 +381,8 @@ class VisualiseEnergyDensity:
                 node_coords[:, 0],
                 element_dictionary=element_dictionary if element_dictionary else {},
                 grid_dictionary=grid_dictionary if grid_dictionary else {},
+                x_gauss=x_gauss,
+                energy_gauss=energy_gauss,
                 title_suffix=f"job_{job_id}_{timestamp}",
                 save_path=self.figure_output_dir / fig_name,
             )

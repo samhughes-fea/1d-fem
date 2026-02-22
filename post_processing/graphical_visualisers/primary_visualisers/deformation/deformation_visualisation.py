@@ -44,6 +44,10 @@ from post_processing.graphical_visualisers.resolution_plotting_utils import (
     plot_nodal_points,
     plot_interpolated_field,
     interpolate_field_nodal_to_continuous,
+    INTERPOLANT_LINEWIDTH,
+    NODAL_MARKER_SIZE,
+    LEGEND_MARKER_SIZE,
+    LEGEND_MARKER_SIZE_SECONDARY,
 )
 
 
@@ -201,33 +205,37 @@ class VisualiseDeformation:
                             n_points=50
                         )
                         
-                        # Plot interpolated fields (label only once per subplot)
+                        # Plot interpolated fields (B2: thin black line)
                         plot_interpolated_field(
                             ax_l, x_interp_disp, disp_interp,
-                            linestyle='-', linewidth=2.0, alpha=0.7,
-                            color=self._BLUE, 
+                            linestyle='-', alpha=0.7,
                             label="Interpolated (shape functions)" if i == 0 and elem_id == element_ids[0] else None
                         )
                         plot_interpolated_field(
                             ax_r, x_interp_rot, rot_interp,
-                            linestyle='-', linewidth=2.0, alpha=0.7,
-                            color=self._BLUE, label=None
+                            linestyle='-', alpha=0.7, label=None
                         )
                     except Exception as exc:
-                        # Skip elements that fail (e.g., missing data)
+                        # Skip elements that fail (e.g. wrong/missing shape functions for element type)
+                        import warnings
+                        warnings.warn(
+                            f"Deformation interpolation skipped for element {elem_id}: {exc}",
+                            UserWarning,
+                            stacklevel=2,
+                        )
                         continue
 
-            # Plot nodal markers (all nodes) - label only once
+            # Plot nodal markers (B2: explicit = solid triangle)
             plot_nodal_points(
                 ax_l, node_positions.reshape(-1, 1), disp_values,
-                marker='s', color=self._BLUE, size=70.0, alpha=0.9,
-                edgecolors='black', linewidths=1.0,
+                color=self._BLUE, size=NODAL_MARKER_SIZE, alpha=0.9,
+                nodal_data_type='explicit',
                 label="Nodes" if i == 0 else None
             )
             plot_nodal_points(
                 ax_r, node_positions.reshape(-1, 1), rot_values,
-                marker='s', color=self._BLUE, size=70.0, alpha=0.9,
-                edgecolors='black', linewidths=1.0,
+                color=self._BLUE, size=NODAL_MARKER_SIZE, alpha=0.9,
+                nodal_data_type='explicit',
                 label=None  # Only label on left subplot
             )
 
@@ -248,24 +256,23 @@ class VisualiseDeformation:
         axes[-1, 0].set_xlabel(r"$x$ [m]")
         axes[-1, 1].set_xlabel(r"$x$ [m]")
         
-        # Add unified legend at bottom of figure
+        # Add unified legend at bottom of figure (B2 convention; only resolution levels present)
+        from matplotlib.lines import Line2D
+        legend_elements = []
         if has_elements:
-            # Create custom legend entries
-            from matplotlib.lines import Line2D
-            legend_elements = [
-                Line2D([0], [0], linestyle='-', linewidth=2.0, color=self._BLUE, 
-                       label='Interpolated (shape functions)'),
-                Line2D([0], [0], marker='s', linestyle='None', markersize=8, 
-                       color=self._BLUE, markeredgecolor='black', markeredgewidth=1.0,
-                       label='Nodes'),
-                Line2D([0], [0], marker='o', linestyle='None', markersize=5, 
-                       color='red', label='Gauss points'),
-            ]
-            fig.legend(handles=legend_elements, loc='lower center', ncol=3, 
-                      fontsize=9, frameon=True, bbox_to_anchor=(0.5, 0.02))
-        
+            legend_elements.append(
+                Line2D([0], [0], linestyle='-', linewidth=INTERPOLANT_LINEWIDTH, color='black',
+                       label='Interpolated (shape functions)'))
+        legend_elements.append(
+            Line2D([0], [0], marker='^', linestyle='None', markersize=LEGEND_MARKER_SIZE,
+                   color=self._BLUE, markeredgecolor='black', markeredgewidth=1.0,
+                   label='Nodes'))
+        if legend_elements:
+            fig.legend(handles=legend_elements, loc='lower center', ncol=len(legend_elements),
+                      fontsize=9, frameon=True, bbox_to_anchor=(0.5, 0.06))
+
         fig.tight_layout()
-        fig.subplots_adjust(top=0.9, bottom=0.08 if has_elements else 0.1)
+        fig.subplots_adjust(top=0.9, bottom=0.14 if legend_elements else 0.1)
 
         if save_path:
             fig.savefig(save_path, dpi=300)

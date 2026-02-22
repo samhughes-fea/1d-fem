@@ -2,7 +2,8 @@
 Stress visualisation utility.
 
 Reads stress results from secondary_results and produces stress component profiles with:
-- Nodal markers at node locations
+- Nodal markers at node locations (B2: projected = hollow circle)
+- Gauss point markers when gaussian stress is saved (B2: small solid circle)
 - Continuous interpolated fields using element shape functions
 
 Stress components: [σ_xx, σ_yy, σ_zz, τ_xy, τ_yz, τ_xz]
@@ -39,8 +40,15 @@ from pre_processing.parsing.element_parser import ElementParser  # type: ignore
 from post_processing.graphical_visualisers.resolution_plotting_utils import (
     get_element_node_coords,
     plot_nodal_points,
+    plot_gauss_points,
     plot_interpolated_field,
     interpolate_field_nodal_to_continuous,
+    natural_to_physical_coords,
+    INTERPOLANT_LINEWIDTH,
+    NODAL_MARKER_SIZE,
+    LEGEND_MARKER_SIZE,
+    LEGEND_MARKER_SIZE_SECONDARY,
+    GAUSS_MARKER_SIZE,
 )
 
 
@@ -94,11 +102,13 @@ class VisualiseStress:
         element_dictionary: dict,
         grid_dictionary: dict,
         *,
+        x_gauss: Optional[np.ndarray] = None,
+        stress_gauss: Optional[np.ndarray] = None,
         title_suffix: str = "",
         save_path: Optional[Path] = None,
     ) -> None:
         """
-        Plot stress component profiles with nodal markers and interpolated continuous fields.
+        Plot stress component profiles with nodal markers, optional Gauss point markers, and interpolated continuous fields.
         
         Parameters
         ----------
@@ -110,6 +120,10 @@ class VisualiseStress:
             Element dictionary with connectivity and types
         grid_dictionary : dict
             Grid dictionary with node coordinates
+        x_gauss : Optional[np.ndarray]
+            Gauss point x-coordinates (when gaussian data is loaded)
+        stress_gauss : Optional[np.ndarray]
+            Stress at Gauss points, shape (n_gauss, 6)
         title_suffix : str
             Suffix for plot title
         save_path : Optional[Path]
@@ -119,6 +133,11 @@ class VisualiseStress:
             raise ValueError("Stress must be shaped (n_nodes, 6)")
 
         x_min, x_max = float(node_positions.min()), float(node_positions.max())
+        has_gauss = (
+            x_gauss is not None and stress_gauss is not None
+            and stress_gauss.shape[1] == 6
+            and len(x_gauss) == len(stress_gauss) and len(x_gauss) > 0
+        )
 
         fig, axes = plt.subplots(3, 2, figsize=(15, 10), sharex=True)
         fig.suptitle(
@@ -187,35 +206,48 @@ class VisualiseStress:
                             n_points=50
                         )
                         
-                        # Plot interpolated fields (label only once per subplot)
+                        # Plot interpolated fields (B2: thin black line)
                         plot_interpolated_field(
                             ax_l, x_interp_norm, norm_interp,
-                            linestyle='-', linewidth=2.0, alpha=0.7,
-                            color=self._BLUE,
+                            linestyle='-', alpha=0.7,
                             label="Interpolated (shape functions)" if i == 0 and elem_id == element_ids[0] else None
                         )
                         plot_interpolated_field(
                             ax_r, x_interp_shear, shear_interp,
-                            linestyle='-', linewidth=2.0, alpha=0.7,
-                            color=self._BLUE, label=None
+                            linestyle='-', alpha=0.7, label=None
                         )
                     except Exception:
                         # Skip elements that fail
                         continue
 
-            # Plot nodal markers - label only once
+            # Plot nodal markers (B2: projected = hollow circle)
             plot_nodal_points(
                 ax_l, node_positions.reshape(-1, 1), norm_stress,
-                marker='s', color=self._BLUE, size=70.0, alpha=0.9,
-                edgecolors='black', linewidths=1.0,
+                color=self._BLUE, size=NODAL_MARKER_SIZE, alpha=0.9,
+                nodal_data_type='projected',
                 label="Nodes" if i == 0 else None
             )
             plot_nodal_points(
                 ax_r, node_positions.reshape(-1, 1), shear_stress,
-                marker='s', color=self._BLUE, size=70.0, alpha=0.9,
-                edgecolors='black', linewidths=1.0,
+                color=self._BLUE, size=NODAL_MARKER_SIZE, alpha=0.9,
+                nodal_data_type='projected',
                 label=None  # Only label on left subplot
             )
+
+            # Plot Gauss point markers (B2: small solid circle) when available
+            if has_gauss:
+                norm_g = stress_gauss[:, norm_idx]
+                shear_g = stress_gauss[:, shear_idx]
+                plot_gauss_points(
+                    ax_l, x_gauss, norm_g,
+                    color="red", size=GAUSS_MARKER_SIZE, alpha=0.9,
+                    label="Gauss points" if i == 0 else None
+                )
+                plot_gauss_points(
+                    ax_r, x_gauss, shear_g,
+                    color="red", size=GAUSS_MARKER_SIZE, alpha=0.9,
+                    label=None
+                )
 
             # Beam-end anchors + baseline
             for ax in (ax_l, ax_r):
@@ -234,23 +266,27 @@ class VisualiseStress:
         axes[-1, 0].set_xlabel(r"$x$ [m]")
         axes[-1, 1].set_xlabel(r"$x$ [m]")
         
-        # Add unified legend at bottom of figure
+        # Add unified legend at bottom of figure (B2 convention; only resolution levels present)
+        from matplotlib.lines import Line2D
+        legend_elements = []
         if has_elements:
-            from matplotlib.lines import Line2D
-            legend_elements = [
-                Line2D([0], [0], linestyle='-', linewidth=2.0, color=self._BLUE, 
-                       label='Interpolated (shape functions)'),
-                Line2D([0], [0], marker='s', linestyle='None', markersize=8, 
-                       color=self._BLUE, markeredgecolor='black', markeredgewidth=1.0,
-                       label='Nodes'),
-                Line2D([0], [0], marker='o', linestyle='None', markersize=5, 
-                       color='red', label='Gauss points'),
-            ]
-            fig.legend(handles=legend_elements, loc='lower center', ncol=3, 
-                      fontsize=9, frameon=True, bbox_to_anchor=(0.5, 0.02))
-        
+            legend_elements.append(
+                Line2D([0], [0], linestyle='-', linewidth=INTERPOLANT_LINEWIDTH, color='black',
+                       label='Interpolated (shape functions)'))
+        legend_elements.append(
+            Line2D([0], [0], marker='o', linestyle='None', markersize=LEGEND_MARKER_SIZE,
+                   markerfacecolor='none', markeredgecolor=self._BLUE, markeredgewidth=1.0,
+                   label='Nodes'))
+        if has_gauss:
+            legend_elements.append(
+                Line2D([0], [0], marker='o', linestyle='None', markersize=LEGEND_MARKER_SIZE_SECONDARY,
+                       color='red', label='Gauss points'))
+        if legend_elements:
+            fig.legend(handles=legend_elements, loc='lower center', ncol=len(legend_elements),
+                      fontsize=9, frameon=True, bbox_to_anchor=(0.5, 0.06))
+
         fig.tight_layout()
-        fig.subplots_adjust(top=0.9, bottom=0.08 if has_elements else 0.1)
+        fig.subplots_adjust(top=0.9, bottom=0.14 if legend_elements else 0.1)
 
         if save_path:
             fig.savefig(save_path, dpi=300)
@@ -274,6 +310,61 @@ class VisualiseStress:
         except Exception as exc:
             print(f"Error reading {file}: {exc}")
             return None
+
+    def _load_gaussian_stress(
+        self,
+        job_dir: Path,
+        element_dictionary: dict,
+        grid_dictionary: dict,
+    ) -> tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+        """
+        Load stress at Gauss points and compute their x-coordinates.
+        Returns (x_gauss, stress_gauss) or (None, None) if not available.
+        """
+        stress_dir = job_dir / "secondary_results" / "gaussian" / "stress"
+        if not stress_dir.is_dir():
+            return None, None
+        files = sorted(
+            stress_dir.glob("stress_elem_*.csv"),
+            key=lambda p: int(p.stem.split("_")[-1]),
+        )
+        if not files:
+            return None, None
+        ids = element_dictionary.get("ids", np.arange(len(files)))
+        if len(ids) != len(files):
+            return None, None
+        x_list = []
+        stress_list = []
+        for elem_idx, csv_path in enumerate(files):
+            try:
+                data = np.genfromtxt(csv_path, delimiter=",", skip_header=1)
+            except Exception:
+                continue
+            if data.ndim == 1:
+                data = data.reshape(1, -1)
+            if data.shape[1] != 6:
+                continue
+            elem_id = int(ids[elem_idx]) if hasattr(ids, "__getitem__") else elem_idx
+            try:
+                node_coords = get_element_node_coords(
+                    elem_id, element_dictionary, grid_dictionary
+                )
+            except Exception:
+                continue
+            n_gp = data.shape[0]
+            xi = (
+                np.polynomial.legendre.leggauss(3)[0]
+                if n_gp == 3
+                else np.polynomial.legendre.leggauss(n_gp)[0]
+            )
+            x_gp = natural_to_physical_coords(xi, node_coords)
+            x_list.append(x_gp)
+            stress_list.append(data)
+        if not x_list:
+            return None, None
+        x_gauss = np.concatenate(x_list)
+        stress_gauss = np.vstack(stress_list)
+        return x_gauss, stress_gauss
 
     # ------------------------------------------------------------------#
     #  Driver
@@ -333,6 +424,13 @@ class VisualiseStress:
                     element_dictionary = None
                     grid_dictionary = None
 
+            # ---- Gaussian stress (optional) ------------------------------ #
+            x_gauss, stress_gauss = None, None
+            if element_dictionary and grid_dictionary:
+                x_gauss, stress_gauss = self._load_gaussian_stress(
+                    job_dir, element_dictionary, grid_dictionary
+                )
+
             # ---- Plot ---------------------------------------------------- #
             fig_name = f"stress_job_{job_id}_{timestamp}.png"
             self._plot(
@@ -340,6 +438,8 @@ class VisualiseStress:
                 node_coords[:, 0],
                 element_dictionary=element_dictionary if element_dictionary else {},
                 grid_dictionary=grid_dictionary if grid_dictionary else {},
+                x_gauss=x_gauss,
+                stress_gauss=stress_gauss,
                 title_suffix=f"job_{job_id}_{timestamp}",
                 save_path=self.figure_output_dir / fig_name,
             )

@@ -2,7 +2,8 @@
 Strain visualisation utility.
 
 Reads strain results from secondary_results and produces strain component profiles with:
-- Nodal markers at node locations
+- Nodal markers at node locations (B2: projected = hollow circle)
+- Gauss point markers when gaussian strain is saved (B2: small solid circle)
 - Continuous interpolated fields using element shape functions
 
 Strain components: [ε_xx, ε_yy, ε_zz, γ_xy, γ_yz, γ_xz]
@@ -39,8 +40,15 @@ from pre_processing.parsing.element_parser import ElementParser  # type: ignore
 from post_processing.graphical_visualisers.resolution_plotting_utils import (
     get_element_node_coords,
     plot_nodal_points,
+    plot_gauss_points,
     plot_interpolated_field,
     interpolate_field_nodal_to_continuous,
+    natural_to_physical_coords,
+    INTERPOLANT_LINEWIDTH,
+    NODAL_MARKER_SIZE,
+    LEGEND_MARKER_SIZE,
+    LEGEND_MARKER_SIZE_SECONDARY,
+    GAUSS_MARKER_SIZE,
 )
 
 
@@ -94,11 +102,13 @@ class VisualiseStrain:
         element_dictionary: dict,
         grid_dictionary: dict,
         *,
+        x_gauss: Optional[np.ndarray] = None,
+        strain_gauss: Optional[np.ndarray] = None,
         title_suffix: str = "",
         save_path: Optional[Path] = None,
     ) -> None:
         """
-        Plot strain component profiles with nodal markers and interpolated continuous fields.
+        Plot strain component profiles with nodal markers, optional Gauss point markers, and interpolated continuous fields.
         
         Parameters
         ----------
@@ -110,6 +120,10 @@ class VisualiseStrain:
             Element dictionary with connectivity and types
         grid_dictionary : dict
             Grid dictionary with node coordinates
+        x_gauss : Optional[np.ndarray]
+            Physical x-coordinates of Gauss points, shape (n_gp,). If provided with strain_gauss, GP markers are drawn.
+        strain_gauss : Optional[np.ndarray]
+            Strain at Gauss points, shape (n_gp, 6). If provided with x_gauss, GP markers are drawn.
         title_suffix : str
             Suffix for plot title
         save_path : Optional[Path]
@@ -117,6 +131,10 @@ class VisualiseStrain:
         """
         if strain.shape[1] != 6:
             raise ValueError("Strain must be shaped (n_nodes, 6)")
+        has_gauss = (
+            x_gauss is not None and strain_gauss is not None and
+            len(x_gauss) > 0 and strain_gauss.shape[0] == len(x_gauss) and strain_gauss.shape[1] == 6
+        )
 
         x_min, x_max = float(node_positions.min()), float(node_positions.max())
 
@@ -187,35 +205,48 @@ class VisualiseStrain:
                             n_points=50
                         )
                         
-                        # Plot interpolated fields (label only once per subplot)
+                        # Plot interpolated fields (B2: thin black line)
                         plot_interpolated_field(
                             ax_l, x_interp_norm, norm_interp,
-                            linestyle='-', linewidth=2.0, alpha=0.7,
-                            color=self._BLUE,
+                            linestyle='-', alpha=0.7,
                             label="Interpolated (shape functions)" if i == 0 and elem_id == element_ids[0] else None
                         )
                         plot_interpolated_field(
                             ax_r, x_interp_shear, shear_interp,
-                            linestyle='-', linewidth=2.0, alpha=0.7,
-                            color=self._BLUE, label=None
+                            linestyle='-', alpha=0.7, label=None
                         )
                     except Exception:
                         # Skip elements that fail
                         continue
 
-            # Plot nodal markers - label only once
+            # Plot nodal markers (B2: projected = hollow circle)
             plot_nodal_points(
                 ax_l, node_positions.reshape(-1, 1), norm_strain,
-                marker='s', color=self._BLUE, size=70.0, alpha=0.9,
-                edgecolors='black', linewidths=1.0,
+                color=self._BLUE, size=NODAL_MARKER_SIZE, alpha=0.9,
+                nodal_data_type='projected',
                 label="Nodes" if i == 0 else None
             )
             plot_nodal_points(
                 ax_r, node_positions.reshape(-1, 1), shear_strain,
-                marker='s', color=self._BLUE, size=70.0, alpha=0.9,
-                edgecolors='black', linewidths=1.0,
+                color=self._BLUE, size=NODAL_MARKER_SIZE, alpha=0.9,
+                nodal_data_type='projected',
                 label=None  # Only label on left subplot
             )
+
+            # Plot Gauss point markers (B2: small solid circle) when available
+            if has_gauss:
+                norm_g = strain_gauss[:, norm_idx]
+                shear_g = strain_gauss[:, shear_idx]
+                plot_gauss_points(
+                    ax_l, x_gauss, norm_g,
+                    color="red", size=GAUSS_MARKER_SIZE, alpha=0.9,
+                    label="Gauss points" if i == 0 else None
+                )
+                plot_gauss_points(
+                    ax_r, x_gauss, shear_g,
+                    color="red", size=GAUSS_MARKER_SIZE, alpha=0.9,
+                    label=None
+                )
 
             # Beam-end anchors + baseline
             for ax in (ax_l, ax_r):
@@ -234,23 +265,27 @@ class VisualiseStrain:
         axes[-1, 0].set_xlabel(r"$x$ [m]")
         axes[-1, 1].set_xlabel(r"$x$ [m]")
         
-        # Add unified legend at bottom of figure
+        # Add unified legend at bottom of figure (B2 convention; only resolution levels present)
+        from matplotlib.lines import Line2D
+        legend_elements = []
         if has_elements:
-            from matplotlib.lines import Line2D
-            legend_elements = [
-                Line2D([0], [0], linestyle='-', linewidth=2.0, color=self._BLUE, 
-                       label='Interpolated (shape functions)'),
-                Line2D([0], [0], marker='s', linestyle='None', markersize=8, 
-                       color=self._BLUE, markeredgecolor='black', markeredgewidth=1.0,
-                       label='Nodes'),
-                Line2D([0], [0], marker='o', linestyle='None', markersize=5, 
-                       color='red', label='Gauss points'),
-            ]
-            fig.legend(handles=legend_elements, loc='lower center', ncol=3, 
-                      fontsize=9, frameon=True, bbox_to_anchor=(0.5, 0.02))
-        
+            legend_elements.append(
+                Line2D([0], [0], linestyle='-', linewidth=INTERPOLANT_LINEWIDTH, color='black',
+                       label='Interpolated (shape functions)'))
+        legend_elements.append(
+            Line2D([0], [0], marker='o', linestyle='None', markersize=LEGEND_MARKER_SIZE,
+                   markerfacecolor='none', markeredgecolor=self._BLUE, markeredgewidth=1.0,
+                   label='Nodes'))
+        if has_gauss:
+            legend_elements.append(
+                Line2D([0], [0], marker='o', linestyle='None', markersize=LEGEND_MARKER_SIZE_SECONDARY,
+                       color='red', label='Gauss points'))
+        if legend_elements:
+            fig.legend(handles=legend_elements, loc='lower center', ncol=len(legend_elements),
+                      fontsize=9, frameon=True, bbox_to_anchor=(0.5, 0.06))
+
         fig.tight_layout()
-        fig.subplots_adjust(top=0.9, bottom=0.08 if has_elements else 0.1)
+        fig.subplots_adjust(top=0.9, bottom=0.14 if legend_elements else 0.1)
 
         if save_path:
             fig.savefig(save_path, dpi=300)
@@ -275,6 +310,61 @@ class VisualiseStrain:
             print(f"Error reading {file}: {exc}")
             return None
 
+    def _load_gaussian_strain(
+        self,
+        job_dir: Path,
+        element_dictionary: dict,
+        grid_dictionary: dict,
+    ) -> tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+        """
+        Load strain at Gauss points and compute their x-coordinates.
+        Returns (x_gauss, strain_gauss) or (None, None) if not available.
+        """
+        strain_dir = job_dir / "secondary_results" / "gaussian" / "strain"
+        if not strain_dir.is_dir():
+            return None, None
+        files = sorted(
+            strain_dir.glob("strain_elem_*.csv"),
+            key=lambda p: int(p.stem.split("_")[-1]),
+        )
+        if not files:
+            return None, None
+        ids = element_dictionary.get("ids", np.arange(len(files)))
+        if len(ids) != len(files):
+            return None, None
+        x_list = []
+        strain_list = []
+        for elem_idx, csv_path in enumerate(files):
+            try:
+                data = np.genfromtxt(csv_path, delimiter=",", skip_header=1)
+            except Exception:
+                continue
+            if data.ndim == 1:
+                data = data.reshape(1, -1)
+            if data.shape[1] != 6:
+                continue
+            elem_id = int(ids[elem_idx]) if hasattr(ids, "__getitem__") else elem_idx
+            try:
+                node_coords = get_element_node_coords(
+                    elem_id, element_dictionary, grid_dictionary
+                )
+            except Exception:
+                continue
+            n_gp = data.shape[0]
+            xi = (
+                np.polynomial.legendre.leggauss(3)[0]
+                if n_gp == 3
+                else np.polynomial.legendre.leggauss(n_gp)[0]
+            )
+            x_gp = natural_to_physical_coords(xi, node_coords)
+            x_list.append(x_gp)
+            strain_list.append(data)
+        if not x_list:
+            return None, None
+        x_gauss = np.concatenate(x_list)
+        strain_gauss = np.vstack(strain_list)
+        return x_gauss, strain_gauss
+
     # ------------------------------------------------------------------#
     #  Driver
     # ------------------------------------------------------------------#
@@ -287,6 +377,7 @@ class VisualiseStrain:
 
         for csv_path in csv_files:
             csv_file = Path(csv_path)
+            # nodal_strain.csv -> nodal -> secondary_results -> job_XXX
             job_dir = csv_file.parent.parent.parent
             m = re.match(r"job_(?P<id>\d+)_(?P<ts>[\d\-_]+_pid\d+_[a-f0-9]+)", job_dir.name)
             if not m:
@@ -317,7 +408,7 @@ class VisualiseStrain:
                 print(f"WARNING: {exc} for job {job_id}, skipping.")
                 continue
 
-            # ---- Element data (for interpolation) ---------------------- #
+            # ---- Element data (for interpolation and GP positions) ------- #
             if not element_file.is_file():
                 print(f"WARNING: Element file missing for job {job_id}, skipping interpolation.")
                 element_dictionary = None
@@ -333,6 +424,13 @@ class VisualiseStrain:
                     element_dictionary = None
                     grid_dictionary = None
 
+            # ---- Gaussian strain (optional) ------------------------------ #
+            x_gauss, strain_gauss = None, None
+            if element_dictionary and grid_dictionary:
+                x_gauss, strain_gauss = self._load_gaussian_strain(
+                    job_dir, element_dictionary, grid_dictionary
+                )
+
             # ---- Plot ---------------------------------------------------- #
             fig_name = f"strain_job_{job_id}_{timestamp}.png"
             self._plot(
@@ -340,6 +438,8 @@ class VisualiseStrain:
                 node_coords[:, 0],
                 element_dictionary=element_dictionary if element_dictionary else {},
                 grid_dictionary=grid_dictionary if grid_dictionary else {},
+                x_gauss=x_gauss,
+                strain_gauss=strain_gauss,
                 title_suffix=f"job_{job_id}_{timestamp}",
                 save_path=self.figure_output_dir / fig_name,
             )
