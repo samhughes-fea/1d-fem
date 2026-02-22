@@ -1,4 +1,4 @@
-# run_job.py
+                                                                                                                                                                                                                            # run_job.py
 
 import os
 import sys
@@ -344,6 +344,15 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times):
             force_objects = vectorized_force(all_elements)
         force_time = time.time() - step_start
         performance_data.append(["Element Force Computation", force_time, *track_usage().values()])
+
+        # Validate no None in element/force objects (e.g. from failed parallel fallback or disk errors)
+        elem_none = sum(1 for o in element_objects if o is None)
+        force_none = sum(1 for o in force_objects if o is None)
+        if elem_none or force_none:
+            raise RuntimeError(
+                f"Cannot run simulation: {elem_none} element object(s) and {force_none} force object(s) are None. "
+                "Check disk space and logs (e.g. [Errno 28] No space left on device)."
+            )
 
         # --- SIMULATION EXECUTION ---
         step_start = time.time()
