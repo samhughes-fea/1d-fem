@@ -8,6 +8,19 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Beam formulation outputs stress conjugate to ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]:
+# stress = [N, M_y, M_z, V_y, V_z, T]. Section force / CSV convention is [N, Vy, Vz, T, My, Mz].
+STRESS_HEADER_RESULTANTS = "N,Vy,Vz,T,My,Mz"
+
+
+def _stress_formulation_to_resultants(stress: np.ndarray) -> np.ndarray:
+    """Reorder formulation stress [N, M_y, M_z, V_y, V_z, T] to [N, Vy, Vz, T, My, Mz]."""
+    # index map: resultants[k] = formulation[REORDER[k]]
+    REORDER = (0, 3, 4, 5, 1, 2)
+    if stress.ndim == 1:
+        return np.array([stress[i] for i in REORDER], dtype=stress.dtype)
+    return stress[:, REORDER]
+
 
 class SaveSecondaryResults:
     """
@@ -108,15 +121,15 @@ class SaveSecondaryResults:
                               header=header, comments='')
             logger.info(f"   ✓ Strain saved: {len(gauss_res.strain)} elements")
 
-        # Save stress at Gauss points
+        # Save stress at Gauss points (beam resultants [N, Vy, Vz, T, My, Mz])
         if gauss_res.stress:
             for elem_idx, elem_stresses in enumerate(gauss_res.stress):
-                stress_array = np.array(elem_stresses)  # shape: (n_gauss, n_stress_components)
+                stress_array = np.array(elem_stresses)  # formulation order
+                stress_array = _stress_formulation_to_resultants(stress_array)
                 filename = stress_dir / f"stress_elem_{elem_idx:06d}.csv"
-                header = "σ_xx,σ_yy,σ_zz,τ_xy,τ_yz,τ_xz"
                 with open(filename, 'w', encoding='utf-8') as f:
                     np.savetxt(f, stress_array, delimiter=",", fmt="%.12e",
-                              header=header, comments='')
+                              header=STRESS_HEADER_RESULTANTS, comments='')
             logger.info(f"   ✓ Stress saved: {len(gauss_res.stress)} elements")
 
         # Save energy density at Gauss points
@@ -148,13 +161,13 @@ class SaveSecondaryResults:
                           fmt="%.12e", header=header, comments='')
             logger.info(f"   ✓ Nodal strain saved: {nodal_res.strain.shape}")
 
-        # Save nodal stress
+        # Save nodal stress (beam resultants [N, Vy, Vz, T, My, Mz])
         if nodal_res.stress is not None:
             filename = self.nodal_dir / "nodal_stress.csv"
-            header = "σ_xx,σ_yy,σ_zz,τ_xy,τ_yz,τ_xz"
+            nodal_resultants = _stress_formulation_to_resultants(nodal_res.stress)
             with open(filename, 'w', encoding='utf-8') as f:
-                np.savetxt(f, nodal_res.stress, delimiter=",",
-                          fmt="%.12e", header=header, comments='')
+                np.savetxt(f, nodal_resultants, delimiter=",",
+                          fmt="%.12e", header=STRESS_HEADER_RESULTANTS, comments='')
             logger.info(f"   ✓ Nodal stress saved: {nodal_res.stress.shape}")
 
         # Save nodal strain energy density

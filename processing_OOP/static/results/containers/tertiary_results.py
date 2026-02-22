@@ -65,6 +65,12 @@ class TertiaryResults:
         Native Resolution: Elemental (integrated from Gaussian)
         Note: For beam elements, these represent average or representative
         section forces over the element length
+
+    nodal_section_forces : Optional[np.ndarray] = None
+        Section force resultants [N, Vy, Vz, T, My, Mz] projected to nodes
+        Shape: (n_nodes, 6), column order [N, Vy, Vz, T, My, Mz]
+        Storage: `tertiary_results/nodal/nodal_section_forces.csv`
+        Native Resolution: Nodal (projected from Gaussian via shape functions)
     """
     
     section_forces: Optional[List[List[np.ndarray]]] = None
@@ -75,4 +81,7 @@ class TertiaryResults:
     # Integrated elemental results
     total_strain_energy: Optional[List[float]] = None
     integrated_section_forces: Optional[List[np.ndarray]] = None
+
+    # Nodal resolution (projected from Gaussian)
+    nodal_section_forces: Optional[np.ndarray] = None
 

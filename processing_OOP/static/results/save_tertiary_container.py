@@ -42,12 +42,14 @@ class SaveTertiaryResults:
         self.section_forces_dir = self.gaussian_dir / "section_forces"
         self.principal_stress_dir = self.gaussian_dir / "principal_stress"
         self.elemental_dir = self.tertiary_dir / "elemental"
+        self.nodal_dir = self.tertiary_dir / "nodal"
 
         for directory in [
             self.gaussian_dir,
             self.section_forces_dir,
             self.principal_stress_dir,
-            self.elemental_dir
+            self.elemental_dir,
+            self.nodal_dir,
         ]:
             directory.mkdir(parents=True, exist_ok=True)
 
@@ -86,21 +88,30 @@ class SaveTertiaryResults:
             self._save_integrated_elemental_results()
             saved_count += 1
 
+        # Save nodal section forces (projected from Gaussian)
+        if self.results.nodal_section_forces is not None:
+            logger.info("\n[4/4] Saving nodal section forces...")
+            self._save_nodal_section_forces()
+            saved_count += 1
+
         logger.info("\n" + "=" * 70)
         logger.info(f"✅ TERTIARY RESULTS SAVED ({saved_count} categories)")
         logger.info(f"   Location: {self.tertiary_dir}")
         logger.info(f"   Note: Von Mises and shear stress in summary CSV")
         logger.info("=" * 70)
 
+    # Marker so readers can detect column order; legacy CSVs (no marker) were in formulation order
+    _SECTION_FORCE_FORMAT_LINE = "# column_order=resultant\n"
+
     def _save_section_forces(self):
         """Save section force resultants [N, Vy, Vz, T, My, Mz] per Gauss point."""
         for elem_idx, elem_section_forces in enumerate(self.results.section_forces):
-            # Stack all Gauss point section forces for this element
             section_force_array = np.array(elem_section_forces)  # shape: (n_gauss, 6)
             filename = self.section_forces_dir / f"section_forces_elem_{elem_idx:06d}.csv"
-            header = "N,Vy,Vz,T,My,Mz"
-            np.savetxt(filename, section_force_array, delimiter=",",
-                      fmt="%.12e", header=header, comments='')
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write(self._SECTION_FORCE_FORMAT_LINE)
+                np.savetxt(f, section_force_array, delimiter=",",
+                           fmt="%.12e", header="N,Vy,Vz,T,My,Mz", comments="")
 
         logger.info(f"   ✓ Section forces saved: {len(self.results.section_forces)} elements")
 
@@ -131,13 +142,25 @@ class SaveTertiaryResults:
 
         # Save integrated section forces per element
         if self.results.integrated_section_forces is not None:
-            # Stack all integrated section forces
             integrated_forces_array = np.array(self.results.integrated_section_forces)  # shape: (n_elements, 6)
             filename = self.elemental_dir / "integrated_section_forces.csv"
-            header = "N,Vy,Vz,T,My,Mz"
-            np.savetxt(filename, integrated_forces_array, delimiter=",",
-                      fmt="%.12e", header=header, comments='')
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write(self._SECTION_FORCE_FORMAT_LINE)
+                np.savetxt(f, integrated_forces_array, delimiter=",",
+                           fmt="%.12e", header="N,Vy,Vz,T,My,Mz", comments="")
             logger.info(f"   ✓ Integrated section forces saved: {len(self.results.integrated_section_forces)} elements")
+
+    def _save_nodal_section_forces(self):
+        """Save nodal section force resultants [N, Vy, Vz, T, My, Mz], one row per node."""
+        arr = np.asarray(self.results.nodal_section_forces)
+        if arr.ndim != 2 or arr.shape[1] != 6:
+            logger.warning("nodal_section_forces shape %s unexpected, skipping save", arr.shape)
+            return
+        filename = self.nodal_dir / "nodal_section_forces.csv"
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(self._SECTION_FORCE_FORMAT_LINE)
+            np.savetxt(f, arr, delimiter=",", fmt="%.12e", header="N,Vy,Vz,T,My,Mz", comments="")
+        logger.info(f"   ✓ Nodal section forces saved: {len(arr)} nodes")
 
 
 class SaveTertiaryResultsSummary:

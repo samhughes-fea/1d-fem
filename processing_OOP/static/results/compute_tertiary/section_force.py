@@ -25,6 +25,14 @@ class ComputeSectionForce:
 
     For 1D beam theory, these are directly obtained from the stress vector.
 
+    Note on Euler-Bernoulli
+    -----------------------
+    Euler-Bernoulli elements have no shear strain (γ_xy = γ_xz = 0), so
+    σ = D @ ε yields V_y = V_z = 0. The section force outputs Vy, Vz will
+    therefore be zero for EB. Shear force in EB is given by equilibrium
+    (V = dM/dx), not by this constitutive output. Shear-deformable elements
+    (Timoshenko, Levinson) produce non-zero Vy, Vz from D @ ε.
+
     Parameters
     ----------
     stress_gauss : List[List[np.ndarray]]
@@ -56,11 +64,9 @@ class ComputeSectionForce:
             elem_section_forces = []
             
             for gp_idx, stress in enumerate(elem_stresses):
-                # For beam elements, stress vector is already in section force form
-                # stress = [σ_axial, τ_shear_y, τ_shear_z, τ_torsion, σ_bend_y, σ_bend_z]
-                # maps directly to section forces:
-                # section_force = [N, Vy, Vz, T, My, Mz]
-                
+                # Formulation (B, D) outputs stress conjugate to ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]:
+                # stress = [N, M_y, M_z, V_y, V_z, T]. We reorder to section force convention
+                # [N, Vy, Vz, T, My, Mz] so that deformation in y activates Vy and Mz correctly.
                 section_force = self._stress_to_section_force(stress)
                 elem_section_forces.append(section_force)
 
@@ -71,30 +77,37 @@ class ComputeSectionForce:
 
     def _stress_to_section_force(self, stress: np.ndarray) -> np.ndarray:
         """
-        Convert stress tensor to section force resultants.
+        Convert formulation stress resultants to section force convention.
 
-        For beam elements, the stress vector components typically represent
-        integrated quantities:
-        - stress[0] → N  (axial force)
-        - stress[1] → Vy (shear force y)
-        - stress[2] → Vz (shear force z)
-        - stress[3] → T  (torque)
-        - stress[4] → My (bending moment y)
-        - stress[5] → Mz (bending moment z)
+        The formulation (B, D) uses strain ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x], so
+        σ = D @ ε yields stress in order [N, M_y, M_z, V_y, V_z, T]:
+        - stress[0] = N   (axial)
+        - stress[1] = M_y (bending about y → x-z plane)
+        - stress[2] = M_z (bending about z → x-y plane; activated by u_y)
+        - stress[3] = V_y (shear in y; activated by u_y)
+        - stress[4] = V_z (shear in z)
+        - stress[5] = T  (torsion)
+
+        Section force / CSV / plot convention is [N, Vy, Vz, T, My, Mz].
 
         Parameters
         ----------
         stress : np.ndarray
-            Stress vector at Gauss point (shape: (6,))
+            Formulation stress at Gauss point (shape: (6,)) in order [N, M_y, M_z, V_y, V_z, T]
 
         Returns
         -------
         np.ndarray
             Section force vector [N, Vy, Vz, T, My, Mz] (shape: (6,))
         """
-        # For typical beam formulations, this is a direct mapping
-        # For more complex elements, integration over cross-section would be needed
-        return stress.copy()
+        return np.array([
+            stress[0],   # N
+            stress[3],   # Vy
+            stress[4],   # Vz
+            stress[5],   # T
+            stress[1],   # My
+            stress[2],   # Mz
+        ], dtype=stress.dtype)
 
 
 class ComputeNodalSectionForce:

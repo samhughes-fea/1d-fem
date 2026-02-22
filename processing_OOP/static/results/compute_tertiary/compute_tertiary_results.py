@@ -39,10 +39,14 @@ class TertiaryResultsOrchestrator:
         self,
         secondary_results,
         formulation_cache=None,
+        element_dictionary=None,
+        grid_dictionary=None,
         job_results_dir: Optional[str | Path] = None,
     ):
         self.secondary_results = secondary_results
         self.formulation_cache = formulation_cache
+        self.element_dictionary = element_dictionary
+        self.grid_dictionary = grid_dictionary
         self.job_results_dir = Path(job_results_dir) if job_results_dir else None
         self.logger = self._init_logging()
 
@@ -76,10 +80,11 @@ class TertiaryResultsOrchestrator:
         principal_computer = ComputePrincipalStress(stress_gauss)
         principal_stresses, von_mises, max_shear = principal_computer.compute_all()
 
-        # 3. Compute integrated elemental results
+        # 3. Compute integrated elemental results and nodal section forces
         total_strain_energy = None
         integrated_section_forces = None
-        
+        nodal_section_forces = None
+
         if self.formulation_cache is not None:
             self.logger.info("\n[3/3] Computing integrated elemental results...")
             integrated_computer = ComputeIntegratedElementalResults(
@@ -97,6 +102,22 @@ class TertiaryResultsOrchestrator:
         else:
             self.logger.warning("⚠️  No formulation_cache provided, skipping integrated elemental results")
 
+        # Nodal section forces (shape-function projection from GP data)
+        if (
+            self.formulation_cache is not None
+            and self.element_dictionary is not None
+            and self.grid_dictionary is not None
+            and section_forces is not None
+        ):
+            from .nodal_section_forces_projector import NodalSectionForcesProjector
+            projector = NodalSectionForcesProjector(
+                section_forces_gauss=section_forces,
+                formulation_cache=self.formulation_cache,
+                element_dictionary=self.element_dictionary,
+                grid_dictionary=self.grid_dictionary,
+            )
+            nodal_section_forces = projector.project()
+
         # Package results
         tertiary_results = TertiaryResults(
             section_forces=section_forces,
@@ -104,7 +125,8 @@ class TertiaryResultsOrchestrator:
             von_mises_stress=von_mises,
             max_shear_stress=max_shear,
             total_strain_energy=total_strain_energy,
-            integrated_section_forces=integrated_section_forces
+            integrated_section_forces=integrated_section_forces,
+            nodal_section_forces=nodal_section_forces,
         )
 
         self.logger.info("\n" + "=" * 70)
