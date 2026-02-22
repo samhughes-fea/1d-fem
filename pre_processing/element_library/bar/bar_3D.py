@@ -179,26 +179,26 @@ class BarElement3D(Element1DBase):
         point_loads_cache = self.point_load_array.copy() if self.point_load_array.size > 0 else None
         gauss_data = []
         if self.distributed_load_array.size > 0:
-            N = np.zeros((12, 6))
-            for i in range(6):
-                N[i, i] = 0.5
-                N[6 + i, i] = 0.5
-            q = np.zeros(6)
-            for row in self.distributed_load_array:
-                q[0] += row[3]
-                q[1] += row[4]
-                q[2] += row[5]
-                q[3] += row[6]
-                q[4] += row[7]
-                q[5] += row[8]
+            interpolator = LoadInterpolationOperator(
+                distributed_loads_array=self.distributed_load_array,
+                boundary_mode="clamp",
+                interpolation_order="linear",
+                n_gauss_points=1,
+            )
+            x_mid = (self.node_coords[0, 0] + self.node_coords[1, 0]) / 2.0
+            q = np.asarray(interpolator.interpolate(x_mid), dtype=np.float64)
+            if q.shape == ():
+                q = np.atleast_1d(q)
+            N_gp, _, _ = self._shape_function_operator.natural_coordinate_form(np.array([0.0]))
+            N = N_gp[0]
             F_e += (N @ q) * 2.0 * (self.L / 2)
             gauss_data.append(
                 ForceGaussPointData(
                     xi=0.0,
                     weight=2.0,
-                    shape_functions=N,
+                    shape_functions=N.copy(),
                     jacobian=self.L / 2,
-                    distributed_load=q,
+                    distributed_load=q.copy(),
                 )
             )
 

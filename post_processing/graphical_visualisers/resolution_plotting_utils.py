@@ -216,9 +216,10 @@ def create_shape_function_operator(
         "TimoshenkoBeamElement3D": "pre_processing.element_library.timoshenko.utilities.shape_functions",
         "LevinsonBeamElement3D": "pre_processing.element_library.levinson.utilities.shape_functions",
         "EulerBernoulliBeamElement6DOF": "pre_processing.element_library.co_tide_beam_ML.utilities.shape_functions",
-        # Add more mappings as needed
+        "Bar-3D": "pre_processing.element_library.bar.utilities.shape_functions",
+        "Truss-3D": "pre_processing.element_library.truss.utilities.shape_functions",
     }
-    
+
     # Try to find the module path
     if element_type not in SHAPE_FUNCTION_MODULE_MAP:
         # Try to infer from element type string
@@ -229,6 +230,10 @@ def create_shape_function_operator(
             module_path = "pre_processing.element_library.timoshenko.utilities.shape_functions"
         elif "levinson" in element_type_lower:
             module_path = "pre_processing.element_library.levinson.utilities.shape_functions"
+        elif "bar" in element_type_lower:
+            module_path = "pre_processing.element_library.bar.utilities.shape_functions"
+        elif "truss" in element_type_lower:
+            module_path = "pre_processing.element_library.truss.utilities.shape_functions"
         else:
             raise ValueError(
                 f"Unknown element type: {element_type}. "

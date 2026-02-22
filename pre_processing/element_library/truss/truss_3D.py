@@ -5,12 +5,15 @@
 """
 
 import numpy as np
-from typing import Tuple
 
 from pre_processing.element_library.element_1D_base import Element1DBase
-from pre_processing.element_library.truss.utilities.local_frame import (
+from pre_processing.element_library.truss.utilities import (
     direction_cosines_and_transverse,
     build_L_matrix_6x12,
+    ShapeFunctionOperator,
+    StrainDisplacementOperator,
+    MaterialStiffnessOperator,
+    LoadInterpolationOperator,
 )
 
 
@@ -57,6 +60,19 @@ class TrussElement3D(Element1DBase):
         self._axial = axial
         self._transverse = transverse
         self._L_matrix = build_L_matrix_6x12(axial, transverse)
+        self._shape_function_operator = ShapeFunctionOperator(element_length=self.L)
+        self._strain_displacement_operator = StrainDisplacementOperator(
+            element_length=self.L,
+            axial=self._axial,
+            transverse=self._transverse,
+        )
+        self._material_stiffness_operator = MaterialStiffnessOperator(
+            youngs_modulus=self.E,
+            shear_modulus=self.G,
+            cross_section_area=self.A,
+            torsion_constant=self.J_t,
+            shear_correction_factor=self.kappa,
+        )
 
     def _validate_element_properties(self) -> None:
         if self.L <= 0:
@@ -117,29 +133,23 @@ class TrussElement3D(Element1DBase):
             self.logger_operator.log_matrix("stiffness", K_e, {"name": "Truss Element Stiffness"})
             self.logger_operator.flush("stiffness")
 
-        # Minimal gauss_data for compatibility: one point with trivial B, D
+        xi_g = np.array([0.0])
+        N, dN_dξ, _ = self._shape_function_operator.natural_coordinate_form(xi_g)
+        B = self._strain_displacement_operator.physical_coordinate_form(dN_dξ)[0]
+        D = self._material_stiffness_operator.assembly_form()
         gauss_data = [
             StiffnessGaussPointData(
                 xi=0.0,
                 weight=2.0,
-                B_matrix=np.zeros((1, 12)),
-                D_matrix=np.array([[self.E * self.A]], dtype=np.float64),
+                B_matrix=B,
+                D_matrix=D,
                 jacobian=self.L / 2,
-                shape_functions=np.zeros((12, 6)),
-                shape_derivatives=np.zeros((12, 6)),
+                shape_functions=N[0].copy(),
+                shape_derivatives=dN_dξ[0].copy(),
             )
         ]
-
-        def evaluate_shape_functions(xi: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-            xi = np.asarray(xi, dtype=np.float64)
-            n = xi.size
-            N = np.zeros((n, 12, 6))
-            dN = np.zeros((n, 12, 6))
-            d2N = np.zeros((n, 12, 6))
-            for i in range(n):
-                N[i, 0, 0] = (1 - xi.flat[i]) / 2
-                N[i, 6, 0] = (1 + xi.flat[i]) / 2
-            return N, dN, d2N
+        op = self._shape_function_operator
+        evaluate_shape_functions = lambda xi: op.natural_coordinate_form(np.asarray(xi))
 
         return ElementObject(
             element_id=self.element_id,
@@ -186,29 +196,26 @@ class TrussElement3D(Element1DBase):
         point_loads_cache = self.point_load_array.copy() if self.point_load_array.size > 0 else None
         gauss_data = []
         if self.distributed_load_array.size > 0:
-            xi_mid = 0.0
-            w = 2.0
-            # N (12, 6): DOF 0..5 node1, 6..11 node2; columns Fx,Fy,Fz,Mx,My,Mz
-            N = np.zeros((12, 6))
-            for i in range(6):
-                N[i, i] = 0.5
-                N[6 + i, i] = 0.5
-            q = np.zeros(6)
-            for row in self.distributed_load_array:
-                q[0] += row[3]
-                q[1] += row[4]
-                q[2] += row[5]
-                q[3] += row[6]
-                q[4] += row[7]
-                q[5] += row[8]
-            F_e += (N @ q) * w * (self.L / 2)
+            interpolator = LoadInterpolationOperator(
+                distributed_loads_array=self.distributed_load_array,
+                boundary_mode="clamp",
+                interpolation_order="linear",
+                n_gauss_points=1,
+            )
+            x_mid = (self.node_coords[0, 0] + self.node_coords[1, 0]) / 2.0
+            q = np.asarray(interpolator.interpolate(x_mid), dtype=np.float64)
+            if q.shape == ():
+                q = np.atleast_1d(q)
+            N_gp, _, _ = self._shape_function_operator.natural_coordinate_form(np.array([0.0]))
+            N = N_gp[0]
+            F_e += (N @ q) * 2.0 * (self.L / 2)
             gauss_data.append(
                 ForceGaussPointData(
-                    xi=xi_mid,
-                    weight=w,
-                    shape_functions=N,
+                    xi=0.0,
+                    weight=2.0,
+                    shape_functions=N.copy(),
                     jacobian=self.L / 2,
-                    distributed_load=q,
+                    distributed_load=q.copy(),
                 )
             )
 
