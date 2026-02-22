@@ -121,9 +121,21 @@ class NodalResultProjector:
         """
         self.logger.info("  Projecting Gaussian results to nodes...")
         
+        # Determine number of strain/stress components from first element (bar 2, truss 3, beam 6)
+        n_components = 6
+        for elem_obj in self.formulation_cache.element_objects:
+            if elem_obj.element_id not in self.elem_id_to_gauss_idx:
+                continue
+            gauss_idx = self.elem_id_to_gauss_idx[elem_obj.element_id]
+            if self.gaussian_results.strain and gauss_idx < len(self.gaussian_results.strain):
+                first_strain = self.gaussian_results.strain[gauss_idx]
+                if first_strain:
+                    n_components = np.asarray(first_strain[0]).size
+                    break
+        
         # Initialize nodal arrays
-        nodal_strain = np.zeros((self.n_nodes, 6))
-        nodal_stress = np.zeros((self.n_nodes, 6))
+        nodal_strain = np.zeros((self.n_nodes, n_components))
+        nodal_stress = np.zeros((self.n_nodes, n_components))
         nodal_energy = np.zeros(self.n_nodes)
         nodal_weight = np.zeros(self.n_nodes)  # For averaging shared nodes
         
@@ -160,10 +172,11 @@ class NodalResultProjector:
                 strains_g = np.array(elem_strains)
                 stresses_g = np.array(elem_stresses)
                 energy_g = np.array(elem_energies, dtype=float)
-                nodal_strain_elem = np.zeros((n_nodes_elem, 6))
-                nodal_stress_elem = np.zeros((n_nodes_elem, 6))
+                n_comp_elem = strains_g.shape[1]
+                nodal_strain_elem = np.zeros((n_nodes_elem, n_comp_elem))
+                nodal_stress_elem = np.zeros((n_nodes_elem, n_comp_elem))
                 nodal_energy_elem = np.zeros(n_nodes_elem)
-                for j in range(6):
+                for j in range(n_comp_elem):
                     if n_gauss == n_nodes_elem:
                         nodal_strain_elem[:, j] = np.linalg.solve(N_mat, strains_g[:, j])
                         nodal_stress_elem[:, j] = np.linalg.solve(N_mat, stresses_g[:, j])
@@ -179,12 +192,13 @@ class NodalResultProjector:
                 else:
                     nodal_energy_elem[:] = np.linalg.lstsq(N_mat, energy_g, rcond=None)[0]
                 for node_idx, node_id in enumerate(node_ids):
-                    nodal_strain[node_id] += nodal_strain_elem[node_idx]
-                    nodal_stress[node_id] += nodal_stress_elem[node_idx]
+                    nodal_strain[node_id, :n_comp_elem] += nodal_strain_elem[node_idx]
+                    nodal_stress[node_id, :n_comp_elem] += nodal_stress_elem[node_idx]
                     nodal_energy[node_id] += nodal_energy_elem[node_idx]
                     nodal_weight[node_id] += 1.0
             else:
                 # Fallback: Lagrange interpolation in natural coordinate
+                n_comp_elem = np.asarray(elem_strains[0]).size
                 for node_idx, node_id in enumerate(node_ids):
                     xi_node = xi_nodes[node_idx]
                     strain_node = self._extrapolate_to_node(
@@ -196,8 +210,8 @@ class NodalResultProjector:
                     energy_node = self._extrapolate_scalar_to_node(
                         xi_node, xi_gauss, elem_energies
                     )
-                    nodal_strain[node_id] += strain_node
-                    nodal_stress[node_id] += stress_node
+                    nodal_strain[node_id, :n_comp_elem] += strain_node
+                    nodal_stress[node_id, :n_comp_elem] += stress_node
                     nodal_energy[node_id] += energy_node
                     nodal_weight[node_id] += 1.0
         

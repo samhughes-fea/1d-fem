@@ -64,10 +64,15 @@ class ComputeSectionForce:
             elem_section_forces = []
             
             for gp_idx, stress in enumerate(elem_stresses):
-                # Formulation (B, D) outputs stress conjugate to ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]:
-                # stress = [N, M_y, M_z, V_y, V_z, T]. We reorder to section force convention
-                # [N, Vy, Vz, T, My, Mz] so that deformation in y activates Vy and Mz correctly.
-                section_force = self._stress_to_section_force(stress)
+                stress = np.asarray(stress)
+                # Section force [N, Vy, Vz, T, My, Mz] is only defined for 6-component beam stress.
+                # Bar (2) and truss (3) components are not reordered; output zeros for those elements.
+                if stress.size != 6:
+                    section_force = np.zeros(6, dtype=stress.dtype)
+                else:
+                    # Formulation (B, D) outputs stress conjugate to ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]:
+                    # stress = [N, M_y, M_z, V_y, V_z, T]. Reorder to [N, Vy, Vz, T, My, Mz].
+                    section_force = self._stress_to_section_force(stress)
                 elem_section_forces.append(section_force)
 
             section_forces.append(elem_section_forces)

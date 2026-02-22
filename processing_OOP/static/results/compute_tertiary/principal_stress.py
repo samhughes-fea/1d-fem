@@ -62,16 +62,19 @@ class ComputePrincipalStress:
             elem_max_shear = []
 
             for gp_idx, stress in enumerate(elem_stresses):
-                # Compute principal stresses
-                principals = self._compute_principal_stresses(stress)
+                stress = np.asarray(stress)
+                # Principal / Von Mises / max shear require 6-component stress (full 3D tensor).
+                # Bar (2) and truss (3) components: skip tensor computation; use placeholder values.
+                if stress.size != 6:
+                    principals = np.zeros(3, dtype=stress.dtype)
+                    von_mises = 0.0
+                    max_shear = 0.0
+                else:
+                    principals = self._compute_principal_stresses(stress)
+                    von_mises = self._compute_von_mises(stress)
+                    max_shear = self._compute_max_shear(principals)
                 elem_principal.append(principals)
-
-                # Compute von Mises stress
-                von_mises = self._compute_von_mises(stress)
                 elem_von_mises.append(von_mises)
-
-                # Compute maximum shear stress
-                max_shear = self._compute_max_shear(principals)
                 elem_max_shear.append(max_shear)
 
             principal_stresses.append(elem_principal)

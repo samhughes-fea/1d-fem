@@ -10,16 +10,45 @@ logger = logging.getLogger(__name__)
 
 # Beam formulation outputs stress conjugate to ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]:
 # stress = [N, M_y, M_z, V_y, V_z, T]. Section force / CSV convention is [N, Vy, Vz, T, My, Mz].
+# Bar has 2 components (e.g. N_axial, T), truss has 3 (N_axial, V_trans, T).
 STRESS_HEADER_RESULTANTS = "N,Vy,Vz,T,My,Mz"
+STRESS_HEADER_BAR = "N_axial,T"
+STRESS_HEADER_TRUSS = "N_axial,V_trans,T"
+STRAIN_HEADER_6 = "ε_xx,ε_yy,ε_zz,γ_xy,γ_yz,γ_xz"
 
 
 def _stress_formulation_to_resultants(stress: np.ndarray) -> np.ndarray:
-    """Reorder formulation stress [N, M_y, M_z, V_y, V_z, T] to [N, Vy, Vz, T, My, Mz]."""
-    # index map: resultants[k] = formulation[REORDER[k]]
+    """Reorder 6-component beam stress [N, M_y, M_z, V_y, V_z, T] to [N, Vy, Vz, T, My, Mz]. Only for shape (..., 6)."""
+    if stress.ndim == 1 and stress.size != 6:
+        return stress
+    if stress.ndim == 2 and stress.shape[1] != 6:
+        return stress
     REORDER = (0, 3, 4, 5, 1, 2)
     if stress.ndim == 1:
         return np.array([stress[i] for i in REORDER], dtype=stress.dtype)
     return stress[:, REORDER]
+
+
+def _strain_header(n_components: int) -> str:
+    """Header for strain CSV based on number of components (bar 2, truss 3, beam 6)."""
+    if n_components == 6:
+        return STRAIN_HEADER_6
+    if n_components == 2:
+        return "ε_axial,φ_torsion"
+    if n_components == 3:
+        return "ε_axial,γ_transverse,φ_torsion"
+    return ",".join(f"comp{i}" for i in range(n_components))
+
+
+def _stress_header(n_components: int) -> str:
+    """Header for stress CSV (bar 2, truss 3, beam 6)."""
+    if n_components == 6:
+        return STRESS_HEADER_RESULTANTS
+    if n_components == 2:
+        return STRESS_HEADER_BAR
+    if n_components == 3:
+        return STRESS_HEADER_TRUSS
+    return ",".join(f"comp{i}" for i in range(n_components))
 
 
 class SaveSecondaryResults:
@@ -109,27 +138,34 @@ class SaveSecondaryResults:
         for d in [strain_dir, stress_dir, energy_dir]:
             d.mkdir(parents=True, exist_ok=True)
 
-        # Save strain at Gauss points
+        # Save strain at Gauss points (variable components: bar 2, truss 3, beam 6)
         if gauss_res.strain:
             for elem_idx, elem_strains in enumerate(gauss_res.strain):
-                # Stack all Gauss point strains for this element
-                strain_array = np.array(elem_strains)  # shape: (n_gauss, n_strain_components)
+                strain_array = np.array(elem_strains)
+                n_comp = strain_array.shape[1] if strain_array.ndim > 1 else strain_array.size
+                if strain_array.ndim == 1:
+                    strain_array = strain_array.reshape(1, -1)
                 filename = strain_dir / f"strain_elem_{elem_idx:06d}.csv"
-                header = "ε_xx,ε_yy,ε_zz,γ_xy,γ_yz,γ_xz"
+                header = _strain_header(n_comp)
                 with open(filename, 'w', encoding='utf-8') as f:
                     np.savetxt(f, strain_array, delimiter=",", fmt="%.12e",
                               header=header, comments='')
             logger.info(f"   ✓ Strain saved: {len(gauss_res.strain)} elements")
 
-        # Save stress at Gauss points (beam resultants [N, Vy, Vz, T, My, Mz])
+        # Save stress at Gauss points (variable components: bar 2, truss 3, beam 6)
         if gauss_res.stress:
             for elem_idx, elem_stresses in enumerate(gauss_res.stress):
-                stress_array = np.array(elem_stresses)  # formulation order
-                stress_array = _stress_formulation_to_resultants(stress_array)
+                stress_array = np.array(elem_stresses)
+                if stress_array.ndim == 1:
+                    stress_array = stress_array.reshape(1, -1)
+                n_comp = stress_array.shape[1]
+                if n_comp == 6:
+                    stress_array = _stress_formulation_to_resultants(stress_array)
+                header = _stress_header(n_comp)
                 filename = stress_dir / f"stress_elem_{elem_idx:06d}.csv"
                 with open(filename, 'w', encoding='utf-8') as f:
                     np.savetxt(f, stress_array, delimiter=",", fmt="%.12e",
-                              header=STRESS_HEADER_RESULTANTS, comments='')
+                              header=header, comments='')
             logger.info(f"   ✓ Stress saved: {len(gauss_res.stress)} elements")
 
         # Save energy density at Gauss points
@@ -152,22 +188,27 @@ class SaveSecondaryResults:
         """
         nodal_res = self.results.nodal_results
 
-        # Save nodal strain
+        # Save nodal strain (variable components: bar 2, truss 3, beam 6)
         if nodal_res.strain is not None:
             filename = self.nodal_dir / "nodal_strain.csv"
-            header = "ε_xx,ε_yy,ε_zz,γ_xy,γ_yz,γ_xz"
+            n_comp = nodal_res.strain.shape[1] if nodal_res.strain.ndim > 1 else nodal_res.strain.size
+            header = _strain_header(n_comp)
             with open(filename, 'w', encoding='utf-8') as f:
                 np.savetxt(f, nodal_res.strain, delimiter=",",
                           fmt="%.12e", header=header, comments='')
             logger.info(f"   ✓ Nodal strain saved: {nodal_res.strain.shape}")
 
-        # Save nodal stress (beam resultants [N, Vy, Vz, T, My, Mz])
+        # Save nodal stress (variable components: bar 2, truss 3, beam 6)
         if nodal_res.stress is not None:
             filename = self.nodal_dir / "nodal_stress.csv"
-            nodal_resultants = _stress_formulation_to_resultants(nodal_res.stress)
+            stress_out = nodal_res.stress
+            n_comp = stress_out.shape[1] if stress_out.ndim > 1 else stress_out.size
+            if n_comp == 6:
+                stress_out = _stress_formulation_to_resultants(nodal_res.stress)
+            header = _stress_header(n_comp)
             with open(filename, 'w', encoding='utf-8') as f:
-                np.savetxt(f, nodal_resultants, delimiter=",",
-                          fmt="%.12e", header=STRESS_HEADER_RESULTANTS, comments='')
+                np.savetxt(f, stress_out, delimiter=",",
+                          fmt="%.12e", header=header, comments='')
             logger.info(f"   ✓ Nodal stress saved: {nodal_res.stress.shape}")
 
         # Save nodal strain energy density
