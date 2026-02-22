@@ -1,8 +1,15 @@
-# post_processing\validation_visualisers\deflection_tables\roarks_formulas_visualiser.py
+# post_processing/validation_visualisers/roarks_formulas/roarks_formulas_visualiser.py
 
-import numpy as np
-import matplotlib.pyplot as plt
 import os
+import sys
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+
 from roarks_formulas_point import RoarksFormulaePointLoad
 from roarks_formulas_distributed import RoarksFormulaeDistributedLoad
 
@@ -233,8 +240,8 @@ if __name__ == "__main__":
     L = 2.0            # [m]
     E = 2.0e11         # [Pa] (steel)
     I = 1.6667e-5      # [m⁴] (rectangular section)
-    save_dir = "post_processing/validation_visualisers/roarks_formulas/plots"
-    
+    save_dir = str(SCRIPT_DIR / "plots")
+
     # Create visualizer
     visualizer = RoarkVisualiser(L, E, I, save_dir)
     

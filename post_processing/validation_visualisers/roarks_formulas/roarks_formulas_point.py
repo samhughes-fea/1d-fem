@@ -67,23 +67,23 @@ class RoarksFormulaePointLoad:
         return np.where(x < self.a, -self.P * (self.a - x), 0.0)
     
     def rotation(self, x):
-        """Slope/rotation distribution θ_z(x)"""
+        """Slope/rotation θ_z(x). Sign flipped so positive load → same sign as FEM (θ_z)."""
         theta_a = -(self.P * self.a**2) / (2 * self.E * self.I)
         region1 = (x < self.a)
         theta = np.empty_like(x)
         theta[region1] = -(self.P * x[region1]) * (2*self.a - x[region1]) / (2 * self.E * self.I)
         theta[~region1] = theta_a
-        return theta
-    
+        return -theta
+
     def deflection(self, x):
-        """Deflection distribution u_y(x)"""
+        """Deflection u_y(x). Sign flipped so positive load → same sign as FEM (u_y)."""
         u_a = -(self.P * self.a**3) / (3 * self.E * self.I)
         theta_a = -(self.P * self.a**2) / (2 * self.E * self.I)
         region1 = (x < self.a)
         u = np.empty_like(x)
         u[region1] = -(self.P * x[region1]**2) * (3*self.a - x[region1]) / (6 * self.E * self.I)
         u[~region1] = u_a + theta_a * (x[~region1] - self.a)
-        return u
+        return -u
     
     def response(self, x):
         """
@@ -97,3 +97,13 @@ class RoarksFormulaePointLoad:
             "rotation": self.rotation(x),
             "deflection": self.deflection(x)
         }
+
+
+def roark_point_load_response(x, L, E, I, P, load_type):
+    """
+    Convenience wrapper for RoarksFormulaePointLoad.response().
+    load_type: 'end', 'mid', or 'quarter'.
+    Returns dict: {intensity, shear, moment, rotation, deflection}.
+    """
+    solver = RoarksFormulaePointLoad(L, E, I, P, load_type=load_type)
+    return solver.response(x)

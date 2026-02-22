@@ -41,40 +41,43 @@ class RoarksFormulaeDistributedLoad:
             return self.w * np.ones_like(x)
         elif self.load_type == "triangular":
             return self.w * (x / self.L)
-        else:  # parabolic
-            return self.w * (x / self.L)**2
+        else:  # parabolic: q(x) = w*(x/L)^2 (zero at fixed end, max w at tip)
+            return self.w * (x / self.L) ** 2
 
     def shear(self, x: np.ndarray) -> np.ndarray:
-        """Shear force distribution V(x)"""
+        """Shear force distribution V(x). Positive q downward → V = -∫_x^L q dξ."""
         if self.load_type == "udl":
             return -self.w * (self.L - x)
         elif self.load_type == "triangular":
             return -self.w * (self.L**2 - x**2) / (2 * self.L)
-        else:  # parabolic
+        else:  # parabolic q(x)=w*(x/L)^2
             return -self.w * (self.L**3 - x**3) / (3 * self.L**2)
 
     def moment(self, x: np.ndarray) -> np.ndarray:
-        """Bending moment distribution M(x)"""
+        """Bending moment distribution M(x). M = ∫_x^L V dξ (with sign)."""
         if self.load_type == "udl":
-            return -self.w * (self.L - x)**2 / 2
+            return -self.w * (self.L - x) ** 2 / 2
         elif self.load_type == "triangular":
-            return -self.w * (self.L - x)**2 * (2*self.L + x) / (6 * self.L)
-        else:  # parabolic
-            return -self.w * (self.L - x)**3 * (3*self.L + x) / (12 * self.L**2)
+            return -self.w * (self.L - x) ** 2 * (2 * self.L + x) / (6 * self.L)
+        else:  # parabolic q(x)=w*(x/L)^2 → M(x) = -w*(3*L^4 - 4*L^3*x + x^4)/(12*L^2)
+            return -self.w * (3 * self.L**4 - 4 * self.L**3 * x + x**4) / (12 * self.L**2)
 
     def rotation(self, x: np.ndarray) -> np.ndarray:
-        """Slope/rotation distribution θ_z(x) via cumulative integration"""
+        """Slope/rotation θ_z(x) via cumulative integration. Same sign convention as FEM (θ_z)."""
         if not np.all(np.diff(x) >= 0):
             raise ValueError("Input array x must be sorted in ascending order")
-            
         M = self.moment(x)
         M_over_EI = M / (self.E * self.I)
-        return cumulative_trapezoid(M_over_EI, x, initial=0)
+        theta = cumulative_trapezoid(M_over_EI, x, initial=0)
+        return theta
 
     def deflection(self, x: np.ndarray) -> np.ndarray:
-        """Deflection distribution u_y(x) via cumulative integration"""
+        """Deflection u_y(x) via cumulative integration. Same sign convention as FEM (u_y)."""
+        if not np.all(np.diff(x) >= 0):
+            raise ValueError("Input array x must be sorted in ascending order")
         theta = self.rotation(x)
-        return cumulative_trapezoid(theta, x, initial=0)
+        u = cumulative_trapezoid(theta, x, initial=0)
+        return u
 
     def response(self, x: np.ndarray) -> dict:
         """
@@ -92,3 +95,13 @@ class RoarksFormulaeDistributedLoad:
             "rotation": self.rotation(x),
             "deflection": self.deflection(x)
         }
+
+
+def roark_distributed_load_response(x, L, E, I, w, load_type):
+    """
+    Convenience wrapper for RoarksFormulaeDistributedLoad.response().
+    load_type: 'udl', 'triangular', or 'parabolic'.
+    Returns dict: {intensity, shear, moment, rotation, deflection}.
+    """
+    solver = RoarksFormulaeDistributedLoad(L, E, I, w, load_type)
+    return solver.response(x)
