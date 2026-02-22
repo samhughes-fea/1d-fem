@@ -1,12 +1,20 @@
 """
 Stress visualisation utility.
 
-Reads stress results from secondary_results and produces stress component profiles with:
+Reads stress results from secondary_results and produces stress resultant profiles.
+For beam elements the stored "stress" is the 6 resultants [N, Vy, Vz, T, My, Mz].
+The bending stress normal to the section (σ_xx) is recovered from N, My, Mz and
+section properties; here we plot the resultants so that e.g. transverse load in y
+activates Vy and Mz.
+
 - Nodal markers at node locations (B2: projected = hollow circle)
 - Gauss point markers when gaussian stress is saved (B2: small solid circle)
 - Continuous interpolated fields using element shape functions
 
-Stress components: [σ_xx, σ_yy, σ_zz, τ_xy, τ_yz, τ_xz]
+Components: [N, Vy, Vz, T, My, Mz] (axial, shear y/z, torsion, bending y/z).
+
+Euler-Bernoulli elements yield Vy = Vz = 0 (no shear strain); shear-deformable
+elements (e.g. Timoshenko, Levinson) yield non-zero shear resultants.
 """
 
 from __future__ import annotations
@@ -113,7 +121,7 @@ class VisualiseStress:
         Parameters
         ----------
         stress : np.ndarray
-            Stress tensor components, shape (n_nodes, 6) with columns [σ_xx, σ_yy, σ_zz, τ_xy, τ_yz, τ_xz]
+            Stress resultants, shape (n_nodes, 6) with columns [N, Vy, Vz, T, My, Mz]
         node_positions : np.ndarray
             Node x-coordinates, shape (n_nodes,)
         element_dictionary : dict
@@ -146,11 +154,12 @@ class VisualiseStress:
             fontweight="bold",
         )
 
-        # Stress component pairs: (normal_stress_index, normal_stress_label, shear_stress_index, shear_stress_label)
+        # Beam stress resultants: (left_idx, left_label, right_idx, right_label)
+        # Order in data: [N, Vy, Vz, T, My, Mz]
         pairs = [
-            (0, r"$\sigma_{xx}$ [Pa]", 3, r"$\tau_{xy}$ [Pa]"),
-            (1, r"$\sigma_{yy}$ [Pa]", 4, r"$\tau_{yz}$ [Pa]"),
-            (2, r"$\sigma_{zz}$ [Pa]", 5, r"$\tau_{xz}$ [Pa]"),
+            (0, r"$N$ [N]", 1, r"$V_y$ [N]"),
+            (2, r"$V_z$ [N]", 3, r"$T$ [N·m]"),
+            (4, r"$M_y$ [N·m]", 5, r"$M_z$ [N·m]"),
         ]
 
         # Check if we have element data for interpolation
@@ -260,8 +269,8 @@ class VisualiseStress:
             ax_r.set_ylabel(shear_lbl)
 
             if i == 0:
-                ax_l.set_title("Normal stress components", fontweight="bold")
-                ax_r.set_title("Shear stress components", fontweight="bold")
+                ax_l.set_title(r"Resultants $N$, $V_z$, $M_y$", fontweight="bold")
+                ax_r.set_title(r"Resultants $V_y$, $T$, $M_z$", fontweight="bold")
 
         axes[-1, 0].set_xlabel(r"$x$ [m]")
         axes[-1, 1].set_xlabel(r"$x$ [m]")
@@ -297,15 +306,22 @@ class VisualiseStress:
     # ------------------------------------------------------------------#
     #  CSV helper
     # ------------------------------------------------------------------#
-    @staticmethod
-    def _read_nodal_stress(file: Path) -> Optional[np.ndarray]:
-        """Read nodal stress CSV file."""
+    _RESULTANT_ORDER = (0, 3, 4, 5, 1, 2)  # formulation [N,My,Mz,Vy,Vz,T] -> [N,Vy,Vz,T,My,Mz]
+
+    @classmethod
+    def _read_nodal_stress(cls, file: Path) -> Optional[np.ndarray]:
+        """Read nodal stress CSV. If header is old (σ_xx, ...), reorder to resultants [N,Vy,Vz,T,My,Mz]."""
         try:
+            with open(file, encoding="utf-8") as f:
+                first_line = f.readline().strip()
             stress = np.genfromtxt(file, delimiter=",", skip_header=1)
             if stress.ndim == 1:
                 stress = stress.reshape(-1, 6)
             if stress.shape[1] != 6:
                 raise ValueError("Stress must have 6 components")
+            # Old CSVs used 3D Voigt header; data was in formulation order
+            if "σ_xx" in first_line or "sigma" in first_line.lower():
+                stress = stress[:, cls._RESULTANT_ORDER]
             return stress
         except Exception as exc:
             print(f"Error reading {file}: {exc}")
@@ -337,6 +353,8 @@ class VisualiseStress:
         stress_list = []
         for elem_idx, csv_path in enumerate(files):
             try:
+                with open(csv_path, encoding="utf-8") as f:
+                    first_line = f.readline().strip()
                 data = np.genfromtxt(csv_path, delimiter=",", skip_header=1)
             except Exception:
                 continue
@@ -344,6 +362,8 @@ class VisualiseStress:
                 data = data.reshape(1, -1)
             if data.shape[1] != 6:
                 continue
+            if "σ_xx" in first_line or "sigma" in first_line.lower():
+                data = data[:, self._RESULTANT_ORDER]
             elem_id = int(ids[elem_idx]) if hasattr(ids, "__getitem__") else elem_idx
             try:
                 node_coords = get_element_node_coords(

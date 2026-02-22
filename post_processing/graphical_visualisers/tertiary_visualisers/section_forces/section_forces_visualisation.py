@@ -3,6 +3,24 @@ Section forces visualisation (tertiary results, Gaussian resolution).
 
 Reads job_*/tertiary_results/gaussian/section_forces/section_forces_elem_*.csv
 and plots N, Vy, Vz, T, My, Mz vs position along structure.
+
+Column order: CSV and plot use [N, Vy, Vz, T, My, Mz]. The formulation (B, D)
+outputs [N, M_y, M_z, V_y, V_z, T]; section force computation reorders before
+save. Legacy CSVs (no "# column_order=resultant" first line) were saved in
+formulation order; we reorder on read so existing plots correct without re-running.
+
+Gauss points: Positions are from Gauss–Legendre (e.g. 3-point: ξ ≈ −0.77, 0, 0.77),
+so they are not equally spaced along the element. For Timoshenko, 3 GPs per element
+and constant Vy at those 3 GPs are expected when shear is constant (e.g. tip load).
+See docs/proofs/timoshenko/gauss_points_and_reduced_integration.md.
+
+Nodal values: At each node we use the mean of the element-wise mean of GP
+section forces over all elements that touch that node (no least-squares
+extrapolation), so values stay within the GP range and boundaries are stable.
+
+Euler-Bernoulli: Vy and Vz are zero (no shear strain); shear in EB comes from
+equilibrium (V = dM/dx). Timoshenko/Levinson elements produce non-zero Vy, Vz.
+
 - B2: red small solid circle at Gauss points; projected nodal = hollow circle;
   interpolated = thin black line (shape functions).
 GP positions are inferred from element geometry and 3-point Gauss-Legendre rule.
@@ -12,6 +30,7 @@ Nodal values are extrapolated from Gauss point data for consistency with seconda
 from __future__ import annotations
 
 import glob
+import os
 import re
 import sys
 from pathlib import Path
@@ -47,6 +66,9 @@ from post_processing.graphical_visualisers.resolution_plotting_utils import (
 GAUSS_3PT_XI: Final[np.ndarray] = np.polynomial.legendre.leggauss(3)[0]
 
 COMPONENTS = ["N", "Vy", "Vz", "T", "My", "Mz"]
+
+# Legacy CSVs (no format marker) had formulation order [N, M_y, M_z, V_y, V_z, T]; reorder to [N,Vy,Vz,T,My,Mz]
+_FORMULATION_TO_RESULTANT = (0, 3, 4, 5, 1, 2)
 
 
 def _nodal_shape_matrix_at_xi(xi: np.ndarray, n_nodes: int) -> np.ndarray:
@@ -264,6 +286,22 @@ class VisualiseSectionForces:
             forces_nodal = np.zeros((n_nodes, 6))
             weight = np.zeros(n_nodes)
 
+            # Prefer pipeline-projected nodal section forces when available (Option A)
+            nodal_csv = job_dir / "tertiary_results" / "nodal" / "nodal_section_forces.csv"
+            if nodal_csv.is_file():
+                try:
+                    with open(nodal_csv, encoding="utf-8") as f:
+                        first_line = f.readline()
+                    skip = 2 if "column_order=resultant" in first_line else 1
+                    nodal_data = np.genfromtxt(nodal_csv, delimiter=",", skip_header=skip)
+                    if nodal_data.ndim == 1:
+                        nodal_data = nodal_data.reshape(1, -1)
+                    if nodal_data.shape[0] == n_nodes and nodal_data.shape[1] == 6:
+                        forces_nodal = nodal_data.copy()
+                        weight = np.ones(n_nodes)  # mark as filled so we skip GP-based nodal below
+                except Exception:
+                    pass
+
             x_list = []
             forces_list = []
             for i, csv_path in enumerate(files_sorted):
@@ -277,14 +315,21 @@ class VisualiseSectionForces:
                 except Exception:
                     continue
                 try:
-                    data = np.genfromtxt(csv_path, delimiter=",", skip_header=1)
+                    with open(csv_path, encoding="utf-8") as f:
+                        first_line = f.readline()
+                    skip = 2 if "column_order=resultant" in first_line else 1
+                    data = np.genfromtxt(csv_path, delimiter=",", skip_header=skip)
                 except Exception:
                     continue
                 if data.ndim == 1:
                     data = data.reshape(1, -1)
                 if data.shape[1] != 6:
                     continue
+                # Legacy CSVs were in formulation order [N, M_y, M_z, V_y, V_z, T]
+                if skip == 1:
+                    data = data[:, _FORMULATION_TO_RESULTANT]
                 n_gp = data.shape[0]
+                # 3-point Gauss–Legendre: ξ ≈ −0.775, 0, 0.775 → in x at ~11%, 50%, 89% of element length (not equally spaced). See docs/proofs/timoshenko/gauss_points_and_reduced_integration.md.
                 xi_used = GAUSS_3PT_XI if n_gp == 3 else np.polynomial.legendre.leggauss(n_gp)[0]
                 x_gp = _gauss_point_x_for_element(node_coords, xi_used)
                 x_list.append(x_gp)
@@ -292,16 +337,13 @@ class VisualiseSectionForces:
 
                 if n_nodes_elem not in (2, 3):
                     continue
-                N_mat = _nodal_shape_matrix_at_xi(xi_used, n_nodes_elem)
-                if n_gp == n_nodes_elem:
-                    nodal_elem = np.linalg.solve(N_mat, data)
-                else:
-                    nodal_elem = np.linalg.lstsq(N_mat, data, rcond=None)[0]
-                for node_idx in range(n_nodes_elem):
-                    nid = node_ids[node_idx]
-                    if nid < n_nodes:
-                        forces_nodal[nid] += nodal_elem[node_idx]
-                        weight[nid] += 1.0
+                # Nodal value = mean of GP values in this element (fallback when no nodal_section_forces.csv)
+                if np.any(weight == 0):
+                    elem_mean = data.mean(axis=0)
+                    for nid in node_ids:
+                        if nid < n_nodes:
+                            forces_nodal[nid] += elem_mean
+                            weight[nid] += 1.0
 
             if not x_list:
                 print(f"No valid section force data for job {job_id}, skipping.")
@@ -313,6 +355,13 @@ class VisualiseSectionForces:
 
             x_gauss = np.concatenate(x_list)
             forces_gauss = np.vstack(forces_list)
+
+            # Optional diagnostic: print min/max per component (e.g. for job_0003 expect |Vy| ~ 500 N)
+            if os.environ.get("DEBUG_SECTION_FORCES"):
+                print(f"  [job_{job_id}] Section force ranges (N or N·m):")
+                for k, name in enumerate(COMPONENTS):
+                    col = forces_gauss[:, k]
+                    print(f"    {name}: min={col.min():.3g} max={col.max():.3g}")
 
             fig_name = f"section_forces_job_{job_id}_{timestamp}.png"
             save_path = self.figure_output_dir / fig_name

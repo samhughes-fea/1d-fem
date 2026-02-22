@@ -1,12 +1,14 @@
 """
 Strain visualisation utility.
 
-Reads strain results from secondary_results and produces strain component profiles with:
+Reads strain results from secondary_results and produces strain component profiles.
+Beam strain order: [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x] (axial, curvature y/z, shear, twist).
+For Euler-Bernoulli elements γ_xy = γ_xz = 0 (no shear strain); shear-deformable
+elements (Timoshenko, Levinson) can have non-zero γ_xy, γ_xz.
+
 - Nodal markers at node locations (B2: projected = hollow circle)
 - Gauss point markers when gaussian strain is saved (B2: small solid circle)
 - Continuous interpolated fields using element shape functions
-
-Strain components: [ε_xx, ε_yy, ε_zz, γ_xy, γ_yz, γ_xz]
 """
 
 from __future__ import annotations

@@ -3,6 +3,10 @@ Integrated section forces visualisation (tertiary results, elemental resolution 
 
 Reads job_*/tertiary_results/elemental/integrated_section_forces.csv and plots
 N, Vy, Vz, T, My, Mz vs position along structure (element midpoint x).
+
+Euler-Bernoulli: Vy and Vz are zero (no shear strain); shear in EB is from
+equilibrium (V = dM/dx). Timoshenko/Levinson elements show non-zero Vy, Vz.
+
 Elemental-level resolution only: B2 convention uses only filled square markers
 at element midpoints (no nodal, no Gauss, no interpolant).
 """
@@ -47,6 +51,8 @@ def _get_node_coordinates(grid_obj: object) -> np.ndarray:
 
 
 COMPONENTS = ["N", "Vy", "Vz", "T", "My", "Mz"]
+# Legacy CSVs (no format marker) had formulation order [N, M_y, M_z, V_y, V_z, T]
+_FORMULATION_TO_RESULTANT = (0, 3, 4, 5, 1, 2)
 
 
 class VisualiseIntegratedSectionForces:
@@ -120,7 +126,10 @@ class VisualiseIntegratedSectionForces:
                 continue
 
             try:
-                forces = np.genfromtxt(csv_file, delimiter=",", skip_header=1)
+                with open(csv_file, encoding="utf-8") as f:
+                    first_line = f.readline()
+                skip = 2 if "column_order=resultant" in first_line else 1
+                forces = np.genfromtxt(csv_file, delimiter=",", skip_header=skip)
             except Exception as exc:
                 print(f"Error reading {csv_file}: {exc}")
                 continue
@@ -130,6 +139,8 @@ class VisualiseIntegratedSectionForces:
             if forces.shape[1] != 6:
                 print(f"Expected 6 columns in {csv_file}, got {forces.shape[1]}, skipping.")
                 continue
+            if skip == 1:
+                forces = forces[:, _FORMULATION_TO_RESULTANT]
 
             grid = GridParser(str(grid_file), str(job_dir)).parse()
             try:
