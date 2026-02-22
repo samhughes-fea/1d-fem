@@ -6,7 +6,7 @@ from typing import Optional
 import logging
 
 from .section_force import ComputeSectionForce
-from .principal_stress import ComputePrincipalStress, ComputeFailureIndex
+from .principal_stress import ComputePrincipalStress
 from .integrated_elemental_results import ComputeIntegratedElementalResults
 from ..containers.tertiary_results import TertiaryResults
 
@@ -23,17 +23,14 @@ class TertiaryResultsOrchestrator:
     - Principal stresses [σ1, σ2, σ3]
     - Von Mises equivalent stress
     - Maximum shear stress
-    - Failure indices
 
-    These are typically used for design verification, failure prediction,
-    and detailed engineering analysis.
+    These are typically used for design verification and detailed
+    engineering analysis.
 
     Parameters
     ----------
     secondary_results : SecondaryResultSet
         Container with secondary results (strain, stress at Gauss points)
-    material_properties : dict, optional
-        Material properties for failure analysis (yield_strength, etc.)
     job_results_dir : str or Path, optional
         Directory for logging and output
     """
@@ -42,23 +39,16 @@ class TertiaryResultsOrchestrator:
         self,
         secondary_results,
         formulation_cache=None,
-        material_properties: Optional[dict] = None,
         job_results_dir: Optional[str | Path] = None,
     ):
         self.secondary_results = secondary_results
         self.formulation_cache = formulation_cache
-        self.material_properties = material_properties or {}
         self.job_results_dir = Path(job_results_dir) if job_results_dir else None
         self.logger = self._init_logging()
 
-    def compute(self, compute_failure: bool = False) -> TertiaryResults:
+    def compute(self) -> TertiaryResults:
         """
         Compute all tertiary results.
-
-        Parameters
-        ----------
-        compute_failure : bool
-            Whether to compute failure indices (requires yield_strength in material_properties)
 
         Returns
         -------
@@ -77,12 +67,12 @@ class TertiaryResultsOrchestrator:
             return TertiaryResults()
 
         # 1. Compute section forces
-        self.logger.info("\n[1/4] Computing section force resultants...")
+        self.logger.info("\n[1/3] Computing section force resultants...")
         section_force_computer = ComputeSectionForce(stress_gauss)
         section_forces = section_force_computer.compute()
 
         # 2. Compute principal stresses and stress invariants
-        self.logger.info("\n[2/4] Computing principal stresses and invariants...")
+        self.logger.info("\n[2/3] Computing principal stresses and invariants...")
         principal_computer = ComputePrincipalStress(stress_gauss)
         principal_stresses, von_mises, max_shear = principal_computer.compute_all()
 
@@ -91,7 +81,7 @@ class TertiaryResultsOrchestrator:
         integrated_section_forces = None
         
         if self.formulation_cache is not None:
-            self.logger.info("\n[3/4] Computing integrated elemental results...")
+            self.logger.info("\n[3/3] Computing integrated elemental results...")
             integrated_computer = ComputeIntegratedElementalResults(
                 secondary_results=self.secondary_results,
                 formulation_cache=self.formulation_cache
@@ -107,32 +97,12 @@ class TertiaryResultsOrchestrator:
         else:
             self.logger.warning("⚠️  No formulation_cache provided, skipping integrated elemental results")
 
-        # 4. Compute failure indices (optional)
-        failure_indices = None
-        if compute_failure:
-            self.logger.info("\n[4/4] Computing failure indices...")
-            if 'yield_strength' in self.material_properties:
-                yield_strength = self.material_properties['yield_strength']
-                safety_factor = self.material_properties.get('safety_factor', 1.0)
-                
-                failure_computer = ComputeFailureIndex(
-                    von_mises,
-                    yield_strength,
-                    safety_factor
-                )
-                failure_indices = failure_computer.compute()
-            else:
-                self.logger.warning("⚠️  yield_strength not provided, skipping failure analysis")
-        else:
-            self.logger.info("\n[4/4] Skipping failure index computation")
-
         # Package results
         tertiary_results = TertiaryResults(
             section_forces=section_forces,
             principal_stresses=principal_stresses,
             von_mises_stress=von_mises,
             max_shear_stress=max_shear,
-            failure_index=failure_indices,
             total_strain_energy=total_strain_energy,
             integrated_section_forces=integrated_section_forces
         )
@@ -201,14 +171,6 @@ class TertiaryResultsOrchestrator:
                 τ for elem in tertiary_results.max_shear_stress for τ in elem
             ]
             summary['max_shear_stress'] = max(all_shear)
-
-        # Max failure index
-        if tertiary_results.failure_index:
-            all_fi = [
-                fi for elem in tertiary_results.failure_index for fi in elem
-            ]
-            summary['max_failure_index'] = max(all_fi)
-            summary['min_failure_index'] = min(all_fi)
 
         # Log summary
         self.logger.info("\n" + "─" * 70)

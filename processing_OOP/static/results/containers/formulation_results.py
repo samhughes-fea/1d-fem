@@ -14,9 +14,62 @@ Benefits:
 - Accuracy: Use exact same B, D matrices as used in stiffness assembly
 """
 
+import logging
 from dataclasses import dataclass, field
 from typing import List
 from pre_processing.element_library.gauss_point_data import ElementObject, ForceObject
+
+logger = logging.getLogger(__name__)
+
+
+def validate_shape_functions_populated(
+    element_objects: List[ElementObject],
+    force_objects: List[ForceObject],
+    *,
+    strict: bool = False,
+) -> None:
+    """
+    Check that all element and force Gauss data have shape_functions (and
+    shape_derivatives for stiffness) populated. Log warnings or raise if not.
+
+    Parameters
+    ----------
+    element_objects : List[ElementObject]
+        Element formulation cache.
+    force_objects : List[ForceObject]
+        Force formulation cache.
+    strict : bool, optional
+        If True, raise on first missing shape data; otherwise only log a warning.
+        Default False.
+    """
+    for obj in element_objects:
+        for i, gp in enumerate(obj.gauss_data):
+            if gp.shape_functions is None:
+                msg = (
+                    f"ElementObject element_id={obj.element_id} gauss_data[{i}]: "
+                    "shape_functions is None (required for results pipeline)."
+                )
+                if strict:
+                    raise ValueError(msg)
+                logger.warning(msg)
+            if gp.shape_derivatives is None:
+                msg = (
+                    f"ElementObject element_id={obj.element_id} gauss_data[{i}]: "
+                    "shape_derivatives is None (required for results pipeline)."
+                )
+                if strict:
+                    raise ValueError(msg)
+                logger.warning(msg)
+    for obj in force_objects:
+        for i, gp in enumerate(obj.gauss_data):
+            if gp.shape_functions is None:
+                msg = (
+                    f"ForceObject element_id={obj.element_id} gauss_data[{i}]: "
+                    "shape_functions is None (required for results pipeline)."
+                )
+                if strict:
+                    raise ValueError(msg)
+                logger.warning(msg)
 
 
 @dataclass

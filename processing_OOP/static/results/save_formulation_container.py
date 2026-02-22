@@ -66,25 +66,33 @@ class SaveFormulationData:
 
         # Save element type mapping
         if self.element_objects:
-            logger.info(f"\n[1/4] Saving element type mapping...")
+            logger.info(f"\n[1/5] Saving element type mapping...")
             self._save_element_types()
 
         # Save element stiffness matrices
         if self.element_objects:
-            logger.info(f"\n[2/4] Saving {len(self.element_objects)} element stiffness matrices...")
+            logger.info(f"\n[2/5] Saving {len(self.element_objects)} element stiffness matrices...")
             self._save_stiffness_matrices()
 
         # Save element force vectors
         if self.force_objects:
-            logger.info(f"\n[3/4] Saving {len(self.force_objects)} element force vectors...")
+            logger.info(f"\n[3/5] Saving {len(self.force_objects)} element force vectors...")
             self._save_force_vectors()
 
         # Save Gauss point data (optional, can be large)
         if self.save_gauss_data and self.element_objects:
-            logger.info(f"\n[4/4] Saving Gauss point formulation data...")
+            logger.info(f"\n[4/5] Saving Gauss point formulation data...")
             self._save_gauss_point_data()
         else:
-            logger.info(f"\n[4/4] Skipping Gauss point data (save_gauss_data=False)")
+            logger.info(f"\n[4/5] Skipping Gauss point data (save_gauss_data=False)")
+
+        # Save B2 shape function coefficients when present (one set per element)
+        if self.element_objects:
+            n_saved = self._save_shape_function_coefficients()
+            if n_saved:
+                logger.info(f"\n[5/5] Saved B2 shape function coefficients for {n_saved} elements")
+            else:
+                logger.info(f"\n[5/5] No B2 shape function coefficients to save")
 
         logger.info("\n" + "=" * 70)
         logger.info("✅ FORMULATION DATA SAVED SUCCESSFULLY")
@@ -165,6 +173,30 @@ class SaveFormulationData:
                           header="xi,weight,jacobian", comments='')
 
         logger.info(f"   ✓ Saved to: {self.gauss_dir}")
+
+    def _save_shape_function_coefficients(self) -> int:
+        """Save B2 shape function coefficient arrays (12, 6, 4) per element when present. Returns count saved."""
+        coeff_dir = self.formulation_dir / "shape_function_coefficients"
+        saved = 0
+        for elem_obj in self.element_objects:
+            n_c = getattr(elem_obj, "shape_function_N_coefficients", None)
+            dn_c = getattr(elem_obj, "shape_function_dN_dxi_coefficients", None)
+            d2n_c = getattr(elem_obj, "shape_function_d2N_dxi2_coefficients", None)
+            if n_c is None or dn_c is None or d2n_c is None:
+                continue
+            coeff_dir.mkdir(parents=True, exist_ok=True)
+            elem_id = elem_obj.element_id
+            # Save as (72, 4) CSV: rows (dof*6+comp), cols ξ^0..ξ^3
+            for name, arr in [
+                ("N", n_c),
+                ("dN_dxi", dn_c),
+                ("d2N_dxi2", d2n_c),
+            ]:
+                flat = arr.reshape(-1, 4)
+                path = coeff_dir / f"{name}_elem{elem_id:06d}.csv"
+                np.savetxt(path, flat, delimiter=",", fmt="%.12e")
+            saved += 1
+        return saved
 
 
 class SaveFormulationSummary:

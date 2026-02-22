@@ -74,7 +74,42 @@ class NodalResultProjector:
             raise ValueError("Cannot determine number of nodes from grid_dictionary")
         
         self.logger = logging.getLogger(f"{__name__}.{id(self)}")
-        
+
+    def _element_has_shape_functions(self, elem_obj, n_nodes_elem: int) -> bool:
+        """
+        Return True iff every Gauss point has shape_functions and there are
+        at least as many Gauss points as nodes (so extrapolation is well-posed).
+        """
+        n_gauss = len(elem_obj.gauss_data)
+        if n_gauss < n_nodes_elem:
+            return False
+        return all(gp.shape_functions is not None for gp in elem_obj.gauss_data)
+
+    def _build_nodal_shape_matrix(self, elem_obj, n_nodes_elem: int) -> np.ndarray:
+        """
+        Build (n_gauss, n_nodes_elem) matrix N such that values_g = N @ values_nodal.
+        Handles 1D shape_functions (length n_nodes_elem) or multi-D (e.g. beam (1,12,6)):
+        for 2-node beam we take axial shape functions at DOF indices 0 and 6.
+        """
+        rows = []
+        for gp in elem_obj.gauss_data:
+            sf = np.asarray(gp.shape_functions).squeeze()
+            if sf.ndim == 1 and sf.size == n_nodes_elem:
+                rows.append(sf.astype(float))
+            elif sf.ndim >= 2 and sf.shape[0] >= n_nodes_elem:
+                # Beam-like: (n_dof, n_comp); take first component at node DOFs 0, 6, ...
+                dofs_per_node = sf.shape[0] // n_nodes_elem
+                row = np.array(
+                    [sf[i * dofs_per_node, 0] for i in range(n_nodes_elem)],
+                    dtype=float,
+                )
+                rows.append(row)
+            else:
+                # Fallback: flatten and take first n_nodes_elem
+                flat = sf.flatten()
+                rows.append(flat[:n_nodes_elem].astype(float))
+        return np.array(rows)
+
     def project(self) -> NodalResults:
         """
         Project all Gaussian results to nodal resolution.
@@ -116,30 +151,55 @@ class NodalResultProjector:
             elem_strains = self.gaussian_results.strain[gauss_idx]
             elem_stresses = self.gaussian_results.stress[gauss_idx]
             elem_energies = self.gaussian_results.internal_energy_density[gauss_idx]
-            
-            # Get Gauss point natural coordinates
+            n_gauss = len(elem_obj.gauss_data)
             xi_gauss = [gp.xi for gp in elem_obj.gauss_data]
-            
-            # Project each field quantity to nodes
-            for node_idx, node_id in enumerate(node_ids):
-                xi_node = xi_nodes[node_idx]
-                
-                # Extrapolate from Gauss points to this node
-                strain_node = self._extrapolate_to_node(
-                    xi_node, xi_gauss, elem_strains
-                )
-                stress_node = self._extrapolate_to_node(
-                    xi_node, xi_gauss, elem_stresses
-                )
-                energy_node = self._extrapolate_scalar_to_node(
-                    xi_node, xi_gauss, elem_energies
-                )
-                
-                # Accumulate contributions (will average later for shared nodes)
-                nodal_strain[node_id] += strain_node
-                nodal_stress[node_id] += stress_node
-                nodal_energy[node_id] += energy_node
-                nodal_weight[node_id] += 1.0
+
+            if self._element_has_shape_functions(elem_obj, n_nodes_elem):
+                # Element-consistent extrapolation: values_g = N_mat @ values_nodal
+                N_mat = self._build_nodal_shape_matrix(elem_obj, n_nodes_elem)
+                strains_g = np.array(elem_strains)
+                stresses_g = np.array(elem_stresses)
+                energy_g = np.array(elem_energies, dtype=float)
+                nodal_strain_elem = np.zeros((n_nodes_elem, 6))
+                nodal_stress_elem = np.zeros((n_nodes_elem, 6))
+                nodal_energy_elem = np.zeros(n_nodes_elem)
+                for j in range(6):
+                    if n_gauss == n_nodes_elem:
+                        nodal_strain_elem[:, j] = np.linalg.solve(N_mat, strains_g[:, j])
+                        nodal_stress_elem[:, j] = np.linalg.solve(N_mat, stresses_g[:, j])
+                    else:
+                        nodal_strain_elem[:, j] = np.linalg.lstsq(
+                            N_mat, strains_g[:, j], rcond=None
+                        )[0]
+                        nodal_stress_elem[:, j] = np.linalg.lstsq(
+                            N_mat, stresses_g[:, j], rcond=None
+                        )[0]
+                if n_gauss == n_nodes_elem:
+                    nodal_energy_elem[:] = np.linalg.solve(N_mat, energy_g)
+                else:
+                    nodal_energy_elem[:] = np.linalg.lstsq(N_mat, energy_g, rcond=None)[0]
+                for node_idx, node_id in enumerate(node_ids):
+                    nodal_strain[node_id] += nodal_strain_elem[node_idx]
+                    nodal_stress[node_id] += nodal_stress_elem[node_idx]
+                    nodal_energy[node_id] += nodal_energy_elem[node_idx]
+                    nodal_weight[node_id] += 1.0
+            else:
+                # Fallback: Lagrange interpolation in natural coordinate
+                for node_idx, node_id in enumerate(node_ids):
+                    xi_node = xi_nodes[node_idx]
+                    strain_node = self._extrapolate_to_node(
+                        xi_node, xi_gauss, elem_strains
+                    )
+                    stress_node = self._extrapolate_to_node(
+                        xi_node, xi_gauss, elem_stresses
+                    )
+                    energy_node = self._extrapolate_scalar_to_node(
+                        xi_node, xi_gauss, elem_energies
+                    )
+                    nodal_strain[node_id] += strain_node
+                    nodal_stress[node_id] += stress_node
+                    nodal_energy[node_id] += energy_node
+                    nodal_weight[node_id] += 1.0
         
         # Normalize by weight to average shared nodes
         nonzero_mask = nodal_weight > 0

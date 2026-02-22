@@ -31,7 +31,7 @@ from processing_OOP.static.results.compute_primary.element_formulation_processor
 from processing_OOP.static.results.compute_primary.primary_results_orchestrator import PrimaryResultsOrchestrator
 from processing_OOP.static.results.containers.container_hopper import PrimaryResultSet, SecondaryResultSet, IndexMapSet
 
-from processing_OOP.static.results.save_primary_container import SavePrimaryResults
+from processing_OOP.static.results.save_primary_container import SavePrimaryResults, SavePrimaryResultsSummary
 from processing_OOP.static.results.save_index_map_container import SaveIndexMaps
 
 # Configure module-level logger
@@ -58,8 +58,11 @@ class StaticSimulationRunner:
         job_results_dir,
         simulation_settings=None   # NEW: Optional simulation settings dict
     ):
-        from processing_OOP.static.results.containers import FormulationResultSet
-        
+        from processing_OOP.static.results.containers import (
+            FormulationResultSet,
+            validate_shape_functions_populated,
+        )
+
         self.elements = elements
         self.grid_dictionary = grid_dictionary
         self.element_dictionary = element_dictionary
@@ -68,13 +71,18 @@ class StaticSimulationRunner:
         self.point_load_array = point_load_array
         self.distributed_load_array = distributed_load_array
         self.job_name = job_name
-        
+
         # Create FormulationResultSet from objects
         self.formulation_cache = FormulationResultSet(
             element_objects=list(element_objects),
             force_objects=list(force_objects)
         )
-        
+        validate_shape_functions_populated(
+            self.formulation_cache.element_objects,
+            self.formulation_cache.force_objects,
+            strict=False,
+        )
+
         # Extract matrices/vectors for backward compatibility with assembly
         self.element_stiffness_matrices = np.array([obj.K_e for obj in element_objects], dtype=object)
         self.element_force_vectors = np.array([obj.F_e for obj in force_objects], dtype=object)
@@ -82,6 +90,7 @@ class StaticSimulationRunner:
         self.results_root = job_results_dir  # Use exact path passed from run_job.py
         self.primary_results_dir = os.path.join(self.results_root, "primary_results")
         self.secondary_results_dir = os.path.join(self.results_root, "secondary_results")
+        self.tertiary_results_dir = os.path.join(self.results_root, "tertiary_results")
         self.maps_dir = os.path.join(self.results_root, "maps")
         self.logs_dir = os.path.join(self.results_root, "logs")
         self.diagnostics_dir = os.path.join(self.results_root, "diagnostics")
@@ -177,6 +186,7 @@ class StaticSimulationRunner:
         logger.info(f"✅ Setting up static simulation for job: {self.job_name}...")
         os.makedirs(self.primary_results_dir, exist_ok=True)
         os.makedirs(self.secondary_results_dir, exist_ok=True)
+        os.makedirs(self.tertiary_results_dir, exist_ok=True)
         os.makedirs(self.maps_dir, exist_ok=True)
         os.makedirs(self.logs_dir, exist_ok=True)
         os.makedirs(self.diagnostics_dir, exist_ok=True)
@@ -632,12 +642,17 @@ class StaticSimulationRunner:
         )
 
         
-        # Step 7: Save .csv files to "NEW/" subdirectory to avoid overwriting existing exports
+        # Step 7: Save .csv files (all resolutions: global + elemental)
         SavePrimaryResults(
             primary_results_set=self.primary_results,
             index_map_set=self.maps,
-            save_dir= self.primary_results_dir,            # os.path.join(self.primary_results_dir, "NEW")
+            save_dir=self.primary_results_dir,
         ).run()
+
+        SavePrimaryResultsSummary(
+            primary_results_set=self.primary_results,
+            save_dir=self.primary_results_dir,
+        ).save()
 
         SaveIndexMaps(
             index_map_set = self.maps,
@@ -654,8 +669,8 @@ class StaticSimulationRunner:
         logger.info("📈 Computing secondary results using cached formulation data...")
         
         from processing_OOP.static.results.compute_secondary.compute_secondary_results import SecondaryResultsOrchestrator
-        from processing_OOP.static.results.save_secondary_container import SaveSecondaryResults
-        
+        from processing_OOP.static.results.save_secondary_container import SaveSecondaryResults, SaveSecondaryResultsSummary
+
         # Compute secondary results using cached Gauss point data
         orchestrator = SecondaryResultsOrchestrator(
             elements=self.elements,
@@ -670,15 +685,49 @@ class StaticSimulationRunner:
         
         self.secondary_results_set = orchestrator.compute_all()
         
-        # Save secondary results
+        # Save secondary results (all resolutions)
         saver = SaveSecondaryResults(
             secondary_results=self.secondary_results_set,
-            save_dir=self.secondary_results_dir
+            save_dir=self.secondary_results_dir,
         )
         saver.save_all()
-        
+
+        SaveSecondaryResultsSummary(
+            secondary_results=self.secondary_results_set,
+            save_dir=self.secondary_results_dir,
+        ).save()
+
         logger.info("✅ Secondary results computed and saved")
-    
+
+    # -------------------------------------------------------------------------
+    # 8) TERTIARY RESULTS PIPELINE
+    # -------------------------------------------------------------------------
+    def compute_tertiary_results(self) -> None:
+        """Compute and save tertiary results (section forces, principal stresses, etc.)."""
+        logger.info("📊 Computing tertiary results...")
+
+        from processing_OOP.static.results.compute_tertiary.compute_tertiary_results import TertiaryResultsOrchestrator
+        from processing_OOP.static.results.save_tertiary_container import SaveTertiaryResults, SaveTertiaryResultsSummary
+
+        orchestrator = TertiaryResultsOrchestrator(
+            secondary_results=self.secondary_results_set,
+            formulation_cache=self.formulation_cache,
+            job_results_dir=self.tertiary_results_dir,
+        )
+        self.tertiary_results = orchestrator.compute()
+
+        # Save tertiary results (all resolutions: gaussian + elemental)
+        SaveTertiaryResults(
+            tertiary_results=self.tertiary_results,
+            save_dir=self.results_root,
+        ).save_all()
+
+        SaveTertiaryResultsSummary(
+            tertiary_results=self.tertiary_results,
+            save_dir=self.results_root,
+        ).save()
+
+        logger.info("✅ Tertiary results computed and saved")
 
     # -------------------------------------------------------------------------
     # TOP-LEVEL SIMULATION FLOW
@@ -817,6 +866,12 @@ class StaticSimulationRunner:
             # -----------------------------------------------------------------
             with self.monitor.stage("ComputeSecondaryResults"):
                 self.compute_secondary_results()
+
+            # -----------------------------------------------------------------
+            # 8  Tertiary (design/verification) results
+            # -----------------------------------------------------------------
+            with self.monitor.stage("ComputeTertiaryResults"):
+                self.compute_tertiary_results()
 
             logger.info("🏁 Simulation completed successfully → %s", self.results_root)
 

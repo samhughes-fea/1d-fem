@@ -1,5 +1,15 @@
 # processing_OOP\static\results\compute_secondary\nodal_force.py
 
+"""
+OPTIONAL / UNWIRED: Nodal internal forces (F_int = K_e @ U_e) are not in the current pipeline.
+
+Primary already provides K_e, U_e, R_global, and R_residual. Nodal internal forces
+F_int = K_e @ U_e could be added to the PRIMARY pipeline (they use only primary data)
+if needed for equilibrium checks or reporting. This module is kept for reference
+but is not called by any orchestrator. To use: wire into primary results or a
+dedicated step after disassembly.
+"""
+
 import numpy as np
 from typing import List, Optional
 import logging
@@ -9,7 +19,9 @@ logger = logging.getLogger(__name__)
 
 class ComputeNodalForce:
     """
-    Computes the internal (nodal) force vector F_int for finite elements.
+    OPTIONAL / UNWIRED. Computes the internal (nodal) force vector F_int for finite elements.
+
+    Not called by any orchestrator. If needed, wire into primary (uses K_e, U_e only).
 
     This vector is the **element nodal internal force vector** that expresses
     the internal forces the element "pushes back with" at its nodes in response

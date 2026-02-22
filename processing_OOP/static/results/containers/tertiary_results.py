@@ -50,12 +50,6 @@ class TertiaryResults:
         Storage: Summary CSV only (`tertiary_results/tertiary_summary.csv`)
         Native Resolution: Gaussian
     
-    failure_index : Optional[List[List[float]]]
-        Material failure index (stress/yield) at Gauss points
-        Shape: List[element] -> List[gauss_point] -> float
-        Storage: Summary CSV only (`tertiary_results/tertiary_summary.csv`)
-        Native Resolution: Gaussian
-    
     total_strain_energy : Optional[List[float]] = None
         Total strain energy per element (integrated from energy density)
         Shape: List[element] -> float
@@ -77,7 +71,6 @@ class TertiaryResults:
     principal_stresses: Optional[List[List[np.ndarray]]] = None
     von_mises_stress: Optional[List[List[float]]] = None
     max_shear_stress: Optional[List[List[float]]] = None
-    failure_index: Optional[List[List[float]]] = None
     
     # Integrated elemental results
     total_strain_energy: Optional[List[float]] = None

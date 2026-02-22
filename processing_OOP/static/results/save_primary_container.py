@@ -192,3 +192,47 @@ class SavePrimaryResults:
             })
             filename = base_dir / f"element_{i:04d}.csv"
             df.to_csv(filename, index=False, float_format="%.12e")
+
+
+class SavePrimaryResultsSummary:
+    """
+    Generates and saves summary statistics for primary results.
+
+    Creates a single-row summary CSV with global-level norms and extrema
+    (displacement, reaction, residual) for quick assessment.
+    """
+
+    def __init__(self, primary_results_set, save_dir: str | Path):
+        self.results = primary_results_set
+        self.save_dir = Path(save_dir)
+
+    def save(self):
+        """Generate and save primary results summary."""
+        summary = {}
+
+        gr = self.results.global_results
+        if gr is not None:
+            if gr.U_global is not None:
+                u = np.asarray(gr.U_global).ravel()
+                summary["total_dof"] = len(u)
+                summary["max_abs_U_global"] = np.max(np.abs(u))
+                summary["norm_U_global"] = float(np.linalg.norm(u))
+            if gr.R_global is not None:
+                r = np.asarray(gr.R_global).ravel()
+                summary["max_abs_R_global"] = np.max(np.abs(r))
+                summary["norm_R_global"] = float(np.linalg.norm(r))
+            if gr.R_residual is not None:
+                res = np.asarray(gr.R_residual).ravel()
+                summary["max_abs_R_residual"] = np.max(np.abs(res))
+                summary["norm_R_residual"] = float(np.linalg.norm(res))
+
+        er = self.results.elemental_results
+        if er is not None and er.U_e is not None:
+            summary["n_elements"] = len(er.U_e)
+
+        df = pd.DataFrame([summary])
+        summary_file = self.save_dir / "primary_summary.csv"
+        summary_file.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(summary_file, index=False, float_format="%.6e")
+        logger.info("✅ Primary results summary saved: %s", summary_file)
+        return df

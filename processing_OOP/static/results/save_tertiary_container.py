@@ -1,4 +1,4 @@
-# processing_OOP\static\results\save_tertiary_container.py
+ # processing_OOP\static\results\save_tertiary_container.py
 
 import numpy as np
 import pandas as pd
@@ -11,15 +11,14 @@ logger = logging.getLogger(__name__)
 
 class SaveTertiaryResults:
     """
-    Saves tertiary results (section forces, principal stresses, failure indices) to CSV.
+    Saves tertiary results (section forces, principal stresses, etc.) to CSV.
 
     Tertiary results are highly derived engineering quantities used for
-    design verification and failure analysis:
+    design verification and analysis:
     - Section force resultants [N, Vy, Vz, T, My, Mz]
     - Principal stresses [σ1, σ2, σ3]
     - Von Mises equivalent stress
     - Maximum shear stress
-    - Material failure indices
 
     Parameters
     ----------
@@ -60,8 +59,8 @@ class SaveTertiaryResults:
         - Section forces [N, Vy, Vz, T, My, Mz]
         - Principal stresses [σ1, σ2, σ3]
         
-        Note: Von Mises, max shear, and failure indices are computed but
-        not saved separately - they're included in the summary CSV.
+        Note: Von Mises and max shear are computed but not saved separately;
+        they are included in the summary CSV.
         """
         logger.info("=" * 70)
         logger.info("SAVING TERTIARY RESULTS")
@@ -90,7 +89,7 @@ class SaveTertiaryResults:
         logger.info("\n" + "=" * 70)
         logger.info(f"✅ TERTIARY RESULTS SAVED ({saved_count} categories)")
         logger.info(f"   Location: {self.tertiary_dir}")
-        logger.info(f"   Note: Von Mises, shear stress, and failure data in summary CSV")
+        logger.info(f"   Note: Von Mises and shear stress in summary CSV")
         logger.info("=" * 70)
 
     def _save_section_forces(self):
@@ -106,12 +105,12 @@ class SaveTertiaryResults:
         logger.info(f"   ✓ Section forces saved: {len(self.results.section_forces)} elements")
 
     def _save_principal_stresses(self):
-        """Save principal stresses [σ1, σ2, σ3] per Gauss point."""
+        """Save principal stresses [sigma1, sigma2, sigma3] per Gauss point."""
         for elem_idx, elem_principals in enumerate(self.results.principal_stresses):
             # Stack all Gauss point principal stresses
             principal_array = np.array(elem_principals)  # shape: (n_gauss, 3)
             filename = self.principal_stress_dir / f"principal_stress_elem_{elem_idx:06d}.csv"
-            header = "σ1,σ2,σ3"
+            header = "sigma1,sigma2,sigma3"
             np.savetxt(filename, principal_array, delimiter=",",
                       fmt="%.12e", header=header, comments='')
 
@@ -148,7 +147,6 @@ class SaveTertiaryResultsSummary:
     Creates comprehensive summary files including:
     - Maximum/minimum stress values
     - Critical element/Gauss point locations
-    - Failure status assessment
     - Design margin statistics
     """
 
@@ -184,20 +182,14 @@ class SaveTertiaryResultsSummary:
             # Principal stress statistics
             if self.results.principal_stresses:
                 principals = np.array(self.results.principal_stresses[elem_idx])
-                elem_summary['max_principal_σ1'] = np.max(principals[:, 0])
-                elem_summary['min_principal_σ3'] = np.min(principals[:, 2])
+                elem_summary['max_principal_s1'] = np.max(principals[:, 0])
+                elem_summary['min_principal_s3'] = np.min(principals[:, 2])
 
             # Von Mises stress
             if self.results.von_mises_stress:
                 von_mises = self.results.von_mises_stress[elem_idx]
                 elem_summary['max_von_mises'] = np.max(von_mises)
                 elem_summary['mean_von_mises'] = np.mean(von_mises)
-
-            # Failure index
-            if self.results.failure_index:
-                failure = self.results.failure_index[elem_idx]
-                elem_summary['max_failure_index'] = np.max(failure)
-                elem_summary['failure_status'] = 'FAIL' if np.max(failure) > 1.0 else 'PASS'
 
             summary_data.append(elem_summary)
 
@@ -207,17 +199,6 @@ class SaveTertiaryResultsSummary:
         df.to_csv(summary_file, index=False, float_format='%.6e')
 
         logger.info(f"✅ Tertiary results summary saved: {summary_file}")
-
-        # Log critical findings
-        if self.results.failure_index:
-            critical_elements = df[df['max_failure_index'] > 1.0]
-            if not critical_elements.empty:
-                logger.warning(
-                    f"⚠️  FAILURE DETECTED in {len(critical_elements)} elements! "
-                    f"See {summary_file} for details"
-                )
-            else:
-                logger.info("✅ All elements passed failure criteria")
 
         return df
 
@@ -237,10 +218,6 @@ class SaveTertiaryResultsSummary:
                         'element_id': elem_idx,
                         'gauss_point': gp_idx,
                         'von_mises_stress': vm_stress,
-                        'failure_index': (
-                            self.results.failure_index[elem_idx][gp_idx]
-                            if self.results.failure_index else None
-                        )
                     })
 
         # Create DataFrame and sort by stress

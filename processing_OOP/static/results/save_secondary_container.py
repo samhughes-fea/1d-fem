@@ -13,10 +13,10 @@ class SaveSecondaryResults:
     """
     Saves secondary results (strain, stress, energy) to CSV files.
 
-    Secondary results are derived field quantities at Gauss points and nodes:
-    - Gaussian resolution: strain, stress, internal forces at integration points
+    Every run saves all resolutions when data is present:
+    - Gaussian resolution: strain, stress, energy density at integration points
     - Nodal resolution: extrapolated/interpolated field values at nodes
-    - Element resolution: integrated quantities (strain energy)
+    - Element resolution: integrated quantities (when populated)
 
     Parameters
     ----------
@@ -24,23 +24,15 @@ class SaveSecondaryResults:
         Container with all secondary results
     save_dir : str or Path
         Base directory where results should be saved
-    save_gaussian : bool
-        Whether to save Gauss point data (can be large)
-    save_nodal : bool
-        Whether to save nodal data
     """
 
     def __init__(
         self,
         secondary_results,
         save_dir: str | Path,
-        save_gaussian: bool = True,
-        save_nodal: bool = True
     ):
         self.results = secondary_results
         self.save_dir = Path(save_dir)
-        self.save_gaussian = save_gaussian
-        self.save_nodal = save_nodal
 
         # Create directory structure
         # Note: save_dir is already secondary_results_dir, so no need to nest
@@ -61,18 +53,21 @@ class SaveSecondaryResults:
         saved_count = 0
 
         # Save Gaussian resolution results
-        if self.save_gaussian and self.results.gaussian_results:
+        if self.results.gaussian_results:
             logger.info("\n[1/3] Saving Gaussian resolution results...")
             self._save_gaussian_results()
             saved_count += 1
 
         # Save nodal resolution results
-        if self.save_nodal and self.results.nodal_results:
+        if self.results.nodal_results:
             logger.info("\n[2/3] Saving nodal resolution results...")
             self._save_nodal_results()
             saved_count += 1
 
-        # Save elemental resolution results
+        # Save elemental resolution results (if populated)
+        # Note: Total strain energy and integrated resultants are produced by the
+        # tertiary pipeline, not secondary; secondary_results.elemental_results is
+        # typically None unless populated elsewhere.
         if self.results.elemental_results:
             logger.info("\n[3/3] Saving elemental resolution results...")
             self._save_elemental_results()
@@ -213,8 +208,8 @@ class SaveSecondaryResultsSummary:
         if self.results.nodal_results:
             summary_data.update(self._summarize_nodal())
 
-        # Save summary to CSV
-        summary_file = self.save_dir / "secondary_results" / "secondary_summary.csv"
+        # Save summary to CSV (save_dir is already secondary_results dir)
+        summary_file = self.save_dir / "secondary_summary.csv"
         df = pd.DataFrame([summary_data])
         df.to_csv(summary_file, index=False, float_format='%.6e')
 

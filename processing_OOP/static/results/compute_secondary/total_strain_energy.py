@@ -2,10 +2,23 @@
 
 # ELEMENT RESOLUTION
 
+"""
+DEPRECATED: Total strain energy per element is computed in the TERTIARY pipeline.
+
+Use ComputeIntegratedElementalResults in compute_tertiary/integrated_elemental_results.py
+instead; it consumes SecondaryResultSet and FormulationResultSet (current container layout).
+This module expected a legacy element_dictionary and dict-like gaussian_results API and
+is not wired to the current pipeline. Do not use for new code.
+"""
+
 from typing import Dict
+import warnings
+
 
 class ComputeTotalStrainEnergyPerElement:
     """
+    DEPRECATED. Use tertiary ComputeIntegratedElementalResults for total strain energy.
+
     Computes the total strain energy stored in each finite element by integrating
     the strain energy density over the element domain using numerical quadrature.
 
@@ -31,8 +44,15 @@ class ComputeTotalStrainEnergyPerElement:
         Element-wise total strain energy (units: J)
     """
     def __init__(self, element_dictionary, gaussian_results):
-            self.element_dictionary = element_dictionary
-            self.gaussian_results = gaussian_results
+        warnings.warn(
+            "ComputeTotalStrainEnergyPerElement is deprecated; use "
+            "ComputeIntegratedElementalResults in compute_tertiary/integrated_elemental_results.py "
+            "for total strain energy per element.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.element_dictionary = element_dictionary
+        self.gaussian_results = gaussian_results
 
     def run(self) -> Dict[int, float]:
         """Returns a mapping of element_id → total strain energy."""
