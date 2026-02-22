@@ -712,6 +712,8 @@ class StaticSimulationRunner:
         orchestrator = TertiaryResultsOrchestrator(
             secondary_results=self.secondary_results_set,
             formulation_cache=self.formulation_cache,
+            element_dictionary=self.element_dictionary,
+            grid_dictionary=self.grid_dictionary,
             job_results_dir=self.tertiary_results_dir,
         )
         self.tertiary_results = orchestrator.compute()
