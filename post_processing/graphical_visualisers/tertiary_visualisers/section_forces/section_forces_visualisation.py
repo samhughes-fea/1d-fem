@@ -318,6 +318,10 @@ class VisualiseSectionForces:
                     with open(csv_path, encoding="utf-8") as f:
                         first_line = f.readline()
                     skip = 2 if "column_order=resultant" in first_line else 1
+                    if skip == 2:
+                        second_line = f.readline()
+                        if second_line.strip().startswith("# xi_per_row="):
+                            skip = 3
                     data = np.genfromtxt(csv_path, delimiter=",", skip_header=skip)
                 except Exception:
                     continue
@@ -329,7 +333,8 @@ class VisualiseSectionForces:
                 if skip == 1:
                     data = data[:, _FORMULATION_TO_RESULTANT]
                 n_gp = data.shape[0]
-                # 3-point Gauss–Legendre: ξ ≈ −0.775, 0, 0.775 → in x at ~11%, 50%, 89% of element length (not equally spaced). See docs/proofs/timoshenko/gauss_points_and_reduced_integration.md.
+                # CSV row i = GP at natural coordinate xi_used[i] (ascending). Same convention as formulation cache and saver.
+                # 3-point Gauss–Legendre: ξ ≈ −0.775, 0, 0.775 → in x at ~11%, 50%, 89% of element length. See docs/proofs/timoshenko/gauss_points_and_reduced_integration.md.
                 xi_used = GAUSS_3PT_XI if n_gp == 3 else np.polynomial.legendre.leggauss(n_gp)[0]
                 x_gp = _gauss_point_x_for_element(node_coords, xi_used)
                 x_list.append(x_gp)

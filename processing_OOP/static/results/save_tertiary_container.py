@@ -104,12 +104,17 @@ class SaveTertiaryResults:
     _SECTION_FORCE_FORMAT_LINE = "# column_order=resultant\n"
 
     def _save_section_forces(self):
-        """Save section force resultants [N, Vy, Vz, T, My, Mz] per Gauss point."""
+        """Save section force resultants [N, Vy, Vz, T, My, Mz] per Gauss point.
+        Rows are in ascending natural coordinate xi (same order as formulation cache).
+        """
         for elem_idx, elem_section_forces in enumerate(self.results.section_forces):
             section_force_array = np.array(elem_section_forces)  # shape: (n_gauss, 6)
+            n_gp = section_force_array.shape[0]
             filename = self.section_forces_dir / f"section_forces_elem_{elem_idx:06d}.csv"
+            xi_per_row = np.polynomial.legendre.leggauss(n_gp)[0]  # ascending
             with open(filename, "w", encoding="utf-8") as f:
                 f.write(self._SECTION_FORCE_FORMAT_LINE)
+                f.write(f"# xi_per_row={','.join(f'{x:.16g}' for x in xi_per_row)}\n")
                 np.savetxt(f, section_force_array, delimiter=",",
                            fmt="%.12e", header="N,Vy,Vz,T,My,Mz", comments="")
 
