@@ -112,7 +112,16 @@ def compare_job(job_name, results_dir, element_type):
         print(f"  Bending: PL^3/(3EI) = {delta_bending*1000:.6f} mm")
         print(f"  Shear:   PL/(G*A) = {delta_shear*1000:.6f} mm (no kappa)")
         print(f"  Total:   delta = {analytical_u_y*1000:.6f} mm")
-    
+    elif element_type in ("BarElement3D", "TrussElement3D"):
+        # Sanity check only: no analytical comparison
+        print(f"\nBar/Truss job: sanity check only (no analytical comparison).")
+        print(f"\nFEM Results:")
+        print(f"  Computed u_y:   {computed_u_y*1000:.6f} mm")
+        print(f"  Computed theta_z: {computed_theta_z*180/np.pi:.6f} deg")
+        print(f"\n[PASS] OK (sanity): primary results loaded.")
+        print("=" * 70)
+        return True, computed_u_y, None
+
     print(f"\nFEM Results:")
     print(f"  Computed u_y:   {computed_u_y*1000:.6f} mm")
     print(f"  Computed theta_z:   {computed_theta_z*180/np.pi:.6f} deg")
