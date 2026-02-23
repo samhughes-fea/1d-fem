@@ -408,18 +408,9 @@ def _worker_instantiate_element(args):
         # Re-import modules in worker process (required for multiprocessing)
         import importlib
         from pre_processing.element_library.element_1D_base import Element1DBase
-        
-        ELEMENT_CLASS_MAP = {
-            "EulerBernoulliBeamElement3D":
-                "pre_processing.element_library.euler_bernoulli.euler_bernoulli_3D",
-            "TimoshenkoBeamElement3D":
-                "pre_processing.element_library.timoshenko.timoshenko_3D",
-            "LevinsonBeamElement3D":
-                "pre_processing.element_library.levinson.levinson_3D",
-        }
-        
-        # Import the module
-        module_path = ELEMENT_CLASS_MAP[etype]
+
+        # Use same map as main class so Bar/Truss and future elements stay in sync
+        module_path = ElementFactory.ELEMENT_CLASS_MAP[etype]
         module = importlib.import_module(module_path)
         cls = getattr(module, etype)
         
