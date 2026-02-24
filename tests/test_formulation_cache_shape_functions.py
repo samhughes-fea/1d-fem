@@ -139,11 +139,11 @@ def test_euler_bernoulli_force_object_shape_functions_populated():
 def test_nodal_result_projector_with_shape_functions_cache():
     """NodalResultProjector runs with formulation cache that has shape_functions and returns correct shapes."""
     import shutil
-    from processing_OOP.static.results.containers import (
+    from processing.static.results.containers import (
         GaussianResults,
         FormulationResultSet,
     )
-    from processing_OOP.static.results.compute_secondary.nodal_result_projector import (
+    from processing.static.results.compute_secondary.nodal_result_projector import (
         NodalResultProjector,
     )
 

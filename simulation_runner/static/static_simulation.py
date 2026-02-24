@@ -7,32 +7,32 @@ from pathlib import Path
 import datetime
 
 # Diagnostics 
-from processing_OOP.static.diagnostics.linear_static_diagnostic import DiagnoseLinearStaticSystem
-from processing_OOP.static.diagnostics.runtime_monitor_telemetry import RuntimeMonitorTelemetry
+from processing.static.diagnostics.linear_static_diagnostic import DiagnoseLinearStaticSystem
+from processing.static.diagnostics.runtime_monitor_telemetry import RuntimeMonitorTelemetry
 
 # Operations
-from processing_OOP.static.operations.preparation import PrepareLocalSystem
-from processing_OOP.static.operations.assembly import AssembleGlobalSystem
-from processing_OOP.static.operations.modification import ModifyGlobalSystem
-from processing_OOP.static.operations.condensation import CondenseModifiedSystem
-from processing_OOP.static.operations.solver import SolveCondensedSystem
-from processing_OOP.static.operations.reconstruction import ReconstructGlobalSystem
-from processing_OOP.static.operations.disassembly import DisassembleGlobalSystem
+from processing.static.operations.preparation import PrepareLocalSystem
+from processing.static.operations.assembly import AssembleGlobalSystem
+from processing.static.operations.modification import ModifyGlobalSystem
+from processing.static.operations.condensation import CondenseModifiedSystem
+from processing.static.operations.solver import SolveCondensedSystem
+from processing.static.operations.reconstruction import ReconstructGlobalSystem
+from processing.static.operations.disassembly import DisassembleGlobalSystem
 
 # Results containers
 
-from processing_OOP.static.results.containers.global_results import GlobalResults
-from processing_OOP.static.results.containers.elemental_results import ElementalResults
-from processing_OOP.static.results.containers.nodal_results import NodalResults
-from processing_OOP.static.results.containers.gaussian_results import GaussianResults
+from processing.static.results.containers.global_results import GlobalResults
+from processing.static.results.containers.elemental_results import ElementalResults
+from processing.static.results.containers.nodal_results import NodalResults
+from processing.static.results.containers.gaussian_results import GaussianResults
 
 
-from processing_OOP.static.results.compute_primary.element_formulation_processor import ElementFormulationProcessor
-from processing_OOP.static.results.compute_primary.primary_results_orchestrator import PrimaryResultsOrchestrator
-from processing_OOP.static.results.containers.container_hopper import PrimaryResultSet, SecondaryResultSet, IndexMapSet
+from processing.static.results.compute_primary.element_formulation_processor import ElementFormulationProcessor
+from processing.static.results.compute_primary.primary_results_orchestrator import PrimaryResultsOrchestrator
+from processing.static.results.containers.container_hopper import PrimaryResultSet, SecondaryResultSet, IndexMapSet
 
-from processing_OOP.static.results.save_primary_container import SavePrimaryResults, SavePrimaryResultsSummary
-from processing_OOP.static.results.save_index_map_container import SaveIndexMaps
+from processing.static.results.save_primary_container import SavePrimaryResults, SavePrimaryResultsSummary
+from processing.static.results.save_index_map_container import SaveIndexMaps
 
 # Configure module-level logger
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ class StaticSimulationRunner:
         job_results_dir,
         simulation_settings=None   # NEW: Optional simulation settings dict
     ):
-        from processing_OOP.static.results.containers import (
+        from processing.static.results.containers import (
             FormulationResultSet,
             validate_shape_functions_populated,
         )
@@ -668,8 +668,8 @@ class StaticSimulationRunner:
         """Compute and save secondary results (stresses, strains, etc.)."""
         logger.info("📈 Computing secondary results using cached formulation data...")
         
-        from processing_OOP.static.results.compute_secondary.compute_secondary_results import SecondaryResultsOrchestrator
-        from processing_OOP.static.results.save_secondary_container import SaveSecondaryResults, SaveSecondaryResultsSummary
+        from processing.static.results.compute_secondary.compute_secondary_results import SecondaryResultsOrchestrator
+        from processing.static.results.save_secondary_container import SaveSecondaryResults, SaveSecondaryResultsSummary
 
         # Compute secondary results using cached Gauss point data
         orchestrator = SecondaryResultsOrchestrator(
@@ -706,8 +706,8 @@ class StaticSimulationRunner:
         """Compute and save tertiary results (section forces, principal stresses, etc.)."""
         logger.info("📊 Computing tertiary results...")
 
-        from processing_OOP.static.results.compute_tertiary.compute_tertiary_results import TertiaryResultsOrchestrator
-        from processing_OOP.static.results.save_tertiary_container import SaveTertiaryResults, SaveTertiaryResultsSummary
+        from processing.static.results.compute_tertiary.compute_tertiary_results import TertiaryResultsOrchestrator
+        from processing.static.results.save_tertiary_container import SaveTertiaryResults, SaveTertiaryResultsSummary
 
         orchestrator = TertiaryResultsOrchestrator(
             secondary_results=self.secondary_results_set,
@@ -855,7 +855,7 @@ class StaticSimulationRunner:
             # 6.5 Save formulation cache
             # -----------------------------------------------------------------
             with self.monitor.stage("SaveFormulationCache"):
-                from processing_OOP.static.results.save_formulation_container import SaveFormulationData
+                from processing.static.results.save_formulation_container import SaveFormulationData
                 saver = SaveFormulationData(
                     formulation_cache=self.formulation_cache,
                     save_dir=self.primary_results_dir,

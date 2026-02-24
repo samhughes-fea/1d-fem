@@ -22,7 +22,7 @@ def _minimal_formulation_cache_and_mesh():
     from pre_processing.element_library.euler_bernoulli.euler_bernoulli_3D import (
         EulerBernoulliBeamElement3D,
     )
-    from processing_OOP.static.results.containers import FormulationResultSet
+    from processing.static.results.containers import FormulationResultSet
 
     L = 1.0
     element_dictionary = {
@@ -85,7 +85,7 @@ def _minimal_formulation_cache_and_mesh():
 
 def test_nodal_section_forces_projector_constant_vy():
     """Constant Vy at all GPs yields nodal Vy equal to that value (no boundary spike)."""
-    from processing_OOP.static.results.compute_tertiary.nodal_section_forces_projector import (
+    from processing.static.results.compute_tertiary.nodal_section_forces_projector import (
         NodalSectionForcesProjector,
     )
 
@@ -116,7 +116,7 @@ def test_nodal_section_forces_projector_constant_vy():
 
 def test_nodal_section_forces_projector_constant_all_components():
     """Constant section forces (all components) at GPs yield same nodal values."""
-    from processing_OOP.static.results.compute_tertiary.nodal_section_forces_projector import (
+    from processing.static.results.compute_tertiary.nodal_section_forces_projector import (
         NodalSectionForcesProjector,
     )
 
