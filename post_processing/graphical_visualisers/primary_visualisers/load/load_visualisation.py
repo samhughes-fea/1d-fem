@@ -194,13 +194,13 @@ class VisualiseLoad:
                 ts = _dt.datetime.fromtimestamp(
                     load_file.stat().st_mtime
                 ).strftime("%Y-%m-%d_%H-%M-%S")
-                fig_name = f"load_job_{job_id}_{ts}.png"
+                fig_name = f"load_{job_dir.name}_{ts}.png"
 
                 self._plot(
                     load_arr,
                     load_type=load_type,
                     L=L,
-                    title_suffix=f"job_{job_id}_{ts}",
+                    title_suffix=f"{job_dir.name}_{ts}",
                     save_path=self.figure_output_dir / fig_name,
                 )
 

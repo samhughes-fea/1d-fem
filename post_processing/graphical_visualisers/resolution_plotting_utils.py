@@ -215,7 +215,6 @@ def create_shape_function_operator(
         "EulerBernoulliBeamElement3D": "pre_processing.element_library.euler_bernoulli.utilities.shape_functions",
         "TimoshenkoBeamElement3D": "pre_processing.element_library.timoshenko.utilities.shape_functions",
         "LevinsonBeamElement3D": "pre_processing.element_library.levinson.utilities.shape_functions",
-        "EulerBernoulliBeamElement6DOF": "pre_processing.element_library.co_tide_beam_ML.utilities.shape_functions",
         "Bar-3D": "pre_processing.element_library.bar.utilities.shape_functions",
         "Truss-3D": "pre_processing.element_library.truss.utilities.shape_functions",
     }

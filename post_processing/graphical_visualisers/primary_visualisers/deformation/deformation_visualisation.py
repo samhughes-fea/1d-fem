@@ -14,7 +14,6 @@ with ``GridParser`` and ``ElementParser``.
 from __future__ import annotations
 
 import glob
-import re
 import sys
 from pathlib import Path
 from typing import Final, Optional
@@ -39,6 +38,7 @@ from pre_processing.parsing.grid_parser import GridParser  # type: ignore
 from pre_processing.parsing.element_parser import ElementParser  # type: ignore
 
 # --- resolution plotting utilities -----------------------------------------#
+from post_processing.graphical_visualisers.job_discovery_utils import parse_job_result_dir_name
 from post_processing.graphical_visualisers.resolution_plotting_utils import (
     get_element_node_coords,
     plot_nodal_points,
@@ -307,14 +307,14 @@ class VisualiseDeformation:
         for csv_path in csv_files:
             csv_file = Path(csv_path)
             job_dir = csv_file.parent.parent.parent
-            m = re.match(r"job_(?P<id>\d+)_(?P<ts>[\d\-_]+_pid\d+_[a-f0-9]+)", job_dir.name)
-            if not m:
+            parsed = parse_job_result_dir_name(job_dir.name)
+            if not parsed:
                 print(f"Skipping unrecognised folder '{job_dir.name}'")
                 continue
 
-            job_id, timestamp = m.group("id"), m.group("ts")
-            grid_file = self.jobs_dir / f"job_{job_id}" / "grid.txt"
-            element_file = self.jobs_dir / f"job_{job_id}" / "element.txt"
+            job_id, job_folder_name, timestamp = parsed
+            grid_file = self.jobs_dir / job_folder_name / "grid.txt"
+            element_file = self.jobs_dir / job_folder_name / "element.txt"
 
             print(f"> Processing job {job_id} ({timestamp})")
 
@@ -353,13 +353,13 @@ class VisualiseDeformation:
                     grid_dictionary = None
 
             # ---- Plot ---------------------------------------------------- #
-            fig_name = f"deformation_job_{job_id}_{timestamp}.png"
+            fig_name = f"deformation_{job_folder_name}_{timestamp}.png"
             self._plot(
                 U,
                 node_coords[:, 0],
                 element_dictionary=element_dictionary if element_dictionary else {},
                 grid_dictionary=grid_dictionary if grid_dictionary else {},
-                title_suffix=f"job_{job_id}_{timestamp}",
+                title_suffix=f"{job_folder_name}_{timestamp}",
                 save_path=self.figure_output_dir / fig_name,
             )
 

@@ -54,19 +54,19 @@
 
 ## Files Modified
 
-1. `processing_OOP/static/results/save_secondary_container.py`
+1. `processing/static/results/save_secondary_container.py`
    - Fixed nested directory bug (line 47)
 
-2. `processing_OOP/static/results/containers/gaussian_results.py`
+2. `processing/static/results/containers/gaussian_results.py`
    - Enhanced docstring with native resolution information
 
-3. `processing_OOP/static/results/containers/nodal_results.py`
+3. `processing/static/results/containers/nodal_results.py`
    - Enhanced docstring clarifying all results are projections
 
-4. `processing_OOP/static/results/containers/elemental_results.py`
+4. `processing/static/results/containers/elemental_results.py`
    - Added comment explaining native resolution variants
 
-5. `processing_OOP/static/results/containers/global_results.py`
+5. `processing/static/results/containers/global_results.py`
    - Added comment explaining native resolution
 
 ## Files Created

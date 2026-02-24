@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import glob
 import os
-import re
 import sys
 from pathlib import Path
 from typing import Final, Optional
@@ -48,6 +47,7 @@ sys.path.append(str(PROJECT_ROOT))
 
 from pre_processing.parsing.grid_parser import GridParser  # type: ignore
 from pre_processing.parsing.element_parser import ElementParser  # type: ignore
+from post_processing.graphical_visualisers.job_discovery_utils import parse_job_result_dir_name
 from post_processing.graphical_visualisers.resolution_plotting_utils import (
     get_element_node_coords,
     natural_to_physical_coords,
@@ -242,15 +242,15 @@ class VisualiseSectionForces:
             by_job.setdefault(key, []).append(path)
 
         for job_dirname, files in by_job.items():
-            m = re.match(r"job_(?P<id>\d+)_(?P<ts>[\d\-_]+_pid\d+_[a-f0-9]+)", job_dirname)
-            if not m:
+            parsed = parse_job_result_dir_name(job_dirname)
+            if not parsed:
                 print(f"Skipping unrecognised folder '{job_dirname}'")
                 continue
 
-            job_id, timestamp = m.group("id"), m.group("ts")
+            job_id, job_folder_name, timestamp = parsed
             job_dir = self.results_dir / job_dirname
-            grid_file = self.jobs_dir / f"job_{job_id}" / "grid.txt"
-            element_file = self.jobs_dir / f"job_{job_id}" / "element.txt"
+            grid_file = self.jobs_dir / job_folder_name / "grid.txt"
+            element_file = self.jobs_dir / job_folder_name / "element.txt"
 
             if not grid_file.is_file() or not element_file.is_file():
                 print(f"WARNING: Grid or element file missing for job {job_id}, skipping.")
@@ -368,7 +368,7 @@ class VisualiseSectionForces:
                     col = forces_gauss[:, k]
                     print(f"    {name}: min={col.min():.3g} max={col.max():.3g}")
 
-            fig_name = f"section_forces_job_{job_id}_{timestamp}.png"
+            fig_name = f"section_forces_{job_folder_name}_{timestamp}.png"
             save_path = self.figure_output_dir / fig_name
             self._plot(
                 x_gauss,
@@ -377,7 +377,7 @@ class VisualiseSectionForces:
                 forces_nodal,
                 element_dictionary,
                 grid_dictionary,
-                title_suffix=f"job_{job_id}_{timestamp}",
+                title_suffix=f"{job_folder_name}_{timestamp}",
                 save_path=save_path,
             )
             print(f"Saved: {save_path}")
