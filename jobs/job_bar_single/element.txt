@@ -1,4 +1,0 @@
-# Single Bar element (axial + torsion)
-[Element]
-[element_id]  [node1]  [node2]  [element_type]      [axial_order]  [bending_y_order]  [bending_z_order]  [shear_y_order]  [shear_z_order]  [torsion_order]  [load_order]
-0             0        1        BarElement3D        1              0                  0                  0                0                1                1
