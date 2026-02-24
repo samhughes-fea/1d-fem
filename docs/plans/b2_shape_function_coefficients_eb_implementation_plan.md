@@ -34,7 +34,7 @@ This convention is implemented in `post_processing/graphical_visualisers/resolut
 - **ElementObject** ([`gauss_point_data.py`](pre_processing/element_library/gauss_point_data.py)) has optional `evaluate_shape_functions` (B1 callable). Euler-Bernoulli 3D sets it in [`euler_bernoulli_3D.py`](pre_processing/element_library/euler_bernoulli/euler_bernoulli_3D.py). Callables are not serializable.
 - **EB shape functions** ([`euler_bernoulli/utilities/shape_functions.py`](pre_processing/element_library/euler_bernoulli/utilities/shape_functions.py)): N(ξ) shape (n_points, 12, 6). All entries are polynomials in ξ: linear (axial, torsion) or Hermite cubic (bending). Max degree 3. Explicit formulas in code (no numerical fitting needed).
 - **Post-processing** ([`resolution_plotting_utils.py`](post_processing/graphical_visualisers/resolution_plotting_utils.py)): uses B1 callable when present via `_CacheShapeFunctionAdapter`; otherwise builds `ShapeFunctionOperator` from element_type + length.
-- **Save formulation** ([`save_formulation_container.py`](processing_OOP/static/results/save_formulation_container.py)): saves K_e, F_e, B, D, J, xi, weight per GP. No load path exists yet in the repo.
+- **Save formulation** ([`save_formulation_container.py`](processing/static/results/save_formulation_container.py)): saves K_e, F_e, B, D, J, xi, weight per GP. No load path exists yet in the repo.
 
 ---
 
@@ -86,14 +86,14 @@ Alternatively a single dataclass or single array with a layout convention; the a
 | # | Task | File(s) | Notes |
 |---|------|---------|--------|
 | 3.1 | In `get_shape_function_operator_for_element`: when `element_object` has B2 coefficients (all three arrays non-None), return an adapter that uses `evaluate_shape_functions_from_coefficients` with those arrays. Prefer B2 over B1 when both present (so that after load, coefficients path is used). Order: B2 coefficients → B1 callable → create operator from type+length. | [`resolution_plotting_utils.py`](post_processing/graphical_visualisers/resolution_plotting_utils.py) | Extend `_CacheShapeFunctionAdapter` or add a second adapter that takes coefficients; or one adapter that accepts either callable or (N_coeffs, dN_coeffs, d2N_coeffs). |
-| 3.2 | In `SaveFormulationContainer` (or equivalent), when saving per-element data, save the three coefficient arrays for each element that has them (e.g. one CSV or NPY per array per element, or one file with element index). Document layout in header or companion doc. | [`save_formulation_container.py`](processing_OOP/static/results/save_formulation_container.py) | Only save if arrays are present. |
+| 3.2 | In `SaveFormulationContainer` (or equivalent), when saving per-element data, save the three coefficient arrays for each element that has them (e.g. one CSV or NPY per array per element, or one file with element index). Document layout in header or companion doc. | [`save_formulation_container.py`](processing/static/results/save_formulation_container.py) | Only save if arrays are present. |
 | 3.3 | **(Optional / when load exists)** When a load path for formulation cache is implemented, read the coefficient arrays and attach to reconstructed `ElementObject`s. | Future load module | Can be done in a follow-up when load is added. |
 
 ### Phase 4: Documentation and checklist
 
 | # | Task | File(s) | Notes |
 |---|------|---------|--------|
-| 4.1 | Document B2 coefficient format (shape, convention, EB-only for now) in `gauss_point_data.py` docstring and/or in `RESULTS_DESIGN.md` or this plan. | [`gauss_point_data.py`](pre_processing/element_library/gauss_point_data.py), [`RESULTS_DESIGN.md`](processing_OOP/static/results/RESULTS_DESIGN.md) | So future elements (Timoshenko, Levinson) can adopt same format if desired. |
+| 4.1 | Document B2 coefficient format (shape, convention, EB-only for now) in `gauss_point_data.py` docstring and/or in `RESULTS_DESIGN.md` or this plan. | [`gauss_point_data.py`](pre_processing/element_library/gauss_point_data.py), [`RESULTS_DESIGN.md`](processing/static/results/RESULTS_DESIGN.md) | So future elements (Timoshenko, Levinson) can adopt same format if desired. |
 | 4.2 | Add “B2 coefficients (EB)” to the formulation cache / “Adding a new element” checklist if present: optional; EB implements it for serializable arbitrary-point evaluation. | [`formulation_cache_shape_functions_implementation_plan.md`](docs/plans/formulation_cache_shape_functions_implementation_plan.md) or README | Optional checklist item. |
 
 ---
@@ -106,9 +106,9 @@ Alternatively a single dataclass or single array with a layout convention; the a
 | `pre_processing/element_library/utilities/shape_function_coefficient_evaluator.py` | **New.** Generic evaluator from (N_coeffs, dN_coeffs, d2N_coeffs, xi) → (N, dN_dξ, d2N_dξ2). |
 | `pre_processing/element_library/euler_bernoulli/euler_bernoulli_3D.py` | Build and pass coefficient arrays when creating `ElementObject`. |
 | `post_processing/graphical_visualisers/resolution_plotting_utils.py` | Prefer B2 coefficients when present; use generic evaluator in adapter path. |
-| `processing_OOP/static/results/save_formulation_container.py` | Save the three coefficient arrays per element when present. |
+| `processing/static/results/save_formulation_container.py` | Save the three coefficient arrays per element when present. |
 | `tests/test_formulation_cache_shape_functions.py` or new test file | Tests for evaluator and for EB ElementObject B2 export vs operator. |
-| `processing_OOP/static/results/RESULTS_DESIGN.md` | Short note on B2 coefficient format (optional). |
+| `processing/static/results/RESULTS_DESIGN.md` | Short note on B2 coefficient format (optional). |
 
 ---
 

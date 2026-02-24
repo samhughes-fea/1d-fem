@@ -103,7 +103,7 @@ Implement in this order:
 Summary: the robust solution for **any** load case is to **never** extrapolate at boundary nodes — use the element mean there — and to lock the GP order convention. Optionally use least-squares only at interior nodes and element mean at boundaries.
 
 **How stress and strain do nodal projection (shape functions)**  
-Stress and strain nodal values are **not** computed in the visualisers. They are computed in the pipeline by **NodalResultProjector** (`processing_OOP/static/results/compute_secondary/nodal_result_projector.py`), which writes `nodal_strain.csv` and `nodal_stress.csv`; the visualisers only read those files.
+Stress and strain nodal values are **not** computed in the visualisers. They are computed in the pipeline by **NodalResultProjector** (`processing/static/results/compute_secondary/nodal_result_projector.py`), which writes `nodal_strain.csv` and `nodal_stress.csv`; the visualisers only read those files.
 
 1. **Build the shape matrix from the formulation cache**  
    For each element, `N_mat` has shape `(n_gauss, n_nodes_elem)`. Each row is the **element’s** shape functions at one Gauss point: the projector iterates over `elem_obj.gauss_data` and takes `gp.shape_functions` for each GP. So row order matches the formulation’s GP order (ascending ξ for Timoshenko), and the functions are the element’s own (e.g. Timoshenko/EB), not a separate linear assumption.
@@ -174,7 +174,7 @@ So stress and strain use **least-squares (or exact solve) with the element’s o
 
 Nodal section forces are now projected in the tertiary pipeline using the same shape-function extrapolation as stress/strain (formulation cache N_mat), with a boundary rule (single-element nodes use element mean). Implemented components:
 
-- **Projector:** `processing_OOP/static/results/compute_tertiary/nodal_section_forces_projector.py` — projects GP section forces to nodes via N_mat (solve/lstsq), averages at shared nodes, and uses element mean at boundary nodes.
+- **Projector:** `processing/static/results/compute_tertiary/nodal_section_forces_projector.py` — projects GP section forces to nodes via N_mat (solve/lstsq), averages at shared nodes, and uses element mean at boundary nodes.
 - **Storage:** `tertiary_results/nodal/nodal_section_forces.csv` (one row per node, columns N,Vy,Vz,T,My,Mz).
 - **Visualiser:** Section-forces visualisation prefers this file when present; otherwise falls back to element-mean from GP CSVs.
 - **Tests:** `tests/test_nodal_section_forces_projector.py` — constant GP section forces yield matching nodal values (no boundary spike).

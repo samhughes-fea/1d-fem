@@ -41,8 +41,8 @@
 | # | Task | Owner / notes |
 |---|------|----------------|
 | 1.1 | **Formalise the contract** in `pre_processing/element_library/gauss_point_data.py`: in docstrings for `StiffnessGaussPointData` and `ElementObject`, state that when used in the formulation cache for the results pipeline, `shape_functions` (and `shape_derivatives` for stiffness) must be populated at every Gauss point. | Docstring update |
-| 1.2 | **Add validation** when building or using the formulation cache: e.g. in `FormulationResultSet` or in the static runner when constructing it, loop over all `element_objects` and their `gauss_data`; if any `StiffnessGaussPointData.shape_functions` is `None`, log a warning (and optionally raise in strict mode). Same idea for `ForceObject.gauss_data` and `shape_functions`. | New helper in `processing_OOP.static.results.containers.formulation_results` or in the runner; call once when `FormulationResultSet` is built. |
-| 1.3 | **Document the requirement** in `processing_OOP/static/results/RESULTS_DESIGN.md`: add a short subsection “Formulation cache: shape functions” stating that ElementObject/ForceObject must store N (and dN/dξ where relevant) at each Gauss point so that the cache is the single source of truth and projection can be element-consistent. | RESULTS_DESIGN.md |
+| 1.2 | **Add validation** when building or using the formulation cache: e.g. in `FormulationResultSet` or in the static runner when constructing it, loop over all `element_objects` and their `gauss_data`; if any `StiffnessGaussPointData.shape_functions` is `None`, log a warning (and optionally raise in strict mode). Same idea for `ForceObject.gauss_data` and `shape_functions`. | New helper in `processing.static.results.containers.formulation_results` or in the runner; call once when `FormulationResultSet` is built. |
+| 1.3 | **Document the requirement** in `processing/static/results/RESULTS_DESIGN.md`: add a short subsection “Formulation cache: shape functions” stating that ElementObject/ForceObject must store N (and dN/dξ where relevant) at each Gauss point so that the cache is the single source of truth and projection can be element-consistent. | RESULTS_DESIGN.md |
 | 1.4 | **Add a unit test** (or extend an existing formulation test) that, for at least one element type (e.g. Euler-Bernoulli 3D), builds an ElementObject and a ForceObject and asserts that every entry in `gauss_data` has non-None `shape_functions` (and for stiffness, non-None `shape_derivatives` where the element type uses them). | e.g. under `tests/` or inside `pre_processing/element_library/` |
 
 ### Phase 2: Future element types and optional projector change
@@ -50,7 +50,7 @@
 | # | Task | Owner / notes |
 |---|------|----------------|
 | 2.1 | **Onboard any new element type** that returns ElementObject/ForceObject: when implementing `element_stiffness_matrix()` / `element_force_vector()`, ensure each `StiffnessGaussPointData` and `ForceGaussPointData` is built with `shape_functions` (and stiffness with `shape_derivatives` if used). Treat this as a checklist item in code review or a short “Adding a new element” note in the element library. | Per-element PRs; optional: add a short “Adding a new element” section in `pre_processing/element_library/README` or in this plan. |
-| 2.2 | **(Optional) Element-consistent nodal projection**: In `NodalResultProjector`, when `gp.shape_functions` is present for all Gauss points of an element, use an element-consistent extrapolation (e.g. values_at_nodes = N_gauss^{-1} @ values_at_gauss using the stored N at Gauss points and N at node natural coords) instead of generic Lagrange in ξ. Fall back to current Lagrange interpolation when `shape_functions` is missing. | `processing_OOP/static/results/compute_secondary/nodal_result_projector.py` |
+| 2.2 | **(Optional) Element-consistent nodal projection**: In `NodalResultProjector`, when `gp.shape_functions` is present for all Gauss points of an element, use an element-consistent extrapolation (e.g. values_at_nodes = N_gauss^{-1} @ values_at_gauss using the stored N at Gauss points and N at node natural coords) instead of generic Lagrange in ξ. Fall back to current Lagrange interpolation when `shape_functions` is missing. | `processing/static/results/compute_secondary/nodal_result_projector.py` |
 
 #### Adding a new element (checklist)
 
@@ -74,9 +74,9 @@ See the contract in `pre_processing/element_library/gauss_point_data.py` (Stiffn
 | File | Change |
 |------|--------|
 | `pre_processing/element_library/gauss_point_data.py` | Docstring updates (StiffnessGaussPointData, ElementObject, ForceGaussPointData, ForceObject) stating that shape_functions/shape_derivatives must be set when used in the results formulation cache. |
-| `processing_OOP/static/results/containers/formulation_results.py` | Optional: add `validate_shape_functions_populated(element_objects, force_objects)` and call from runner or from FormulationResultSet. |
-| `processing_OOP/static/results/RESULTS_DESIGN.md` | New subsection “Formulation cache: shape functions” (contract + where they are stored). |
-| `processing_OOP/static/results/compute_secondary/nodal_result_projector.py` | Phase 2 only: use `gp.shape_functions` when present for extrapolation; else keep current Lagrange in ξ. |
+| `processing/static/results/containers/formulation_results.py` | Optional: add `validate_shape_functions_populated(element_objects, force_objects)` and call from runner or from FormulationResultSet. |
+| `processing/static/results/RESULTS_DESIGN.md` | New subsection “Formulation cache: shape functions” (contract + where they are stored). |
+| `processing/static/results/compute_secondary/nodal_result_projector.py` | Phase 2 only: use `gp.shape_functions` when present for extrapolation; else keep current Lagrange in ξ. |
 | New or existing test file | Phase 1: test that EB (and optionally Timoshenko/Levinson) ElementObject and ForceObject have shape_functions (and shape_derivatives for stiffness) non-None in all gauss_data. |
 
 ---
