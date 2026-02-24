@@ -25,14 +25,36 @@ max_num_nodes: int = 11
 
 def generate_mesh(growth: float,
                   max_nodes: int,
-                  uniform_nodes: int) -> Tuple[np.ndarray, List[Tuple[int, int]]]:
-    """Return node positions and element connectivity."""
+                  uniform_nodes: int,
+                  length: float | None = None) -> Tuple[np.ndarray, List[Tuple[int, int]]]:
+    """
+    Return node positions and element connectivity.
+
+    Parameters
+    ----------
+    growth : float
+        0 = uniform spacing; >0 = exponential clustering toward tip.
+    max_nodes : int
+        Used when growth > 0.
+    uniform_nodes : int
+        Number of nodes when growth == 0 (gives uniform_nodes - 1 elements).
+    length : float, optional
+        Beam length [m]. Defaults to module-level L.
+
+    Returns
+    -------
+    node_positions : np.ndarray
+        Node x-positions (y=z=0 implied).
+    elements : list of (node1, node2)
+        Element connectivity.
+    """
+    beam_length = length if length is not None else L
     if growth == 0:
-        node_positions = np.linspace(0.0, L, uniform_nodes)
+        node_positions = np.linspace(0.0, beam_length, uniform_nodes)
     else:
         i = np.linspace(0.0, 1.0, max_nodes)
         norm = (np.exp(growth * i) - 1.0) / (np.exp(growth) - 1.0)
-        node_positions = (1.0 - norm) * L           # cluster toward tip
+        node_positions = (1.0 - norm) * beam_length  # cluster toward tip
 
     elements = [(idx, idx + 1) for idx in range(len(node_positions) - 1)]
 
