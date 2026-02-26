@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Create mesh variants for point-load jobs (job_0000, job_0001, job_0002).
-Generates job_XXXX_n4, job_XXXX_n8, job_XXXX_n16, job_XXXX_n25, job_XXXX_n50, job_XXXX_n100 using the mesh library
+Generates job_XXXX_n4, n8, n16, n32, n64, n128 using the mesh library
 (pre_processing/mesh_library/schemes/mesh_generator.py) for geometry and properties,
 then adds job-specific point load, BCs, and simulation files.
 Run from repo root: python pre_processing/mesh_library/create_point_load_mesh_variants.py
@@ -25,7 +25,7 @@ JOBS_DIR = REPO_ROOT / "jobs"
 L = 2.0  # m (must match mesh_generator default)
 P = -500.0  # N (Fy at load point)
 
-VARIANT_NS = [4, 8, 16, 25, 50, 100]
+VARIANT_NS = [4, 8, 16, 32, 64, 128]
 # (base_id, load_label, load_formula, x_position)
 BASE_JOBS = [
     (0, "End load", "P(x=L)", L),
