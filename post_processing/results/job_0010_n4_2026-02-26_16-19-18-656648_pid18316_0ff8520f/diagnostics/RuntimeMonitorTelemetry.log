@@ -1,0 +1,33 @@
+--------------------------------------------------------------------------
+Machine specifications – written 2026-02-26 16:19:20.673753
+OS          : Windows 11 (10.0.26100)
+CPU         : 12th Gen Intel(R) Core(TM) i7-12700
+   logical  : 20
+   physical : 12
+RAM         : 31.24 GB
+Disk        : 943.72 GB total  /  2.49 GB free
+Python      : 3.12.5  (C:\Users\s1834431\AppData\Local\Programs\Python\Python312\python.exe)
+GPU(s)      : Intel(R) UHD Graphics 770
+--------------------------------------------------------------------------
+
+Runtime telemetry header written → C:\Users\s1834431\Programs\fem_model\post_processing\results\job_0010_n4_2026-02-26_16-19-18-656648_pid18316_0ff8520f\diagnostics\RuntimeMonitorTelemetry.log
+2026-02-26 16:19:20 │ PrepareLocalSystem BEGIN   │ Δt  0.00 s │ RAM   137.5 MB │ CPU  32.8 % │ Disk  941.2 GB
+2026-02-26 16:19:21 │ PrepareLocalSystem END     │ Δt  0.20 s │ RAM   137.5 MB │ CPU  26.9 % │ Disk  941.2 GB
+2026-02-26 16:19:21 │ AssembleGlobalSystem BEGIN │ Δt  0.20 s │ RAM   137.5 MB │ CPU  21.9 % │ Disk  941.2 GB
+2026-02-26 16:19:21 │ AssembleGlobalSystem END   │ Δt  0.21 s │ RAM   137.5 MB │ CPU  18.4 % │ Disk  941.2 GB
+2026-02-26 16:19:21 │ ModifyGlobalSystem BEGIN   │ Δt  0.20 s │ RAM   137.5 MB │ CPU  14.4 % │ Disk  941.2 GB
+2026-02-26 16:19:21 │ ModifyGlobalSystem END     │ Δt  0.21 s │ RAM   137.5 MB │ CPU  11.5 % │ Disk  941.2 GB
+2026-02-26 16:19:22 │ CondenseModifiedSystem BEGIN │ Δt  0.20 s │ RAM   137.5 MB │ CPU  16.1 % │ Disk  941.2 GB
+2026-02-26 16:19:22 │ CondenseModifiedSystem END │ Δt  0.21 s │ RAM   137.5 MB │ CPU  10.7 % │ Disk  941.2 GB
+2026-02-26 16:19:22 │ SolveCondensedSystem BEGIN │ Δt  0.20 s │ RAM   137.5 MB │ CPU   7.5 % │ Disk  941.2 GB
+2026-02-26 16:19:22 │ SolveCondensedSystem END   │ Δt  0.21 s │ RAM   137.5 MB │ CPU  13.0 % │ Disk  941.2 GB
+2026-02-26 16:19:23 │ ReconstructGlobalSystem BEGIN │ Δt  0.20 s │ RAM   137.5 MB │ CPU  10.6 % │ Disk  941.2 GB
+2026-02-26 16:19:23 │ ReconstructGlobalSystem END │ Δt  0.20 s │ RAM   137.5 MB │ CPU   4.7 % │ Disk  941.2 GB
+2026-02-26 16:19:23 │ ComputePrimaryResults BEGIN │ Δt  0.20 s │ RAM   137.5 MB │ CPU   9.9 % │ Disk  941.2 GB
+2026-02-26 16:19:23 │ ComputePrimaryResults END  │ Δt  0.24 s │ RAM   137.5 MB │ CPU  10.3 % │ Disk  941.2 GB
+2026-02-26 16:19:23 │ SaveFormulationCache BEGIN │ Δt  0.20 s │ RAM   137.5 MB │ CPU  22.6 % │ Disk  941.2 GB
+2026-02-26 16:19:24 │ SaveFormulationCache END   │ Δt  0.21 s │ RAM   137.5 MB │ CPU  32.9 % │ Disk  941.2 GB
+2026-02-26 16:19:24 │ ComputeSecondaryResults BEGIN │ Δt  0.20 s │ RAM   137.5 MB │ CPU  48.4 % │ Disk  941.2 GB
+2026-02-26 16:19:24 │ ComputeSecondaryResults END │ Δt  0.21 s │ RAM   137.5 MB │ CPU  39.3 % │ Disk  941.2 GB
+2026-02-26 16:19:24 │ ComputeTertiaryResults BEGIN │ Δt  0.20 s │ RAM   137.5 MB │ CPU  10.0 % │ Disk  941.2 GB
+2026-02-26 16:19:24 │ ComputeTertiaryResults END │ Δt  0.22 s │ RAM   137.5 MB │ CPU  19.0 % │ Disk  941.2 GB

@@ -1,0 +1,37 @@
+2026-02-26 16:16:35,606 [DEBUG]: 🟢 ElementFactory logger initialised.
+2026-02-26 16:16:35,606 [INFO]: 🚩 Starting batch element creation.
+2026-02-26 16:16:35,606 [DEBUG]: Element IDs sanitised: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+2026-02-26 16:16:35,606 [DEBUG]: Module for EulerBernoulliBeamElement3D loaded.
+2026-02-26 16:16:35,608 [DEBUG]: ✅ Element 0 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,608 [DEBUG]: ✅ Element 1 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,608 [DEBUG]: ✅ Element 2 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,610 [DEBUG]: ✅ Element 3 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,613 [DEBUG]: ✅ Element 4 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,614 [DEBUG]: ✅ Element 5 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,614 [DEBUG]: ✅ Element 6 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,614 [DEBUG]: ✅ Element 7 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,615 [DEBUG]: ✅ Element 8 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,615 [DEBUG]: ✅ Element 9 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,615 [DEBUG]: ✅ Element 10 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,616 [DEBUG]: ✅ Element 11 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,616 [DEBUG]: ✅ Element 12 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,616 [DEBUG]: ✅ Element 13 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,616 [DEBUG]: ✅ Element 14 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,617 [DEBUG]: ✅ Element 15 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:35,618 [DEBUG]: Logging verified for element 0.
+2026-02-26 16:16:35,618 [DEBUG]: Logging verified for element 1.
+2026-02-26 16:16:35,618 [DEBUG]: Logging verified for element 2.
+2026-02-26 16:16:35,620 [DEBUG]: Logging verified for element 3.
+2026-02-26 16:16:35,620 [DEBUG]: Logging verified for element 4.
+2026-02-26 16:16:35,620 [DEBUG]: Logging verified for element 5.
+2026-02-26 16:16:35,624 [DEBUG]: Logging verified for element 6.
+2026-02-26 16:16:35,624 [DEBUG]: Logging verified for element 7.
+2026-02-26 16:16:35,624 [DEBUG]: Logging verified for element 8.
+2026-02-26 16:16:35,626 [DEBUG]: Logging verified for element 9.
+2026-02-26 16:16:35,626 [DEBUG]: Logging verified for element 10.
+2026-02-26 16:16:35,626 [DEBUG]: Logging verified for element 11.
+2026-02-26 16:16:35,626 [DEBUG]: Logging verified for element 12.
+2026-02-26 16:16:35,626 [DEBUG]: Logging verified for element 13.
+2026-02-26 16:16:35,626 [DEBUG]: Logging verified for element 14.
+2026-02-26 16:16:35,630 [DEBUG]: Logging verified for element 15.
+2026-02-26 16:16:35,630 [INFO]: ✅ Batch element creation complete.

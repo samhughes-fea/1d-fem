@@ -1,0 +1,13 @@
+2026-02-26 16:19:09,327 [DEBUG]: 🟢 ElementFactory logger initialised.
+2026-02-26 16:19:09,327 [INFO]: 🚩 Starting batch element creation.
+2026-02-26 16:19:09,327 [DEBUG]: Element IDs sanitised: [0, 1, 2, 3]
+2026-02-26 16:19:09,327 [DEBUG]: Module for TimoshenkoBeamElement3D loaded.
+2026-02-26 16:19:09,328 [DEBUG]: ✅ Element 0 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:09,330 [DEBUG]: ✅ Element 1 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:09,331 [DEBUG]: ✅ Element 2 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:09,332 [DEBUG]: ✅ Element 3 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:09,334 [DEBUG]: Logging verified for element 0.
+2026-02-26 16:19:09,336 [DEBUG]: Logging verified for element 1.
+2026-02-26 16:19:09,339 [DEBUG]: Logging verified for element 2.
+2026-02-26 16:19:09,342 [DEBUG]: Logging verified for element 3.
+2026-02-26 16:19:09,342 [INFO]: ✅ Batch element creation complete.

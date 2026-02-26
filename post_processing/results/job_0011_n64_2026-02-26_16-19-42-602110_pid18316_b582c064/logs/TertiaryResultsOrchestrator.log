@@ -1,0 +1,14 @@
+2026-02-26 16:19:51,559 [DEBUG] 📁 Log file created at: c:\Users\s1834431\Programs\fem_model\post_processing\results\job_0011_n64_2026-02-26_16-19-42-602110_pid18316_b582c064\logs\TertiaryResultsOrchestrator.log (Module: tertiary_results_orchestrator, Line: 169)
+2026-02-26 16:19:51,559 [INFO] ====================================================================== (Module: tertiary_results_orchestrator, Line: 62)
+2026-02-26 16:19:51,559 [INFO] TERTIARY RESULTS COMPUTATION (Module: tertiary_results_orchestrator, Line: 63)
+2026-02-26 16:19:51,559 [INFO] ====================================================================== (Module: tertiary_results_orchestrator, Line: 64)
+2026-02-26 16:19:51,564 [INFO] 
+[1/3] Computing section force resultants... (Module: tertiary_results_orchestrator, Line: 74)
+2026-02-26 16:19:51,564 [INFO] 
+[2/3] Computing principal stresses and invariants... (Module: tertiary_results_orchestrator, Line: 79)
+2026-02-26 16:19:51,567 [INFO] 
+[3/3] Computing integrated elemental results... (Module: tertiary_results_orchestrator, Line: 89)
+2026-02-26 16:19:51,572 [INFO] 
+====================================================================== (Module: tertiary_results_orchestrator, Line: 132)
+2026-02-26 16:19:51,574 [INFO] ✅ TERTIARY RESULTS COMPUTATION COMPLETE (Module: tertiary_results_orchestrator, Line: 133)
+2026-02-26 16:19:51,574 [INFO] ====================================================================== (Module: tertiary_results_orchestrator, Line: 134)

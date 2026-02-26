@@ -1,0 +1,2 @@
+max_stress,min_stress,mean_stress,max_strain,min_strain,mean_strain,max_nodal_stress,min_nodal_stress,max_nodal_strain,min_nodal_strain
+4.161649e+03,0.000000e+00,7.996109e+01,4.276771e-04,0.000000e+00,1.272530e-05,5.227168e+03,0.000000e+00,4.276771e-04,0.000000e+00
