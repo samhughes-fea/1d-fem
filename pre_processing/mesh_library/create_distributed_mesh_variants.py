@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Create coarser mesh variants for distributed-load jobs (job_0005, job_0006, job_0007).
-Generates job_XXXX_n4, job_XXXX_n8, job_XXXX_n16, job_XXXX_n25, job_XXXX_n50, job_XXXX_n100 using the mesh library
-(pre_processing/mesh_library/schemes/mesh_generator.py) for geometry and properties,
-then adds job-specific load/BC/simulation files.
+Create mesh variants for distributed-load jobs (job_0003, job_0004, job_0005).
+Generates job_0003_n4, n8, n16, n32, n64, n128 (UDL), job_0004_n*, job_0005_n* (triangular, parabolic)
+using the mesh library (pre_processing/mesh_library/schemes/mesh_generator.py) for geometry and
+properties, then adds job-specific load/BC/simulation files.
 Run from repo root: python pre_processing/mesh_library/create_distributed_mesh_variants.py
 """
 import sys
@@ -25,11 +25,11 @@ JOBS_DIR = REPO_ROOT / "jobs"
 L = 2.0  # m (must match mesh_generator default)
 w = 500.0  # N/m
 
-VARIANT_NS = [4, 8, 16, 25, 50, 100]
+VARIANT_NS = [4, 8, 16, 32, 64, 128]
 BASE_JOBS = [
-    (5, "UDL", lambda x: -w),
-    (6, "TRIANGULAR", lambda x: -w * (x / L) if L else 0),
-    (7, "PARABOLIC", lambda x: -w * (x / L) ** 2 if L else 0),
+    (3, "UDL", lambda x: -w),
+    (4, "TRIANGULAR", lambda x: -w * (x / L) if L else 0),
+    (5, "PARABOLIC", lambda x: -w * (x / L) ** 2 if L else 0),
 ]
 LOAD_FORMULAS = {"UDL": "q(x) = w", "TRIANGULAR": "q(x) = w * (x/L)", "PARABOLIC": "q(x) = w * (x/L)^2"}
 

@@ -1,5 +1,0 @@
-[Simulation]
-[Type]      
-Static             
-#Dynamic          
-#Modal
