@@ -1,0 +1,4 @@
+# Optional dependencies for Abaqus validation visualisers.
+# Install with: pip install -r post_processing/validation_visualisers/requirements-validation.txt
+# Match abqpy version to your Abaqus installation (e.g. 2021.* for Abaqus 2021).
+abqpy==2021.*
