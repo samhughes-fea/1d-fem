@@ -1,4 +1,4 @@
-# processing\static\results\compute_tertiary\compute_tertiary_results.py
+# processing\static\results\compute_tertiary\tertiary_results_orchestrator.py
 
 import numpy as np
 from pathlib import Path
@@ -137,19 +137,36 @@ class TertiaryResultsOrchestrator:
 
     def _init_logging(self) -> logging.Logger:
         """Initialize logger for tertiary results computation."""
-        logger = logging.getLogger(f"{__name__}.TertiaryOrchestrator")
-        logger.setLevel(logging.INFO)
+        logger = logging.getLogger(f"TertiaryResultsOrchestrator.{id(self)}")
+        logger.handlers.clear()
+        logger.setLevel(logging.DEBUG)
+        logger.propagate = False
 
-        # Console handler if not already present
-        if not logger.handlers:
-            console_handler = logging.StreamHandler()
-            console_handler.setLevel(logging.INFO)
-            formatter = logging.Formatter(
-                "%(asctime)s - TERTIARY - %(levelname)s - %(message)s",
-                datefmt="%H:%M:%S"
-            )
-            console_handler.setFormatter(formatter)
-            logger.addHandler(console_handler)
+        log_path = None
+        if self.job_results_dir:
+            logs_dir = self.job_results_dir.parent / "logs"
+            logs_dir.mkdir(parents=True, exist_ok=True)
+            log_path = logs_dir / "TertiaryResultsOrchestrator.log"
+            try:
+                file_handler = logging.FileHandler(log_path, mode="w", encoding="utf-8")
+                file_handler.setFormatter(logging.Formatter(
+                    "%(asctime)s [%(levelname)s] %(message)s "
+                    "(Module: %(module)s, Line: %(lineno)d)"
+                ))
+                logger.addHandler(file_handler)
+            except Exception as e:
+                print(f"⚠️ Failed to create file handler for TertiaryResultsOrchestrator class log: {e}")
+
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(logging.INFO)
+        stream_handler.setFormatter(logging.Formatter(
+            "%(asctime)s - TERTIARY - %(levelname)s - %(message)s",
+            datefmt="%H:%M:%S"
+        ))
+        logger.addHandler(stream_handler)
+
+        if log_path:
+            logger.debug(f"📁 Log file created at: {log_path}")
 
         return logger
 
@@ -203,4 +220,3 @@ class TertiaryResultsOrchestrator:
         self.logger.info("─" * 70)
 
         return summary
-

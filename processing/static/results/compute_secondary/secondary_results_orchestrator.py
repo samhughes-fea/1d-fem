@@ -1,4 +1,4 @@
-# processing\static\results\compute_secondary\compute_secondary_results.py
+# processing\static\results\compute_secondary\secondary_results_orchestrator.py
 
 """
 Secondary Results Orchestrator
@@ -86,7 +86,7 @@ class SecondaryResultsOrchestrator:
         if self.job_results_dir:
             logs_dir = self.job_results_dir.parent / "logs"
             logs_dir.mkdir(parents=True, exist_ok=True)
-            log_path = logs_dir / "SecondaryResults.log"
+            log_path = logs_dir / "SecondaryResultsOrchestrator.log"
             
             try:
                 file_handler = logging.FileHandler(log_path, mode="w", encoding="utf-8")
@@ -95,7 +95,7 @@ class SecondaryResultsOrchestrator:
                 ))
                 logger.addHandler(file_handler)
             except Exception as e:
-                print(f"⚠️ Failed to create log file for SecondaryResults: {e}")
+                print(f"⚠️ Failed to create log file for SecondaryResultsOrchestrator: {e}")
         
         stream_handler = logging.StreamHandler()
         stream_handler.setLevel(logging.INFO)

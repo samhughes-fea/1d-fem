@@ -10,7 +10,7 @@ and failure criteria.
 
 from .section_force import ComputeSectionForce
 from .principal_stress import ComputePrincipalStress
-from .compute_tertiary_results import TertiaryResultsOrchestrator
+from .tertiary_results_orchestrator import TertiaryResultsOrchestrator
 
 __all__ = [
     "ComputeSectionForce",
