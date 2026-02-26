@@ -1,6 +1,6 @@
 # Data flow
 
-Job input files and result output layout. Each job directory under `jobs/` (e.g. `jobs/job_0000_n10/`) is read by `process_job()`; results are written to a new directory under `post_processing/results/`.
+Job input files and result output layout. Each job directory under `jobs/` (e.g. `jobs/job_0000_n8/`) is read by `process_job()`; results are written to a new directory under `post_processing/results/`.
 
 ```mermaid
 flowchart LR
