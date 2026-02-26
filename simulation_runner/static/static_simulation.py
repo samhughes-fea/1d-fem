@@ -19,20 +19,24 @@ from processing.static.operations.solver import SolveCondensedSystem
 from processing.static.operations.reconstruction import ReconstructGlobalSystem
 from processing.static.operations.disassembly import DisassembleGlobalSystem
 
-# Results containers
-
+# Results: containers (data structures)
 from processing.static.results.containers.global_results import GlobalResults
 from processing.static.results.containers.elemental_results import ElementalResults
 from processing.static.results.containers.nodal_results import NodalResults
 from processing.static.results.containers.gaussian_results import GaussianResults
-
-
-from processing.static.results.compute_primary.element_formulation_processor import ElementFormulationProcessor
-from processing.static.results.compute_primary.primary_results_orchestrator import PrimaryResultsOrchestrator
 from processing.static.results.containers.container_hopper import PrimaryResultSet, SecondaryResultSet, IndexMapSet
 
+# Results: compute (orchestrators + formulation)
+from processing.static.results.compute_primary.element_formulation_processor import ElementFormulationProcessor
+from processing.static.results.compute_primary.primary_results_orchestrator import PrimaryResultsOrchestrator
+from processing.static.results.compute_secondary.secondary_results_orchestrator import SecondaryResultsOrchestrator
+from processing.static.results.compute_tertiary.tertiary_results_orchestrator import TertiaryResultsOrchestrator
+
+# Results: save (persist to disk)
 from processing.static.results.save_primary_container import SavePrimaryResults, SavePrimaryResultsSummary
 from processing.static.results.save_index_map_container import SaveIndexMaps
+from processing.static.results.save_secondary_container import SaveSecondaryResults, SaveSecondaryResultsSummary
+from processing.static.results.save_tertiary_container import SaveTertiaryResults, SaveTertiaryResultsSummary
 
 # Configure module-level logger
 logger = logging.getLogger(__name__)
@@ -667,9 +671,6 @@ class StaticSimulationRunner:
     def compute_secondary_results(self) -> None:
         """Compute and save secondary results (stresses, strains, etc.)."""
         logger.info("📈 Computing secondary results using cached formulation data...")
-        
-        from processing.static.results.compute_secondary.compute_secondary_results import SecondaryResultsOrchestrator
-        from processing.static.results.save_secondary_container import SaveSecondaryResults, SaveSecondaryResultsSummary
 
         # Compute secondary results using cached Gauss point data
         orchestrator = SecondaryResultsOrchestrator(
@@ -705,9 +706,6 @@ class StaticSimulationRunner:
     def compute_tertiary_results(self) -> None:
         """Compute and save tertiary results (section forces, principal stresses, etc.)."""
         logger.info("📊 Computing tertiary results...")
-
-        from processing.static.results.compute_tertiary.compute_tertiary_results import TertiaryResultsOrchestrator
-        from processing.static.results.save_tertiary_container import SaveTertiaryResults, SaveTertiaryResultsSummary
 
         orchestrator = TertiaryResultsOrchestrator(
             secondary_results=self.secondary_results_set,
