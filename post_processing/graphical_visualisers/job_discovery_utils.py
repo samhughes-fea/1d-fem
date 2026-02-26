@@ -5,7 +5,7 @@ Shared job result discovery and mesh path resolution for post-processing visuali
 
 Result directories under post_processing/results are named:
   {case_name}_{timestamp}_pid{pid}_{uid}
-where case_name is the job input folder name (e.g. job_0000 or job_0000_n10).
+where case_name is the job input folder name (e.g. job_0000 or job_0000_n8).
 This module parses those names and resolves mesh paths to the correct job input dir.
 """
 
@@ -15,7 +15,7 @@ import re
 from pathlib import Path
 from typing import Optional, Tuple
 
-# Matches job_0000_ts... and job_0000_n10_ts... (optional _nN suffix after numeric id).
+# Matches job_0000_ts... and job_0000_n8_ts... (optional _nN suffix after numeric id).
 # Captures: id (digits), optional suffix (_n10 etc), timestamp (rest until end).
 _JOB_RESULT_DIR_PATTERN = re.compile(
     r"^job_(?P<id>\d+)(?:(?P<suffix>_n\d+))?_(?P<ts>[\d\-_]+_pid\d+_[a-f0-9]+)$"
@@ -26,19 +26,19 @@ def parse_job_result_dir_name(dir_name: str) -> Optional[Tuple[str, str, str]]:
     """
     Parse a result directory name under post_processing/results.
 
-    Supports both legacy (job_0000_...) and current (job_0000_n10_...) naming.
+    Supports both legacy (job_0000_...) and current (job_0000_n8_...) naming.
 
     Parameters
     ----------
     dir_name : str
-        Basename of the result directory, e.g. "job_0000_n10_2026-02-23_12-00-00_pid1234_abc12345".
+        Basename of the result directory, e.g. "job_0000_n8_2026-02-23_12-00-00_pid1234_abc12345".
 
     Returns
     -------
     Optional[Tuple[str, str, str]]
         If the name matches: (job_id, job_folder_name, timestamp).
         - job_id: numeric id string, e.g. "0000".
-        - job_folder_name: full job input folder name for mesh lookup, e.g. "job_0000_n10".
+        - job_folder_name: full job input folder name for mesh lookup, e.g. "job_0000_n8".
         - timestamp: remainder for filenames, e.g. "2026-02-23_12-00-00_pid1234_abc12345".
         Returns None if the name does not match.
     """
@@ -61,7 +61,7 @@ def get_mesh_paths_for_result_dir(
     Parameters
     ----------
     result_dir_name : str
-        Basename of the result directory (e.g. job_0000_n10_2026-...).
+        Basename of the result directory (e.g. job_0000_n8_2026-...).
     jobs_dir : Path
         Path to the jobs directory (project root / "jobs").
 
