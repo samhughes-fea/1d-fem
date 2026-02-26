@@ -1,12 +1,19 @@
-                                                                                                                                                                                                                            # run_job.py
+# run_job.py
+#
+# Runs jobs in batches of 4 by default (--parallel-jobs 4), with 2 cores per job
+# (--cores-per-job 2). The next batch starts only after all jobs in the current
+# batch have completed and written results. Use --serial to run one job at a time
+# and disable in-job parallelism. When running many jobs (e.g. 6×12), the machine
+# may crash or freeze due to memory (parallel workers per job), disk, or CPU/thermal;
+# use --serial or reduce --parallel-jobs / --cores-per-job if needed.
 
 import os
 import sys
 import glob
 import logging
 import time
+import concurrent.futures
 import numpy as np
-import multiprocessing as mp
 import psutil
 import shutil
 import platform
@@ -171,8 +178,16 @@ def setup_job_results_directory(case_name: str) -> str:
     return job_results_dir
 
 
-def process_job(job_dir, job_results_dir, job_times, job_start_end_times):
-    """Processes a single FEM simulation job."""
+def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_serial=False, max_processes_per_job=None):
+    """Processes a single FEM simulation job.
+
+    When force_serial is True, disables per-job parallelism (element instantiation
+    and stiffness/force computation) to reduce memory use and avoid machine
+    instability when running many jobs (e.g. 6×12). Use --serial when the machine
+    crashes or freezes on large batch runs.
+    When max_processes_per_job is set (e.g. 2), caps in-job parallelism to that
+    many processes per job when running multiple jobs in parallel.
+    """
 
     case_name = os.path.basename(job_dir)
     logger = configure_child_logging(job_results_dir)
@@ -209,6 +224,12 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times):
         ).parse()["section_dictionary"]
 
         simulation_settings = parse_simulation_settings(os.path.join(job_dir, "simulation_settings.txt"))
+        if force_serial:
+            if "parallel" not in simulation_settings:
+                simulation_settings["parallel"] = {}
+            simulation_settings["parallel"]["enable_parallel_instantiation"] = False
+            simulation_settings["parallel"]["enable_parallel_computation"] = False
+            logger.info("Serial mode: per-job parallelism disabled (single process).")
         point_load_array = np.array([])
         distributed_load_array = np.array([])
         prescribed_displacement_dict = None
@@ -259,6 +280,8 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times):
             except ValueError:
                 logger.warning(f"Invalid num_processes value '{num_processes_instantiation}', using 'auto'")
                 num_processes_instantiation = os.cpu_count() or 1
+        if max_processes_per_job is not None:
+            num_processes_instantiation = min(num_processes_instantiation, max_processes_per_job)
 
         all_elements = factory.create_elements_batch(
             element_ids            = element_ids,
@@ -306,7 +329,9 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times):
             except ValueError:
                 logger.warning(f"Invalid num_processes value '{num_processes}', using 'auto'")
                 num_processes = os.cpu_count() or 1
-        
+        if max_processes_per_job is not None:
+            num_processes = min(num_processes, max_processes_per_job)
+
         # Compute element stiffness matrices
         step_start = time.time()
         if enable_parallel_computation:
@@ -454,8 +479,55 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times):
         except Exception as trace_err:
             logger.error(f"⚠️ Failed to write traceback file: {trace_err}", exc_info=True)
 
+
+def _run_one_job(job_dir, job_results_dir, force_serial, max_processes_per_job):
+    """Worker for process pool: run one job and return timing data for main to merge."""
+    job_times = {}
+    job_start_end_times = {}
+    process_job(
+        job_dir,
+        job_results_dir,
+        job_times,
+        job_start_end_times,
+        force_serial=force_serial,
+        max_processes_per_job=max_processes_per_job,
+    )
+    case_name = os.path.basename(job_dir)
+    return (case_name, job_times.get(case_name), job_start_end_times.get(case_name))
+
+
 def main():
-    """Manages and runs multiple FEM simulation jobs in parallel."""
+    """Runs FEM simulation jobs (serially or in batches of N with a process pool)."""
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="Run FEM simulation jobs. Use --serial to disable in-job parallelism (recommended for large batches to avoid memory/CPU overload). "
+        "Otherwise runs in batches of --parallel-jobs with --cores-per-job per job."
+    )
+    parser.add_argument(
+        "--serial",
+        action="store_true",
+        help="Disable per-job parallelism (element instantiation and stiffness/force computation). Use when running many jobs (e.g. 6×12) to avoid machine crashes from memory or CPU load.",
+    )
+    parser.add_argument(
+        "--parallel-jobs",
+        type=int,
+        default=4,
+        metavar="N",
+        help="Number of jobs to run in parallel per batch (default: 4). Ignored if --serial.",
+    )
+    parser.add_argument(
+        "--cores-per-job",
+        type=int,
+        default=2,
+        metavar="C",
+        help="Max processes per job for in-job parallelism when using parallel batches (default: 2). Ignored if --serial.",
+    )
+    args = parser.parse_args()
+
+    force_serial = args.serial
+    parallel_jobs = 1 if force_serial else args.parallel_jobs
+    cores_per_job = args.cores_per_job
+
     log_file_path = os.path.join(script_dir, "run_job.log")
     logger = configure_logging(log_file_path)
     logger.info("🚀 Starting FEM Simulation Workflow")
@@ -467,32 +539,49 @@ def main():
         logger.warning("⚠️ No job directories found.")
         return
 
-    num_processes = min(mp.cpu_count(), len(job_dirs))
-    logger.info(f"🟢 Running {len(job_dirs)} jobs across {num_processes} CPU cores.")
+    if force_serial:
+        logger.info("🟢 Serial mode: in-job parallelism disabled (single process per job).")
+    job_times = {}
+    job_start_end_times = {}
 
-    with mp.Manager() as manager:
-        job_times = manager.dict()
-        job_start_end_times = manager.dict()
-
-        with mp.Pool(processes=num_processes) as pool:
-            job_info = []
-            for job_dir in job_dirs:
-                case_name = os.path.basename(job_dir)
-
-                try:
-                    job_results_dir = setup_job_results_directory(case_name)
-                except Exception as e:
-                    logger.error(f"❌ Failed to create job results dir for {case_name}: {e}", exc_info=True)
+    if parallel_jobs == 1:
+        logger.info(f"🟢 Running {len(job_dirs)} jobs in serial.")
+        for job_dir in job_dirs:
+            case_name = os.path.basename(job_dir)
+            try:
+                job_results_dir = setup_job_results_directory(case_name)
+            except Exception as e:
+                logger.error(f"❌ Failed to create job results dir for {case_name}: {e}", exc_info=True)
+                continue
+            process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_serial=force_serial)
+    else:
+        logger.info(f"🟢 Running {len(job_dirs)} jobs in batches of {parallel_jobs} (parallel_jobs={parallel_jobs}, cores_per_job={cores_per_job}).")
+        batches = [job_dirs[i:i + parallel_jobs] for i in range(0, len(job_dirs), parallel_jobs)]
+        with concurrent.futures.ProcessPoolExecutor(max_workers=parallel_jobs) as executor:
+            for batch in batches:
+                batch_results_dirs = []
+                for job_dir in batch:
+                    case_name = os.path.basename(job_dir)
+                    try:
+                        job_results_dir = setup_job_results_directory(case_name)
+                        batch_results_dirs.append((job_dir, job_results_dir))
+                    except Exception as e:
+                        logger.error(f"❌ Failed to create job results dir for {case_name}: {e}", exc_info=True)
+                if not batch_results_dirs:
                     continue
-
-                job_info.append((
-                    job_dir,
-                    job_results_dir,
-                    job_times,
-                    job_start_end_times
-                ))
-
-            pool.starmap(process_job, job_info)
+                futures = [
+                    executor.submit(_run_one_job, job_dir, job_results_dir, force_serial, cores_per_job)
+                    for job_dir, job_results_dir in batch_results_dirs
+                ]
+                for fut in concurrent.futures.as_completed(futures):
+                    try:
+                        case_name, times, start_end = fut.result()
+                        if case_name and times is not None:
+                            job_times[case_name] = times
+                        if case_name and start_end is not None:
+                            job_start_end_times[case_name] = start_end
+                    except Exception as e:
+                        logger.error(f"❌ Job failed: {e}", exc_info=True)
 
 if __name__ == "__main__":
     main()
