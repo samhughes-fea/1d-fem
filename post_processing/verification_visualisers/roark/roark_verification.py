@@ -1,10 +1,10 @@
-# post_processing/verification_visualisers/roarks_formulas/roark_verification.py
+# post_processing/verification_visualisers/roark_verification.py
 """
 FEM vs Roark verification: compare displacement/rotation (and optionally V, M) from
 FEM results with Roark's formulas. Uses same job discovery and grid as
-deflection_tables/deformation_convergence.py. Aligned with jobs/README_JOBS.md:
+deformation_convergence.py. Aligned with jobs/README_JOBS.md:
   - Point loads (Euler–Bernoulli): job_0000 end, job_0001 midspan, job_0002 quarter.
-  - Distributed loads: job_0005 UDL, job_0006 triangular, job_0007 parabolic.
+  - Distributed loads: job_0003 UDL, job_0004 triangular, job_0005 parabolic.
 """
 
 import glob
@@ -24,20 +24,21 @@ PROJECT_ROOT: Final[Path] = next(
     SCRIPT_DIR.parents[4],
 )
 sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(SCRIPT_DIR))
+sys.path.insert(0, str(SCRIPT_DIR / "roark_utilities"))
 
 from pre_processing.parsing.grid_parser import GridParser  # type: ignore
 
-from roarks_formulas_point import roark_point_load_response  # type: ignore
-from roarks_formulas_distributed import roark_distributed_load_response  # type: ignore
-
+from roarks_formulas_euler_bernoulli_point import roark_point_load_response  # type: ignore
+from roarks_formulas_euler_bernoulli_distributed import roark_distributed_load_response  # type: ignore
+from roarks_formulas_timoshenko_point import timoshenko_point_load_response  # type: ignore
+from roarks_formulas_timoshenko_distributed import timoshenko_distributed_load_response  # type: ignore
 
 # Beam and load parameters (match deflection_tables/deformation_convergence for point;
 # distributed magnitude as in visualiser)
 E: Final[float] = 2.0e11   # Pa
 I_z: Final[float] = 2.08769e-06  # m^4
 P_point: Final[float] = -500.0  # N (match verification convention: same sign as deformation_convergence F)
-w_dist: Final[float] = 500.0  # N/m; must match jobs/job_0005, 0006, 0007 distributed_load.txt (F_y magnitude)
+w_dist: Final[float] = 500.0  # N/m; must match jobs/job_0003, 0004, 0005 distributed_load.txt (F_y magnitude)
 
 # Analytical curve: much finer grid than FEM for plotting
 _ANALYTICAL_GRID_FACTOR: Final[int] = 25
@@ -50,9 +51,23 @@ POINT_LOAD_CASES: Final[list[tuple[int, str, float]]] = [
     (2, "Quarter-span", 0.25),
 ]
 DIST_LOAD_CASES: Final[list[tuple[int, str, str]]] = [
-    (5, "UDL", "udl"),
-    (6, "Triangular", "triangular"),
-    (7, "Parabolic", "parabolic"),
+    (3, "UDL", "udl"),
+    (4, "Triangular", "triangular"),
+    (5, "Parabolic", "parabolic"),
+]
+# Timoshenko jobs 6–11 (same load cases as 0–5, Timoshenko element)
+A: Final[float] = 0.00131  # m^2
+G: Final[float] = 8.1e10   # Pa
+K_S: Final[float] = 5.0 / 6.0
+POINT_LOAD_CASES_TIMS: Final[list[tuple[int, str, str]]] = [
+    (6, "End", "end"),
+    (7, "Mid-span", "mid"),
+    (8, "Quarter-span", "quarter"),
+]
+DIST_LOAD_CASES_TIMS: Final[list[tuple[int, str, str]]] = [
+    (9, "UDL", "udl"),
+    (10, "Triangular", "triangular"),
+    (11, "Parabolic", "parabolic"),
 ]
 
 COLORS: Final[list[str]] = ["#4F81BD", "#C0504D", "#9BBB59", "#8064A2", "#4BACC6"]
@@ -89,7 +104,7 @@ def _read_U_global(file: Path) -> Optional[np.ndarray]:
 def run_roark_verification(scale: float = 1.0) -> None:
     results_dir: Path = PROJECT_ROOT / "post_processing" / "results"
     jobs_dir: Path = PROJECT_ROOT / "jobs"
-    out_dir: Path = SCRIPT_DIR / "verification"
+    out_dir: Path = SCRIPT_DIR / "deformation_plots"
     out_dir.mkdir(exist_ok=True)
 
     pattern = str(results_dir / "job_*" / "primary_results" / "global" / "U_global.csv")
@@ -284,6 +299,114 @@ def run_roark_verification(scale: float = 1.0) -> None:
         header = "job_id,x,uy_fem_mm,uy_roark_mm,error_uy_mm,theta_z_fem_deg,theta_z_roark_deg,error_theta_deg"
         np.savetxt(csv_path, csv_rows, delimiter=",", header=header, comments="")
         print(f"Saved: {csv_path}")
+
+    # ----- Timoshenko jobs 6–11: point (6,7,8) and distributed (9,10,11) vs Roark Timoshenko -----
+    if any(job_id in job_to_result for job_id, _, _ in POINT_LOAD_CASES_TIMS + DIST_LOAD_CASES_TIMS):
+        # Point loads Timoshenko
+        fig_pt, axes_pt = plt.subplots(3, 2, figsize=(14, 10), sharex=True)
+        fig_pt.suptitle("Roark verification: point loads (Timoshenko jobs 6–8)", fontsize=14, fontweight="bold")
+        for row, (job_id, title, load_type) in enumerate(POINT_LOAD_CASES_TIMS):
+            if job_id not in job_to_result:
+                continue
+            csv_file, job_dir, job_input_name = job_to_result[job_id]
+            grid_file = jobs_dir / job_input_name / "grid.txt"
+            if not grid_file.is_file():
+                continue
+            U = _read_U_global(csv_file)
+            if U is None:
+                continue
+            grid = GridParser(str(grid_file), str(jobs_dir / job_input_name)).parse()
+            try:
+                node_coords = _get_node_coordinates(grid)
+            except Exception:
+                continue
+            x = node_coords[:, 0]
+            if x.shape[0] != U.shape[0]:
+                continue
+            L = float(np.max(x))
+            roark_at_nodes = timoshenko_point_load_response(x, L, E, I_z, P_point, A, G, K_S, load_type)
+            uy_roark = roark_at_nodes["deflection"] * 1000
+            th_roark = np.degrees(roark_at_nodes["rotation"])
+            uy_fem = U[:, 1] * 1000 * scale
+            th_fem = np.degrees(U[:, 5]) * scale
+            x_ana = _analytical_grid(x.shape[0], L)
+            roark_fine = timoshenko_point_load_response(x_ana, L, E, I_z, P_point, A, G, K_S, load_type)
+            uy_ana = roark_fine["deflection"] * 1000
+            th_ana = np.degrees(roark_fine["rotation"])
+            axes_pt[row, 0].plot(x, uy_fem, color=COLORS[row], linestyle="-", label=f"FEM job_{job_id:04d}")
+            axes_pt[row, 0].plot(x_ana, uy_ana, "k--", label="Roark Timoshenko")
+            axes_pt[row, 0].set_ylabel(r"$u_y$ [mm]")
+            axes_pt[row, 0].set_title(title, fontweight="bold")
+            axes_pt[row, 0].grid(ls="--", alpha=0.6)
+            axes_pt[row, 0].legend(loc="upper right", fontsize="small")
+            axes_pt[row, 1].plot(x, th_fem, color=COLORS[row], linestyle="-", label=f"FEM job_{job_id:04d}")
+            axes_pt[row, 1].plot(x_ana, th_ana, "k--", label="Roark Timoshenko")
+            axes_pt[row, 1].set_ylabel(r"$\theta_z$ [deg]")
+            axes_pt[row, 1].set_title(title, fontweight="bold")
+            axes_pt[row, 1].grid(ls="--", alpha=0.6)
+            axes_pt[row, 1].legend(loc="upper right", fontsize="small")
+        axes_pt[-1, 0].set_xlabel(r"$x$ [m]")
+        axes_pt[-1, 1].set_xlabel(r"$x$ [m]")
+        fig_pt.tight_layout()
+        fig_pt.subplots_adjust(top=0.92)
+        fig_pt.savefig(out_dir / "roark_verification_point_loads_timoshenko.png", dpi=300)
+        plt.close(fig_pt)
+        print(f"Saved: {out_dir / 'roark_verification_point_loads_timoshenko.png'}")
+
+        # Distributed loads Timoshenko
+        fig_dt, axes_dt = plt.subplots(3, 2, figsize=(14, 10), sharex=True)
+        fig_dt.suptitle("Roark verification: distributed loads (Timoshenko jobs 9–11)", fontsize=14, fontweight="bold")
+        for row, (job_id, title, roark_type) in enumerate(DIST_LOAD_CASES_TIMS):
+            if job_id not in job_to_result:
+                continue
+            csv_file, job_dir, job_input_name = job_to_result[job_id]
+            grid_file = jobs_dir / job_input_name / "grid.txt"
+            if not grid_file.is_file():
+                continue
+            U = _read_U_global(csv_file)
+            if U is None:
+                continue
+            grid = GridParser(str(grid_file), str(jobs_dir / job_input_name)).parse()
+            try:
+                node_coords = _get_node_coordinates(grid)
+            except Exception:
+                continue
+            x = node_coords[:, 0]
+            if x.shape[0] != U.shape[0]:
+                continue
+            L = float(np.max(x))
+            order = np.argsort(x)
+            x_sorted = x[order]
+            roark_at_nodes = timoshenko_distributed_load_response(x_sorted, L, E, I_z, w_dist, A, G, roark_type, K_S)
+            uy_roark = np.interp(x, x_sorted, roark_at_nodes["deflection"] * 1000)
+            th_roark = np.interp(x, x_sorted, np.degrees(roark_at_nodes["rotation"]))
+            uy_fem = U[:, 1] * 1000 * scale
+            th_fem = np.degrees(U[:, 5]) * scale
+            x_ana = _analytical_grid(x.shape[0], L)
+            x_ana_sorted = np.sort(x_ana)
+            roark_fine = timoshenko_distributed_load_response(x_ana_sorted, L, E, I_z, w_dist, A, G, roark_type, K_S)
+            uy_ana = np.interp(x_ana, x_ana_sorted, roark_fine["deflection"] * 1000)
+            th_ana = np.interp(x_ana, x_ana_sorted, np.degrees(roark_fine["rotation"]))
+            axes_dt[row, 0].plot(x, uy_fem, color=COLORS[row], linestyle="-", label=f"FEM job_{job_id:04d}")
+            axes_dt[row, 0].plot(x_ana, uy_ana, "k--", label="Roark Timoshenko")
+            axes_dt[row, 0].set_ylabel(r"$u_y$ [mm]")
+            axes_dt[row, 0].set_title(title, fontweight="bold")
+            axes_dt[row, 0].grid(ls="--", alpha=0.6)
+            axes_dt[row, 0].legend(loc="upper right", fontsize="small")
+            axes_dt[row, 1].plot(x, th_fem, color=COLORS[row], linestyle="-", label=f"FEM job_{job_id:04d}")
+            axes_dt[row, 1].plot(x_ana, th_ana, "k--", label="Roark Timoshenko")
+            axes_dt[row, 1].set_ylabel(r"$\theta_z$ [deg]")
+            axes_dt[row, 1].set_title(title, fontweight="bold")
+            axes_dt[row, 1].grid(ls="--", alpha=0.6)
+            axes_dt[row, 1].legend(loc="upper right", fontsize="small")
+        axes_dt[-1, 0].set_xlabel(r"$x$ [m]")
+        axes_dt[-1, 1].set_xlabel(r"$x$ [m]")
+        fig_dt.tight_layout()
+        fig_dt.subplots_adjust(top=0.92)
+        fig_dt.savefig(out_dir / "roark_verification_distributed_loads_timoshenko.png", dpi=300)
+        plt.close(fig_dt)
+        print(f"Saved: {out_dir / 'roark_verification_distributed_loads_timoshenko.png'}")
+
     print("Roark verification done.")
 
 

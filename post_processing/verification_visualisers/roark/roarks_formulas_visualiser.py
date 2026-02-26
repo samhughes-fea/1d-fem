@@ -1,4 +1,4 @@
-# post_processing/verification_visualisers/roarks_formulas/roarks_formulas_visualiser.py
+# post_processing/verification_visualisers/roarks_formulas_visualiser.py
 
 import os
 import sys
@@ -10,10 +10,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(SCRIPT_DIR))
+sys.path.insert(0, str(SCRIPT_DIR / "roark_utilities"))
 
-from roarks_formulas_point import RoarksFormulaePointLoad
-from roarks_formulas_distributed import RoarksFormulaeDistributedLoad
+from roarks_formulas_euler_bernoulli_point import RoarksFormulaePointLoad
+from roarks_formulas_euler_bernoulli_distributed import RoarksFormulaeDistributedLoad
 
 class RoarkVisualiser:
     """
@@ -242,7 +242,7 @@ if __name__ == "__main__":
     L = 2.0            # [m]
     E = 2.0e11         # [Pa] (steel)
     I = 1.6667e-5      # [m⁴] (rectangular section)
-    save_dir = str(SCRIPT_DIR / "plots")
+    save_dir = str(SCRIPT_DIR / "deformation_plots")
 
     # Create visualizer
     visualizer = RoarkVisualiser(L, E, I, save_dir)

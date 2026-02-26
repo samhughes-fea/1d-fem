@@ -1,4 +1,4 @@
-# post_processing/verification_visualisers/deflection_tables/deformation_convergence.py
+# post_processing/verification_visualisers/deformation_convergence.py
 
 import glob
 import re
@@ -21,19 +21,28 @@ PROJECT_ROOT: Final[Path] = next(
     SCRIPT_DIR.parents[4],
 )
 sys.path.append(str(PROJECT_ROOT))
-sys.path.insert(0, str(SCRIPT_DIR.parent / "roarks_formulas"))
+sys.path.insert(0, str(SCRIPT_DIR / "roark_utilities"))
 
 from pre_processing.parsing.grid_parser import GridParser  # type: ignore
-from roarks_formulas_point import roark_point_load_response  # type: ignore
-from roarks_formulas_distributed import roark_distributed_load_response  # type: ignore
+from roarks_formulas_euler_bernoulli_point import roark_point_load_response  # type: ignore
+from roarks_formulas_euler_bernoulli_distributed import roark_distributed_load_response  # type: ignore
+from roarks_formulas_timoshenko_point import timoshenko_point_load_response  # type: ignore
+from roarks_formulas_timoshenko_distributed import timoshenko_distributed_load_response  # type: ignore
 
 # Beam parameters (must match job material/section and gci_richardson_roark_report)
 E: Final[float] = 2.1e11  # Pa
 I_z: Final[float] = 2.08769e-06  # m^4
 P_point: Final[float] = -500.0  # N
 w_dist: Final[float] = 500.0  # N/m
+# Timoshenko (match shear_deformable_verification / mesh section)
+A: Final[float] = 0.00131  # m^2
+G: Final[float] = 8.1e10  # Pa
+K_S: Final[float] = 5.0 / 6.0
 ROARK_LOAD_TYPE: Final[dict[int, str]] = {0: "end", 1: "mid", 2: "quarter"}
-DIST_JOBS_ROARK_TYPE: Final[dict[int, str]] = {5: "udl", 6: "triangular", 7: "parabolic"}
+DIST_JOBS_ROARK_TYPE: Final[dict[int, str]] = {3: "udl", 4: "triangular", 5: "parabolic"}
+# Timoshenko job 6–11: point 6,7,8 and distributed 9,10,11
+ROARK_LOAD_TYPE_TIMS: Final[dict[int, str]] = {6: "end", 7: "mid", 8: "quarter"}
+DIST_JOBS_ROARK_TYPE_TIMS: Final[dict[int, str]] = {9: "udl", 10: "triangular", 11: "parabolic"}
 
 
 def _roark_uy_theta_at_x(x: np.ndarray, L: float, job_id: int) -> tuple[np.ndarray, np.ndarray]:
@@ -44,11 +53,29 @@ def _roark_uy_theta_at_x(x: np.ndarray, L: float, job_id: int) -> tuple[np.ndarr
 
 
 def _roark_uy_theta_distributed_at_x(x: np.ndarray, L: float, job_id: int) -> tuple[np.ndarray, np.ndarray]:
-    """Roark deflection [m] and rotation [rad] at node x for distributed-load job_id (5,6,7)."""
+    """Roark deflection [m] and rotation [rad] at node x for distributed-load job_id (3,4,5)."""
     roark_type = DIST_JOBS_ROARK_TYPE[job_id]
     order = np.argsort(x)
     x_sorted = x[order]
     roark = roark_distributed_load_response(x_sorted, L, E, I_z, w_dist, roark_type)
+    uy = np.interp(x, x_sorted, roark["deflection"])
+    th = np.interp(x, x_sorted, roark["rotation"])
+    return uy, th
+
+
+def _timoshenko_uy_theta_point_at_x(x: np.ndarray, L: float, job_id: int) -> tuple[np.ndarray, np.ndarray]:
+    """Timoshenko Roark deflection [m] and rotation [rad] at x for point-load job_id (6,7,8)."""
+    load_type = ROARK_LOAD_TYPE_TIMS[job_id]
+    roark = timoshenko_point_load_response(x, L, E, I_z, P_point, A, G, K_S, load_type)
+    return roark["deflection"], roark["rotation"]
+
+
+def _timoshenko_uy_theta_distributed_at_x(x: np.ndarray, L: float, job_id: int) -> tuple[np.ndarray, np.ndarray]:
+    """Timoshenko Roark deflection [m] and rotation [rad] at x for distributed-load job_id (9,10,11)."""
+    roark_type = DIST_JOBS_ROARK_TYPE_TIMS[job_id]
+    order = np.argsort(x)
+    x_sorted = x[order]
+    roark = timoshenko_distributed_load_response(x_sorted, L, E, I_z, w_dist, A, G, roark_type, K_S)
     uy = np.interp(x, x_sorted, roark["deflection"])
     th = np.interp(x, x_sorted, roark["rotation"])
     return uy, th
@@ -270,9 +297,9 @@ class VisualiseDeformationConvergence:
             (0, "End"),
             (1, "Mid-span"),
             (2, "Quarter"),
-            (5, "UDL"),
-            (6, "Triangular"),
-            (7, "Parabolic"),
+            (3, "UDL"),
+            (4, "Triangular"),
+            (5, "Parabolic"),
         ]
         fig_1x2, axes_1x2 = plt.subplots(1, 2, figsize=(12, 5), sharex=True)
         fig_1x2.suptitle(
@@ -326,6 +353,69 @@ class VisualiseDeformationConvergence:
         fig_1x2.savefig(path_1x2, dpi=300)
         plt.close(fig_1x2)
         print(f"Saved: {path_1x2}")
+
+        # 1×2 Timoshenko: u_y and θ_z, all six Timoshenko load cases (6–11) overlaid vs Roark Timoshenko
+        all_load_cases_tims = [
+            (6, "End"),
+            (7, "Mid-span"),
+            (8, "Quarter"),
+            (9, "UDL"),
+            (10, "Triangular"),
+            (11, "Parabolic"),
+        ]
+        if any(job_id in job_to_result for job_id, _ in all_load_cases_tims):
+            fig_tims, axes_tims = plt.subplots(1, 2, figsize=(12, 5), sharex=True)
+            fig_tims.suptitle(
+                r"$u_y$ and $\theta_z$: Timoshenko jobs 6–11 vs Roark Timoshenko",
+                fontsize=14,
+                fontweight="bold",
+            )
+            for col, (dof_idx, ylabel) in enumerate([(1, r"$u_y$ [mm]"), (5, r"$\theta_z$ [deg]")]):
+                ax = axes_tims[col]
+                for load_idx, (job_id, title) in enumerate(all_load_cases_tims):
+                    if job_id not in job_to_result:
+                        continue
+                    csv_file, _job_dir, job_input_name = job_to_result[job_id]
+                    grid_file = self.jobs_dir / job_input_name / "grid.txt"
+                    if not grid_file.is_file():
+                        continue
+                    U = self._read_U_global(csv_file)
+                    if U is None:
+                        continue
+                    grid = GridParser(str(grid_file), str(self.jobs_dir / job_input_name)).parse()
+                    try:
+                        node_coords = self._get_node_coordinates(grid)
+                    except Exception:
+                        continue
+                    x = node_coords[:, 0]
+                    if x.shape[0] != U.shape[0]:
+                        continue
+                    L = float(np.max(x))
+                    color = self._COLORS_6[load_idx % len(self._COLORS_6)]
+                    if dof_idx == 1:
+                        vals = U[:, 1] * 1000 * scale
+                    else:
+                        vals = np.degrees(U[:, 5]) * scale
+                    ax.plot(x, vals, color=color, linestyle="-", label=f"job_{job_id:04d} ({title})")
+                    if job_id in ROARK_LOAD_TYPE_TIMS:
+                        uy_r, th_r = _timoshenko_uy_theta_point_at_x(x, L, job_id)
+                    else:
+                        uy_r, th_r = _timoshenko_uy_theta_distributed_at_x(x, L, job_id)
+                    if dof_idx == 1:
+                        ax.plot(x, uy_r * 1000, "k--", label="Roark Timoshenko" if load_idx == 0 else None)
+                    else:
+                        ax.plot(x, np.degrees(th_r), "k--", label="Roark Timoshenko" if load_idx == 0 else None)
+                ax.set_ylabel(ylabel)
+                ax.grid(ls="--", alpha=0.6)
+                ax.legend(loc="lower left", fontsize="small")
+            axes_tims[0].set_xlabel(r"$x$ [m]")
+            axes_tims[1].set_xlabel(r"$x$ [m]")
+            fig_tims.tight_layout()
+            fig_tims.subplots_adjust(top=0.88)
+            path_tims = self.figure_output_dir / "deformation_convergence_uy_theta_all_loads_timoshenko.png"
+            fig_tims.savefig(path_tims, dpi=300)
+            plt.close(fig_tims)
+            print(f"Saved: {path_tims}")
 
         # CSV export: FEM vs Roark and divergence analysis
         csv_rows: list[list[float]] = []

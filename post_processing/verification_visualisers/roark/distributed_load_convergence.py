@@ -1,11 +1,10 @@
-# post_processing/verification_visualisers/deflection_tables/distributed_load_convergence.py
+# post_processing/verification_visualisers/distributed_load_convergence.py
 """
 Distributed-load deformation convergence: compute error vs mesh density (n_elements).
 
-Discovers result dirs matching job_XXXX_nX (base 5, 6, 7 = UDL, triangular, parabolic),
+Discovers result dirs matching job_XXXX_nX (base 3, 4, 5 = UDL, triangular, parabolic),
 computes max |u_y − u_roark| and RMS at node positions, and writes CSV.
-Requires job input dirs job_0005_n4, job_0005_n8, job_0005_n16, job_0005_n100 (and
-similarly for 0006, 0007). Run jobs first, then this script from project root.
+Requires job input dirs job_0003_n4, n8, n16, n32, n64, n128 (and similarly for 0004, 0005). Run jobs first, then this script from project root.
 """
 
 import glob
@@ -22,23 +21,19 @@ PROJECT_ROOT: Final[Path] = next(
     SCRIPT_DIR.parents[4],
 )
 sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(SCRIPT_DIR.parent / "roarks_formulas"))
+sys.path.insert(0, str(SCRIPT_DIR / "roark_utilities"))
 
 from pre_processing.parsing.grid_parser import GridParser  # type: ignore
-
-# Import Roark distributed (script lives in roarks_formulas one level up in verification_visualisers)
-_roarks = SCRIPT_DIR.parent / "roarks_formulas"
-sys.path.insert(0, str(_roarks))
-from roarks_formulas_distributed import roark_distributed_load_response  # type: ignore
+from roarks_formulas_euler_bernoulli_distributed import roark_distributed_load_response  # type: ignore
 
 E: Final[float] = 2.0e11   # Pa
 I_z: Final[float] = 2.08769e-06  # m^4
 w_dist: Final[float] = 500.0  # N/m
 
 DIST_LOAD_CASES: Final[list[tuple[int, str, str]]] = [
-    (5, "UDL", "udl"),
-    (6, "Triangular", "triangular"),
-    (7, "Parabolic", "parabolic"),
+    (3, "UDL", "udl"),
+    (4, "Triangular", "triangular"),
+    (5, "Parabolic", "parabolic"),
 ]
 
 
@@ -72,7 +67,7 @@ def run_distributed_convergence() -> None:
 
     pattern = str(results_dir / "job_*" / "primary_results" / "global" / "U_global.csv")
     csv_files = sorted(glob.glob(pattern))
-    # Collect (base_id, n, csv_file, result_dir_name) for base_id in (5,6,7)
+    # Collect (base_id, n, csv_file, result_dir_name) for base_id in (3,4,5)
     runs: list[tuple[int, int, Path, str]] = []
     for csv_path in csv_files:
         csv_file = Path(csv_path)
@@ -83,13 +78,13 @@ def run_distributed_convergence() -> None:
             continue
         base_id = int(m.group("id"))
         n = int(m.group("n"))
-        if base_id not in (5, 6, 7):
+        if base_id not in (3, 4, 5):
             continue
         job_input_name = f"job_{base_id:04d}_n{n}"
         runs.append((base_id, n, csv_file, job_input_name))
 
     if not runs:
-        print("No distributed-load result dirs (job_0005_n*, job_0006_n*, job_0007_n*) found. Run jobs first.")
+        print("No distributed-load result dirs (job_0003_n*, job_0004_n*, job_0005_n*) found. Run jobs first.")
         return
 
     # For each (base_id, n) compute max |u_y - u_roark| and RMS

@@ -1,4 +1,4 @@
-# post_processing/verification_visualisers/roarks_formulas/roarks_formulas_point.py
+# post_processing/verification_visualisers/roark_utilities/roarks_formulas_euler_bernoulli_point.py
 
 import numpy as np
 

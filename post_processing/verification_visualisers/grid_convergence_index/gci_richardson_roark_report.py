@@ -3,9 +3,9 @@
 GCI (Grid Convergence Index) and Richardson extrapolation report for Roark vs FEM
 tip deflection and tip rotation.
 
-Uses three mesh levels (n=25, 50, 100) for jobs 0,1,2 (point load) and 5,6,7 (distributed).
-Outputs CSV, LaTeX table (.tex), PDF report, and console summary. Requires result dirs job_XXXX_n25, n50, n100.
-Run from project root: python post_processing/verification_visualisers/deflection_tables/gci_richardson_roark_report.py
+Uses three mesh levels (n=32, 64, 128) for jobs 0,1,2 (point load) and 3,4,5 (distributed).
+Outputs CSV, LaTeX table (.tex), PDF report, and console summary. Requires result dirs job_XXXX_n32, n64, n128.
+Run from project root: python post_processing/verification_visualisers/grid_convergence_index/gci_richardson_roark_report.py
 """
 from __future__ import annotations
 
@@ -25,11 +25,11 @@ PROJECT_ROOT: Final[Path] = next(
     SCRIPT_DIR.parents[4],
 )
 sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(SCRIPT_DIR.parent / "roarks_formulas"))
+sys.path.insert(0, str(SCRIPT_DIR.parent / "roark" / "roark_utilities"))
 
 from pre_processing.parsing.grid_parser import GridParser  # type: ignore
-from roarks_formulas_point import roark_point_load_response  # type: ignore
-from roarks_formulas_distributed import roark_distributed_load_response  # type: ignore
+from roarks_formulas_euler_bernoulli_point import roark_point_load_response  # type: ignore
+from roarks_formulas_euler_bernoulli_distributed import roark_distributed_load_response  # type: ignore
 
 # Beam parameters (must match job material/section: E from material.txt, I_z from section.txt)
 E: Final[float] = 2.1e11  # Pa (job files use 2.1e11; 2.0e11 would give ~4.76% systematic error vs FEM)
@@ -37,8 +37,8 @@ I_z: Final[float] = 2.08769e-06  # m^4
 P_point: Final[float] = -500.0  # N
 w_dist: Final[float] = 500.0  # N/m
 
-# Three-grid levels: fine n=100, medium n=50, coarse n=25; refinement ratio r = 2
-N_FINE, N_MED, N_COARSE = 100, 50, 25
+# Three-grid levels: fine n=128, medium n=64, coarse n=32; refinement ratio r = 2
+N_FINE, N_MED, N_COARSE = 128, 64, 32
 R: Final[float] = 2.0
 F_S: Final[float] = 1.25  # three-grid safety factor
 
@@ -48,9 +48,9 @@ POINT_JOBS: Final[list[tuple[int, str, str]]] = [
     (2, "Quarter-span", "quarter"),
 ]
 DIST_JOBS: Final[list[tuple[int, str, str]]] = [
-    (5, "UDL", "udl"),
-    (6, "Triangular", "triangular"),
-    (7, "Parabolic", "parabolic"),
+    (3, "UDL", "udl"),
+    (4, "Triangular", "triangular"),
+    (5, "Parabolic", "parabolic"),
 ]
 
 
@@ -123,7 +123,7 @@ def _write_latex_table(out_dir: Path, rows: list[dict]) -> None:
         "\\medskip",
         "\\raggedright",
         "\\small",
-        "\\textbf{Note.} Grids: $n_1=100$, $n_2=50$, $n_3=25$ elements; refinement ratio $r=2$; "
+        "\\textbf{Note.} Grids: $n_1=128$, $n_2=64$, $n_3=32$ elements; refinement ratio $r=2$; "
         "safety factor $F_s=1.25$ (three-grid): we use the standard three-grid GCI formula, and the factor 1.25 is the one recommended for that case. "
         "$\\phi_1$ = fine-grid solution; $p$ = apparent order ($p_\\mathrm{th}=2$). "
         "$\\Delta(\\phi_1,\\mathrm{Roark}) = 100(\\phi_1-\\mathrm{Roark})/\\mathrm{Roark}$; $\\phi_\\mathrm{rich}$ = Richardson extrapolate. "
@@ -215,7 +215,7 @@ def _richardson_gci(
     phi_fine: float, phi_med: float, phi_coarse: float
 ) -> tuple[float, float, float, float]:
     """
-    Three-grid Richardson and GCI. phi_fine = value at n=100, phi_med at n=50, phi_coarse at n=25.
+    Three-grid Richardson and GCI. phi_fine = value at n=128, phi_med at n=64, phi_coarse at n=32.
     Returns (p_obs, phi_ext, gci_12_pct, gci_23_pct). GCI_12 on fine grid, GCI_23 on medium.
     """
     e21 = phi_med - phi_fine
@@ -251,7 +251,7 @@ def _richardson_gci(
 def _run_report() -> None:
     results_dir = PROJECT_ROOT / "post_processing" / "results"
     jobs_dir = PROJECT_ROOT / "jobs"
-    out_dir = SCRIPT_DIR / "gci_richardson"
+    out_dir = SCRIPT_DIR / "gci_tables"
     out_dir.mkdir(exist_ok=True)
 
     pattern = str(results_dir / "job_*" / "primary_results" / "global" / "U_global.csv")
@@ -267,7 +267,7 @@ def _run_report() -> None:
             continue
         base_id = int(m.group("id"))
         n = int(m.group("n"))
-        if base_id not in (0, 1, 2, 5, 6, 7):
+        if base_id not in (0, 1, 2, 3, 4, 5):
             continue
         job_input_name = f"job_{base_id:04d}_n{n}"
         by_base.setdefault(base_id, []).append((n, csv_file, job_input_name))
@@ -373,7 +373,7 @@ def _run_report() -> None:
                 })
 
     if not rows:
-        print("No GCI/Richardson data (need job_0000_n25,n50,n100, job_0001_n25,n50,n100, job_0002_n25,n50,n100, job_0005_n25,n50,n100, job_0006_n25,n50,n100, job_0007_n25,n50,n100).")
+        print("No GCI/Richardson data (need job_0000_n32,n64,n128, job_0001_..., job_0002_..., job_0003_n32,n64,n128, job_0004_..., job_0005_...).")
         return
 
     # CSV

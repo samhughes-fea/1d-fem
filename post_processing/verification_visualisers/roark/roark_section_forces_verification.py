@@ -1,10 +1,10 @@
-# post_processing/verification_visualisers/roarks_formulas/roark_section_forces_verification.py
+# post_processing/verification_visualisers/roark_section_forces_verification.py
 """
 FEM vs Roark section forces (V, M) verification.
 
 Loads FEM section forces from tertiary_results (nodal or gaussian) and compares
 Vy (shear) and Mz (bending moment) to Roark's V(x), M(x) for the same jobs as
-roark_verification.py: point job_0000–0002, distributed job_0005–0007.
+roark_verification.py: point job_0000–0002, distributed job_0003–0005.
 Output: overlay plots and CSV (FEM vs Roark, errors).
 """
 
@@ -25,13 +25,13 @@ PROJECT_ROOT: Final[Path] = next(
     SCRIPT_DIR.parents[4],
 )
 sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(SCRIPT_DIR))
+sys.path.insert(0, str(SCRIPT_DIR / "roark_utilities"))
 
 from pre_processing.parsing.grid_parser import GridParser  # type: ignore
 from pre_processing.parsing.element_parser import ElementParser  # type: ignore
 
-from roarks_formulas_point import roark_point_load_response  # type: ignore
-from roarks_formulas_distributed import roark_distributed_load_response  # type: ignore
+from roarks_formulas_euler_bernoulli_point import roark_point_load_response  # type: ignore
+from roarks_formulas_euler_bernoulli_distributed import roark_distributed_load_response  # type: ignore
 
 # Beam and load parameters (match roark_verification.py)
 E: Final[float] = 2.0e11   # Pa
@@ -49,9 +49,20 @@ POINT_LOAD_CASES: Final[list[tuple[int, str, float]]] = [
     (2, "Quarter-span", 0.25),
 ]
 DIST_LOAD_CASES: Final[list[tuple[int, str, str]]] = [
-    (5, "UDL", "udl"),
-    (6, "Triangular", "triangular"),
-    (7, "Parabolic", "parabolic"),
+    (3, "UDL", "udl"),
+    (4, "Triangular", "triangular"),
+    (5, "Parabolic", "parabolic"),
+]
+# Timoshenko jobs 6–11 (V, M same as E–B Roark)
+POINT_LOAD_CASES_TIMS: Final[list[tuple[int, str, str]]] = [
+    (6, "End", "end"),
+    (7, "Mid-span", "mid"),
+    (8, "Quarter-span", "quarter"),
+]
+DIST_LOAD_CASES_TIMS: Final[list[tuple[int, str, str]]] = [
+    (9, "UDL", "udl"),
+    (10, "Triangular", "triangular"),
+    (11, "Parabolic", "parabolic"),
 ]
 
 COLORS: Final[list[str]] = ["#4F81BD", "#C0504D", "#9BBB59", "#8064A2", "#4BACC6"]
@@ -150,7 +161,7 @@ def _gather_section_forces_from_gaussian(
 def run_section_forces_verification() -> None:
     results_dir: Path = PROJECT_ROOT / "post_processing" / "results"
     jobs_dir: Path = PROJECT_ROOT / "jobs"
-    out_dir: Path = SCRIPT_DIR / "verification"
+    out_dir: Path = SCRIPT_DIR / "section_forces_plots"
     out_dir.mkdir(exist_ok=True)
 
     pattern = str(results_dir / "job_*" / "primary_results" / "global" / "U_global.csv")
@@ -390,6 +401,137 @@ def run_section_forces_verification() -> None:
     fig_dist.savefig(out_dir / "roark_section_forces_distributed_loads.png", dpi=300)
     plt.close(fig_dist)
     print(f"Saved: {out_dir / 'roark_section_forces_distributed_loads.png'}")
+
+    # ----- Timoshenko jobs 6–11: section forces (V, M same as Roark E–B) -----
+    if any(job_id in job_to_result for job_id, _, _ in POINT_LOAD_CASES_TIMS + DIST_LOAD_CASES_TIMS):
+        fig_pt, axes_pt = plt.subplots(3, 2, figsize=(14, 10), sharex=True)
+        fig_pt.suptitle("Roark section forces: point loads (Timoshenko jobs 6–8)", fontsize=14, fontweight="bold")
+        for row, (job_id, title, load_type) in enumerate(POINT_LOAD_CASES_TIMS):
+            if job_id not in job_to_result:
+                continue
+            _, job_dir, job_input_name = job_to_result[job_id]
+            grid_file = jobs_dir / job_input_name / "grid.txt"
+            if not grid_file.is_file():
+                continue
+            grid = GridParser(str(grid_file), str(jobs_dir / job_input_name)).parse()
+            try:
+                node_coords = _get_node_coordinates(grid)
+            except Exception:
+                continue
+            x = node_coords[:, 0]
+            n_nodes = x.shape[0]
+            L = float(np.max(x))
+            nodal_csv = job_dir / "tertiary_results" / "nodal" / "nodal_section_forces.csv"
+            if nodal_csv.is_file():
+                forces = _read_nodal_section_forces(nodal_csv)
+                if forces is None or forces.shape[0] != n_nodes:
+                    forces = None
+                else:
+                    x_fem, forces_fem = x, forces
+            else:
+                forces = None
+            if forces is None:
+                element_file = jobs_dir / job_input_name / "element.txt"
+                if not element_file.is_file():
+                    continue
+                elem_parsed = ElementParser(str(element_file), str(jobs_dir / job_input_name)).parse()
+                grid_dict = grid["grid_dictionary"] if isinstance(grid, dict) else {}
+                out = _gather_section_forces_from_gaussian(job_dir, elem_parsed["element_dictionary"], grid_dict, n_nodes)
+                if out is None:
+                    continue
+                x_fem, forces_fem = out
+            else:
+                x_fem, forces_fem = x, forces
+            V_fem = forces_fem[:, IDX_VY]
+            M_fem = forces_fem[:, IDX_MZ]
+            roark_at_nodes = roark_point_load_response(x_fem, L, E, I_z, P_point, load_type)
+            x_ana = _analytical_grid(x_fem.shape[0], L)
+            roark_fine = roark_point_load_response(x_ana, L, E, I_z, P_point, load_type)
+            axes_pt[row, 0].plot(x_fem, V_fem, color=COLORS[row], linestyle="-", label=f"FEM job_{job_id:04d}")
+            axes_pt[row, 0].plot(x_ana, roark_fine["shear"], "k--", label="Roark")
+            axes_pt[row, 0].set_ylabel(r"$V_y$ [N]")
+            axes_pt[row, 0].set_title(title, fontweight="bold")
+            axes_pt[row, 0].grid(ls="--", alpha=0.6)
+            axes_pt[row, 0].legend(loc="upper right", fontsize="small")
+            axes_pt[row, 1].plot(x_fem, M_fem, color=COLORS[row], linestyle="-", label=f"FEM job_{job_id:04d}")
+            axes_pt[row, 1].plot(x_ana, roark_fine["moment"], "k--", label="Roark")
+            axes_pt[row, 1].set_ylabel(r"$M_z$ [N·m]")
+            axes_pt[row, 1].set_title(title, fontweight="bold")
+            axes_pt[row, 1].grid(ls="--", alpha=0.6)
+            axes_pt[row, 1].legend(loc="upper right", fontsize="small")
+        axes_pt[-1, 0].set_xlabel(r"$x$ [m]")
+        axes_pt[-1, 1].set_xlabel(r"$x$ [m]")
+        fig_pt.tight_layout()
+        fig_pt.subplots_adjust(top=0.92)
+        fig_pt.savefig(out_dir / "roark_section_forces_point_loads_timoshenko.png", dpi=300)
+        plt.close(fig_pt)
+        print(f"Saved: {out_dir / 'roark_section_forces_point_loads_timoshenko.png'}")
+
+        fig_dt, axes_dt = plt.subplots(3, 2, figsize=(14, 10), sharex=True)
+        fig_dt.suptitle("Roark section forces: distributed loads (Timoshenko jobs 9–11)", fontsize=14, fontweight="bold")
+        for row, (job_id, title, roark_type) in enumerate(DIST_LOAD_CASES_TIMS):
+            if job_id not in job_to_result:
+                continue
+            _, job_dir, job_input_name = job_to_result[job_id]
+            grid_file = jobs_dir / job_input_name / "grid.txt"
+            if not grid_file.is_file():
+                continue
+            grid = GridParser(str(grid_file), str(jobs_dir / job_input_name)).parse()
+            try:
+                node_coords = _get_node_coordinates(grid)
+            except Exception:
+                continue
+            x = node_coords[:, 0]
+            n_nodes = x.shape[0]
+            L = float(np.max(x))
+            nodal_csv = job_dir / "tertiary_results" / "nodal" / "nodal_section_forces.csv"
+            if nodal_csv.is_file():
+                forces = _read_nodal_section_forces(nodal_csv)
+                if forces is not None and forces.shape[0] == n_nodes:
+                    x_fem, forces_fem = x, forces
+                else:
+                    forces = None
+            else:
+                forces = None
+            if forces is None:
+                element_file = jobs_dir / job_input_name / "element.txt"
+                if not element_file.is_file():
+                    continue
+                elem_parsed = ElementParser(str(element_file), str(jobs_dir / job_input_name)).parse()
+                grid_dict = grid["grid_dictionary"] if isinstance(grid, dict) else {}
+                out = _gather_section_forces_from_gaussian(job_dir, elem_parsed["element_dictionary"], grid_dict, n_nodes)
+                if out is None:
+                    continue
+                x_fem, forces_fem = out
+            else:
+                x_fem, forces_fem = x, forces
+            V_fem = forces_fem[:, IDX_VY]
+            M_fem = forces_fem[:, IDX_MZ]
+            order = np.argsort(x_fem)
+            x_sorted = x_fem[order]
+            roark_at_nodes = roark_distributed_load_response(x_sorted, L, E, I_z, w_dist, roark_type)
+            x_ana = _analytical_grid(x_fem.shape[0], L)
+            x_ana_sorted = np.sort(x_ana)
+            roark_fine = roark_distributed_load_response(x_ana_sorted, L, E, I_z, w_dist, roark_type)
+            axes_dt[row, 0].plot(x_fem, V_fem, color=COLORS[row], linestyle="-", label=f"FEM job_{job_id:04d}")
+            axes_dt[row, 0].plot(x_ana, np.interp(x_ana, x_ana_sorted, roark_fine["shear"]), "k--", label="Roark")
+            axes_dt[row, 0].set_ylabel(r"$V_y$ [N]")
+            axes_dt[row, 0].set_title(title, fontweight="bold")
+            axes_dt[row, 0].grid(ls="--", alpha=0.6)
+            axes_dt[row, 0].legend(loc="upper right", fontsize="small")
+            axes_dt[row, 1].plot(x_fem, M_fem, color=COLORS[row], linestyle="-", label=f"FEM job_{job_id:04d}")
+            axes_dt[row, 1].plot(x_ana, np.interp(x_ana, x_ana_sorted, roark_fine["moment"]), "k--", label="Roark")
+            axes_dt[row, 1].set_ylabel(r"$M_z$ [N·m]")
+            axes_dt[row, 1].set_title(title, fontweight="bold")
+            axes_dt[row, 1].grid(ls="--", alpha=0.6)
+            axes_dt[row, 1].legend(loc="upper right", fontsize="small")
+        axes_dt[-1, 0].set_xlabel(r"$x$ [m]")
+        axes_dt[-1, 1].set_xlabel(r"$x$ [m]")
+        fig_dt.tight_layout()
+        fig_dt.subplots_adjust(top=0.92)
+        fig_dt.savefig(out_dir / "roark_section_forces_distributed_loads_timoshenko.png", dpi=300)
+        plt.close(fig_dt)
+        print(f"Saved: {out_dir / 'roark_section_forces_distributed_loads_timoshenko.png'}")
 
     if csv_rows:
         csv_path = out_dir / "roark_section_forces_verification_data.csv"

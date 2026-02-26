@@ -26,6 +26,11 @@ def _check_results_available() -> int:
 
 
 def main() -> None:
+    import argparse
+    parser = argparse.ArgumentParser(description="Run all verification visualisers")
+    parser.add_argument("--with-validation", action="store_true", help="Also run validation visualisers (FEM vs Abaqus comparison)")
+    args = parser.parse_args()
+
     # Pre-check: scripts need primary_results/global/U_global.csv from completed runs
     n_results = _check_results_available()
     results_dir = PROJECT_ROOT / "post_processing" / "results"
@@ -40,37 +45,70 @@ def main() -> None:
             "primary results exist, then run this script again. No .png files will be generated\n"
             "until then.\n"
         )
-        return
+        if not args.with_validation:
+            return
+        print("Proceeding with validation-only scripts.\n")
 
-    scripts = [
-        "deflection_tables/deformation_convergence.py",
-        "deflection_tables/distributed_load_convergence.py",
-        "deflection_tables/gci_richardson_roark_report.py",
-        "shear_deformable_verification.py",
-        "roarks_formulas/roark_verification.py",
-        "roarks_formulas/roark_section_forces_verification.py",
-    ]
-    for rel_path in scripts:
-        path = SCRIPT_DIR / rel_path
-        if not path.is_file():
-            print(f"Skip (not found): {rel_path}")
-            continue
-        print(f"\n--- {rel_path} ---")
-        try:
-            result = subprocess.run(
-                [sys.executable, str(path)],
-                cwd=str(PROJECT_ROOT),
-                capture_output=False,
-                timeout=120,
-            )
-            if result.returncode != 0:
-                print(f"Exit code: {result.returncode}")
-        except subprocess.TimeoutExpired:
-            print("Timed out after 120s")
-        except Exception as e:
-            print(f"Error: {e}")
-            import traceback
-            traceback.print_exc()
+    if n_results > 0:
+        scripts = [
+            "roark/deformation_convergence.py",
+            "roark/distributed_load_convergence.py",
+            "roark/roark_verification.py",
+            "roark/roark_section_forces_verification.py",
+            "grid_convergence_index/gci_richardson_roark_report.py",
+            "roark/shear_deformable_verification.py",
+        ]
+        for rel_path in scripts:
+            path = SCRIPT_DIR / rel_path
+            if not path.is_file():
+                print(f"Skip (not found): {rel_path}")
+                continue
+            print(f"\n--- {rel_path} ---")
+            try:
+                result = subprocess.run(
+                    [sys.executable, str(path)],
+                    cwd=str(PROJECT_ROOT),
+                    capture_output=False,
+                    timeout=120,
+                )
+                if result.returncode != 0:
+                    print(f"Exit code: {result.returncode}")
+            except subprocess.TimeoutExpired:
+                print("Timed out after 120s")
+            except Exception as e:
+                print(f"Error: {e}")
+                import traceback
+                traceback.print_exc()
+
+    if args.with_validation:
+        validation_scripts = [
+            "deflection_tables/deformation_comparison.py",
+            "deflection_tables/convergence_comparison.py",
+            "deflection_tables/gci_richardson_abaqus_report.py",
+            "section_forces/section_forces_comparison.py",
+        ]
+        validation_dir = SCRIPT_DIR.parent / "validation_visualisers"
+        for rel_path in validation_scripts:
+            path = validation_dir / rel_path
+            if not path.is_file():
+                print(f"Skip (not found): validation_visualisers/{rel_path}")
+                continue
+            print(f"\n--- validation_visualisers/{rel_path} ---")
+            try:
+                result = subprocess.run(
+                    [sys.executable, str(path)],
+                    cwd=str(PROJECT_ROOT),
+                    capture_output=False,
+                    timeout=120,
+                )
+                if result.returncode != 0:
+                    print(f"Exit code: {result.returncode}")
+            except subprocess.TimeoutExpired:
+                print("Timed out after 120s")
+            except Exception as e:
+                print(f"Error: {e}")
+                import traceback
+                traceback.print_exc()
     print("\nDone.")
 
 

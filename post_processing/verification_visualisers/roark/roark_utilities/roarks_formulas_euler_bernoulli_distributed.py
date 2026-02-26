@@ -1,4 +1,4 @@
-# post_processing/verification_visualisers/roarks_formulas/roarks_formulas_distributed.py
+# post_processing/verification_visualisers/roark_utilities/roarks_formulas_euler_bernoulli_distributed.py
 
 import numpy as np
 from scipy.integrate import cumulative_trapezoid
