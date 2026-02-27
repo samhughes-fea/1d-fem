@@ -4,6 +4,7 @@ Paths and element-type mapping for Abaqus validation.
 Used by job_to_abaqus_script.py and run_abaqus_cae.py.
 """
 import os
+import re
 from pathlib import Path
 
 # Resolve validation_visualisers dir (parent of abaqus/)
@@ -16,6 +17,12 @@ JOBS_DIR = PROJECT_ROOT / "jobs"
 FEM_RESULTS_DIR = PROJECT_ROOT / "post_processing" / "results"
 ABAQUS_GENERATED_DIR = _THIS_DIR / "generated"
 ABAQUS_RESULTS_DIR = VALIDATION_DIR / "abaqus_results"
+
+# Match timestamped FEM result dir: job_0000_n8_2026-02-22_..._pid123_abc
+# Used by discovery (run_all_abaqus_jobs --from-results) and comparison scripts.
+RESULT_DIR_PATTERN = re.compile(
+    r"job_(?P<base_id>\d+)_n(?P<n>\d+)_[\d\-_]+_pid\d+_[a-f0-9]+"
+)
 
 # Abaqus CAE installation root (e.g. C:\SIMULIA\CAE). If set, run_abaqus_cae uses this to find abaqus.bat.
 # Override with env ABAQUS_CAE_ROOT. If unset, ABAQUS_CAE_CMD falls back to "abaqus" on PATH.
@@ -58,3 +65,9 @@ ELEMENT_TYPE_MAP = {
 }
 # Unsupported for this validation (e.g. Levinson) are ignored or raise
 SUPPORTED_ELEMENT_TYPES = set(ELEMENT_TYPE_MAP.keys())
+
+# Abaqus mesh size used as converged reference (source of truth) for validation.
+# Comparison scripts use Abaqus at n=500 as the benchmark; FEM n128 (and GCI FEM n32,64,128) are compared to it.
+# Job dirs job_XXXX_n500 must exist (create via mesh variant scripts including n500) and be run in Abaqus.
+# To run the n500 batch: run_all_abaqus_jobs.py --n500-only (see README_VALIDATION_ABAQUS.md).
+ABAQUS_REFERENCE_N: int = 500

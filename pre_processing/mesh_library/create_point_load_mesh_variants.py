@@ -25,7 +25,7 @@ JOBS_DIR = REPO_ROOT / "jobs"
 L = 2.0  # m (must match mesh_generator default)
 P = -500.0  # N (Fy at load point)
 
-VARIANT_NS = [4, 8, 16, 32, 64, 128]
+VARIANT_NS = [4, 8, 16, 32, 64, 128, 500]  # n500 = Abaqus validation reference (converged)
 # (base_id, load_label, load_formula, x_position)
 BASE_JOBS = [
     (0, "End load", "P(x=L)", L),

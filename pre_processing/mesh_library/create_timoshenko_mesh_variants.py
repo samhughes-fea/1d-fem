@@ -27,7 +27,7 @@ L = 2.0  # m (must match mesh_generator default)
 P = -500.0  # N (Fy at load point)
 w = 500.0  # N/m
 
-VARIANT_NS = [4, 8, 16, 32, 64, 128]
+VARIANT_NS = [4, 8, 16, 32, 64, 128, 500]  # n500 = Abaqus validation reference (converged)
 # Point load: (base_id, label, formula, x_position)
 POINT_JOBS = [
     (6, "End load", "P(x=L)", L),
