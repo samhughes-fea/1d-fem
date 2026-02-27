@@ -11,6 +11,11 @@ matplotlib.use("Agg")  # Non-interactive backend so script saves and exits witho
 import matplotlib.pyplot as plt
 import numpy as np
 
+try:
+    from labellines import labelLines
+except ImportError:
+    labelLines = None  # optional: pip install matplotlib-label-lines
+
 # ---------------------------------------------------------------------------#
 #  Project paths
 # ---------------------------------------------------------------------------#
@@ -43,6 +48,36 @@ DIST_JOBS_ROARK_TYPE: Final[dict[int, str]] = {3: "udl", 4: "triangular", 5: "pa
 # Timoshenko job 6–11: point 6,7,8 and distributed 9,10,11
 ROARK_LOAD_TYPE_TIMS: Final[dict[int, str]] = {6: "end", 7: "mid", 8: "quarter"}
 DIST_JOBS_ROARK_TYPE_TIMS: Final[dict[int, str]] = {9: "udl", 10: "triangular", 11: "parabolic"}
+
+# Analytical expression (RHS only) for Roark u_y and θ_z, for labelLines. Key: (job_id, col) with col 0 = u_y, col 1 = θ_z.
+ROARK_FORMULA_EB: Final[dict[tuple[int, int], str]] = {
+    (0, 0): r"$\frac{Px^2(3L-x)}{6EI}$",
+    (0, 1): r"$\frac{Px(2L-x)}{2EI}$",
+    (1, 0): r"$\frac{Px^2(3a-x)}{6EI}$, $x<a$",
+    (1, 1): r"$\frac{Px(2a-x)}{2EI}$, $x<a$",
+    (2, 0): r"$\frac{Px^2(3a-x)}{6EI}$, $x<a$",
+    (2, 1): r"$\frac{Px(2a-x)}{2EI}$, $x<a$",
+    (3, 0): r"$\frac{w(L-x)^3(4L-x)}{24EI}$",
+    (3, 1): r"$\frac{w(L-x)^3}{6EI}$",
+    (4, 0): r"$\frac{w(L-x)^3(3L+2x)}{120EIL}$",
+    (4, 1): r"$\frac{w(L-x)^2(2L+x)}{12EIL}$",
+    (5, 0): r"$\frac{w(3L^4-4L^3x+x^4)(L-x)}{60EIL^2}$",
+    (5, 1): r"$\frac{w(3L^4-4L^3x+x^4)}{12EIL^2}$",
+}
+ROARK_FORMULA_TIMS: Final[dict[tuple[int, int], str]] = {
+    (6, 0): r"$\frac{Px^2(3L-x)}{6EI}+\frac{P(L-x)}{\kappa AG}$",
+    (6, 1): r"$\frac{Px(2L-x)}{2EI}$",
+    (7, 0): r"$\frac{Px^2(3a-x)}{6EI}+\frac{P\min(x,a)}{\kappa AG}$",
+    (7, 1): r"$\frac{Px(2a-x)}{2EI}$, $x<a$",
+    (8, 0): r"$\frac{Px^2(3a-x)}{6EI}+\frac{P\min(x,a)}{\kappa AG}$",
+    (8, 1): r"$\frac{Px(2a-x)}{2EI}$, $x<a$",
+    (9, 0): r"$\frac{w(L-x)^3(4L-x)}{24EI}+\frac{w(Lx-x^2/2)}{\kappa AG}$",
+    (9, 1): r"$\frac{w(L-x)^3}{6EI}$",
+    (10, 0): r"$\frac{w(L-x)^3(3L+2x)}{120EIL}+\frac{w(L^2x-x^3/3)}{2L\kappa AG}$",
+    (10, 1): r"$\frac{w(L-x)^2(2L+x)}{12EIL}$",
+    (11, 0): r"$\frac{w(3L^4-4L^3x+x^4)(L-x)}{60EIL^2}+\frac{w(L^3x-x^4/4)}{3L^2\kappa AG}$",
+    (11, 1): r"$\frac{w(3L^4-4L^3x+x^4)}{12EIL^2}$",
+}
 
 
 def _roark_uy_theta_at_x(x: np.ndarray, L: float, job_id: int) -> tuple[np.ndarray, np.ndarray]:
@@ -154,143 +189,12 @@ class VisualiseDeformationConvergence:
             _, csv_file, job_dir, job_input_name = candidates[0]
             job_to_result[base_id] = (csv_file, job_dir, job_input_name)
 
-        fig, axes = plt.subplots(3, 2, figsize=(15, 10), sharex=True)
-        fig.suptitle(
-            "Deformation convergence: point load at end / mid-span / quarter-span",
-            fontsize=16,
-            fontweight="bold",
-        )
-
-        # (job_id, a as fraction of L, row title)
+        # (job_id, a as fraction of L, row title) – used for CSV and per-job figures below
         load_cases = [
             (0, 1.0, "End load"),
             (1, 0.5, "Mid-span load"),
             (2, 0.25, "Quarter-span load"),
         ]
-
-        for row, (job_id, _a_frac, title) in enumerate(load_cases):
-            if job_id not in job_to_result:
-                print(f"WARNING: No result for job_{job_id:04d}, skipping row '{title}'.")
-                axes[row, 0].set_title(title, fontweight="bold")
-                axes[row, 1].set_visible(True)
-                continue
-
-            csv_file, job_dir, job_input_name = job_to_result[job_id]
-            grid_file = self.jobs_dir / job_input_name / "grid.txt"
-            if not grid_file.is_file():
-                print(f"WARNING: Missing grid file for job_{job_id:04d}, skipping row '{title}'.")
-                continue
-
-            U = self._read_U_global(csv_file)
-            if U is None:
-                print(f"WARNING: Failed to read displacements for job_{job_id:04d}, skipping.")
-                continue
-
-            grid = GridParser(str(grid_file), str(self.jobs_dir / job_input_name)).parse()
-            try:
-                node_coords = self._get_node_coordinates(grid)
-            except Exception as exc:
-                print(f"WARNING: {exc} for job_{job_id:04d}, skipping.")
-                continue
-
-            x = node_coords[:, 0]
-            if x.shape[0] != U.shape[0]:
-                print(f"ERROR: Mismatch x/U for job_{job_id:04d}, skipping.")
-                continue
-
-            L = float(np.max(x))
-
-            uy_mm = U[:, 1] * 1000 * scale
-            thetaz_deg = np.degrees(U[:, 5]) * scale
-
-            uy_roark_m, thetaz_roark_rad = _roark_uy_theta_at_x(x, L, job_id)
-            uy_roark_mm = uy_roark_m * 1000
-            thetaz_roark_deg = np.degrees(thetaz_roark_rad)
-
-            axes[row, 0].plot(x, uy_mm, color=self._COLORS[row], linestyle="-", label=f"FEM (job_{job_id:04d})")
-            axes[row, 0].plot(x, uy_roark_mm, "k--", label="Roark")
-            axes[row, 1].plot(x, thetaz_deg, color=self._COLORS[row], linestyle="-", label=f"FEM (job_{job_id:04d})")
-            axes[row, 1].plot(x, thetaz_roark_deg, "k--", label="Roark")
-
-            axes[row, 0].set_ylabel(r"$u_y$ [mm]")
-            axes[row, 1].set_ylabel(r"$\theta_z$ [deg]")
-            axes[row, 0].set_title(title, fontweight="bold")
-            axes[row, 1].set_title(title, fontweight="bold")
-            axes[row, 0].grid(ls="--", alpha=0.6)
-            axes[row, 1].grid(ls="--", alpha=0.6)
-            axes[row, 0].legend(loc="upper right", fontsize="small")
-            axes[row, 1].legend(loc="upper right", fontsize="small")
-
-        axes[-1, 0].set_xlabel(r"$x$ [m]")
-        axes[-1, 1].set_xlabel(r"$x$ [m]")
-
-        fig.tight_layout()
-        fig.subplots_adjust(top=0.92)
-
-        plot_path = self.figure_output_dir / "deformation_convergence_overlay.png"
-        fig.savefig(plot_path, dpi=300)
-        plt.close(fig)
-        print(f"Saved: {plot_path}")
-
-        # Single 2×3 subplot: all 6 deformation DOFs, all point-load jobs overlaid
-        fig_2x3, axes_2x3 = plt.subplots(2, 3, figsize=(15, 8), sharex=True)
-        fig_2x3.suptitle(
-            "Deformation DOFs: all point-load jobs (End / Mid-span / Quarter)",
-            fontsize=14,
-            fontweight="bold",
-        )
-        dof_specs = [
-            (0, r"$u_x$ [mm]", "disp"),
-            (1, r"$u_y$ [mm]", "disp"),
-            (2, r"$u_z$ [mm]", "disp"),
-            (3, r"$\theta_x$ [deg]", "rot"),
-            (4, r"$\theta_y$ [deg]", "rot"),
-            (5, r"$\theta_z$ [deg]", "rot"),
-        ]
-        for col, (dof_idx, ylabel, kind) in enumerate(dof_specs):
-            row_2x3, col_2x3 = col // 3, col % 3
-            ax = axes_2x3[row_2x3, col_2x3]
-            for load_idx, (job_id, _a_frac, title) in enumerate(load_cases):
-                if job_id not in job_to_result:
-                    continue
-                csv_file, _job_dir, job_input_name = job_to_result[job_id]
-                grid_file = self.jobs_dir / job_input_name / "grid.txt"
-                if not grid_file.is_file():
-                    continue
-                U = self._read_U_global(csv_file)
-                if U is None:
-                    continue
-                grid = GridParser(str(grid_file), str(self.jobs_dir / job_input_name)).parse()
-                try:
-                    node_coords = self._get_node_coordinates(grid)
-                except Exception:
-                    continue
-                x = node_coords[:, 0]
-                if x.shape[0] != U.shape[0]:
-                    continue
-                L = float(np.max(x))
-                if kind == "rot":
-                    vals = np.degrees(U[:, dof_idx]) * scale
-                else:
-                    vals = U[:, dof_idx] * 1000 * scale
-                ax.plot(x, vals, color=self._COLORS[load_idx], linestyle="-", label=f"job_{job_id:04d} ({title})")
-                if dof_idx == 1:
-                    uy_roark_m, _ = _roark_uy_theta_at_x(x, L, job_id)
-                    ax.plot(x, uy_roark_m * 1000, "k--", label="Roark" if load_idx == 0 else None)
-                elif dof_idx == 5:
-                    _, th_roark_rad = _roark_uy_theta_at_x(x, L, job_id)
-                    ax.plot(x, np.degrees(th_roark_rad), "k--", label="Roark" if load_idx == 0 else None)
-            ax.set_ylabel(ylabel)
-            ax.grid(ls="--", alpha=0.6)
-            ax.legend(loc="upper right", fontsize="small")
-        for ax in axes_2x3[1, :]:
-            ax.set_xlabel(r"$x$ [m]")
-        fig_2x3.tight_layout()
-        fig_2x3.subplots_adjust(top=0.90)
-        path_2x3 = self.figure_output_dir / "deformation_convergence_all_dofs_2x3.png"
-        fig_2x3.savefig(path_2x3, dpi=300)
-        plt.close(fig_2x3)
-        print(f"Saved: {path_2x3}")
 
         # 1×2: u_y and θ_z only, all six load cases (End, Mid, Quarter, UDL, Triangular, Parabolic) overlaid
         all_load_cases = [
@@ -301,7 +205,7 @@ class VisualiseDeformationConvergence:
             (4, "Triangular"),
             (5, "Parabolic"),
         ]
-        fig_1x2, axes_1x2 = plt.subplots(1, 2, figsize=(12, 5), sharex=True)
+        fig_1x2, axes_1x2 = plt.subplots(1, 2, figsize=(12, 8), sharex=True)
         fig_1x2.suptitle(
             r"$u_y$ and $\theta_z$: all load cases (point + distributed)",
             fontsize=14,
@@ -309,6 +213,7 @@ class VisualiseDeformationConvergence:
         )
         for col, (dof_idx, ylabel) in enumerate([(1, r"$u_y$ [mm]"), (5, r"$\theta_z$ [deg]")]):
             ax = axes_1x2[col]
+            roark_lines: list = []
             for load_idx, (job_id, title) in enumerate(all_load_cases):
                 if job_id not in job_to_result:
                     continue
@@ -333,24 +238,44 @@ class VisualiseDeformationConvergence:
                     vals = U[:, 1] * 1000 * scale
                 else:
                     vals = np.degrees(U[:, 5]) * scale
-                ax.plot(x, vals, color=color, linestyle="-", label=f"job_{job_id:04d} ({title})")
+                ax.plot(x, vals, color=color, linestyle="--", linewidth=1.25, label=f"job_{job_id:04d} ({title})")
                 if job_id in ROARK_LOAD_TYPE:
                     uy_r, th_r = _roark_uy_theta_at_x(x, L, job_id)
                 else:
                     uy_r, th_r = _roark_uy_theta_distributed_at_x(x, L, job_id)
+                formula_label = ROARK_FORMULA_EB.get((job_id, col), title)
                 if dof_idx == 1:
-                    ax.plot(x, uy_r * 1000, "k--", label="Roark" if load_idx == 0 else None)
+                    (line,) = ax.plot(x, uy_r * 1000, "k-", linewidth=0.5, label=formula_label)
                 else:
-                    ax.plot(x, np.degrees(th_r), "k--", label="Roark" if load_idx == 0 else None)
+                    (line,) = ax.plot(x, np.degrees(th_r), "k-", linewidth=0.5, label=formula_label)
+                roark_lines.append(line)
             ax.set_ylabel(ylabel)
             ax.grid(ls="--", alpha=0.6)
-            ax.legend(loc="lower left", fontsize="small")
+            if labelLines is not None and roark_lines:
+                L_ax = float(np.max(roark_lines[0].get_xdata()))
+                # E–B formulae are shorter; cluster near x/L = 7/8, repelled from tip
+                xvals = (0.75 * L_ax, 0.875 * L_ax)
+                labelLines(roark_lines, align=True, fontsize="small", xvals=xvals)
+        # Two separate legends (one per panel): left = numerical (FEM), right = analytical (Roark);
+        # interleave so each row is (num_i, anal_i), letting the right column govern row spacing.
+        def _legend_num_anal(handles, labels):
+            num = [(h, l) for h, l in zip(handles, labels) if l.startswith("job_")]
+            anal = [(h, l) for h, l in zip(handles, labels) if not l.startswith("job_")]
+            # Interleave so row i has (num_i, anal_i); right column then governs row spacing
+            h_inter = [h for p in zip([n[0] for n in num], [a[0] for a in anal]) for h in p]
+            l_inter = [l for p in zip([n[1] for n in num], [a[1] for a in anal]) for l in p]
+            return h_inter, l_inter
+
+        h_left, l_left = _legend_num_anal(*axes_1x2[0].get_legend_handles_labels())
+        h_right, l_right = _legend_num_anal(*axes_1x2[1].get_legend_handles_labels())
+        fig_1x2.tight_layout()
+        fig_1x2.subplots_adjust(top=0.88, bottom=0.32)
+        axes_1x2[0].legend(h_left, l_left, loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=2, fontsize="small")
+        axes_1x2[1].legend(h_right, l_right, loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=2, fontsize="small")
         axes_1x2[0].set_xlabel(r"$x$ [m]")
         axes_1x2[1].set_xlabel(r"$x$ [m]")
-        fig_1x2.tight_layout()
-        fig_1x2.subplots_adjust(top=0.88)
-        path_1x2 = self.figure_output_dir / "deformation_convergence_uy_theta_all_loads.png"
-        fig_1x2.savefig(path_1x2, dpi=300)
+        path_1x2 = self.figure_output_dir / "deformation_convergence_uy_theta_all_loads_euler_bernoulli.png"
+        fig_1x2.savefig(path_1x2, dpi=300, bbox_inches="tight")
         plt.close(fig_1x2)
         print(f"Saved: {path_1x2}")
 
@@ -364,7 +289,7 @@ class VisualiseDeformationConvergence:
             (11, "Parabolic"),
         ]
         if any(job_id in job_to_result for job_id, _ in all_load_cases_tims):
-            fig_tims, axes_tims = plt.subplots(1, 2, figsize=(12, 5), sharex=True)
+            fig_tims, axes_tims = plt.subplots(1, 2, figsize=(12, 8), sharex=True)
             fig_tims.suptitle(
                 r"$u_y$ and $\theta_z$: Timoshenko jobs 6–11 vs Roark Timoshenko",
                 fontsize=14,
@@ -372,6 +297,7 @@ class VisualiseDeformationConvergence:
             )
             for col, (dof_idx, ylabel) in enumerate([(1, r"$u_y$ [mm]"), (5, r"$\theta_z$ [deg]")]):
                 ax = axes_tims[col]
+                roark_lines_t: list = []
                 for load_idx, (job_id, title) in enumerate(all_load_cases_tims):
                     if job_id not in job_to_result:
                         continue
@@ -396,24 +322,35 @@ class VisualiseDeformationConvergence:
                         vals = U[:, 1] * 1000 * scale
                     else:
                         vals = np.degrees(U[:, 5]) * scale
-                    ax.plot(x, vals, color=color, linestyle="-", label=f"job_{job_id:04d} ({title})")
+                    ax.plot(x, vals, color=color, linestyle="--", linewidth=1.25, label=f"job_{job_id:04d} ({title})")
                     if job_id in ROARK_LOAD_TYPE_TIMS:
                         uy_r, th_r = _timoshenko_uy_theta_point_at_x(x, L, job_id)
                     else:
                         uy_r, th_r = _timoshenko_uy_theta_distributed_at_x(x, L, job_id)
+                    formula_label_t = ROARK_FORMULA_TIMS.get((job_id, col), title)
                     if dof_idx == 1:
-                        ax.plot(x, uy_r * 1000, "k--", label="Roark Timoshenko" if load_idx == 0 else None)
+                        (line,) = ax.plot(x, uy_r * 1000, "k-", linewidth=0.5, label=formula_label_t)
                     else:
-                        ax.plot(x, np.degrees(th_r), "k--", label="Roark Timoshenko" if load_idx == 0 else None)
+                        (line,) = ax.plot(x, np.degrees(th_r), "k-", linewidth=0.5, label=formula_label_t)
+                    roark_lines_t.append(line)
                 ax.set_ylabel(ylabel)
                 ax.grid(ls="--", alpha=0.6)
-                ax.legend(loc="lower left", fontsize="small")
+                if labelLines is not None and roark_lines_t:
+                    L_ax_t = float(np.max(roark_lines_t[0].get_xdata()))
+                    # Timoshenko formulae are longer (E–B + shear term); place further from tip, smaller font
+                    xvals_t = (0.65 * L_ax_t, 0.78 * L_ax_t)
+                    labelLines(roark_lines_t, align=True, fontsize="x-small", xvals=xvals_t)
+            # Two separate legends (one per panel): left column = numerical (FEM), right column = analytical (Roark)
+            h_left_t, l_left_t = _legend_num_anal(*axes_tims[0].get_legend_handles_labels())
+            h_right_t, l_right_t = _legend_num_anal(*axes_tims[1].get_legend_handles_labels())
+            fig_tims.tight_layout()
+            fig_tims.subplots_adjust(top=0.88, bottom=0.32)
+            axes_tims[0].legend(h_left_t, l_left_t, loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=2, fontsize="small")
+            axes_tims[1].legend(h_right_t, l_right_t, loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=2, fontsize="small")
             axes_tims[0].set_xlabel(r"$x$ [m]")
             axes_tims[1].set_xlabel(r"$x$ [m]")
-            fig_tims.tight_layout()
-            fig_tims.subplots_adjust(top=0.88)
             path_tims = self.figure_output_dir / "deformation_convergence_uy_theta_all_loads_timoshenko.png"
-            fig_tims.savefig(path_tims, dpi=300)
+            fig_tims.savefig(path_tims, dpi=300, bbox_inches="tight")
             plt.close(fig_tims)
             print(f"Saved: {path_tims}")
 
@@ -475,67 +412,6 @@ class VisualiseDeformationConvergence:
                 print(f"    u_y:     max|error| = {max_uy:.6f} mm,  RMS = {rms_uy:.6f} mm,  tip error = {tip_uy_err:.6f} mm")
                 print(f"    theta_z: max|error| = {max_th:.6f} deg, RMS = {rms_th:.6f} deg, tip error = {tip_th_err:.6f} deg")
             print("")
-
-        # Three separate 3×2 "all DOF" figures (one per load case)
-        pairs = [
-            (0, r"$u_x$ [mm]", 3, r"$\theta_x$ [deg]"),
-            (1, r"$u_y$ [mm]", 5, r"$\theta_z$ [deg]"),
-            (2, r"$u_z$ [mm]", 4, r"$\theta_y$ [deg]"),
-        ]
-        suffixes = ["end", "midspan", "quarter"]
-        for load_idx, (job_id, _a_frac, title) in enumerate(load_cases):
-            if job_id not in job_to_result:
-                continue
-            csv_file, job_dir, job_input_name = job_to_result[job_id]
-            grid_file = self.jobs_dir / job_input_name / "grid.txt"
-            if not grid_file.is_file():
-                continue
-            U = self._read_U_global(csv_file)
-            if U is None:
-                continue
-            grid = GridParser(str(grid_file), str(self.jobs_dir / job_input_name)).parse()
-            try:
-                node_coords = self._get_node_coordinates(grid)
-            except Exception:
-                continue
-            x = node_coords[:, 0]
-            if x.shape[0] != U.shape[0]:
-                continue
-            L = float(np.max(x))
-            uy_roark_m, thetaz_roark_rad = _roark_uy_theta_at_x(x, L, job_id)
-            uy_roark_mm = uy_roark_m * 1000
-            thetaz_roark_deg = np.degrees(thetaz_roark_rad)
-
-            fig_all, axes_all = plt.subplots(3, 2, figsize=(15, 10), sharex=True)
-            fig_all.suptitle(f"All DOFs: {title} (job_{job_id:04d})", fontsize=16, fontweight="bold")
-            color = self._COLORS[load_idx]
-            for i, (disp_idx, disp_lbl, rot_idx, rot_lbl) in enumerate(pairs):
-                axes_all[i, 0].plot(
-                    x, U[:, disp_idx] * 1000 * scale, color=color, linestyle="-", label=f"FEM (job_{job_id:04d})"
-                )
-                axes_all[i, 1].plot(
-                    x, np.degrees(U[:, rot_idx]) * scale, color=color, linestyle="-", label=f"FEM (job_{job_id:04d})"
-                )
-                if i == 1:
-                    axes_all[i, 0].plot(x, uy_roark_mm, "k--", label="Roark")
-                    axes_all[i, 1].plot(x, thetaz_roark_deg, "k--", label="Roark")
-                axes_all[i, 0].set_ylabel(disp_lbl)
-                axes_all[i, 1].set_ylabel(rot_lbl)
-                axes_all[i, 0].set_title("Translation" if i == 0 else "", fontweight="bold")
-                axes_all[i, 1].set_title("Rotation" if i == 0 else "", fontweight="bold")
-                axes_all[i, 0].grid(ls="--", alpha=0.6)
-                axes_all[i, 1].grid(ls="--", alpha=0.6)
-                axes_all[i, 0].legend(loc="upper right", fontsize="small")
-                axes_all[i, 1].legend(loc="upper right", fontsize="small")
-            axes_all[-1, 0].set_xlabel(r"$x$ [m]")
-            axes_all[-1, 1].set_xlabel(r"$x$ [m]")
-            fig_all.tight_layout()
-            fig_all.subplots_adjust(top=0.92)
-            all_dof_path = self.figure_output_dir / f"deformation_convergence_all_dofs_{suffixes[load_idx]}.png"
-            fig_all.savefig(all_dof_path, dpi=300)
-            plt.close(fig_all)
-            print(f"Saved: {all_dof_path}")
-
 
 if __name__ == "__main__":
     VisualiseDeformationConvergence().process_convergence_plot()

@@ -6,7 +6,12 @@ from scipy.integrate import cumulative_trapezoid
 class RoarksFormulaeDistributedLoad:
     """
     Computes beam responses for distributed loads using Roark's formulas.
-    
+
+    Sign convention: positive q downward; V = -∫_x^L q dξ, M = ∫_x^L V dξ. For downward
+    load this yields V < 0 and M < 0 (hogging at fixed end), matching the structural
+    convention (positive shear = clockwise rotation, positive M = sagging). See
+    roark_section_forces_verification.py docstring for full SFD/BMD convention.
+
     Parameters:
         L (float): Beam length (must be >0)
         E (float): Young's modulus (must be >0)

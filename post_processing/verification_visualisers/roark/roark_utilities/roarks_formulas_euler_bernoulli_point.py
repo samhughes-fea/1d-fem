@@ -5,7 +5,11 @@ import numpy as np
 class RoarksFormulaePointLoad:
     """
     Calculates beam responses for a cantilever with point load using Roark's formulas.
-    
+
+    Shear and moment: V(x) = -P for x < a, M(x) = -P*(a-x) for x < a. For the
+    structural convention (positive shear = clockwise rotation, positive M = sagging),
+    roark_section_forces_verification applies a sign so plots match FEM; see its docstring.
+
     Parameters:
         L (float): Beam length
         E (float): Young's modulus

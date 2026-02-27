@@ -82,10 +82,11 @@ def main() -> None:
 
     if args.with_validation:
         validation_scripts = [
-            "deflection_tables/deformation_comparison.py",
-            "deflection_tables/convergence_comparison.py",
-            "deflection_tables/gci_richardson_abaqus_report.py",
+            "deformation/deformation_comparison.py",
             "section_forces/section_forces_comparison.py",
+            "grid_convergence_study/gci_richardson_abaqus_report.py",
+            "grid_convergence_study/u_global_largest_mesh_review.py",
+            "grid_convergence_study/csv_to_latex_table.py",
         ]
         validation_dir = SCRIPT_DIR.parent / "validation_visualisers"
         for rel_path in validation_scripts:

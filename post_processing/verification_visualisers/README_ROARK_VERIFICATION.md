@@ -49,7 +49,9 @@ Section forces (V, M) vs Roark:
 python post_processing/verification_visualisers/roark/roark_section_forces_verification.py
 ```
 
-Writes `roark/section_forces_plots/roark_section_forces_*_loads.png` and `roark_section_forces_verification_data.csv`.
+Writes `roark/section_forces_plots/roark_section_forces_*_euler_bernoulli.png`, `roark_section_forces_*_timoshenko.png`, and `roark_section_forces_verification_data.csv`.
+
+**Section force sign convention (SFD/BMD):** Positive shear → clockwise rotation of a small element. Positive bending moment → sagging (bottom fibre in tension); negative → hogging (top in tension). For downward load on a cantilever (fixed left, free at x=L), V_y &lt; 0 and M_z &lt; 0 (hogging at the support). See the docstring in `roark_section_forces_verification.py` for details.
 
 Roark-only plots (no FEM):
 
