@@ -25,11 +25,13 @@ flowchart TB
         StaticResults["static/results/\ncompute_primary, compute_secondary, compute_tertiary,\ncontainers, save_*_container"]
         StaticDiag["static/diagnostics/"]
         ModalProc["modal/\nassembly, boundary_conditions"]
+        DynamicProc["dynamic/\nassembly, boundary_conditions,\ntime_integration"]
     end
 
     subgraph runner [simulation_runner]
         StaticRunner["static/StaticSimulationRunner"]
         ModalRunner["modal/ModalSimulationRunner"]
+        DynamicRunner["dynamic/DynamicSimulationRunner"]
     end
 
     subgraph post [post_processing]
@@ -42,6 +44,7 @@ flowchart TB
     RunJob --> ElementLib
     RunJob --> StaticRunner
     RunJob --> ModalRunner
+    RunJob --> DynamicRunner
 
     ElementLib --> Bar
     ElementLib --> Truss
@@ -53,6 +56,7 @@ flowchart TB
     StaticRunner --> StaticResults
     StaticRunner --> StaticDiag
     ModalRunner --> ModalProc
+    DynamicRunner --> DynamicProc
 
     StaticResults --> post
 ```
@@ -67,6 +71,7 @@ flowchart TB
 | **pre_processing/mesh_library** | Mesh generation variants (e.g. create_point_load_mesh_variants, create_distributed_mesh_variants). |
 | **pre_processing/load_library** | Load schemes (distributed loads, equivalent line loads, etc.). |
 | **processing/static** | Operations (prepare, assemble, modify, condense, solve, reconstruct, disassemble); results (primary, secondary, tertiary); containers; diagnostics. |
-| **processing/modal** | Global assembly and boundary conditions for modal analysis. |
-| **simulation_runner** | StaticSimulationRunner runs the full linear-static workflow; ModalSimulationRunner runs modal (K/M assembly, BCs, eigenvalue solve). |
+| **processing/modal** | Global assembly and boundary conditions for modal analysis (no imports from processing/static). |
+| **processing/dynamic** | Global assembly, boundary conditions, and time integration for dynamic analysis (no imports from processing/static). |
+| **simulation_runner** | StaticSimulationRunner runs the full linear-static workflow; ModalSimulationRunner runs modal (K/M assembly, BCs, eigenvalue solve); DynamicSimulationRunner runs dynamic (K/M/C assembly, BCs, Newmark time integration). |
 | **post_processing** | Scripts that read result directories: graphical (deformation, load, stress, strain, section forces, etc.), verification (Roark, deflection convergence, GCI), tensor visualisers. |

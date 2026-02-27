@@ -379,9 +379,40 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
                 "Check disk space and logs (e.g. [Errno 28] No space left on device)."
             )
 
+        # Compute element mass matrices when needed for modal/dynamic
+        solver_type = simulation_settings.get("type", "").lower()
+        element_mass_matrices = None
+        if solver_type in ("modal", "dynamic"):
+            step_start = time.time()
+            if enable_parallel_computation:
+                try:
+                    from pre_processing.element_library.parallel_compute import compute_element_mass_parallel
+                    mass_objects = compute_element_mass_parallel(
+                        all_elements,
+                        num_processes=num_processes
+                    )
+                except Exception as e:
+                    logger.warning(f"Parallel mass computation failed: {e}, falling back to sequential")
+                    mass_objects = np.array(
+                        [elem.element_mass_matrix() if elem else None for elem in all_elements],
+                        dtype=object
+                    )
+            else:
+                mass_objects = np.array(
+                    [elem.element_mass_matrix() if elem else None for elem in all_elements],
+                    dtype=object
+                )
+            mass_none = sum(1 for o in mass_objects if o is None)
+            if mass_none:
+                raise RuntimeError(
+                    f"Cannot run {solver_type} simulation: {mass_none} element(s) do not implement element_mass_matrix(). "
+                    "Only element types with mass implemented (e.g. Bar-3D) are supported for modal/dynamic."
+                )
+            element_mass_matrices = np.array([obj.M_e for obj in mass_objects], dtype=object)
+            performance_data.append(["Element Mass Computation", time.time() - step_start, *track_usage().values()])
+
         # --- SIMULATION EXECUTION ---
         step_start = time.time()
-        solver_type = simulation_settings.get("type", "").lower()
 
         if solver_type == "static":
             from simulation_runner.static.static_simulation import StaticSimulationRunner
@@ -405,10 +436,8 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
 
         elif solver_type == "modal":
             from simulation_runner.modal.modal_simulation import ModalSimulationRunner
-            # Extract stiffness matrices and force vectors from element/force objects
+            # Extract stiffness and mass from element/mass objects
             element_stiffness_matrices = np.array([obj.K_e for obj in element_objects], dtype=object)
-            element_force_vectors = np.array([obj.F_e for obj in force_objects], dtype=object)
-            # Create settings dictionary for modal runner (it expects a settings dict)
             modal_settings = {
                 "elements": all_elements,
                 "mesh_dictionary": {
@@ -416,28 +445,36 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
                     "coordinates": grid_dictionary.get("coordinates", [])
                 },
                 "element_stiffness_matrices": element_stiffness_matrices,
-                "element_force_vectors": element_force_vectors,
+                "element_mass_matrices": element_mass_matrices,
                 "element_dictionary": element_dictionary,
                 "grid_dictionary": grid_dictionary,
                 "material_dictionary": material_dictionary,
                 "section_dictionary": section_dictionary,
                 "point_load_array": point_load_array,
                 "distributed_load_array": distributed_load_array,
-                "job_results_dir": job_results_dir
+                "job_results_dir": job_results_dir,
+                "simulation_settings": simulation_settings,
             }
             runner = ModalSimulationRunner(
                 settings=modal_settings,
                 job_name=case_name
             )
 
-        #elif solver_type == "dynamic":
-            #from simulation_runner.dynamic.dynamic_simulation import DynamicSimulationRunner
-            #runner = DynamicSimulationRunner(
-                #elements=all_elements,
-                #mesh_dictionary=mesh_dictionary,
-                #job_name=case_name,
-                #job_results_dir=job_results_dir
-            #)
+        elif solver_type == "dynamic":
+            from simulation_runner.dynamic.dynamic_simulation import DynamicSimulationRunner
+            element_stiffness_matrices_dyn = np.array([obj.K_e for obj in element_objects], dtype=object)
+            dynamic_settings = {
+                "elements": all_elements,
+                "mesh_dictionary": {
+                    "node_ids": grid_dictionary.get("ids", []),
+                    "coordinates": grid_dictionary.get("coordinates", []),
+                },
+                "element_stiffness_matrices": element_stiffness_matrices_dyn,
+                "element_mass_matrices": element_mass_matrices,
+                "job_results_dir": job_results_dir,
+                "simulation_settings": simulation_settings,
+            }
+            runner = DynamicSimulationRunner(settings=dynamic_settings, job_name=case_name)
 
         else:
             logger.error(f"❌ Unknown simulation type: '{solver_type}'")

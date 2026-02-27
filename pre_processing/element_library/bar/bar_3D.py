@@ -101,6 +101,11 @@ class BarElement3D(Element1DBase):
         return float(self.material_array[1])
 
     @property
+    def rho(self) -> float:
+        """Mass density for consistent mass matrix."""
+        return float(self.material_array[3])
+
+    @property
     def integration_points(self) -> Tuple[np.ndarray, np.ndarray]:
         """Gauss-Legendre points and weights for stiffness/force quadrature."""
         return np.polynomial.legendre.leggauss(self.quadrature_order)
@@ -253,4 +258,22 @@ class BarElement3D(Element1DBase):
             F_e=F_e,
             gauss_data=gauss_cache,
             point_loads=point_loads_cache,
+        )
+
+    def element_mass_matrix(self):
+        """Consistent mass matrix M_e = rho * A * (L/2) * integral N @ N.T d xi (same DOF order as K_e)."""
+        from pre_processing.element_library.gauss_point_data import MassObject
+
+        self._assert_logging_ready()
+        M_e = np.zeros((12, 12), dtype=np.float64)
+        xi, w = self.integration_points
+        detJ = self.jacobian_determinant
+        for xi_g, w_g in zip(xi, w):
+            N, _, _ = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            N_g = N[0]
+            M_e += self.rho * self.A * detJ * w_g * (N_g @ N_g.T)
+        return MassObject(
+            element_id=self.element_id,
+            element_type=self.element_type_name,
+            M_e=M_e,
         )

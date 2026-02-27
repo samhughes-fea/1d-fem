@@ -228,6 +228,12 @@ class Element1DBase(ABC):
         """Return local equivalent nodal force vector."""
         raise NotImplementedError
 
+    def element_mass_matrix(self):
+        """Return local element mass matrix (for modal/dynamic). Override in subclasses; default raises NotImplementedError."""
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement element_mass_matrix(); "
+            "required for modal/dynamic simulation."
+        )
 
     def assemble_global_dof_indices(self) -> np.ndarray:
         """Compute global DOF indices for element assembly.

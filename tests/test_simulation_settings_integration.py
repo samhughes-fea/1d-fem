@@ -130,6 +130,61 @@ num_processes = auto
             assert settings["parallel"]["num_processes"] == "auto"
         finally:
             os.unlink(temp_path)
+
+    def test_modal_section(self):
+        """Test parsing of [Modal] section and defaults."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write("""[Simulation]
+[Type]
+Static
+
+[Modal]
+num_modes = 20
+""")
+            temp_path = f.name
+
+        try:
+            settings = parse_simulation_settings(temp_path)
+            assert "modal" in settings
+            assert settings["modal"]["num_modes"] == 20
+        finally:
+            os.unlink(temp_path)
+
+        # Default when not specified
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write("""[Simulation]
+[Type]
+Modal
+""")
+            temp_path = f.name
+        try:
+            settings = parse_simulation_settings(temp_path)
+            assert settings["modal"]["num_modes"] == 10
+        finally:
+            os.unlink(temp_path)
+
+    def test_dynamic_section(self):
+        """Test parsing of [Dynamic] section and defaults."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write("""[Simulation]
+[Type]
+Static
+
+[Dynamic]
+time_step = 0.0005
+end_time = 2.0
+scheme = newmark
+""")
+            temp_path = f.name
+
+        try:
+            settings = parse_simulation_settings(temp_path)
+            assert "dynamic" in settings
+            assert settings["dynamic"]["time_step"] == 0.0005
+            assert settings["dynamic"]["end_time"] == 2.0
+            assert settings["dynamic"]["scheme"] == "newmark"
+        finally:
+            os.unlink(temp_path)
     
     def test_partial_configs(self):
         """Test that missing sections use defaults."""

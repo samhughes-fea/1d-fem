@@ -27,6 +27,14 @@ def _get_defaults():
             "enable_parallel_instantiation": True,
             "enable_parallel_computation": True,
         },
+        "modal": {
+            "num_modes": 10,
+        },
+        "dynamic": {
+            "time_step": 0.001,
+            "end_time": 1.0,
+            "scheme": "newmark",
+        },
     }
 
 def _validate_parallel_config(parallel_config):
@@ -128,6 +136,8 @@ def parse_simulation_settings(file_path):
         "solver": defaults["solver"].copy(),
         "condensation": defaults["condensation"].copy(),
         "parallel": defaults["parallel"].copy(),
+        "modal": defaults["modal"].copy(),
+        "dynamic": defaults["dynamic"].copy(),
     }
 
     current_section = None
@@ -158,6 +168,10 @@ def parse_simulation_settings(file_path):
                     current_section = "condensation"
                 elif section_name == "parallel":
                     current_section = "parallel"
+                elif section_name == "modal":
+                    current_section = "modal"
+                elif section_name == "dynamic":
+                    current_section = "dynamic"
                 else:
                     current_section = None
                 continue
@@ -206,6 +220,22 @@ def parse_simulation_settings(file_path):
                         simulation_settings["parallel"]["enable_parallel_instantiation"] = _convert_value(value, bool)
                     elif key == "enable_parallel_computation":
                         simulation_settings["parallel"]["enable_parallel_computation"] = _convert_value(value, bool)
+
+            elif current_section == "modal":
+                key, value = _parse_key_value(line)
+                if key and value:
+                    if key == "num_modes":
+                        simulation_settings["modal"]["num_modes"] = _convert_value(value, int)
+
+            elif current_section == "dynamic":
+                key, value = _parse_key_value(line)
+                if key and value:
+                    if key == "time_step":
+                        simulation_settings["dynamic"]["time_step"] = _convert_value(value, float)
+                    elif key == "end_time":
+                        simulation_settings["dynamic"]["end_time"] = _convert_value(value, float)
+                    elif key == "scheme":
+                        simulation_settings["dynamic"]["scheme"] = value.lower()
 
     # Validate simulation type was found (backward compatibility: allow missing if defaults are acceptable)
     if not type_found and simulation_settings["type"] == defaults["type"]:

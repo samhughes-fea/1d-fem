@@ -195,3 +195,22 @@ class ForceObject:
         """Number of integration points."""
         return len(self.gauss_data)
 
+
+@dataclass
+class MassObject:
+    """
+    Caches element mass matrix for modal/dynamic assembly.
+
+    Attributes
+    ----------
+    element_id : int
+        Unique identifier for this element
+    element_type : str
+        Element type name (e.g., "Bar-3D")
+    M_e : np.ndarray
+        Assembled element mass matrix (n_dof x n_dof), same shape and DOF ordering as K_e.
+    """
+    element_id: int
+    element_type: str
+    M_e: np.ndarray
+

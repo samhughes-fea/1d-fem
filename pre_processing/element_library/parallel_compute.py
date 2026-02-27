@@ -47,6 +47,22 @@ def _worker_force(args):
         return index, None
 
 
+def _worker_mass(args):
+    """Worker function for parallel mass computation."""
+    element, index = args
+    try:
+        if element is None:
+            return index, None
+        result = element.element_mass_matrix()
+        return index, result
+    except NotImplementedError:
+        logger.error(f"Element at index {index} does not implement element_mass_matrix()")
+        return index, None
+    except Exception as e:
+        logger.error(f"Error computing mass for element at index {index}: {e}")
+        return index, None
+
+
 def _sequential_stiffness_compute(elements: List[Any]) -> np.ndarray:
     """Sequential fallback for stiffness computation."""
     logger.debug("Using sequential stiffness computation")
@@ -75,6 +91,25 @@ def _sequential_force_compute(elements: List[Any]) -> np.ndarray:
                 results.append(elem.element_force_vector())
         except Exception as e:
             logger.error(f"Error computing force for element {i}: {e}")
+            results.append(None)
+    return np.array(results, dtype=object)
+
+
+def _sequential_mass_compute(elements: List[Any]) -> np.ndarray:
+    """Sequential fallback for mass computation."""
+    logger.debug("Using sequential mass computation")
+    results = []
+    for i, elem in enumerate(elements):
+        try:
+            if elem is None:
+                results.append(None)
+            else:
+                results.append(elem.element_mass_matrix())
+        except NotImplementedError:
+            logger.error(f"Element {i} does not implement element_mass_matrix()")
+            results.append(None)
+        except Exception as e:
+            logger.error(f"Error computing mass for element {i}: {e}")
             results.append(None)
     return np.array(results, dtype=object)
 
@@ -203,4 +238,52 @@ def compute_element_force_parallel(
     except Exception as e:
         logger.error(f"Unexpected error in parallel computation: {e}, falling back to sequential")
         return _sequential_force_compute(elements)
+
+
+def compute_element_mass_parallel(
+    elements: List[Any],
+    num_processes: Optional[int] = None,
+    threshold: int = DEFAULT_PARALLEL_THRESHOLD
+) -> np.ndarray:
+    """
+    Compute element mass matrices in parallel (for modal/dynamic).
+
+    Parameters
+    ----------
+    elements : List[Any]
+        List of element objects with element_mass_matrix() method.
+    num_processes : int, optional
+        Number of processes to use. If None or "auto", uses os.cpu_count().
+    threshold : int, optional
+        Minimum number of elements to use parallel processing (default 50).
+
+    Returns
+    -------
+    np.ndarray
+        Array of mass objects with M_e attribute (dtype=object), maintaining order.
+    """
+    num_elements = len(elements)
+    if num_elements < threshold:
+        logger.debug(f"Element count ({num_elements}) < threshold ({threshold}), using sequential")
+        return _sequential_mass_compute(elements)
+    if num_processes is None or num_processes == "auto":
+        num_processes = os.cpu_count() or 1
+    if num_processes == 1:
+        logger.debug("num_processes=1, using sequential")
+        return _sequential_mass_compute(elements)
+    try:
+        logger.info(f"Computing {num_elements} element mass matrices in parallel ({num_processes} processes)")
+        args = [(elem, i) for i, elem in enumerate(elements)]
+        with multiprocessing.Pool(processes=num_processes) as pool:
+            results = pool.map(_worker_mass, args)
+        results.sort(key=lambda x: x[0])
+        result_array = np.array([r[1] for r in results], dtype=object)
+        logger.info("Parallel mass computation completed successfully")
+        return result_array
+    except (pickle.PicklingError, AttributeError, TypeError) as e:
+        logger.warning(f"Parallel mass computation failed ({type(e).__name__}: {e}), falling back to sequential")
+        return _sequential_mass_compute(elements)
+    except Exception as e:
+        logger.error(f"Unexpected error in parallel mass computation: {e}, falling back to sequential")
+        return _sequential_mass_compute(elements)
 
