@@ -17,10 +17,11 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 def main() -> None:
     scripts = [
-        "deflection_tables/deformation_comparison.py",
-        "deflection_tables/gci_richardson_abaqus_report.py",
-        "deflection_tables/u_global_largest_mesh_review.py",
+        "deformation/deformation_comparison.py",
         "section_forces/section_forces_comparison.py",
+        "grid_convergence_study/gci_richardson_abaqus_report.py",
+        "grid_convergence_study/u_global_largest_mesh_review.py",
+        "grid_convergence_study/csv_to_latex_table.py",
     ]
     for rel_path in scripts:
         path = SCRIPT_DIR / rel_path

@@ -64,7 +64,7 @@ After the Abaqus run, you can audit result directories and solver performance (f
 python post_processing/validation_visualisers/abaqus/review_abaqus_results.py --expected
 ```
 
-This writes `output/abaqus_results_review.csv` and `output/abaqus_performance_summary.md`. Use `--expected` to list jobs that exist under `jobs/` but have no `abaqus_results/` dir.
+This writes `output/abaqus_results_review.csv` and `output/abaqus_performance_summary.md`. Use `--expected` to list jobs that exist under `jobs/` but have no `abaqus_results/` dir. Comparison outputs (deformation, section forces, GCI) are under `deformation/deformation_plots/`, `section_forces/section_forces_plots/`, and `grid_convergence_study/gci_tables/`.
 
 ### 3. (Optional) Run comparisons and checks
 
@@ -77,7 +77,7 @@ python post_processing/validation_visualisers/run_batch_validation.py --compare-
 Or pass the same job list if you only ran a subset:
 
 ```bash
-python post_processing/validation_visualisers/run_batch_validation.py --compare-only --jobs job_0000_n8 job_0005_n16
+python post_processing/validation_visualisers/run_batch_validation.py --compare-only --jobs job_0000_n128 job_0005_n128
 ```
 
 Note: `run_batch_validation.py` by default uses a small fixed set of jobs for its output checks; use `--jobs` to match the jobs you ran.

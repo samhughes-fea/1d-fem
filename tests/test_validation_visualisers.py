@@ -58,3 +58,21 @@ def test_section_forces_comparison_runs():
         run_section_forces_comparison,
     )
     run_section_forces_comparison()
+
+
+def test_discover_job_names_from_results_returns_expected_names(tmp_path):
+    """discover_job_names_from_results returns sorted unique job_XXXX_nN from mock result dirs."""
+    from post_processing.validation_visualisers.job_discovery import (
+        discover_job_names_from_results,
+    )
+
+    # Create mock result dirs matching timestamped pattern
+    (tmp_path / "job_0001_n8_2026-02-26_16-19-42-602110_pid18316_b582c064").mkdir()
+    (tmp_path / "job_0000_n16_2026-02-26_16-19-30-571529_pid18316_690d4b79").mkdir()
+    (tmp_path / "job_0001_n8_2026-02-27_10-00-00-000000_pid999_abcdef01").mkdir()  # duplicate job
+    (tmp_path / "job_0005_n32_2026-02-26_16-17-48-353941_pid18316_8d7c1563").mkdir()
+    (tmp_path / "not_a_job_dir").mkdir()
+    (tmp_path / "job_0000_n16_other_suffix").mkdir()  # no pid/hash, should not match
+
+    names = discover_job_names_from_results(tmp_path)
+    assert names == ["job_0000_n16", "job_0001_n8", "job_0005_n32"]

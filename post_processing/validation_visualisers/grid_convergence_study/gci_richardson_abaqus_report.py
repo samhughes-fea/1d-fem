@@ -4,13 +4,13 @@ GCI (Grid Convergence Index) and Richardson extrapolation report for Abaqus vs F
 tip deflection and tip rotation.
 
 Same structure as verification gci_richardson_roark_deflection_rotation.csv but uses
-Abaqus results at the fine mesh (n=128) as reference instead of Roark analytical.
+Abaqus results at n=500 (converged reference) as the benchmark instead of Roark.
 Uses three FEM mesh levels (n=32, 64, 128) for jobs 0,1,2 (point load) and 5,6,7 (distributed).
-Requires: FEM result dirs job_XXXX_n32, n64, n128; Abaqus result dirs job_XXXX_n128.
-Output: validation_visualisers/output/gci_richardson_abaqus_deflection_rotation.csv
+Requires: FEM result dirs job_XXXX_n32, n64, n128; Abaqus result dirs job_XXXX_n500 (reference).
+Output: validation_visualisers/grid_convergence_study/gci_tables/gci_richardson_abaqus_deflection_rotation.csv
 
 Run from project root:
-  python post_processing/validation_visualisers/deflection_tables/gci_richardson_abaqus_report.py
+  python post_processing/validation_visualisers/grid_convergence_study/gci_richardson_abaqus_report.py
 """
 from __future__ import annotations
 
@@ -30,12 +30,14 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from pre_processing.parsing.grid_parser import GridParser  # type: ignore
 
+from post_processing.validation_visualisers.abaqus.config import ABAQUS_REFERENCE_N
+
 FEM_RESULTS_DIR: Final[Path] = PROJECT_ROOT / "post_processing" / "results"
 JOBS_DIR: Final[Path] = PROJECT_ROOT / "jobs"
 ABAQUS_RESULTS_DIR: Final[Path] = VALIDATION_DIR / "abaqus_results"
-OUT_DIR: Final[Path] = VALIDATION_DIR / "output"
+OUT_DIR: Final[Path] = VALIDATION_DIR / "grid_convergence_study" / "gci_tables"
 
-# Same grid levels as Roark report
+# FEM grid levels for GCI (same as Roark report); Abaqus reference at n=500 (converged benchmark)
 N_FINE, N_MED, N_COARSE = 128, 64, 32
 R: Final[float] = 2.0
 F_S: Final[float] = 1.25
@@ -180,8 +182,8 @@ def _run_report() -> None:
                     break
             continue
 
-        # Abaqus reference: fine mesh (n=100) only
-        abaqus_job_name = f"job_{job_id:04d}_n{N_FINE}"
+        # Abaqus reference: n500 (converged benchmark)
+        abaqus_job_name = f"job_{job_id:04d}_n{ABAQUS_REFERENCE_N}"
         abaqus_csv = ABAQUS_RESULTS_DIR / abaqus_job_name / "U_global.csv"
         if not abaqus_csv.is_file():
             print(f"WARNING: Abaqus result missing for {abaqus_job_name}, skipping job_{job_id:04d}.")
@@ -270,8 +272,8 @@ def _run_report() -> None:
 
     if not rows:
         print(
-            "No GCI/Richardson vs Abaqus data. Need FEM results for job_0,1,2,5,6,7 at n=32,64,128 "
-            "and Abaqus results at n=128 (run run_abaqus_cae.py for job_0000_n128, job_0001_n128, etc.)."
+            f"No GCI/Richardson vs Abaqus data. Need FEM results for job_0,1,2,5,6,7 at n=32,64,128 "
+            f"and Abaqus results at n={ABAQUS_REFERENCE_N} (run run_abaqus_cae.py for job_0000_n{ABAQUS_REFERENCE_N}, etc.)."
         )
         return
 

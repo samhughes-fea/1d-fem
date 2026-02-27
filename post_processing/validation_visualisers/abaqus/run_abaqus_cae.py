@@ -1,8 +1,10 @@
 # post_processing/validation_visualisers/abaqus/run_abaqus_cae.py
 """
 Generate Abaqus script for given job(s) and run it with project Python (abqpy).
-abqpy's saveAs() in the script launches Abaqus (abaqus cae noGUI=<script>).
-Writes results to validation_visualisers/abaqus_results/job_XXXX_nX/.
+This is the project's canonical way to generate Abaqus results: the Python Abaqus
+package (abqpy) is used to run the generated CAE script; abqpy's saveAs() launches
+Abaqus (abaqus cae noGUI=<script>), which builds the model, runs the job, and
+exports ODB to CSV. Writes results to validation_visualisers/abaqus_results/job_XXXX_nX/.
 Run from project root. Requires abqpy and Abaqus (ABAQUS_BAT_PATH or on PATH).
 """
 from __future__ import annotations
@@ -43,6 +45,30 @@ def _abqpy_available() -> bool:
         return True
     except ImportError:
         return False
+
+
+def generate_script_only(job_name: str, regenerate: bool = True) -> bool:
+    """
+    Generate Abaqus CAE script for job_name only (no Abaqus run).
+    Return True if script was generated or already exists.
+    """
+    job_dir = JOBS_DIR / job_name
+    if not job_dir.is_dir():
+        print(f"Job directory not found: {job_dir}", file=sys.stderr)
+        return False
+
+    script_path = ABAQUS_GENERATED_DIR / f"run_{job_name}.py"
+    if regenerate or not script_path.exists():
+        try:
+            data = _parse_job(job_dir)
+            out_csv_dir = str(ABAQUS_RESULTS_DIR / job_name)
+            content = _generate_script_content(data, out_csv_dir)
+            ABAQUS_GENERATED_DIR.mkdir(parents=True, exist_ok=True)
+            script_path.write_text(content, encoding="utf-8")
+        except Exception as e:
+            print(f"Failed to generate script: {e}", file=sys.stderr)
+            return False
+    return True
 
 
 def run_job(job_name: str, regenerate: bool = True) -> bool:

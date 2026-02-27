@@ -17,9 +17,20 @@ This package **validates** the in-house FEM solver by running the same problem i
 
 - **abaqus/**: Input translation (job dir → Abaqus Python script), run wrapper, ODB → CSV extraction.
 - **abaqus_results/**: Abaqus output per job (`job_XXXX_nX/`): the two CSVs are **U_global.csv**, then **section_forces.csv**; plus `rotation_source.txt` (contents **ODB** when rotation is read from the ODB and sign-flipped to match FEM, or **none** when rotation is not in the ODB and is written as zero), and optionally the run’s `.inp`, `.odb`, `.sta` (status), and `.msg` (messages) copied into the job dir so each result directory is self-contained and debuggable. Not committed (gitignore).
-- **deflection_tables/**: Deformation comparison and GCI–Richardson report (FEM vs Abaqus tip deflection/rotation). Scripts write to **output/**.
-- **section_forces/**: Section forces comparison (SFD/BMD). Writes to **output/**.
-- **output/**: Validation comparison results (overlay plots, error CSVs). The GCI–Richardson report produces `output/gci_richardson_abaqus_deflection_rotation.csv`, analogous to the verification table `gci_richardson_roark_deflection_rotation.csv` but with Abaqus (fine-mesh tip values) as reference instead of Roark.
+- **deformation/**: FEM vs Abaqus u_y and θ_z profile comparison. **Key outputs:** FEM n128 vs **Abaqus n500** (converged reference), one plot per base job. Writes to **deformation/deformation_plots/**.
+- **section_forces/**: Section forces comparison (SFD/BMD: Vy, Mz). **Key outputs:** FEM n128 vs **Abaqus n500** (converged reference), one plot per base job. Writes to **section_forces/section_forces_plots/**.
+- **grid_convergence_study/**: Convergence across meshes (GCI/Richardson, largest-mesh review, LaTeX table). Uses 3-grid GCI (n32, 64, 128) and **Abaqus n500** as reference; convergence behaviour across the 6 meshes (n4–n128) lives here. Writes to **grid_convergence_study/gci_tables/**.
+- **output/**: Reserved for **review_abaqus_results.py** only (abaqus_results_review.csv, abaqus_performance_summary.md, errors log). Comparison plots and GCI/review CSVs are under the subtrees above.
+
+## How Abaqus results are generated
+
+Abaqus results in this project are **always generated using the Python Abaqus package** (abqpy). The pipeline is:
+
+1. **Job input** (from `jobs/job_XXXX_nN/`) is translated into an Abaqus CAE Python script (`abaqus/generated/run_<job>.py`) by `job_to_abaqus_script.py`.
+2. The script is **run with project Python**; [abqpy](https://pypi.org/project/abqpy/) provides the Abaqus scripting API and reimplements `mdb.saveAs()` so that it **launches Abaqus** (e.g. `abaqus cae noGUI=<script>`).
+3. Abaqus executes the script: builds the model, runs the analysis, exports the ODB to CSV (U_global.csv, section_forces.csv, etc.) and writes them into `abaqus_results/job_XXXX_nN/`.
+
+There is no separate .inp-only or command-line `abaqus job=... input=...` path; the **only** way to produce Abaqus results here is via the generated CAE script and the Python Abaqus package. Use `run_abaqus_cae.py` for one or more jobs, or `run_all_abaqus_jobs.py` (optionally with `--from-results`) to generate scripts and run Abaqus for many jobs at once.
 
 ## How to run
 
@@ -39,32 +50,52 @@ This package **validates** the in-house FEM solver by running the same problem i
    ```
    This runs the generated script with project Python; abqpy's `saveAs()` launches Abaqus, which runs the script again to build the model, run the job, and export ODB → CSV into `abaqus_results/job_XXXX_nX/`.
 
-3. **Run comparison** (after both FEM and Abaqus results exist):
+3. **Run comparison** (after FEM n128 and Abaqus n500 results exist). Key plots compare **FEM n128 vs Abaqus n500** (one per base job):
    ```bash
-   python post_processing/validation_visualisers/deflection_tables/deformation_comparison.py
-   python post_processing/validation_visualisers/deflection_tables/gci_richardson_abaqus_report.py
+   python post_processing/validation_visualisers/deformation/deformation_comparison.py
    python post_processing/validation_visualisers/section_forces/section_forces_comparison.py
+   python post_processing/validation_visualisers/grid_convergence_study/gci_richardson_abaqus_report.py
    ```
    Or run all validation visualisers:
    ```bash
    python post_processing/validation_visualisers/run_all_validation_visualisers.py
    ```
+   Outputs: `deformation/deformation_plots/`, `section_forces/section_forces_plots/`, `grid_convergence_study/gci_tables/`.
 
-**Plots show only FEM (no Abaqus curves)?** Comparison scripts look for Abaqus CSVs in `abaqus_results/job_XXXX_nN/` (e.g. `U_global.csv`, `section_forces.csv`). If that folder is empty or missing, plots will show "FEM only". Run step 2 above for each job you want to compare so Abaqus writes results into `abaqus_results/`, then re-run the comparison scripts.
+**Plots show only FEM (no Abaqus curves)?** Comparison scripts look for Abaqus **n500** reference CSVs in `abaqus_results/job_XXXX_n500/`. If those folders are empty or missing, plots will show "FEM only". Use the **n500 reference batch** (see below) to generate all 12 Abaqus n500 results, then re-run the comparison scripts.
 
-**GCI–Richardson vs Abaqus:** To build the deflection/rotation table analogous to the verification `gci_richardson_roark_deflection_rotation.csv`, run `deflection_tables/gci_richardson_abaqus_report.py`. It requires FEM results at n=32, 64, 128 and **Abaqus results at n=128** for jobs 0,1,2,5,6,7. To regenerate Abaqus scripts and run all six n128 jobs (overwrites existing ODB/CSV in `abaqus_results/`):
-
-```bash
-python post_processing/validation_visualisers/abaqus/run_abaqus_cae.py --job job_0000_n128 --job job_0001_n128 --job job_0002_n128 --job job_0005_n128 --job job_0006_n128 --job job_0007_n128
-```
-
-Then run the GCI report and LaTeX table as above. Rotation comparison requires UR in the ODB; the generated script prints which field output was requested and whether the ODB contains UR (see Table caveats below).
+**GCI–Richardson vs Abaqus:** To build the deflection/rotation table, run `grid_convergence_study/gci_richardson_abaqus_report.py`. It requires FEM results at n=32, 64, 128 and **Abaqus results at n=500** (converged reference) for jobs 0,1,2,5,6,7. Use the n500 reference batch (see below) to generate Abaqus n500 results, then run the GCI report and LaTeX table. Rotation comparison requires UR in the ODB; the generated script prints which field output was requested and whether the ODB contains UR (see Table caveats below).
 
 **Table caveats:** (1) **Tip rotation:** Abaqus reference is zero unless the ODB contains rotational DOF (UR). The Abaqus script template now requests `U` and `UR`; re-generate run scripts, re-run Abaqus, and re-extract ODB→CSV to get non-zero rotation comparison. When you run the generated script, it prints **Field output requested: U, UR, SF** or **SF only (U/UR request failed)** and **ODB has UR: True/False** after the job completes. To confirm that U and UR were correctly extracted and written, check `run_log.txt` for the line **U_global.csv: U and UR read from ODB and written (rotation sign flipped to match FEM).** (or, if UR was missing from the ODB, **U_global.csv: U read from ODB; rotation not in ODB, written as zero.**). If UR is still missing, check the Abaqus job output (e.g. `.sta` or `.msg` in the Abaqus working directory) for field-output or UR-related errors; some Abaqus or beam element setups may not output UR. When UR is not in the ODB, rotation is written as zero and `rotation_source.txt` is **none**. (2) **Distributed loads (Triangular, Parabolic):** If Abaqus deflection appears zero for jobs 6 or 7, the reference is missing or tip node ordering differs—only point-load and UDL rows then have a meaningful error vs Abaqus.
 
-**Batch validation (optional):** For regression runs when Abaqus is available, use [run_batch_validation.py](post_processing/validation_visualisers/run_batch_validation.py): it runs Abaqus for a fixed set of jobs (e.g. `job_0000_n8`, `job_0005_n16`), runs the comparison scripts, and checks that output files exist. Example: `python post_processing/validation_visualisers/run_batch_validation.py` or `--compare-only` to skip Abaqus and only run comparisons + checks.
+**Abaqus n500 reference batch:** Deformation and section-forces comparisons use **Abaqus at n=500** as the converged reference (commercial code); FEM is compared at n128. To create the full n500 result set:
+
+1. **Create job dirs** (from project root). The mesh variant scripts already include n500 in `VARIANT_NS`; run them so `jobs/job_0000_n500` … `jobs/job_0011_n500` exist:
+   ```bash
+   python pre_processing/mesh_library/create_point_load_mesh_variants.py
+   python pre_processing/mesh_library/create_distributed_mesh_variants.py
+   python pre_processing/mesh_library/create_timoshenko_mesh_variants.py
+   ```
+2. **Run Abaqus for the n500 batch** (generates scripts and runs Abaqus for all 12 jobs):
+   ```bash
+   python post_processing/validation_visualisers/run_all_abaqus_jobs.py --n500-only
+   ```
+   Use `--n500-only --dry-run` to list jobs without running; `--n500-only --script-only` to generate only CAE scripts (no Abaqus license required). Results go to `abaqus_results/job_XXXX_n500/`.
+
+**Batch validation (optional):** For regression runs when Abaqus is available, use [run_batch_validation.py](post_processing/validation_visualisers/run_batch_validation.py): it runs Abaqus for a fixed set of jobs (default `job_0000_n128`, `job_0005_n128`), runs the comparison scripts, and checks that output files exist. Use `--n500-reference` to run the full Abaqus n500 batch (12 jobs) then comparisons and checks. Example: `python post_processing/validation_visualisers/run_batch_validation.py --n500-reference` or `--compare-only` to skip Abaqus and only run comparisons + checks.
 
 **Re-run all Abaqus results:** To regenerate and run Abaqus for every validation job (all `job_XXXX_nN` under `jobs/`), see [PLAN_RERUN_ABAQUS_RESULTS.md](post_processing/validation_visualisers/PLAN_RERUN_ABAQUS_RESULTS.md). Use: `python post_processing/validation_visualisers/run_all_abaqus_jobs.py` (optional: `--dry-run`, `--jobs job_0000_n8 ...`, `--no-regenerate`).
+
+**Generate Abaqus files from post_processing/results:** To generate Abaqus scripts (and optionally run Abaqus) only for jobs that have at least one FEM result directory under `post_processing/results`, use `--from-results`. Jobs are discovered from timestamped result dir names (`job_XXXX_nN_<timestamp>_pid...`); only jobs that also exist under `jobs/` are run (others are skipped with a message). **Run these commands from the project root** (the `fem_model` directory), not from inside `validation_visualisers`:
+```bash
+cd path\to\fem_model
+python post_processing/validation_visualisers/run_all_abaqus_jobs.py --from-results
+python post_processing/validation_visualisers/run_all_abaqus_jobs.py --from-results --dry-run
+```
+Use `--script-only` to generate only the Abaqus CAE scripts under `abaqus/generated/` without running Abaqus (no Abaqus license required):
+```bash
+python post_processing/validation_visualisers/run_all_abaqus_jobs.py --from-results --script-only
+```
 
 ## Job coverage
 
@@ -85,7 +116,7 @@ To confirm the full pipeline on your machine:
 1. Run: `python post_processing/validation_visualisers/abaqus/run_abaqus_cae.py --job job_0000_n8` (abqpy and Abaqus installed; `ABAQUS_BAT_PATH` from `C:\SIMULIA\CAE` or **ABAQUS_CAE_ROOT**).
 2. If the generated script fails in Abaqus, apply version fixes from the "Abaqus version notes" section in [job_to_abaqus_script.py](post_processing/validation_visualisers/abaqus/job_to_abaqus_script.py) or document workarounds here.
 3. Confirm outputs exist: `abaqus_results/job_0000_n8/U_global.csv` and `section_forces.csv`.
-4. After FEM results exist for the same job, run `python post_processing/validation_visualisers/run_all_validation_visualisers.py` and check overlay plots and error CSVs in `output/`.
+4. After FEM results exist for the same job, run `python post_processing/validation_visualisers/run_all_validation_visualisers.py` and check overlay plots in `deformation/deformation_plots/` and `section_forces/section_forces_plots/`, and GCI/review CSVs in `grid_convergence_study/gci_tables/`.
 5. If you use a different Abaqus version, add a line under "Abaqus version notes" (e.g. *Tested with Abaqus 2024.*).
 
 ## Reviewing Abaqus result directories and performance
@@ -96,7 +127,7 @@ To audit result directories and solver performance (completion status, run time,
 python post_processing/validation_visualisers/abaqus/review_abaqus_results.py
 ```
 
-Options: `--expected` to compare against all jobs under `jobs/` and list jobs with no result dir; `--output <path>` for the CSV report; `--md <path>` for the Markdown summary; `--no-log-errors` to skip the errors/inconsistencies log. Default outputs: `validation_visualisers/output/abaqus_results_review.csv`, `validation_visualisers/output/abaqus_performance_summary.md`, and `validation_visualisers/output/abaqus_results_errors_and_inconsistencies.log` (run_log and .msg error/warning lines plus inconsistencies such as missing files, bad U_global header, or rotation_source vs ODB UR mismatch). The report covers file presence (U_global.csv, section_forces.csv, .inp, .odb, .sta, .msg, etc.), status from `.sta` (COMPLETED/ABORTED), total time from `.sta`, and error/warning counts from `.msg`. Validation performance (FEM vs Abaqus agreement) is produced by the comparison scripts (deformation_comparison, section_forces_comparison, gci_richardson_abaqus_report); see `output/` for those results.
+Options: `--expected` to compare against all jobs under `jobs/` and list jobs with no result dir; `--output <path>` for the CSV report; `--md <path>` for the Markdown summary; `--no-log-errors` to skip the errors/inconsistencies log. Default outputs: `validation_visualisers/output/abaqus_results_review.csv`, `validation_visualisers/output/abaqus_performance_summary.md`, and `validation_visualisers/output/abaqus_results_errors_and_inconsistencies.log` (run_log and .msg error/warning lines plus inconsistencies such as missing files, bad U_global header, or rotation_source vs ODB UR mismatch). The report covers file presence (U_global.csv, section_forces.csv, .inp, .odb, .sta, .msg, etc.), status from `.sta` (COMPLETED/ABORTED), total time from `.sta`, and error/warning counts from `.msg`. Validation performance (FEM vs Abaqus agreement) is produced by the comparison scripts; see `deformation/deformation_plots/`, `section_forces/section_forces_plots/`, and `grid_convergence_study/gci_tables/` for those results.
 
 ## Axis and section convention
 

@@ -1,13 +1,13 @@
-# post_processing/validation_visualisers/deflection_tables/u_global_largest_mesh_review.py
+# post_processing/validation_visualisers/grid_convergence_study/u_global_largest_mesh_review.py
 """
 U_global review: compare Abaqus to FEM at the largest mesh per base job.
 
 Discovers all (job_XXXX_nN) pairs with both FEM and Abaqus U_global; for each base_id
 keeps only the pair with maximum n. Computes full-field max/mean error per DOF and
-tip u_y / theta_z comparison. Writes validation_visualisers/output/u_global_largest_mesh_review.csv.
+tip u_y / theta_z comparison. Writes grid_convergence_study/gci_tables/u_global_largest_mesh_review.csv.
 
 Run from project root:
-  python post_processing/validation_visualisers/deflection_tables/u_global_largest_mesh_review.py
+  python post_processing/validation_visualisers/grid_convergence_study/u_global_largest_mesh_review.py
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from pre_processing.parsing.grid_parser import GridParser
 FEM_RESULTS_DIR: Final[Path] = PROJECT_ROOT / "post_processing" / "results"
 JOBS_DIR: Final[Path] = PROJECT_ROOT / "jobs"
 ABAQUS_RESULTS_DIR: Final[Path] = VALIDATION_DIR / "abaqus_results"
-OUT_DIR: Final[Path] = VALIDATION_DIR / "output"
+OUT_DIR: Final[Path] = VALIDATION_DIR / "grid_convergence_study" / "gci_tables"
 
 DOF_NAMES = ["UX", "UY", "UZ", "RX", "RY", "RZ"]
 

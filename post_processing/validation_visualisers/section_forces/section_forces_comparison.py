@@ -1,10 +1,8 @@
 # post_processing/validation_visualisers/section_forces/section_forces_comparison.py
 """
-Compare section forces (SFD/BMD: Vy, Mz) between FEM and Abaqus.
-Loads FEM from tertiary_results (nodal or gaussian); Abaqus from
-abaqus_results/job_XXXX_nX/nodal_section_forces.csv if present (same format as FEM),
-else section_forces.csv (element x, N, Vy, Vz, T, My, Mz) with interpolation to nodes.
-Output: validation_visualisers/output/
+Compare section forces (SFD/BMD: Vy, Mz) between FEM (n128) and Abaqus reference (n500).
+FEM from tertiary_results; Abaqus from job_XXXX_n500 (converged reference); interpolated to FEM x.
+Output: validation_visualisers/section_forces/section_forces_plots/
 """
 from __future__ import annotations
 
@@ -27,12 +25,42 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from pre_processing.parsing.grid_parser import GridParser
 from pre_processing.parsing.element_parser import ElementParser
 
+from post_processing.validation_visualisers.abaqus.config import ELEMENT_TYPE_MAP, ABAQUS_REFERENCE_N
+
 FEM_RESULTS_DIR: Final[Path] = PROJECT_ROOT / "post_processing" / "results"
 JOBS_DIR: Final[Path] = PROJECT_ROOT / "jobs"
 ABAQUS_RESULTS_DIR: Final[Path] = VALIDATION_DIR / "abaqus_results"
-OUT_DIR: Final[Path] = VALIDATION_DIR / "output"
+OUT_DIR: Final[Path] = VALIDATION_DIR / "section_forces" / "section_forces_plots"
+
+# FEM n128; Abaqus reference at n500
+N_ELEMENTS_FILTER: Final[int] = 128
+
+# Job base_id -> load case description for plot titles (aligned with verification/validation job mapping)
+LOAD_CASE_BY_JOB_ID: Final[dict[int, str]] = {
+    0: "Point (end)",
+    1: "Point (mid-span)",
+    2: "Point (quarter-span)",
+    3: "Point (end)",
+    4: "Point (mid-span)",
+    5: "UDL",
+    6: "Triangular",
+    7: "Parabolic",
+    8: "Point (end)",
+    9: "UDL",
+    10: "Triangular",
+    11: "Parabolic",
+}
 
 IDX_VY, IDX_MZ = 1, 5  # Column order: N, Vy, Vz, T, My, Mz
+
+
+def _get_load_case_label(job_input_name: str) -> str:
+    """Return load case description for job (e.g. 'Point (end)', 'UDL')."""
+    m = re.match(r"job_(\d+)_n\d+$", job_input_name)
+    if not m:
+        return "—"
+    base_id = int(m.group(1))
+    return LOAD_CASE_BY_JOB_ID.get(base_id, f"Load case {base_id}")
 
 
 def _read_fem_nodal_section_forces(csv_path: Path) -> Optional[np.ndarray]:
@@ -118,7 +146,7 @@ def _read_abaqus_section_forces(csv_path: Path) -> Optional[tuple[np.ndarray, np
 
 
 def _discover_pairs() -> list[tuple[str, Path, Path, Optional[Path]]]:
-    """(job_input_name, fem_result_dir, grid_file, abaqus_section_csv or None)."""
+    """(job_input_name, fem_result_dir, grid_file, abaqus_section_csv or None). FEM n128; Abaqus ref n500."""
     by_key: dict[tuple[int, int], Path] = {}
     pattern = str(FEM_RESULTS_DIR / "job_*" / "primary_results" / "global" / "U_global.csv")
     for csv_path in glob.glob(pattern):
@@ -133,12 +161,15 @@ def _discover_pairs() -> list[tuple[str, Path, Path, Optional[Path]]]:
             by_key[key] = fem_dir
     pairs = []
     for (base_id, n), fem_dir in sorted(by_key.items()):
+        if n != N_ELEMENTS_FILTER:
+            continue
         job_input_name = f"job_{base_id:04d}_n{n}"
         grid_file = JOBS_DIR / job_input_name / "grid.txt"
         if not grid_file.is_file():
             continue
-        abaqus_csv = ABAQUS_RESULTS_DIR / job_input_name / "section_forces.csv"
-        abaqus_csv = abaqus_csv if abaqus_csv.is_file() else None
+        # Abaqus reference at n500 (converged); will be interpolated to FEM x
+        abaqus_ref_dir = ABAQUS_RESULTS_DIR / f"job_{base_id:04d}_n{ABAQUS_REFERENCE_N}"
+        abaqus_csv = abaqus_ref_dir / "section_forces.csv" if (abaqus_ref_dir / "section_forces.csv").is_file() else None
         pairs.append((job_input_name, fem_dir, grid_file, abaqus_csv))
     return pairs
 
@@ -152,8 +183,8 @@ def run_section_forces_comparison() -> None:
 
     n_with_abaqus = sum(1 for (_, _, _, abaqus_csv) in pairs if abaqus_csv is not None)
     if n_with_abaqus == 0:
-        print("No Abaqus section_forces.csv found in abaqus_results/. Plots show FEM only.")
-        print("To get Abaqus curves, run: python post_processing/validation_visualisers/abaqus/run_abaqus_cae.py --job job_0000_n8 ...")
+        print(f"No Abaqus section_forces.csv found in abaqus_results/job_XXXX_n{ABAQUS_REFERENCE_N}/. Plots show FEM only.")
+        print(f"To get Abaqus reference curves, run: python .../run_abaqus_cae.py --job job_0000_n{ABAQUS_REFERENCE_N} ...")
 
     for job_input_name, fem_dir, grid_file, abaqus_csv in pairs:
         grid = GridParser(str(grid_file), str(JOBS_DIR / job_input_name)).parse()
@@ -165,6 +196,14 @@ def run_section_forces_comparison() -> None:
         # FEM section forces: nodal first, else gaussian
         elem_file = JOBS_DIR / job_input_name / "element.txt"
         element_dictionary = ElementParser(str(elem_file), str(JOBS_DIR / job_input_name)).parse()["element_dictionary"]
+        types = element_dictionary.get("types")
+        if types is not None and len(types) > 0:
+            elem_type = str(types[0])
+            abaqus_elem = ELEMENT_TYPE_MAP.get(elem_type)
+            fem_label = elem_type if abaqus_elem else "FEM"
+            abaqus_label = abaqus_elem if abaqus_elem else "Abaqus"
+        else:
+            fem_label, abaqus_label = "FEM", "Abaqus"
         nodal_csv = fem_dir / "tertiary_results" / "nodal" / "nodal_section_forces.csv"
         fem_sf = _read_fem_nodal_section_forces(nodal_csv)
         if fem_sf is None:
@@ -180,22 +219,22 @@ def run_section_forces_comparison() -> None:
             print(f"Skip {job_input_name}: FEM section forces length mismatch")
             continue
 
-        abaqus_nodal_csv = ABAQUS_RESULTS_DIR / job_input_name / "nodal_section_forces.csv"
-        if abaqus_csv is None or not abaqus_csv.is_file():
-            abaqus_nodal_csv = None  # no Abaqus SF at all
+        # Prefer Abaqus nodal_section_forces from same ref dir as abaqus_csv (n500)
+        abaqus_nodal_csv = (abaqus_csv.parent / "nodal_section_forces.csv") if abaqus_csv else None
         if abaqus_nodal_csv is not None and not abaqus_nodal_csv.is_file():
             abaqus_nodal_csv = None
 
+        load_case = _get_load_case_label(job_input_name)
         if abaqus_csv is None or not abaqus_csv.is_file():
             # Plot FEM only
             fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-            fig.suptitle(f"Section forces ({job_input_name}) — FEM only (no Abaqus SF)", fontsize=12)
-            axes[0].plot(x_fem, fem_sf[:, IDX_VY], "b-o", label="FEM Vy", markersize=4)
+            fig.suptitle(f"Section forces: {load_case} — {fem_label} only (no {abaqus_label} SF) ({job_input_name})", fontsize=12)
+            axes[0].plot(x_fem, fem_sf[:, IDX_VY], "b-o", label=f"{fem_label} Vy", markersize=4)
             axes[0].set_xlabel("x (m)")
             axes[0].set_ylabel("Vy (N)")
             axes[0].legend()
             axes[0].grid(True, alpha=0.3)
-            axes[1].plot(x_fem, fem_sf[:, IDX_MZ], "b-o", label="FEM Mz", markersize=4)
+            axes[1].plot(x_fem, fem_sf[:, IDX_MZ], "b-o", label=f"{fem_label} Mz", markersize=4)
             axes[1].set_xlabel("x (m)")
             axes[1].set_ylabel("Mz (N·m)")
             axes[1].legend()
@@ -226,16 +265,17 @@ def run_section_forces_comparison() -> None:
             if abaqus_sf is None:
                 print(f"Skip {job_input_name}: could not read Abaqus section forces")
                 continue
+            abaqus_legend = f"{abaqus_label} (n={ABAQUS_REFERENCE_N} ref)"
             fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-            fig.suptitle(f"Section forces: FEM vs Abaqus ({job_input_name})", fontsize=12, fontweight="bold")
-            axes[0].plot(x_fem, fem_sf[:, IDX_VY], "b-o", label="FEM Vy", markersize=4)
-            axes[0].plot(x_fem, abaqus_sf[:, IDX_VY], "r--s", label="Abaqus Vy", markersize=4)
+            fig.suptitle(f"Section forces: {fem_label} (n128) vs {abaqus_legend} — {load_case} ({job_input_name})", fontsize=12, fontweight="bold")
+            axes[0].plot(x_fem, fem_sf[:, IDX_VY], "b-o", label=f"{fem_label} Vy", markersize=4)
+            axes[0].plot(x_fem, abaqus_sf[:, IDX_VY], "r--s", label=f"{abaqus_legend} Vy", markersize=4)
             axes[0].set_xlabel("x (m)")
             axes[0].set_ylabel("Vy (N)")
             axes[0].legend()
             axes[0].grid(True, alpha=0.3)
-            axes[1].plot(x_fem, fem_sf[:, IDX_MZ], "b-o", label="FEM Mz", markersize=4)
-            axes[1].plot(x_fem, abaqus_sf[:, IDX_MZ], "r--s", label="Abaqus Mz", markersize=4)
+            axes[1].plot(x_fem, fem_sf[:, IDX_MZ], "b-o", label=f"{fem_label} Mz", markersize=4)
+            axes[1].plot(x_fem, abaqus_sf[:, IDX_MZ], "r--s", label=f"{abaqus_legend} Mz", markersize=4)
             axes[1].set_xlabel("x (m)")
             axes[1].set_ylabel("Mz (N·m)")
             axes[1].legend()

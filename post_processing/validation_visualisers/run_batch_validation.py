@@ -7,6 +7,7 @@ Use for regression checks on a runner with Abaqus license. Run from project root
   python post_processing/validation_visualisers/run_batch_validation.py
   python post_processing/validation_visualisers/run_batch_validation.py --jobs job_0000_n8 job_0005_n16
   python post_processing/validation_visualisers/run_batch_validation.py --compare-only
+  python post_processing/validation_visualisers/run_batch_validation.py --n500-reference   # Run Abaqus n500 batch then comparisons
 """
 from __future__ import annotations
 
@@ -19,8 +20,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-# Default jobs for batch validation (point-load and distributed-load coverage)
-DEFAULT_JOBS = ["job_0000_n8", "job_0005_n16"]
+# Default jobs for batch validation (n128 sample)
+DEFAULT_JOBS = ["job_0000_n128", "job_0005_n128"]
 
 
 def _abaqus_can_run() -> bool:
@@ -68,9 +69,11 @@ def _check_outputs(job_names: list[str]) -> tuple[bool, list[str]]:
     """
     Check that expected output files exist.
     Returns (all_found, list of missing paths).
+    Abaqus results per job in abaqus_results/; comparison outputs in
+    deformation/deformation_plots/, section_forces/section_forces_plots/,
+    grid_convergence_study/gci_tables/.
     """
     abaqus_results = SCRIPT_DIR / "abaqus_results"
-    output_dir = SCRIPT_DIR / "output"
     missing = []
 
     for job_name in job_names:
@@ -83,10 +86,18 @@ def _check_outputs(job_names: list[str]) -> tuple[bool, list[str]]:
             missing.append(str(sf_csv))
 
     # At least one comparison output should exist if comparisons were run
-    if output_dir.is_dir():
-        outputs = list(output_dir.glob("*.png")) + list(output_dir.glob("*.csv"))
-        if not outputs and job_names:
-            missing.append(f"{output_dir} (no .png or .csv)")
+    def_plots = SCRIPT_DIR / "deformation" / "deformation_plots"
+    sf_plots = SCRIPT_DIR / "section_forces" / "section_forces_plots"
+    gci_tables = SCRIPT_DIR / "grid_convergence_study" / "gci_tables"
+    has_png = (def_plots.is_dir() and list(def_plots.glob("*.png"))) or (
+        sf_plots.is_dir() and list(sf_plots.glob("*.png"))
+    )
+    has_csv = gci_tables.is_dir() and list(gci_tables.glob("*.csv"))
+    if not has_png and not has_csv and job_names:
+        missing.append(
+            f"comparison outputs (no .png in deformation_plots/ or section_forces_plots/, "
+            f"no .csv in grid_convergence_study/gci_tables/)"
+        )
 
     return (len(missing) == 0, missing)
 
@@ -112,9 +123,25 @@ def main() -> int:
         action="store_true",
         help="Skip Abaqus script regeneration if script already exists.",
     )
+    parser.add_argument(
+        "--n500-reference",
+        action="store_true",
+        help="Run Abaqus for the n500 reference batch (job_0000_n500 ... job_0011_n500), then comparisons and output checks.",
+    )
     args = parser.parse_args()
 
-    jobs = args.jobs if args.jobs is not None else DEFAULT_JOBS
+    if args.n500_reference:
+        from post_processing.validation_visualisers.run_all_abaqus_jobs import discover_n500_jobs
+        jobs = discover_n500_jobs()
+        if not jobs:
+            print(
+                "No job_XXXX_n500 directories found. Run the mesh variant scripts first (create_*_mesh_variants.py).",
+                file=sys.stderr,
+            )
+            return 1
+        print(f"n500 reference mode: {len(jobs)} jobs")
+    else:
+        jobs = args.jobs if args.jobs is not None else DEFAULT_JOBS
     run_abaqus = not args.compare_only and len(jobs) > 0
 
     if run_abaqus:

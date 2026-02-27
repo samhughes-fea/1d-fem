@@ -311,10 +311,11 @@ def run_review(
             f"- **No .sta file:** {no_sta}",
             f"- **Total solver time (sec):** {total_time_sum:.2f}",
             "",
-            "Validation performance (FEM vs Abaqus agreement) is produced by existing scripts:",
-            "- `deflection_tables/deformation_comparison.py`, `section_forces/section_forces_comparison.py`",
-            "- `deflection_tables/gci_richardson_abaqus_report.py` → `output/gci_richardson_abaqus_deflection_rotation.csv`",
-            "- See `output/` for overlay plots and error CSVs.",
+            "Validation performance (FEM vs Abaqus agreement) is produced by comparison scripts:",
+            "- `deformation/deformation_comparison.py` → `deformation/deformation_plots/`",
+            "- `section_forces/section_forces_comparison.py` → `section_forces/section_forces_plots/`",
+            "- `grid_convergence_study/gci_richardson_abaqus_report.py` → `grid_convergence_study/gci_tables/`",
+            "- See those directories for overlay plots and GCI/review CSVs.",
             "",
         ]
         if missing_dirs:
