@@ -30,6 +30,7 @@ temp_*.py
 
 # Logs
 #*.log
+debug*.log
 
 # Build artifacts
 build/
