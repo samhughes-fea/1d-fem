@@ -5,15 +5,12 @@ __pycache__/
 *.so
 .Python
 
-# Results directories - exclude all result output (commented to allow tracking job results)
+# Results directories - do not ignore; allow tracking job results and outputs
 #post_processing/results/*/
 
-# Validation: Abaqus generated scripts and Abaqus result CSVs
-post_processing/validation_visualisers/abaqus/generated/
-post_processing/validation_visualisers/abaqus_results/
-
-# Keep specific result structure but ignore contents
-#!post_processing/results/.gitkeep
+# Validation: do not ignore; allow tracking Abaqus generated scripts and result CSVs
+#post_processing/validation_visualisers/abaqus/generated/
+#post_processing/validation_visualisers/abaqus_results/
 
 # IDE
 .vscode/
