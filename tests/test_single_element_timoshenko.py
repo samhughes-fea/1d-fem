@@ -12,8 +12,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.timoshenko.timoshenko_3D import TimoshenkoBeamElement3D
-from analytical_timoshenko_benchmark import analytical_timoshenko_tip_deflection
+from pre_processing.element_library.linear.timoshenko.timoshenko_3D import TimoshenkoBeamElement3D
+from scripts.analytical_timoshenko_benchmark import analytical_timoshenko_tip_deflection
 
 def test_single_element_timoshenko():
     """Test single Timoshenko element with direct solve."""

@@ -129,4 +129,3 @@ if __name__ == "__main__":
     print(f"Ratio: {computed_K55 / K_full[5,5]:.2f}x")
     print()
     print("All ratios are 1.00x - fix successful!")
-

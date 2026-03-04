@@ -8,10 +8,10 @@ import numpy as np
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.levinson.utilities.D_matrix import MaterialStiffnessOperator
+from pre_processing.element_library.linear.levinson.utilities.D_matrix import MaterialStiffnessOperator
 
 def verify_levinson_d_matrix():
     """Verify Levinson D-matrix includes shear stiffness."""

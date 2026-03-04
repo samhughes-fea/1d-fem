@@ -7,12 +7,12 @@ import pandas as pd
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from analytical_benchmark import analytical_euler_bernoulli_stiffness
-from analytical_timoshenko_benchmark import analytical_timoshenko_tip_deflection
-from analytical_levinson_benchmark import analytical_levinson_tip_deflection
+from scripts.analytical_benchmark import analytical_euler_bernoulli_stiffness
+from scripts.analytical_timoshenko_benchmark import analytical_timoshenko_tip_deflection
+from scripts.analytical_levinson_benchmark import analytical_levinson_tip_deflection
 
 def analytical_cantilever_tip_deflection_eb(P, E, I_z, L):
     """Euler-Bernoulli tip deflection: δ = PL³/(3EI)"""

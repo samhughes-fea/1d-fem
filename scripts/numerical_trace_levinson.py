@@ -8,12 +8,12 @@ import numpy as np
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.levinson.utilities.shape_functions import ShapeFunctionOperator
-from pre_processing.element_library.levinson.utilities.B_matrix import StrainDisplacementOperator
-from pre_processing.element_library.levinson.utilities.D_matrix import MaterialStiffnessOperator
+from pre_processing.element_library.linear.levinson.utilities.shape_functions import ShapeFunctionOperator
+from pre_processing.element_library.linear.levinson.utilities.B_matrix import StrainDisplacementOperator
+from pre_processing.element_library.linear.levinson.utilities.D_matrix import MaterialStiffnessOperator
 
 def trace_levinson_stiffness():
     """Trace Levinson stiffness computation to identify issues."""
