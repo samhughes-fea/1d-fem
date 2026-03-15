@@ -24,8 +24,9 @@ class SectionParser:
             }
         }
 
-    Sub-header may be 6 columns (element_id, A, I_x, I_y, I_z, J_t) or 8 columns
-    with [kappa] and [alpha] for general-section preprocessing (geometry-derived).
+    Sub-header may be 6 columns (element_id, A, I_x, I_y, I_z, J_t), 8 columns
+    with [kappa] and [alpha], 10 columns with [y_sc] and [z_sc], or 11 columns
+    with [Gamma] for general-section preprocessing (shear centre, warping).
     """
 
     def __init__(self, filepath: str, job_results_dir: str) -> None:
@@ -38,6 +39,14 @@ class SectionParser:
         self.expected_subheader_8: List[str] = [
             "[element_id]", "[A]", "[I_x]", "[I_y]", "[I_z]", "[J_t]",
             "[kappa]", "[alpha]"
+        ]
+        self.expected_subheader_10: List[str] = [
+            "[element_id]", "[A]", "[I_x]", "[I_y]", "[I_z]", "[J_t]",
+            "[kappa]", "[alpha]", "[y_sc]", "[z_sc]"
+        ]
+        self.expected_subheader_11: List[str] = [
+            "[element_id]", "[A]", "[I_x]", "[I_y]", "[I_z]", "[J_t]",
+            "[kappa]", "[alpha]", "[y_sc]", "[z_sc]", "[Gamma]"
         ]
 
     # ------------------------------------------------------------------ #
@@ -73,6 +82,8 @@ class SectionParser:
             "J_t": [],
         }
         has_kappa_alpha = False
+        has_shear_centre = False
+        has_gamma = False
         seen_ids: set[int] = set()
 
         # ---- Read & clean ---------------------------------------------- #
@@ -86,7 +97,25 @@ class SectionParser:
 
         subheader_line = lines[start_idx + 1]
         subheader_tokens = [t.lower() for t in subheader_line.split()]
-        if subheader_tokens == [h.lower() for h in self.expected_subheader_8]:
+        if subheader_tokens == [h.lower() for h in self.expected_subheader_11]:
+            has_kappa_alpha = True
+            has_shear_centre = True
+            has_gamma = True
+            lists["kappa"] = []
+            lists["alpha"] = []
+            lists["y_sc"] = []
+            lists["z_sc"] = []
+            lists["Gamma"] = []
+            self._assert_exact_subheader(subheader_line, self.expected_subheader_11)
+        elif subheader_tokens == [h.lower() for h in self.expected_subheader_10]:
+            has_kappa_alpha = True
+            has_shear_centre = True
+            lists["kappa"] = []
+            lists["alpha"] = []
+            lists["y_sc"] = []
+            lists["z_sc"] = []
+            self._assert_exact_subheader(subheader_line, self.expected_subheader_10)
+        elif subheader_tokens == [h.lower() for h in self.expected_subheader_8]:
             has_kappa_alpha = True
             lists["kappa"] = []
             lists["alpha"] = []
@@ -95,11 +124,10 @@ class SectionParser:
             self._assert_exact_subheader(subheader_line, self.expected_subheader_6)
         else:
             raise ValueError(
-                f"Sub-header must be 6 columns {self.expected_subheader_6} or "
-                f"8 columns {self.expected_subheader_8} (case-insensitive)."
+                f"Sub-header must be 6, 8, 10, or 11 columns (case-insensitive)."
             )
 
-        n_cols = 8 if has_kappa_alpha else 6
+        n_cols = (11 if has_gamma else 10) if has_shear_centre else (8 if has_kappa_alpha else 6)
 
         # ---- Parse rows ------------------------------------------------- #
         for ln in lines[start_idx + 2:]:
@@ -131,6 +159,21 @@ class SectionParser:
                     raise TypeError(f"Bad kappa/alpha in line {ln!r} → {exc}") from exc
                 lists["kappa"].append(kappa)
                 lists["alpha"].append(alpha)
+
+            if has_shear_centre:
+                try:
+                    y_sc, z_sc = float(parts[8]), float(parts[9])
+                except ValueError as exc:
+                    raise TypeError(f"Bad y_sc/z_sc in line {ln!r} → {exc}") from exc
+                lists["y_sc"].append(y_sc)
+                lists["z_sc"].append(z_sc)
+
+            if has_gamma:
+                try:
+                    gamma = float(parts[10])
+                except ValueError as exc:
+                    raise TypeError(f"Bad Gamma in line {ln!r} → {exc}") from exc
+                lists["Gamma"].append(gamma)
 
         # ---- Convert to NumPy arrays ----------------------------------- #
         parsed: Dict[str, npt.NDArray] = {

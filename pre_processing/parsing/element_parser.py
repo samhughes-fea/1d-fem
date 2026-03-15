@@ -37,6 +37,8 @@ class ElementParser:
             "[axial_order]", "[bending_y_order]", "[bending_z_order]",
             "[shear_y_order]", "[shear_z_order]", "[torsion_order]", "[load_order]",
         ]
+        # Optional 12th column for curved beams (Phase 2a)
+        self.optional_curvature_header: List[str] = self.expected_subheader + ["[curvature]"]
 
     # --------------------------------------------------------------------- #
     # Internal utilities
@@ -52,6 +54,11 @@ class ElementParser:
             raise ValueError(
                 f"Sub-header must match (case-insensitive): {' '.join(expected)}"
             )
+
+    @staticmethod
+    def _parse_subheader(line: str) -> List[str]:
+        """Return list of subheader tokens (lowercase). Used to detect optional [curvature] column."""
+        return [t.lower() for t in line.split()]
 
     @staticmethod
     def _preprocess_lines(filepath: str) -> List[str]:
@@ -97,23 +104,34 @@ class ElementParser:
         except StopIteration:
             raise ValueError("Missing [Element] section header.")
 
-        # Validate the sub-header
-        self._assert_exact_subheader(lines[start_idx + 1], self.expected_subheader)
+        # Detect sub-header: 11 columns (standard) or 12 with [curvature] (Phase 2a)
+        subheader_tokens = self._parse_subheader(lines[start_idx + 1])
+        if len(subheader_tokens) == len(self.optional_curvature_header) and subheader_tokens[-1] == "[curvature]":
+            self._assert_exact_subheader(lines[start_idx + 1], self.optional_curvature_header)
+            use_curvature = True
+        else:
+            self._assert_exact_subheader(lines[start_idx + 1], self.expected_subheader)
+            use_curvature = False
+
+        curvature_list: List[float] = []
 
         # ------------------------------------------------------------------ #
         # Parse each data line
         # ------------------------------------------------------------------ #
+        expected_cols = len(self.optional_curvature_header) if use_curvature else len(self.expected_subheader)
         for ln in lines[start_idx + 2:]:
             parts = ln.split()
-            if len(parts) != len(self.expected_subheader):
+            if len(parts) != expected_cols:
                 raise ValueError(f"Malformed element row: {ln!r}")
 
             try:
                 eid               = int(parts[0])
                 n1, n2            = map(int, parts[1:3])
                 etype             = parts[3]
-                orders            = list(map(int, parts[4:]))
-            except ValueError as exc:
+                orders            = list(map(int, parts[4:11]))
+                if use_curvature:
+                    curvature_list.append(float(parts[11]))
+            except (ValueError, IndexError) as exc:
                 raise TypeError(f"Bad data types in line {ln!r} → {exc}") from exc
 
             if eid in seen_ids:
@@ -137,16 +155,20 @@ class ElementParser:
                 for lst, val in zip(integration_orders.values(), orders)
             ]
 
+        if not use_curvature:
+            curvature_list = [0.0] * len(element_ids)
+
         # ------------------------------------------------------------------ #
         # Convert everything to NumPy arrays (homogeneous outbound types)
         # ------------------------------------------------------------------ #
         ids_arr   = np.asarray(element_ids,   dtype=np.int64)
         conn_arr  = np.asarray(connectivity,  dtype=np.int64)
-        types_arr = np.asarray(element_types, dtype="<U32")      # UTF-32 strings
+        types_arr = np.asarray(element_types, dtype="<U64")      # Long enough for Linear*/Nonlinear* type strings
 
         integ_np: Dict[str, npt.NDArray[np.int64]] = {
             k: np.asarray(v, dtype=np.int64) for k, v in integration_orders.items()
         }
+        curvature_arr = np.asarray(curvature_list, dtype=np.float64)
 
         # ------------------------------------------------------------------ #
         # Return the uniform dictionary structure
@@ -157,5 +179,6 @@ class ElementParser:
                 "connectivity":      conn_arr,
                 "types":             types_arr,
                 "integration_orders": integ_np,
+                "curvature":         curvature_arr,
             }
         }
