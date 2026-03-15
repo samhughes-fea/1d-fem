@@ -6,13 +6,13 @@ Composes linear operators (shape, B_lin, D) and TL operators (GreenLagrangeStrai
 """
 
 import logging
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 
 from pre_processing.element_library.element_1D_base import Element1DBase
 from pre_processing.element_library.linear.euler_bernoulli.utilities.D_matrix import MaterialStiffnessOperator
-from pre_processing.element_library.linear.euler_bernoulli.utilities.shape_functions import ShapeFunctionOperator
+from pre_processing.element_library.shape_function_registry import get_shape_function_operator
 from pre_processing.element_library.linear.euler_bernoulli.utilities.B_matrix import StrainDisplacementOperator
 from pre_processing.element_library.nonlinear.euler_bernoulli.utilities import (
     GreenLagrangeStrainOperator,
@@ -64,7 +64,7 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
         point_load_array: np.ndarray,
         distributed_load_array: np.ndarray,
         job_results_dir: str,
-        quadrature_order: int = 3,
+        quadrature_order: Optional[int] = None,
     ):
         """
         Initialize the nonlinear Euler-Bernoulli beam element.
@@ -88,7 +88,8 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
         job_results_dir : str
             Directory for job logs and output.
         quadrature_order : int, optional
-            Gauss–Legendre quadrature order (default 3).
+            Gauss–Legendre quadrature order; if None, derived from element_array
+            (axial, bending_y, bending_z, torsion, load). See shape_function_conventions.md.
 
         Notes
         -----
@@ -106,7 +107,18 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
             job_results_dir=job_results_dir,
             dof_per_node=6,
         )
-        self.quadrature_order = quadrature_order
+        # Quadrature order: from element_array when not provided (same 7-column convention as linear EB)
+        if quadrature_order is not None:
+            self.quadrature_order = quadrature_order
+        else:
+            axial_order = int(self.element_array[3])
+            bending_y_order = int(self.element_array[4])
+            bending_z_order = int(self.element_array[5])
+            torsion_order = int(self.element_array[8])
+            load_order = int(self.element_array[9])
+            self.quadrature_order = max(
+                axial_order, bending_y_order, bending_z_order, torsion_order, load_order, 2
+            )
         self.node_coords = self.grid_array
         self.L = float(np.linalg.norm(self.node_coords[1] - self.node_coords[0]))
         self.x_start, *_, self.x_end = self.node_coords[[0, 1], 0]
@@ -116,7 +128,7 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
         self._assert_logging_ready()
 
         # Linear operators (from linear/euler_bernoulli)
-        self.shape_function_operator = ShapeFunctionOperator(element_length=self.L)
+        self.shape_function_operator = get_shape_function_operator(self.__class__.__name__, self.L)
         self.strain_displacement_operator = StrainDisplacementOperator(element_length=self.L)
         self.material_stiffness_operator = MaterialStiffnessOperator(
             youngs_modulus=self.E,
@@ -344,13 +356,53 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
             result.append(np.asarray(E, dtype=np.float64))
         return result
 
+    def _build_shape_function_coefficients_b2(
+        self,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Build B2 coefficient arrays (12, 6, 4) for N, dN/dξ, d²N/dξ² in monomial basis ξ^0..ξ^3 (same as linear EB)."""
+        L = self.L
+        c = np.zeros((12, 6, 4), dtype=np.float64)
+        dc = np.zeros((12, 6, 4), dtype=np.float64)
+        d2c = np.zeros((12, 6, 4), dtype=np.float64)
+        # Axial: N₀ = 0.5(1-ξ), N₆ = 0.5(1+ξ)
+        c[0, 0, 0], c[0, 0, 1] = 0.5, -0.5
+        c[6, 0, 0], c[6, 0, 1] = 0.5, 0.5
+        dc[0, 0, 0] = -0.5
+        dc[6, 0, 0] = 0.5
+        # Bending XY displacement: N1 = 0.5 - 0.75ξ + 0.25ξ³, N3 = 0.5 + 0.75ξ - 0.25ξ³
+        c[1, 1, 0], c[1, 1, 1], c[1, 1, 3] = 0.5, -0.75, 0.25
+        c[7, 1, 0], c[7, 1, 1], c[7, 1, 3] = 0.5, 0.75, -0.25
+        dc[1, 1, 0], dc[1, 1, 2] = -0.75, 0.75
+        dc[7, 1, 0], dc[7, 1, 2] = 0.75, -0.75
+        d2c[1, 1, 1] = 1.5
+        d2c[7, 1, 1] = -1.5
+        # Bending XY rotation: N2 = (L/8)(1 - ξ - ξ² + ξ³), N4 = -(L/8)(1 + ξ - ξ² - ξ³)
+        scale = L / 8.0
+        c[5, 5, 0], c[5, 5, 1], c[5, 5, 2], c[5, 5, 3] = scale, -scale, -scale, scale
+        c[11, 5, 0], c[11, 5, 1], c[11, 5, 2], c[11, 5, 3] = -scale, -scale, scale, scale
+        dc[5, 5, 0], dc[5, 5, 1], dc[5, 5, 2] = -scale, -2 * scale, 3 * scale
+        dc[11, 5, 0], dc[11, 5, 1], dc[11, 5, 2] = -scale, 2 * scale, 3 * scale
+        d2c[5, 5, 0], d2c[5, 5, 1] = -2 * scale, 6 * scale
+        d2c[11, 5, 0], d2c[11, 5, 1] = 2 * scale, 6 * scale
+        # Bending XZ: copy from XY
+        c[2, 2], c[8, 2] = c[1, 1].copy(), c[7, 1].copy()
+        dc[2, 2], dc[8, 2] = dc[1, 1].copy(), dc[7, 1].copy()
+        d2c[2, 2], d2c[8, 2] = d2c[1, 1].copy(), d2c[7, 1].copy()
+        c[4, 4], c[10, 4] = -c[5, 5].copy(), -c[11, 5].copy()
+        dc[4, 4], dc[10, 4] = -dc[5, 5].copy(), -dc[11, 5].copy()
+        d2c[4, 4], d2c[10, 4] = -d2c[5, 5].copy(), -d2c[11, 5].copy()
+        # Torsion: same as axial
+        c[3, 3], c[9, 3] = c[0, 0].copy(), c[6, 0].copy()
+        dc[3, 3], dc[9, 3] = dc[0, 0].copy(), dc[6, 0].copy()
+        return c, dc, d2c
+
     def element_stiffness_matrix(self):
         """
         Return ElementObject with K_e = initial tangent at U=0 (same as linear K_e).
 
         Caches gauss_data (B, D, shape_functions, shape_derivatives per Gauss point)
         and evaluate_shape_functions for post-processing. B2 shape-function coefficients
-        are not set (None); B2 evaluation after save/load is linear-only (see RESULTS_DESIGN.md).
+        are set (same monomial basis as linear EB) for save/load evaluation; see RESULTS_DESIGN.md.
 
         Returns
         -------
@@ -395,6 +447,7 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
             self.logger_operator.flush("stiffness")
         op = self.shape_function_operator
         evaluate_shape_functions = lambda xi_val: op.natural_coordinate_form(np.asarray(xi_val))
+        N_coeffs, dN_coeffs, d2N_coeffs = self._build_shape_function_coefficients_b2()
         return ElementObject(
             element_id=self.element_id,
             element_type=self.element_type_name,
@@ -402,9 +455,9 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
             gauss_data=gauss_cache,
             integration_scheme="Gauss-Legendre",
             evaluate_shape_functions=evaluate_shape_functions,
-            shape_function_N_coefficients=None,
-            shape_function_dN_dxi_coefficients=None,
-            shape_function_d2N_dxi2_coefficients=None,
+            shape_function_N_coefficients=N_coeffs,
+            shape_function_dN_dxi_coefficients=dN_coeffs,
+            shape_function_d2N_dxi2_coefficients=d2N_coeffs,
         )
 
     def element_force_vector(self):

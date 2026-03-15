@@ -18,25 +18,45 @@ class ElementFactory:
 
     Notes
     -----
-    * Concrete element classes (e.g. ``EulerBernoulliBeamElement3D``) **must**
+    * Concrete element classes (e.g. ``LinearEulerBernoulliBeamElement3D``) **must**
       inherit from
       :class:`pre_processing.element_library.element_1D_base.Element1DBase`.
-    * Classes are discovered via :pyattr:`ELEMENT_CLASS_MAP`.
+    * Classes are discovered via :pyattr:`ELEMENT_CLASS_MAP` (combined from
+      :pyattr:`LINEAR_ELEMENT_CLASS_MAP` and :pyattr:`NONLINEAR_ELEMENT_CLASS_MAP`).
     * Per-element logs are written to ``<job_results_dir>/logs``.
     """
 
-    ELEMENT_CLASS_MAP = {
-        "EulerBernoulliBeamElement3D":
-            "pre_processing.element_library.euler_bernoulli.euler_bernoulli_3D",
-        "TimoshenkoBeamElement3D":
-            "pre_processing.element_library.timoshenko.timoshenko_3D",
-        "LevinsonBeamElement3D":
-            "pre_processing.element_library.levinson.levinson_3D",
-        "TrussElement3D":
-            "pre_processing.element_library.truss.truss_3D",
-        "BarElement3D":
-            "pre_processing.element_library.bar.bar_3D",
+    LINEAR_ELEMENT_CLASS_MAP = {
+        "LinearEulerBernoulliBeamElement3D":
+            "pre_processing.element_library.linear.euler_bernoulli.linear_euler_bernoulli_3D",
+        "LinearWarpingEulerBernoulliBeamElement3D":
+            "pre_processing.element_library.linear.euler_bernoulli.linear_warping_euler_bernoulli_3D",
+        "LinearTimoshenkoBeamElement3D":
+            "pre_processing.element_library.linear.timoshenko.linear_timoshenko_3D",
+        "LinearWarpingTimoshenkoBeamElement3D":
+            "pre_processing.element_library.linear.timoshenko.linear_warping_timoshenko_3D",
+        "LinearCurvedTimoshenkoBeamElement3D":
+            "pre_processing.element_library.linear.curved_beam.linear_curved_timoshenko_3D",
+        "LinearLevinsonBeamElement3D":
+            "pre_processing.element_library.linear.levinson.linear_levinson_3D",
+        "LinearReddyBeamElement3D":
+            "pre_processing.element_library.linear.reddy.linear_reddy_3D",
+        "LinearTrussElement3D":
+            "pre_processing.element_library.linear.truss.linear_truss_3D",
+        "LinearBarElement3D":
+            "pre_processing.element_library.linear.bar.linear_bar_3D",
     }
+
+    NONLINEAR_ELEMENT_CLASS_MAP = {
+        "NonlinearEulerBernoulliBeamElement3D":
+            "pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D",
+        "NonlinearTimoshenkoBeamElement3D":
+            "pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D",
+        "GEBTShearBeamElement3D":
+            "pre_processing.element_library.nonlinear.gebt_shear.gebt_shear_3D",
+    }
+
+    ELEMENT_CLASS_MAP = {**LINEAR_ELEMENT_CLASS_MAP, **NONLINEAR_ELEMENT_CLASS_MAP}
 
     # ------------------------------------------------------------------ #
     def __init__(self, job_results_dir: str) -> None:

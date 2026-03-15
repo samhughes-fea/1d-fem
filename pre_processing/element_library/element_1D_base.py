@@ -96,8 +96,9 @@ class Element1DBase(ABC):
             dtype=np.int64
         )
 
-        #   3) SECTION slice  → cross-section properties (float64, shape = (5,) or (7,))
-        #   5: A, I_x, I_y, I_z, J_t.  7: + kappa (shear correction), alpha (Levinson).
+        #   3) SECTION slice  → cross-section properties (float64)
+        #   Indices: 0=A, 1=I_x, 2=I_y, 3=I_z, 4=J_t; 5=kappa, 6=alpha (optional);
+        #   7=y_sc, 8=z_sc (optional, shear centre); 9=Gamma (optional, warping).
         section_list: list = [
             section_dictionary["A"][idx],
             section_dictionary["I_x"][idx],
@@ -108,6 +109,11 @@ class Element1DBase(ABC):
         if "kappa" in section_dictionary and "alpha" in section_dictionary:
             section_list.append(section_dictionary["kappa"][idx])
             section_list.append(section_dictionary["alpha"][idx])
+        if "y_sc" in section_dictionary and "z_sc" in section_dictionary:
+            section_list.append(section_dictionary["y_sc"][idx])
+            section_list.append(section_dictionary["z_sc"][idx])
+        if "Gamma" in section_dictionary:
+            section_list.append(section_dictionary["Gamma"][idx])
         self.section_array = np.asarray(section_list, dtype=np.float64)
 
         # 4) MATERIAL slice  → material properties (float64, shape = (4,))

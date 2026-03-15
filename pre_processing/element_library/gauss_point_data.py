@@ -54,6 +54,10 @@ class StiffnessGaussPointData:
     shape_derivatives : Optional[np.ndarray]
         Shape function derivatives dN/dxi at this point. Required when
         used in the results formulation cache.
+    strain_at_convergence : Optional[np.ndarray]
+        When set (e.g. after nonlinear solve), strain E_lin + E_nl at this
+        Gauss point. Secondary results use this instead of B_matrix @ U_e
+        when present. Default None.
     """
     xi: float
     weight: float
@@ -62,6 +66,7 @@ class StiffnessGaussPointData:
     jacobian: float
     shape_functions: Optional[np.ndarray] = None
     shape_derivatives: Optional[np.ndarray] = None
+    strain_at_convergence: Optional[np.ndarray] = None
 
 
 @dataclass

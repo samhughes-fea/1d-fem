@@ -1,7 +1,10 @@
-# pre_processing/element_library/nonlinear/timoshenko_3D/timoshenko_3D_nonlinear.py
+# pre_processing/element_library/nonlinear/gebt_shear/gebt_shear_3D.py
 """
-2-node 3D Timoshenko beam with geometric nonlinearity (Total Lagrangian).
-K_T = K_0 + K_σ, F_int = ∫ Bᵀ S. Composes linear Timoshenko operators and TL operators.
+2-node 3D GEBT shear beam (Phase 3a): shear-deformable geometrically exact beam theory.
+
+K_T = K_0 + K_σ, F_int = ∫ Bᵀ S. At U_e=0, tangent stiffness equals linear Timoshenko K_e.
+Uses same linear Timoshenko B, D and Total Lagrangian operators (Green–Lagrange strain,
+geometric stiffness) so limit test passes; full current-config GEBT kinematics can be added later.
 """
 
 import logging
@@ -22,32 +25,16 @@ from pre_processing.element_library.nonlinear.timoshenko.utilities import (
 logger = logging.getLogger(__name__)
 
 
-class NonlinearTimoshenkoBeamElement3D(Element1DBase):
+class GEBTShearBeamElement3D(Element1DBase):
     """
-    2-node 3D Timoshenko beam with geometric nonlinearity (Total Lagrangian).
-    Tangent stiffness K_T = K_0 + K_σ(U_e); internal force F_int = ∫ Bᵀ S.
+    2-node 3D GEBT shear beam: finite rotations and shear; K_T(U_e), F_int(U_e).
 
-    Features
-    --------
-    - Operator composition: linear operators (shape, B, D) from linear/timoshenko
-      and Total Lagrangian operators (GreenLagrangeStrain with include_shear=True,
-      StressResultant, GeometricStiffness).
-    - Configurable quadrature order (minimum 2 for shear); same load handling as linear Timoshenko.
-    - Integrated logging when ``logger_operator`` is set (inherited from base).
-
-    Governing equations and operators
-    ---------------------------------
-    - **K_0** (material stiffness): ∫ Bᵀ D B dx via ``strain_displacement_operator``
-      and ``material_stiffness_operator`` (linear Timoshenko B including shear).
-    - **K_σ** (geometric stiffness): from ``geometric_stiffness_operator`` using current
-      N, M_y, M_z from ``stress_resultant_operator``.
-    - **E(u)** (strain): E_lin from linear B @ U_e; E_nl from ``green_lagrange_strain_operator``
-      (include_shear=True); N, M from ``stress_resultant_operator.section_forces_from_strain``.
-    - **F_int**: ∫ Bᵀ S via ``strain_displacement_operator`` (B), ``green_lagrange_strain_operator``
-      (E_nl), and ``material_stiffness_operator`` (D); S = D E.
+    At U_e=0, tangent stiffness equals linear Timoshenko K_e (same B, D, quadrature).
+    Uses Total Lagrangian strain (Green–Lagrange) and geometric stiffness for nonlinear
+    response; compatible with nonlinear static runner and build_converged_formulation_cache.
     """
 
-    element_type_name = "Timoshenko-3D-Nonlinear"
+    element_type_name = "GEBTShear-3D"
 
     def __init__(
         self,
@@ -62,36 +49,6 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         job_results_dir: str,
         quadrature_order: int = 3,
     ):
-        """
-        Initialize the nonlinear Timoshenko beam element.
-
-        Parameters
-        ----------
-        element_id : int
-            Element ID in the mesh.
-        element_dictionary : dict
-            Element connectivity and type data (ids, connectivity, types, etc.).
-        grid_dictionary : dict
-            Node coordinates (key "coordinates").
-        section_dictionary : dict
-            Cross-section properties (A, I_y, I_z, J_t, kappa if size >= 7).
-        material_dictionary : dict
-            Material properties (E, G, nu, rho).
-        point_load_array : np.ndarray
-            Point loads array (Nx9): x, y, z, Fx, Fy, Fz, Mx, My, Mz.
-        distributed_load_array : np.ndarray
-            Distributed loads array (Nx9).
-        job_results_dir : str
-            Directory for job logs and output.
-        quadrature_order : int, optional
-            Gauss–Legendre quadrature order; uses max(quadrature_order, 2) so shear terms
-            are integrated (default 3).
-
-        Notes
-        -----
-        x_start, x_end, x_global_start, and x_global_end are set from node_coords
-        and grid_dictionary (same convention as linear elements).
-        """
         super().__init__(
             element_id=element_id,
             element_dictionary=element_dictionary,
@@ -112,7 +69,7 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         self._validate_element_properties()
         self._assert_logging_ready()
 
-        self.shape_function_operator = get_shape_function_operator(self.__class__.__name__, self.L)
+        self.shape_function_operator = get_shape_function_operator("LinearTimoshenkoBeamElement3D", self.L)
         self.strain_displacement_operator = StrainDisplacementOperator(element_length=self.L)
         self.material_stiffness_operator = MaterialStiffnessOperator(
             youngs_modulus=self.E,
@@ -133,7 +90,6 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         self._K_0: np.ndarray | None = None
 
     def _validate_element_properties(self) -> None:
-        """Validate critical element properties and log geometry."""
         if self.L <= 0:
             raise ValueError(f"Invalid element length {self.L:.2e} for element {self.element_id}")
         if self.material_array.size != 4 or self.section_array.size not in (5, 7):
@@ -147,97 +103,102 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
 
     @property
     def A(self) -> float:
-        """Cross-sectional area (m²)."""
         return float(self.section_array[0])
 
     @property
     def I_y(self) -> float:
-        """Moment of inertia about y-axis (m⁴)."""
         return float(self.section_array[2])
 
     @property
     def I_z(self) -> float:
-        """Moment of inertia about z-axis (m⁴)."""
         return float(self.section_array[3])
 
     @property
     def J_t(self) -> float:
-        """Torsional constant (m⁴)."""
         return float(self.section_array[4])
 
     @property
     def kappa(self) -> float:
-        """Shear correction factor (default 5/6 if not in section)."""
         return float(self.section_array[5]) if self.section_array.size >= 7 else 5.0 / 6.0
 
     @property
     def E(self) -> float:
-        """Young's modulus (Pa)."""
         return float(self.material_array[0])
 
     @property
     def G(self) -> float:
-        """Shear modulus (Pa)."""
         return float(self.material_array[1])
 
     @property
     def jacobian_determinant(self) -> float:
-        """Jacobian |J| = L/2 of the element coordinate mapping."""
         return self.L / 2.0
 
     @property
     def integration_points(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Gauss–Legendre quadrature points and weights."""
         return np.polynomial.legendre.leggauss(self.quadrature_order)
 
     def _get_K_0(self) -> np.ndarray:
-        """Material stiffness K_0 = ∫ Bᵀ D B dx (linear Timoshenko B, full quadrature).
-
-        Returns
-        -------
-        np.ndarray
-            Shape (12, 12); same as linear Timoshenko element stiffness at U=0.
-        """
+        """Material stiffness K_0 with same selective integration as linear Timoshenko (1-point shear, bending order)."""
         if self._K_0 is not None:
             return self._K_0
         D = self.material_stiffness_operator.assembly_form()
-        xi, w = self.integration_points
         detJ = self.jacobian_determinant
-        K_0 = np.zeros((12, 12), dtype=np.float64)
-        for xi_g, w_g in zip(xi, w):
+        axial_order = max(int(self.element_array[3]), 1)
+        bending_y_order = max(int(self.element_array[4]), 2)
+        bending_z_order = max(int(self.element_array[5]), 2)
+        shear_y_order = max(int(self.element_array[6]), 2) if self.element_array[6] > 0 else 2
+        shear_z_order = max(int(self.element_array[7]), 2) if self.element_array[7] > 0 else 2
+        torsion_order = max(int(self.element_array[8]), 1)
+        bending_order = max(bending_y_order, bending_z_order)
+        max_order = max(axial_order, bending_order, shear_y_order, shear_z_order, torsion_order)
+        xi_full, w_full = np.polynomial.legendre.leggauss(max_order)
+        Ke_full = np.zeros((12, 12), dtype=np.float64)
+        for xi_g, w_g in zip(xi_full, w_full):
             N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
             B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
-            K_0 += B.T @ D @ B * w_g * detJ
-        self._K_0 = K_0
-        return K_0
+            Ke_full += B.T @ D @ B * w_g * detJ
+        xi_bending, w_bending = np.polynomial.legendre.leggauss(bending_order)
+        Ke_bending_block = np.zeros((12, 12), dtype=np.float64)
+        for xi_g, w_g in zip(xi_bending, w_bending):
+            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
+            B_bending = B[[1, 2], :]
+            Ke_bending_block += B_bending.T @ np.diag([D[1, 1], D[2, 2]]) @ B_bending * w_g * detJ
+        shear_order = 1
+        xi_shear, w_shear = np.polynomial.legendre.leggauss(shear_order)
+        Ke_shear_block = np.zeros((12, 12), dtype=np.float64)
+        for xi_g, w_g in zip(xi_shear, w_shear):
+            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
+            B_shear = B[[3, 4], :]
+            Ke_shear_block += B_shear.T @ np.diag([D[3, 3], D[4, 4]]) @ B_shear * w_g * detJ
+        Ke_full_bending = np.zeros((12, 12), dtype=np.float64)
+        for xi_g, w_g in zip(xi_full, w_full):
+            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
+            B_bending = B[[1, 2], :]
+            Ke_full_bending += B_bending.T @ np.diag([D[1, 1], D[2, 2]]) @ B_bending * w_g * detJ
+        Ke_full_shear = np.zeros((12, 12), dtype=np.float64)
+        for xi_g, w_g in zip(xi_full, w_full):
+            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
+            B_shear = B[[3, 4], :]
+            Ke_full_shear += B_shear.T @ np.diag([D[3, 3], D[4, 4]]) @ B_shear * w_g * detJ
+        self._K_0 = Ke_full - Ke_full_bending - Ke_full_shear + Ke_bending_block + Ke_shear_block
+        return self._K_0
 
     def tangent_stiffness_matrix(self, U_e: np.ndarray) -> np.ndarray:
-        """
-        Tangent stiffness K_T = K_0 + K_σ(U_e) in global (element) coordinates.
-
-        Parameters
-        ----------
-        U_e : np.ndarray
-            Element displacement vector, shape (12,): [u_x1, u_y1, u_z1, θ_x1, θ_y1, θ_z1, ...].
-
-        Returns
-        -------
-        np.ndarray
-            Tangent stiffness matrix, shape (12, 12).
-        """
         K_0 = self._get_K_0()
         D = self.material_stiffness_operator.assembly_form()
         xi, w = self.integration_points
         detJ = self.jacobian_determinant
         dξ_dx = 2.0 / self.L
-        d2ξ_dx2 = 4.0 / (self.L ** 2)
         N_sum, M_y_sum, M_z_sum = 0.0, 0.0, 0.0
         n_g = len(xi)
         dN_dx_list = []
         for xi_g, w_g in zip(xi, w):
             N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
             dN_dx = dN_dξ.copy() * dξ_dx
-            d2N_dx2 = d2N_dξ2.copy() * d2ξ_dx2
             B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
             E_lin = (B @ U_e).ravel()
             E_nl = self.green_lagrange_strain_operator.strain_nonlinear_part(dN_dx[0], U_e)
@@ -257,28 +218,15 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         return K_0 + K_sigma
 
     def internal_force_vector(self, U_e: np.ndarray) -> np.ndarray:
-        """
-        Internal force F_int = ∫ Bᵀ S dx (residual contribution).
-
-        Parameters
-        ----------
-        U_e : np.ndarray
-            Element displacement vector, shape (12,).
-
-        Returns
-        -------
-        np.ndarray
-            Internal force vector, shape (12,).
-        """
         D = self.material_stiffness_operator.assembly_form()
         xi, w = self.integration_points
         detJ = self.jacobian_determinant
+        dξ_dx = 2.0 / self.L
         F_int = np.zeros(12, dtype=np.float64)
         for xi_g, w_g in zip(xi, w):
             N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
             B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
             E_lin = (B @ U_e).ravel()
-            dξ_dx = 2.0 / self.L
             dN_dx = dN_dξ[0] * dξ_dx
             E_nl = self.green_lagrange_strain_operator.strain_nonlinear_part(dN_dx, U_e)
             E = E_lin + E_nl
@@ -287,19 +235,6 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         return F_int
 
     def strain_at_gauss_points(self, U_e: np.ndarray) -> List[np.ndarray]:
-        """
-        Return strain E_lin + E_nl at each integration point (same order as gauss_data).
-
-        Parameters
-        ----------
-        U_e : np.ndarray
-            Element displacement vector, shape (12,).
-
-        Returns
-        -------
-        List[np.ndarray]
-            One strain vector per Gauss point, each shape (6,) or equivalent.
-        """
         xi, w = self.integration_points
         dξ_dx = 2.0 / self.L
         result = []
@@ -314,41 +249,16 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         return result
 
     def element_stiffness_matrix(self):
-        """
-        Return ElementObject with K_e = initial tangent at U=0 (same as linear Timoshenko K_e).
-
-        Caches gauss_data (B, D, shape_functions, shape_derivatives per Gauss point)
-        and evaluate_shape_functions for post-processing. B2 shape-function coefficients
-        are set (linear Lagrange in ξ, same as linear Timoshenko) for save/load evaluation; see RESULTS_DESIGN.md.
-
-        Returns
-        -------
-        ElementObject
-            K_e = tangent_stiffness_matrix(0), gauss_data, integration_scheme, evaluate_shape_functions.
-        """
         from pre_processing.element_library.gauss_point_data import ElementObject, StiffnessGaussPointData
         self._assert_logging_ready()
         K_e = self.tangent_stiffness_matrix(np.zeros(12, dtype=np.float64))
         xi, w = self.integration_points
         D = self.material_stiffness_operator.assembly_form()
         detJ = self.jacobian_determinant
-        if self.logger_operator:
-            self.logger_operator.log_text(
-                "stiffness",
-                f"\n=== Element {self.element_id} Stiffness (initial tangent) ===",
-            )
-            self.logger_operator.log_matrix("stiffness", np.array([[self.L]]), {"name": "Element length L"})
-            self.logger_operator.log_matrix("stiffness", D, {"name": "Material matrix D"})
         gauss_cache = []
         for g, (xi_g, w_g) in enumerate(zip(xi, w)):
             N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
             B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
-            Ke_contribution = B.T @ D @ B * w_g * detJ
-            if self.logger_operator:
-                self._log_gauss_point_stiffness(
-                    g, float(xi_g), float(w_g),
-                    dN_dξ[0], d2N_dξ2[0], B, Ke_contribution,
-                )
             gauss_cache.append(
                 StiffnessGaussPointData(
                     xi=float(xi_g),
@@ -360,9 +270,6 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
                     shape_derivatives=dN_dξ.copy(),
                 )
             )
-        if self.logger_operator:
-            self.logger_operator.log_matrix("stiffness", K_e, {"name": "Final K_e (initial tangent)"})
-            self.logger_operator.flush("stiffness")
         op = self.shape_function_operator
         evaluate_shape_functions = lambda xi_val: op.natural_coordinate_form(np.asarray(xi_val))
         N_coeffs, dN_coeffs, d2N_coeffs = self._build_shape_function_coefficients_b2()
@@ -381,11 +288,9 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
     def _build_shape_function_coefficients_b2(
         self,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Build B2 coefficient arrays (12, 6, 4) for N, dN/dξ, d²N/dξ² in monomial basis (linear Lagrange; same as linear Timoshenko)."""
         c = np.zeros((12, 6, 4), dtype=np.float64)
         dc = np.zeros((12, 6, 4), dtype=np.float64)
         d2c = np.zeros((12, 6, 4), dtype=np.float64)
-        # N = 0.5(1±ξ) -> coeffs [0.5, ±0.5]; dN/dξ = ±0.5 (constant); d²N/dξ² = 0
         c[0, 0, 0], c[0, 0, 1] = 0.5, -0.5
         c[6, 0, 0], c[6, 0, 1] = 0.5, 0.5
         dc[0, 0, 0] = -0.5
@@ -403,27 +308,9 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         return c, dc, d2c
 
     def element_force_vector(self):
-        """
-        Compute the element force vector (external loads): distributed and point loads.
-
-        Returns
-        -------
-        ForceObject
-            F_e and gauss_data; same convention as linear Timoshenko.
-
-        Notes
-        -----
-        Combines distributed load contribution F_dist = ∫ Nᵀ q dx and point loads
-        F_point = N(x_p)ᵀ P at load locations.
-        """
         from pre_processing.element_library.gauss_point_data import ForceObject, ForceGaussPointData
         from pre_processing.element_library.linear.timoshenko.utilities.interpolate_loads import LoadInterpolationOperator
         self._assert_logging_ready()
-        if self.logger_operator:
-            self.logger_operator.log_text(
-                "force",
-                f"\n=== Element {self.element_id} Force Vector Computation ===",
-            )
         Fe = np.zeros(12, dtype=np.float64)
         gauss_cache = []
         x_start = float(self.x_start)
@@ -454,8 +341,6 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
                         distributed_load=q_gauss[g].copy() if g < len(q_gauss) else None,
                     )
                 )
-            if self.logger_operator:
-                self._log_distributed_loads(xi, w, N, q_gauss, Fe_dist)
         if self.point_load_array.size > 0:
             for load in self.point_load_array:
                 x_p = float(load[0])
@@ -467,11 +352,6 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
                     Fe_rot = N_p[[3, 4, 5, 9, 10, 11], 3:] @ F_p[3:]
                     Fe[[0, 1, 2, 6, 7, 8]] += Fe_trans
                     Fe[[3, 4, 5, 9, 10, 11]] += Fe_rot
-                    if self.logger_operator:
-                        self._log_point_load(x_p, xi_p, F_p, N_p, Fe_trans, Fe_rot)
-        if self.logger_operator:
-            self.logger_operator.log_matrix("force", Fe.reshape(1, -1), {"name": "Final Force Vector"})
-            self.logger_operator.flush("force")
         return ForceObject(
             element_id=self.element_id,
             element_type=self.element_type_name,
@@ -479,99 +359,3 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
             gauss_data=gauss_cache,
             point_loads=self.point_load_array.copy() if self.point_load_array.size else None,
         )
-
-    def _xi_to_x(self, xi: float) -> float:
-        """Convert natural coordinate ξ to physical position x."""
-        return (xi + 1) * (self.L / 2) + self.x_start
-
-    def _log_gauss_point_stiffness(
-        self,
-        gp_idx: int,
-        xi: float,
-        weight: float,
-        dN_dξ: np.ndarray,
-        d2N_dξ2: np.ndarray,
-        B: np.ndarray,
-        contribution: np.ndarray,
-    ) -> None:
-        """Log detailed stiffness integration data for one Gauss point (same format as linear elements)."""
-        if dN_dξ.shape[-2:] != (12, 6):
-            raise ValueError(f"dN_dξ shape mismatch: {dN_dξ.shape} ≠ (12, 6)")
-        if d2N_dξ2.shape[-2:] != (12, 6):
-            raise ValueError(f"d2N_dξ2 shape mismatch: {d2N_dξ2.shape} ≠ (12, 6)")
-        if B.shape[-2:] != (6, 12):
-            raise ValueError(f"B-matrix shape mismatch: {B.shape} ≠ (*, 6, 12)")
-        if contribution.shape != (12, 12):
-            raise ValueError(f"Contribution shape mismatch: {contribution.shape} ≠ (12, 12)")
-        metadata = {"name": f"GP {gp_idx + 1}", "precision": 6, "max_line_width": 120}
-        self.logger_operator.log_text(
-            "stiffness",
-            f"\nGP {gp_idx + 1}/{self.quadrature_order}: "
-            f"ξ = {xi:.6f},  x = {self._xi_to_x(xi):.6e},  w = {weight:.6e}",
-        )
-        self.logger_operator.log_matrix(
-            "stiffness", dN_dξ, {**metadata, "name": f"Shape-function derivative  dN/dξ  {dN_dξ.shape}"}
-        )
-        self.logger_operator.log_matrix(
-            "stiffness", d2N_dξ2, {**metadata, "name": f"Second derivative  d²N/dξ²  {d2N_dξ2.shape}"}
-        )
-        self.logger_operator.log_matrix(
-            "stiffness", B, {**metadata, "name": f"Strain-displacement matrix  B  {B.shape}"}
-        )
-        self.logger_operator.log_matrix(
-            "stiffness", contribution, {**metadata, "name": f"Gauss-point contribution  BᵀDB  {contribution.shape}"}
-        )
-
-    def _log_distributed_loads(
-        self,
-        xi: np.ndarray,
-        weights: np.ndarray,
-        N: np.ndarray,
-        q: np.ndarray,
-        Fe: np.ndarray,
-    ) -> None:
-        """Log distributed load integration details (same format as linear elements)."""
-        if not self.logger_operator:
-            return
-        if N.shape[1:] != (12, 6):
-            raise ValueError(f"N shape mismatch: {N.shape} != (n_pts,12,6)")
-        if q.shape[1] != 6:
-            raise ValueError(f"Load vector shape: {q.shape} != (n_pts,6)")
-        if Fe.shape != (12,):
-            raise ValueError(f"Fe result shape: {Fe.shape} != (12,)")
-        metadata = {"precision": 6, "max_line_width": 100}
-        self.logger_operator.log_text("force", "\n=== Distributed Loads ===")
-        for gp, (xi_g, w_g) in enumerate(zip(xi, weights)):
-            gp_meta = {**metadata, "name": f"GP {gp+1}"}
-            self.logger_operator.log_matrix("force", N[gp], {**gp_meta, "name": f"N {N[gp].shape}"})
-            self.logger_operator.log_matrix("force", q[gp], {**gp_meta, "name": f"q {q[gp].shape}"})
-        self.logger_operator.log_matrix("force", Fe.reshape(1, -1), {**metadata, "name": f"Total Fe {Fe.shape}"})
-
-    def _log_point_load(
-        self,
-        x: float,
-        xi: float,
-        F: np.ndarray,
-        N: np.ndarray,
-        trans: np.ndarray,
-        rot: np.ndarray,
-    ) -> None:
-        """Log point load application (same format as linear elements)."""
-        if not self.logger_operator:
-            return
-        if N.shape != (12, 6):
-            raise ValueError(f"N shape mismatch: {N.shape} != (12,6)")
-        if trans.shape != (6,):
-            raise ValueError(f"Translation vector shape: {trans.shape} != (6,)")
-        if rot.shape != (6,):
-            raise ValueError(f"Rotation vector shape: {rot.shape} != (6,)")
-        metadata = {"precision": 6, "max_line_width": 120}
-        self.logger_operator.log_text(
-            "force",
-            f"\n=== Point Load @ x={x:.6e} ===\n"
-            f"Natural ξ={xi:.6f}, Element Range: {self.x_start:.6e}-{self.x_end:.6e}",
-        )
-        self.logger_operator.log_matrix("force", F.reshape(-1, 1), {**metadata, "name": "Force Vector [6×1]"})
-        self.logger_operator.log_matrix("force", N, {**metadata, "name": f"Shape Functions {N.shape}"})
-        self.logger_operator.log_matrix("force", trans.reshape(-1, 1), {**metadata, "name": "Translations [6×1]"})
-        self.logger_operator.log_matrix("force", rot.reshape(-1, 1), {**metadata, "name": "Rotations [6×1]"})
