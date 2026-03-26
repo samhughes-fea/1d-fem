@@ -1,5 +1,9 @@
 # pre_processing/element_library/linear/bar/utilities/B_matrix.py
-"""Strain-displacement matrix B for 2-node 3-D Bar (axial + torsion). ε = B @ u_e; B shape (2, 12) per GP."""
+"""
+Strain-displacement ``B`` (2, 12) per Gauss point for 2-node 3-D bar: ``eps = B @ U_e`` with ``eps`` = [eps_axial, phi_torsion].
+
+Parent element: ``K_e += B.T @ D @ B * w_g * detJ``, ``detJ = L/2``.
+"""
 
 import numpy as np
 from typing import Tuple
@@ -30,6 +34,10 @@ class StrainDisplacementOperator:
         Jacobian dx/dξ = L/2
     dξ_dx : float
         ∂ξ/∂x = 2/L
+
+    Notes
+    -----
+    ``B`` is constant in ``xi``; one Gauss point is often exact for ``K_e``. Chord map ``dx/dxi = L/2``.
     """
 
     element_length: float

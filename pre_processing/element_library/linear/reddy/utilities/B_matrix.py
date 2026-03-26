@@ -1,8 +1,9 @@
 # pre_processing/element_library/linear/reddy/utilities/B_matrix.py
 """
-Reddy beam strain-displacement matrix: same strain definitions as Levinson
-(γ_xy = du_y/dx - θ_z + α d²θ_z/dx², κ_z = dθ_z/dx, κ_y = dθ_y/dx).
-Re-export Levinson StrainDisplacementOperator.
+Reddy beam ``B``: re-export of Levinson ``StrainDisplacementOperator``.
+
+``B`` (6, 12) per Gauss point; ``eps`` (6,) Voigt order matches Levinson (see that module). Reddy differs in ``alpha`` terms inside ``B``.
+Parent ``linear_reddy_3D`` uses ``K_e += B.T @ D @ B * w_g * detJ`` with selective integration like Levinson.
 """
 
 from pre_processing.element_library.linear.levinson.utilities.B_matrix import (

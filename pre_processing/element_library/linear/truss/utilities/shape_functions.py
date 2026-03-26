@@ -1,4 +1,8 @@
-# pre_processing\element_library\truss\utilities\shape_functions.py
+# pre_processing/element_library/linear/truss/utilities/shape_functions.py
+"""
+Truss shape functions: ``natural_coordinate_form`` → **``N``**, **``dN_dξ``**, **``d2N_dξ2``** with shape **(n_gp, 12, 6)**.
+Weak-form distributed loads: **``F_dist = ∫ Nᵀ q |J| dξ``**, **``|J| = L/2``**.
+"""
 
 import numpy as np
 from typing import Tuple

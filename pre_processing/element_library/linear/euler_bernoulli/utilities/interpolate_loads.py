@@ -1,4 +1,10 @@
-# pre_processing\element_library\euler_bernoulli\utilities\interpolate_loads.py
+# pre_processing/element_library/linear/euler_bernoulli/utilities/interpolate_loads.py
+"""
+Distributed load interpolation for 6-DOF-per-node beam elements.
+
+Builds per-component splines over ``x``; element uses ``q`` at Gauss stations in
+``F_dist += w_g * N.T @ q * detJ`` with ``detJ = L/2``, ``xi in [-1, 1]``. Input columns ``[x,y,z, Fx,…,Mz]`` (9 columns).
+"""
 
 import numpy as np
 from scipy import interpolate

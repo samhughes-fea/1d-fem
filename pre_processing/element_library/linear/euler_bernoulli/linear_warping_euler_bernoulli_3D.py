@@ -1,8 +1,21 @@
 # pre_processing/element_library/linear/euler_bernoulli/linear_warping_euler_bernoulli_3D.py
 """
-2-node 3D Euler-Bernoulli beam element with 7th DOF (warping intensity) for non-uniform torsion (Vlasov).
-K_e (14, 14), F_e (14,). Strain (7,) includes φ_x′ (rate of twist); stress includes bimoment B = E·Γ·φ_x′.
-General warping: Γ from section_array (section-agnostic).
+2-node 3D Euler–Bernoulli beam with 7 DOF/node (standard six + warping intensity chi) for Vlasov non-uniform torsion.
+
+**Tensors:** ``U_e`` (14,) node-major; DOFs 0–11 match linear EB, warping chi at indices 12–13 (one per node).
+Per Gauss point ``B`` (7, 14) — first six rows from linear EB ``B`` on columns 0–11; row 6 is
+``phi_x_prime = d(theta_x)/dx + d(chi)/dx`` (warping / bimoment strain). ``D`` (7, 7) — upper 6x6 is linear EB ``D``;
+``D[6,6] = E*Gamma`` (bimoment stiffness). ``eps`` (7,), ``S = D @ eps``. ``detJ = L/2``.
+
+**Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` with ``B`` (7,14); distributed and point loads on first 12 standard DOFs; ``M_e`` uses extended ``N`` (14,6) per ``FORMULATION_DOCSTRING_STANDARDS.md``.
+
+**Kinematics / shapes:** Registry ``LinearEulerBernoulliBeamElement3D`` supplies ``N`` (12, 6) per GP; warping DOFs use
+linear Lagrange on the ``theta_x`` slot (``_N_14x6_at_xi``).
+
+**Mass:** ``element_mass_matrix`` returns ``M_e`` (14, 14) — consistent mass on ``N`` (14, 6) with ``rho*Gamma`` on warping DOFs.
+
+**Public API:** ``element_stiffness_matrix`` → ``ElementObject``; ``element_force_vector`` → ``ForceObject``;
+``element_mass_matrix`` → ``MassObject``.
 """
 
 import numpy as np
@@ -25,9 +38,12 @@ N_STRAIN = 7
 
 class LinearWarpingEulerBernoulliBeamElement3D(Element1DBase):
     """
-    2-node 3D Euler-Bernoulli beam with 7th DOF per node (warping intensity).
-    Non-uniform torsion (Vlasov): bimoment B = E·Γ·φ_x′, T = G·J_t·φ_x.
-    Element is section-agnostic; Γ from section_array (general section integration).
+    2 nodes, 7 DOF/node; local ``x`` along chord.
+
+    Notes
+    -----
+    Stiffness: ``K_e += B.T @ D @ B * w_g * detJ`` with ``B`` (7,14), ``D`` (7,7) as in the module docstring.
+    ``Gamma`` from ``section_array[9]`` when length >= 10 (otherwise 0 — no bimoment stiffness).
     """
 
     element_type_name = "WarpingEulerBernoulli-3D"

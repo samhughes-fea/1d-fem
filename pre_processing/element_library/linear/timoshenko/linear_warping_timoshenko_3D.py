@@ -1,8 +1,22 @@
 # pre_processing/element_library/linear/timoshenko/linear_warping_timoshenko_3D.py
 """
-2-node 3D Timoshenko beam element with 7th DOF (warping intensity) for non-uniform torsion (Vlasov).
-K_e (14, 14), F_e (14,). Strain (7,) includes φ_x′ (rate of twist); stress includes bimoment B = E·Γ·φ_x′.
-General warping: Γ from section_array (section-agnostic).
+2-node 3D Timoshenko beam with 7 DOF/node (six + warping chi) for Vlasov non-uniform torsion.
+
+**Tensors:** ``U_e`` (14,) — standard Timoshenko layout for DOFs 0–11, chi at 12–13. Per Gauss point ``B`` (7, 14) —
+first six rows from linear Timoshenko ``B`` (6, 12) on columns 0–11; row 6 is ``phi_x_prime`` (same as warping EB).
+``D`` (7, 7) — 6x6 Timoshenko ``D`` (``kappa*G*A`` shear) plus ``D[6,6] = E*Gamma``. ``eps`` (7,), ``S = D @ eps``;
+``detJ = L/2``.
+
+**Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` with ``D`` (7,7); ``F_dist``, ``F_point``, ``M_e`` as for warping EB.
+
+**Kinematics / shapes:** Registry ``LinearTimoshenkoBeamElement3D`` → ``N`` (12, 6); warping extension in ``_N_14x6_at_xi``.
+
+**Quadrature:** Same selective shear logic as linear Timoshenko where applicable (see ``element_stiffness_matrix``).
+
+**Mass:** ``M_e`` (14, 14) consistent on ``N`` (14, 6) with ``rho*Gamma`` on warping DOFs.
+
+**Public API:** ``element_stiffness_matrix`` → ``ElementObject``; ``element_force_vector`` → ``ForceObject``;
+``element_mass_matrix`` → ``MassObject``.
 """
 
 import numpy as np
@@ -26,9 +40,12 @@ N_STRAIN = 7  # axial, κ_y, κ_z, γ_xy, γ_xz, φ_x, φ_x′
 
 class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
     """
-    2-node 3D Timoshenko beam with 7th DOF per node (warping intensity).
-    Non-uniform torsion (Vlasov): bimoment B = E·Γ·φ_x′, T = G·J_t·φ_x.
-    Element is section-agnostic; Γ from section_array (general section integration).
+    2 nodes, 7 DOF/node; same chord-frame convention as linear Timoshenko.
+
+    Notes
+    -----
+    Assembly: ``K_e += B.T @ D @ B * w_g * detJ`` with ``B`` (7,14), ``D`` (7,7).
+    If ``quadrature_order`` is ``None`` or ``3``, derive from ``element_array`` (shear columns at least 2); else use the given integer.
     """
 
     element_type_name = "WarpingTimoshenko-3D"

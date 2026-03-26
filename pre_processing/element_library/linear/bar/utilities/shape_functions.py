@@ -1,4 +1,8 @@
-# pre_processing\element_library\bar\utilities\shape_functions.py
+# pre_processing/element_library/linear/bar/utilities/shape_functions.py
+"""
+Bar shape functions: ``natural_coordinate_form(xi_vec)`` returns ``N``, ``dN_dxi``, ``d2N_dxi2`` with shape
+(n_gp, 12, 6). Distributed loads: ``F_dist += w_g * N.T @ q * detJ``, ``detJ = L/2``, ``xi in [-1, 1]``.
+"""
 
 import numpy as np
 from typing import Tuple

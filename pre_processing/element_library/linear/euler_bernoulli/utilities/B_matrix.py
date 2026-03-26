@@ -1,5 +1,9 @@
 # pre_processing/element_library/linear/euler_bernoulli/utilities/B_matrix.py
-"""Strain-displacement matrix B for 2-node 3-D Euler-Bernoulli beam. ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]ᵀ; γ_xy=γ_xz=0. B shape (6, 12) per GP."""
+"""Strain-displacement ``B`` (6, 12) per Gauss point for 2-node 3-D Euler-Bernoulli beam.
+
+``eps = B @ U_e`` with ``eps`` = [eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x]; ``gamma_xy = gamma_xz = 0``.
+Parent element: ``K_e += B.T @ D @ B * w_g * detJ`` with ``detJ = L/2``. Voigt order per ``FORMULATION_DOCSTRING_STANDARDS.md``.
+"""
 
 import numpy as np
 from typing import Tuple
@@ -45,6 +49,12 @@ class StrainDisplacementOperator:
         First derivative ∂ξ/∂x (2/L)
     d2ξ_dx2 : float
         Second derivative ∂²ξ/∂x² (4/L²)
+
+    Notes
+    -----
+    Weak-form linkage: the element sums ``K_e += B.T @ D @ B * w_g * detJ`` over Gauss points using
+    ``physical_coordinate_form`` for ``B``. Natural-coordinate ``B_tilde`` relates via the Jacobian chain
+    (``dxi_dx``, ``d2xi_dx2``). Coordinate map: ``x(xi)`` linear from node 1 to node 2; ``dx/dxi = L/2``.
     """
 
     element_length: float

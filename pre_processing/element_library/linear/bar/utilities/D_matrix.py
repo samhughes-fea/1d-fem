@@ -1,5 +1,9 @@
 # pre_processing/element_library/linear/bar/utilities/D_matrix.py
-"""Material stiffness D for 2-node 3-D Bar. N = D @ ε; D shape (2, 2), diag(EA, GJ_t). Full 6-component view uses zeros for M_y, M_z, V_y, V_z."""
+"""
+Material stiffness ``D`` (2, 2) for bar: ``diag(EA, GJ_t)``; ``S_section = D @ eps`` (axial force, torque).
+
+Used in ``K_e += B.T @ D @ B * w_g * detJ`` in ``linear_bar_3D.py``. Optional 6x6 stress view zeros out unused rows for post-processing.
+"""
 
 import numpy as np
 from typing import Dict
@@ -28,6 +32,14 @@ class MaterialStiffnessOperator:
         Cross-sectional area A [m²].
     torsion_constant : float
         Torsional constant J_t [m⁴].
+
+    Notes
+    -----
+    Weak-form linkage: same Gauss accumulation as other 1-D elements; ``detJ = L/2`` on ``xi in [-1, 1]``.
+
+    See Also
+    --------
+    linear_bar_3D.LinearBarElement3D
     """
 
     youngs_modulus: float

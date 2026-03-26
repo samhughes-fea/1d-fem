@@ -1,5 +1,28 @@
 # pre_processing/element_library/linear/timoshenko/linear_timoshenko_3D.py
-"""2-node 3D Timoshenko beam element. K_e (12, 12), F_e (12,); full strain (6,) and stress resultants (N, M_y, M_z, V_y, V_z, T) from D."""
+"""
+2-node 3D Timoshenko beam (shear-deformable).
+
+**Tensors:** ``U_e`` (12,) node-major ``(u_x,u_y,u_z,theta_x,theta_y,theta_z)`` per node; ``K_e`` (12,12), ``F_e`` (12,);
+per Gauss point ``B`` (6,12), ``D`` (6,6), ``eps`` (6,), ``S = D @ eps`` (6,) — Voigt order per
+``docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md``. ``detJ = L/2``.
+
+**Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` summed over Gauss point sets
+(full rule plus bending/shear block replacements — still weak-form quadrature);
+``F_dist += w_g * N.T @ q * detJ``; ``F_point = N.T @ P`` at load station; ``M_e`` consistent mass per
+``FORMULATION_DOCSTRING_STANDARDS.md``.
+
+**Kinematics:** Non-zero shear strains ``gamma_xy``, ``gamma_xz``; curvatures from rotations per theory. Local ``x`` along chord.
+
+**Constitutive:** ``D`` includes ``EA``, ``EI``, ``kappa*G*A`` shear diagonal, ``GJ_t`` (see ``utilities/D_matrix.py``).
+
+**Quadrature / selective integration:** ``element_stiffness_matrix`` builds a full ``K_e`` on a max-order rule, then
+replaces the bending block (rows 1–2 of ``D`` / ``B``) and shear block (rows 3–4) with separate Gauss sums:
+bending uses ``max(bending_y_order, bending_z_order)``; shear uses 1-point reduced integration (shear locking mitigation).
+See implementation after ``Ke_full`` assembly.
+
+**Public API:** ``element_stiffness_matrix`` → ``ElementObject``; ``element_force_vector`` → ``ForceObject``;
+``element_mass_matrix`` → ``MassObject``.
+"""
 
 import numpy as np
 from typing import Tuple
@@ -23,14 +46,14 @@ from pre_processing.element_library.base_logger_operator import BaseLoggerOperat
 
 class LinearTimoshenkoBeamElement3D(Element1DBase):
     """
-    2-node 3D timoshenko Beam Element with full matrix computation capabilities
-    
-    Features:
-    - Exact shape function implementation
-    - Configurable quadrature order
-    - Combined point/distributed load handling
-    - Property-based access to material/geometry parameters
-    - Integrated logging system for stiffness matrices and force vectors
+    2-node straight beam, 6 DOF per node, 12 total; local ``x`` along the chord.
+
+    Notes
+    -----
+    Kinematics: ``gamma_xy = d(u_y)/dx - theta_z``, ``gamma_xz = d(u_z)/dx - theta_y`` (``utilities/B_matrix.py``).
+    Constitutive: ``D`` uses ``kappa * G * A`` on shear diagonals.
+    Quadrature: orders from ``element_array``; shear columns default to 2 if zero; selective bending/shear assembly (module docstring).
+    Loads: ``F_dist += w_g * N.T @ q * detJ`` like EB; optional logging.
     """
     
     # Element formulation identifier for tracking in multi-element meshes
@@ -49,17 +72,17 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
                  quadrature_order: int = 3):
         
         """
-        Initialize a 6-DOF beam element
-
-        Args:
-            geometry_array: Geometry properties array [1x20]
-            material_array: Material properties array [1x4]
-            mesh_dictionary: Mesh data dictionary
-            point_load_array: Point load array [Nx9]
-            distributed_load_array: Distributed load array [Nx9]
-            element_id: Element ID in the mesh
-            quadrature_order: Integration order (default=3)
-            logger_operator: Configured logger operator for element-specific logging
+        Parameters
+        ----------
+        element_id, element_dictionary, grid_dictionary, section_dictionary, material_dictionary
+            Passed to ``Element1DBase``.
+        point_load_array, distributed_load_array
+            Point and distributed loads (see base class).
+        job_results_dir
+            Directory for element logs.
+        quadrature_order
+            If ``3`` or ``None`` (default path), ``self.quadrature_order`` is set from ``element_array``
+            integration columns with shear at least 2. If set to another explicit int, that value is used.
         """
 
         super().__init__(

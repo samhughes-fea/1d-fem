@@ -1,8 +1,20 @@
-# pre_processing\element_library\truss\truss_3D.py
-
+# pre_processing/element_library/linear/truss/linear_truss_3D.py
 """
-2-node 3D Truss element: axial, transverse, and torsion.
-Stiffness assembled as K_e = ∫ Bᵀ D B dx (Gauss-Legendre quadrature).
+2-node 3D truss: axial + one transverse shear direction + torsion (six DOF/node for layout compatibility).
+
+**Tensors:** ``U_e`` (12,), ``K_e`` (12,12), ``F_e`` (12,). Per Gauss point ``B`` (3, 12), ``D`` (3, 3)
+(axial, transverse shear, torsion); ``eps`` (3,). ``N`` (12, 6) per GP (``linear/truss/utilities/shape_functions.py``).
+``detJ = L/2``. ``B`` is constant along the element → one Gauss point is often exact for ``K_e``.
+
+**Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ``; ``F_dist += w_g * N.T @ q * detJ``;
+``F_point = N.T @ P`` at load station; ``M_e`` consistent mass.
+
+**Kinematics / frame:** ``direction_cosines_and_transverse`` supplies axial and transverse unit vectors for ``B``.
+
+**Quadrature:** Order from argument or ``element_array`` (axial, shear_y, shear_z, torsion columns).
+
+**Public API:** ``element_stiffness_matrix`` → ``ElementObject``; ``element_force_vector`` → ``ForceObject``;
+``element_mass_matrix`` → ``MassObject`` where implemented.
 """
 
 import numpy as np
@@ -20,10 +32,11 @@ from pre_processing.element_library.shape_function_registry import get_shape_fun
 
 class LinearTrussElement3D(Element1DBase):
     """
-    2-node 3D Truss element: axial, transverse, and torsion.
+    2 nodes, 6 DOF/node; transverse displacement follows the element transverse direction (utilities).
 
-    K_e = ∫ Bᵀ D B |J| dξ via Gauss-Legendre (one point exact for constant B). Returns K_e (12, 12),
-    F_e (12,). Strain (3,); full 6-component stress resultants with zeros where not modelled.
+    Notes
+    -----
+    Weak forms and tensor sizes: module docstring.
     """
 
     element_type_name = "Truss-3D"

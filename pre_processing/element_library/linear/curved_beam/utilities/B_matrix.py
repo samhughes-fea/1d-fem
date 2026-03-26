@@ -1,5 +1,14 @@
 # pre_processing/element_library/linear/curved_beam/utilities/B_matrix.py
-"""Strain-displacement matrix B for 2-node 3-D curved Timoshenko beam. Constant curvature κ0 in x-y plane; ε = [ε_s, κ_y, κ_z, γ_xy, γ_xz, φ_x] with curvature coupling in axial and shear. B shape (6, 12) per GP. When κ0=0 reduces to straight Timoshenko."""
+"""
+Curved Timoshenko ``B`` (6, 12) per Gauss point in physical coordinates along the chord map
+(``d/dx = (2/L) d/dxi``, ``detJ = L/2``).
+
+``eps`` rows: [eps_s, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x] — ``kappa0`` couples row 0
+(``eps_s = d(u_x)/dx - kappa0 * u_y``) and row 3 (``gamma_xy = d(u_y)/dx + kappa0 * u_x - theta_z``).
+Rows 1,2,4,5 match straight Timoshenko. ``kappa0 = 0`` recovers straight ``B``.
+
+Parent element: ``K_e += B.T @ D @ B * w_g * detJ`` (``linear_curved_timoshenko_3D.py``).
+"""
 
 import numpy as np
 from typing import Tuple
@@ -9,9 +18,17 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class CurvedStrainDisplacementOperator:
     """
-    B-matrix for 2-node curved Timoshenko beam with constant initial curvature κ0 (in x-y plane).
-    Strain: ε_s = du_x/ds - κ0*u_y; κ_y, κ_z unchanged; γ_xy = du_y/ds + κ0*u_x - θ_z; γ_xz, φ_x unchanged.
-    When κ0=0 identical to straight Timoshenko.
+    Builds ``B`` (6, 12) for constant initial curvature ``kappa0``; see module docstring for row definitions.
+
+    ``physical_coordinate_form`` expects ``dN_dxi``, ``d2N_dxi2``, and ``N`` (for ``kappa0 != 0`` coupling terms).
+
+    Notes
+    -----
+    Weak-form linkage: ``linear_curved_timoshenko_3D.LinearCurvedTimoshenkoBeamElement3D``; ``D`` is straight Timoshenko section law.
+
+    See Also
+    --------
+    linear_curved_timoshenko_3D.LinearCurvedTimoshenkoBeamElement3D
     """
 
     element_length: float

@@ -1,5 +1,24 @@
 # pre_processing/element_library/linear/curved_beam/linear_curved_timoshenko_3D.py
-"""2-node 3D curved Timoshenko beam with constant initial curvature κ0. K_e (12, 12), F_e (12,). When κ0=0 reduces to straight Timoshenko."""
+"""
+2-node 3D curved Timoshenko beam, constant kappa0 (initial curvature in x–y plane).
+
+**Tensors:** ``U_e`` (12,) — standard beam DOFs; ``K_e`` (12,12), ``F_e`` (12,); per Gauss point ``B`` (6,12), ``D`` (6,6) (straight Timoshenko ``D``);
+``eps`` row 0 is axial strain with curvature coupling (see ``utilities/B_matrix.py`` for full Voigt order).
+Isoparametric map: natural coordinate xi along chord; ``detJ = dx/dxi = L/2`` (chord length ``L``); arclength ``s`` in formulas follows this 1D map.
+
+**Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ``; ``F_dist += w_g * N.T @ q * detJ``; ``F_point = N.T @ P``; ``M_e`` per ``FORMULATION_DOCSTRING_STANDARDS.md``.
+
+**Kinematics:** Curvature ``kappa0`` couples into ``B``; local frame per ``CurvedStrainDisplacementOperator``.
+
+**Shape functions:** Same ``N`` (12,6) as straight Timoshenko (registry).
+
+**Quadrature:** Single ``quadrature_order`` (max of integration columns; shear at least 2 if zero in array).
+
+**Public API:** ``element_stiffness_matrix`` → ``ElementObject``; ``element_force_vector`` → ``ForceObject``;
+``element_mass_matrix`` → ``MassObject`` (chord-frame consistent mass).
+
+**Limits:** ``kappa0 -> 0`` recovers straight Timoshenko ``B``.
+"""
 
 import numpy as np
 from typing import Tuple
@@ -16,9 +35,14 @@ logger = logging.getLogger(__name__)
 
 class LinearCurvedTimoshenkoBeamElement3D(Element1DBase):
     """
-    2-node 3D curved Timoshenko beam. Constant curvature κ0 (1/R) in x-y plane;
-    strain coupling: ε_s = du_x/ds - κ0*u_y, γ_xy = du_y/ds + κ0*u_x - θ_z.
-    Reads curvature from element_dictionary["curvature"]; κ0=0 gives straight Timoshenko.
+    Curved Timoshenko element; see module docstring for weak forms and tensors.
+
+    Notes
+    -----
+    ``element_dictionary["curvature"]`` supplies ``kappa0`` (1/m) for this element index.
+
+    Assembly: ``K_e += B.T @ D @ B * w_g * detJ`` with ``B`` from ``CurvedStrainDisplacementOperator.physical_coordinate_form``;
+    ``quadrature_order`` is max of integration columns (shear at least 2 if zero in array).
     """
 
     element_type_name = "CurvedTimoshenko-3D"

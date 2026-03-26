@@ -1,4 +1,11 @@
-# pre_processing\element_library\euler_bernoulli\utilities\shape_functions.py
+# pre_processing/element_library/linear/euler_bernoulli/utilities/shape_functions.py
+"""
+Shape functions for 2-node 3D Euler–Bernoulli beam.
+
+``natural_coordinate_form(xi)`` returns ``N`` (n_gp, 12, 6), ``dN_dxi``, ``d2N_dxi2`` — row ``a`` = global DOF ``a``,
+column ``c`` = ``(u_x,u_y,u_z,theta_x,theta_y,theta_z)``. Hermite on bending DOFs, linear on axial and torsion.
+Used to form ``B`` and ``F_dist += w_g * N.T @ q * detJ``. See ``FORMULATION_DOCSTRING_STANDARDS.md``.
+"""
 
 import numpy as np
 from typing import Tuple
@@ -34,6 +41,14 @@ class ShapeFunctionOperator:
         First derivative transform (∂ξ/∂x = 2/L)
     d2ξ_dx2 : float
         Second derivative transform (∂²ξ/∂x² = 4/L²)
+
+    Notes
+    -----
+    Natural ``xi`` in [-1, 1]; chord length ``L``. Weak-form linkage: ``linear_euler_bernoulli_3D``.
+
+    See Also
+    --------
+    linear_euler_bernoulli_3D.LinearEulerBernoulliBeamElement3D
     """
 
     element_length: float

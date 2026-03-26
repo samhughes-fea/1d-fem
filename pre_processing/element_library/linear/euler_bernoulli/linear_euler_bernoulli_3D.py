@@ -1,5 +1,24 @@
 # pre_processing/element_library/linear/euler_bernoulli/linear_euler_bernoulli_3D.py
-"""2-node 3D Euler-Bernoulli beam element. K_e (12, 12), F_e (12,); full strain (6,) with γ_xy=γ_xz=0; stress resultants (N, M_y, M_z, V_y, V_z, T) with V_y=V_z=0 from D."""
+"""
+2-node 3D Euler–Bernoulli beam.
+
+**Tensors:** ``U_e`` (12,) node-major DOFs ``(u_x,u_y,u_z,theta_x,theta_y,theta_z)`` per node;
+``K_e`` (12,12), ``F_e`` (12,); per Gauss point ``B`` (6,12), ``D`` (6,6), ``eps`` (6,), ``S = D @ eps`` (6,) with
+Voigt order per ``docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md``. ``detJ = |J| = L/2`` (chord map).
+
+**Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` summed over Gauss points ``g``;
+``F_dist += w_g * N.T @ q * detJ``; ``F_point = N.T @ P`` at the load station; ``M_e`` via consistent mass
+(see ``FORMULATION_DOCSTRING_STANDARDS.md``).
+
+**Kinematics:** ``gamma_xy = gamma_xz = 0``; ``kappa_y``, ``kappa_z`` from transverse displacement (Hermite); local ``x`` along chord. See ``utilities/B_matrix.py``.
+
+**Constitutive:** ``D`` diagonal in axial, bending, torsion; shear rows of ``D`` are zero (``V_y``, ``V_z`` from equilibrium, not ``D @ eps``).
+
+**Quadrature:** Gauss–Legendre order ``quadrature_order`` from argument or ``element_array`` (axial, bending_y, bending_z, torsion, load columns).
+
+**Public API:** ``element_stiffness_matrix`` → ``ElementObject``; ``element_force_vector`` → ``ForceObject``;
+``element_mass_matrix`` → ``MassObject`` (consistent mass).
+"""
 
 import numpy as np
 from typing import Optional, Tuple
@@ -23,21 +42,16 @@ from pre_processing.element_library.base_logger_operator import BaseLoggerOperat
 
 class LinearEulerBernoulliBeamElement3D(Element1DBase):
     """
-    2-node 3D Euler-Bernoulli Beam Element with full matrix computation capabilities.
+    2-node straight beam, 6 DOF per node, 12 total (see module docstring for ``U_e`` order).
 
-    Features:
-    - Exact shape function implementation
-    - Configurable quadrature order
-    - Combined point/distributed load handling
-    - Property-based access to material/geometry parameters
-    - Integrated logging system for stiffness matrices and force vectors
+    Notes
+    -----
+    Constitutive: ``D`` is diagonal in axial, bending, and torsion; rows 3–4 (shear) are zero, so
+    ``V_y = V_z = 0`` from ``S = D @ eps``. Equilibrium gives shear ``V = dM/dx``, not ``D @ eps``.
 
-    Shear force in Euler-Bernoulli:
-    - The theory has no shear deformation (γ_xy = γ_xz = 0), so the strain–displacement
-      matrix B does not produce shear strains and σ = D @ ε yields V_y = V_z = 0 at
-      every Gauss point. The element therefore does not "produce" shear force from the
-      constitutive law. In EB theory, shear force is defined by equilibrium (V = dM/dx);
-      if needed, obtain V by differentiating the computed bending moment M along the beam.
+    Loads: ``F_dist += w_g * N.T @ q * detJ``; point loads ``N.T @ P`` at the load station. See ``utilities/interpolate_loads.py``.
+
+    Logging: optional per-element logs for stiffness and force matrices.
     """
     
     # Element formulation identifier for tracking in multi-element meshes
@@ -56,18 +70,18 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
                  quadrature_order: Optional[int] = None):
         
         """
-        Initialize a 6-DOF beam element
-
-        Args:
-            geometry_array: Geometry properties array [1x20]
-            material_array: Material properties array [1x4]
-            mesh_dictionary: Mesh data dictionary
-            point_load_array: Point load array [Nx9]
-            distributed_load_array: Distributed load array [Nx9]
-            element_id: Element ID in the mesh
-            quadrature_order: Integration order; if None, derived from element_array
-                (axial, bending_y, bending_z, torsion, load) to match the 7-column
-                integration order convention. See docs/element_library/shape_function_conventions.md.
+        Parameters
+        ----------
+        element_id, element_dictionary, grid_dictionary, section_dictionary, material_dictionary
+            Passed to ``Element1DBase`` (connectivity, coordinates, section and material arrays).
+        point_load_array, distributed_load_array
+            Loads; columns ``[x,y,z, Fx,Fy,Fz, Mx,My,Mz]`` for distributed table.
+        job_results_dir
+            Directory for element logs.
+        quadrature_order
+            Gauss–Legendre order. If ``None``, taken as the max of ``element_array`` fields
+            ``[axial, bending_y, bending_z, torsion, load]`` (indices 3–5, 8–9), at least 2.
+            See ``docs/element_library/shape_function_conventions.md``.
         """
 
         super().__init__(

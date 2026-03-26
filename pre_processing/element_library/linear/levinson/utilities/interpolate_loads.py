@@ -1,4 +1,9 @@
 # pre_processing\element_library\levinson\utilities\interpolate_loads.py
+"""
+Distributed loads for Levinson 6-DOF-per-node elements.
+
+Same assembly contract as Timoshenko: ``F_dist += w_g * N.T @ q * detJ``, ``detJ = L/2``, ``xi in [-1, 1]``.
+"""
 
 import numpy as np
 from scipy import interpolate

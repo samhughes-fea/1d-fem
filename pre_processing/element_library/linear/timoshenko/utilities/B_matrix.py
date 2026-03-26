@@ -1,5 +1,9 @@
 # pre_processing/element_library/linear/timoshenko/utilities/B_matrix.py
-"""Strain-displacement matrix B for 2-node 3-D Timoshenko beam. ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]ᵀ; shear γ_xy = ∂u_y/∂x − θ_z, γ_xz = ∂u_z/∂x + θ_y. B shape (6, 12) per GP."""
+"""Strain-displacement ``B`` (6, 12) per Gauss point for 2-node 3-D Timoshenko beam.
+
+``eps = B @ U_e``; Voigt ``eps`` = [eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x] with shear
+``gamma_xy = d(u_y)/dx - theta_z``, ``gamma_xz = d(u_z)/dx + theta_y``. Parent sums ``K_e += B.T @ D @ B * w_g * detJ``.
+"""
 
 import numpy as np
 from typing import Tuple
@@ -41,6 +45,15 @@ class StrainDisplacementOperator:
         First derivative ∂ξ/∂x (2/L)
     d2ξ_dx2 : float
         Second derivative ∂²ξ/∂x² (4/L²)
+
+    Notes
+    -----
+    Weak-form linkage: ``linear_timoshenko_3D`` uses ``physical_coordinate_form`` in the stiffness loop; ``detJ = L/2``.
+    Chord map ``x(xi)`` linear between nodes.
+
+    See Also
+    --------
+    linear_timoshenko_3D.LinearTimoshenkoBeamElement3D
     """
 
     element_length: float

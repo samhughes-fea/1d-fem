@@ -1,4 +1,5 @@
-# pre_processing\element_library\truss\utilities\interpolate_loads.py
+# pre_processing/element_library/linear/truss/utilities/interpolate_loads.py
+"""Distributed loads ``q`` (6 components) for truss; ``F_dist += w_g * N.T @ q * detJ`` with ``N`` (12, 6), ``detJ = L/2``."""
 
 import numpy as np
 from scipy import interpolate

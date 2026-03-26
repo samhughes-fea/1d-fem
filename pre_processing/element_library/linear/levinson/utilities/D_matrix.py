@@ -1,5 +1,8 @@
 # pre_processing/element_library/linear/levinson/utilities/D_matrix.py
-"""Material stiffness D (6×6) for Levinson beam. N = D @ ε; diag(EA, EI_z, EI_y, GA, GA, GJ_t). Full (N, M_y, M_z, V_y, V_z, T); GA without κ."""
+"""Material stiffness ``D`` (6, 6) for Levinson beam. ``S = D @ eps``; diagonal ``EA``, ``EI_z``, ``EI_y``, ``G*A`` (shear, twice), ``GJ_t`` — no ``kappa`` factor (shear is ``G*A``).
+
+Matches Voigt order used in ``levinson/utilities/B_matrix.py``. Parent: ``K_e += B.T @ D @ B * w_g * detJ``.
+"""
 
 import numpy as np
 from typing import Dict
@@ -7,33 +10,10 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class MaterialStiffnessOperator:
-    """Constitutive operator for 3D Levinson beam elements.
-    
-    Encapsulates the material stiffness matrix (D-matrix) with dual representations:
-    - Assembly form: Optimized for stiffness matrix assembly (Kᵉ = ∫BᵀDB dx)
-    - Postprocessing form: Complete form for stress/strain computation and energy decomposition
+    """Constitutive operator (``D``) for 3D Levinson beam elements.
 
-    Mathematical Formulation
-    -----------------------
-    Levinson beam theory includes shear deformation. Higher-order kinematics
-    (e.g. α(∂²θ/∂x²) in the shear strain in the B-matrix) give a better
-    approximation of shear stress distribution over the section, so no
-    empirical shear correction factor κ is needed; the constitutive shear
-    stiffness is **GA** (κ = 1 implicitly), unlike Timoshenko which uses κGA.
-
-    ⎡ N  ⎤   ⎡ EA     0       0       0       0       0   ⎤ ⎡ ε_x  ⎤
-    ⎢ M_z⎥   ⎢ 0     EI_z     0       0       0       0   ⎥ ⎢ κ_z  ⎥
-    ⎢ M_y⎥ = ⎢ 0      0     EI_y      0       0       0   ⎥ ⎢ κ_y  ⎥
-    ⎢ V_y⎥   ⎢ 0      0       0      GA       0       0   ⎥ ⎢ γ_xy ⎥
-    ⎢ V_z⎥   ⎢ 0      0       0       0      GA       0   ⎥ ⎢ γ_xz ⎥
-    ⎣ M_x⎦   ⎣ 0      0       0       0       0    GJ_t ⎦ ⎣ φ_x  ⎦
-
-    Symbol definitions:
-        EA   = E · A       (axial stiffness)
-        EI_y = E · I_y     (bending about y)
-        EI_z = E · I_z     (bending about z)
-        GA   = G · A       (shear stiffness; no κ, unlike Timoshenko)
-        GJ_t = G · J_t     (torsional stiffness)
+    Assembly and post-processing forms of the same 6x6 ``D``. Shear stiffness is ``G*A`` (no Timoshenko ``kappa``);
+    higher-order shear in the kinematics is carried by ``B`` (``StrainDisplacementOperator``).
 
     Parameters
     ----------
@@ -62,6 +42,15 @@ class MaterialStiffnessOperator:
     ----------
     has_warping_coupling : bool
         True if bending-torsion coupling exists (I_wy or I_wz ≠ 0)
+
+    Notes
+    -----
+    Voigt strain order matches ``B_matrix``: ``eps_x``, ``kappa_z``, ``kappa_y``, ``gamma_xy``, ``gamma_xz``, ``phi_x``.
+    Weak form: ``linear_levinson_3D`` sums ``B.T @ D @ B * w_g * detJ`` with selective bending/shear quadrature.
+
+    See Also
+    --------
+    linear_levinson_3D.LinearLevinsonBeamElement3D
     """
 
     # Material properties (immutable)
@@ -86,17 +75,12 @@ class MaterialStiffnessOperator:
 
     def assembly_form(self) -> np.ndarray:
         """
-        Retrieves the material matrix optimized for stiffness matrix assembly.
-        
-        Used in the computation of Kᵉ = ∫BᵀDB dx where:
-        - B is the strain-displacement matrix
-        - D is this material stiffness matrix
-        - Integration is performed over element domain
+        Material matrix for ``K_e += B.T @ D @ B * w_g * detJ`` at each Gauss point.
 
         Returns
         -------
         np.ndarray
-            6×6 material stiffness matrix in assembly-optimized form
+            Material stiffness matrix, shape (6, 6).
         """
         return self._D_assembly
 

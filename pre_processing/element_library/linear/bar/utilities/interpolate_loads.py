@@ -1,4 +1,8 @@
-# pre_processing\element_library\bar\utilities\interpolate_loads.py
+# pre_processing/element_library/linear/bar/utilities/interpolate_loads.py
+"""Distributed load interpolation for bar/truss ``q`` (6 components per station).
+
+Contributes ``F_dist += w_g * N.T @ q * detJ`` with ``N`` (12, 6) and ``detJ = L/2`` (``xi in [-1, 1]``). See parent element module.
+"""
 
 import numpy as np
 from scipy import interpolate

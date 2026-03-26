@@ -1,5 +1,23 @@
 # pre_processing/element_library/linear/levinson/linear_levinson_3D.py
-"""2-node 3D Levinson beam element. K_e (12, 12), F_e (12,); full strain (6,) with higher-order shear; stress resultants (N, M_y, M_z, V_y, V_z, T), GA without κ."""
+"""
+2-node 3D Levinson beam (third-order shear, no shear correction factor kappa on ``D``).
+
+**Tensors:** ``U_e`` (12,) — Voigt / DOF order per ``docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md``;
+``K_e`` (12,12), ``F_e`` (12,); per Gauss point ``B`` (6,12), ``D`` (6,6) with shear stiffness ``G*A`` (not ``kappa*G*A``);
+``eps`` (6,), ``S = D @ eps``. ``detJ = L/2``.
+
+**Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` (full rule plus selective bending/shear block replacements);
+``F_dist += w_g * N.T @ q * detJ``; ``F_point = N.T @ P``; ``M_e`` consistent mass per ``FORMULATION_DOCSTRING_STANDARDS.md``.
+
+**Kinematics:** Third-order shear kinematics (see ``utilities/B_matrix.py``). Local ``x`` along chord.
+
+**Constitutive:** Same Voigt layout as Timoshenko-style beams; shear diagonal uses ``G*A`` (Levinson).
+
+**Quadrature / selective integration:** Same pattern as linear Timoshenko: full ``K`` on ``max_order``, then separate bending and shear Gauss sums (shear typically lower order). See ``element_stiffness_matrix``.
+
+**Public API:** ``element_stiffness_matrix`` → ``ElementObject``; ``element_force_vector`` → ``ForceObject``;
+``element_mass_matrix`` → ``MassObject``.
+"""
 
 import numpy as np
 from typing import Tuple
@@ -23,14 +41,13 @@ from pre_processing.element_library.base_logger_operator import BaseLoggerOperat
 
 class LinearLevinsonBeamElement3D(Element1DBase):
     """
-    2-node 3D Levinson Beam Element with full matrix computation capabilities
-    
-    Features:
-    - Exact shape function implementation
-    - Configurable quadrature order
-    - Combined point/distributed load handling
-    - Property-based access to material/geometry parameters
-    - Integrated logging system for stiffness matrices and force vectors
+    **Identity:** 2 nodes, **6 DOF/node**, local **x** along chord.
+
+    **Kinematics:** Higher-order transverse displacement and rotation fields; shear strains include
+    third-order terms (see ``utilities/B_matrix.py``). **Constitutive:** ``D`` matches Timoshenko layout but
+    shear diagonal uses **G·A** (Levinson theory — no κ factor in this implementation).
+
+    **Quadrature:** Default from ``element_array``; shear orders forced ≥ 3 when zero (see ``__init__``).
     """
     
     # Element formulation identifier for tracking in multi-element meshes
@@ -49,17 +66,15 @@ class LinearLevinsonBeamElement3D(Element1DBase):
                  quadrature_order: int = 3):
         
         """
-        Initialize a 6-DOF beam element
-
-        Args:
-            geometry_array: Geometry properties array [1x20]
-            material_array: Material properties array [1x4]
-            mesh_dictionary: Mesh data dictionary
-            point_load_array: Point load array [Nx9]
-            distributed_load_array: Distributed load array [Nx9]
-            element_id: Element ID in the mesh
-            quadrature_order: Integration order (default=3)
-            logger_operator: Configured logger operator for element-specific logging
+        Parameters
+        ----------
+        element_id, element_dictionary, grid_dictionary, section_dictionary, material_dictionary
+            Passed to ``Element1DBase``.
+        point_load_array, distributed_load_array, job_results_dir
+            Loads and log directory.
+        quadrature_order
+            Default ``3``: derive from ``element_array`` (shear columns forced to at least 3 when zero,
+            then ``max`` of axial/bending/shear/torsion, minimum 3). Any other integer sets ``self.quadrature_order`` directly.
         """
 
         super().__init__(

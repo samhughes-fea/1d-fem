@@ -1,4 +1,9 @@
-# pre_processing\element_library\euler_bernoulli\utilities\interpolate_loads.py
+# pre_processing/element_library/linear/timoshenko/utilities/interpolate_loads.py
+"""
+Distributed load interpolation for 6-DOF-per-node beams (same ``q`` contract as EB).
+
+Contributes ``F_dist += w_g * N.T @ q * detJ`` with ``detJ = L/2``, ``xi in [-1, 1]``; ``q`` has six components per station.
+"""
 
 import numpy as np
 from scipy import interpolate

@@ -1,5 +1,8 @@
 # pre_processing/element_library/linear/timoshenko/utilities/D_matrix.py
-"""Material stiffness D (6×6) for Timoshenko beam. N = D @ ε; diag(EA, EI_y, EI_z, κGA, κGA, GJ_t). Full (N, M_y, M_z, V_y, V_z, T) from constitutive."""
+"""Material stiffness ``D`` (6, 6) for Timoshenko beam. ``S = D @ eps``; diagonal ``EA``, ``EI_y``, ``EI_z``, ``kappa*G*A`` (shear, twice), ``GJ_t``.
+
+Parent element: ``K_e += B.T @ D @ B * w_g * detJ`` (with selective bending/shear quadrature in ``linear_timoshenko_3D.py``).
+"""
 
 import numpy as np
 from typing import Dict
@@ -8,36 +11,9 @@ from dataclasses import dataclass, field
 @dataclass(frozen=True)
 class MaterialStiffnessOperator:
     """
-    Constitutive operator for 3-D Timoshenko beam elements.
+    Constitutive operator (``D`` matrix) for 3-D Timoshenko beam elements.
 
-    This class builds and stores the element-level material stiffness
-    tensor (**D-matrix**) in two convenient forms:
-
-    * **assembly form** – a matrix tailored for the stiffness-integration
-      loop : `Kᵉ = ∫ Bᵀ D B dx`
-    * **post-processing form** – the same matrix kept for stress recovery,
-      energy checks, result visualisation, etc.
-
-    Mathematical Formulation
-    ------------------------
-    Timoshenko theory couples axial, bending, shear and torsional actions.
-    Strain and stress resultants in Voigt order:
-
-        ε = [ εₓ  κᵧ  κ_z  γ_xy  γ_xz  φₓ ]ᵀ
-        N = [ N   Mᵧ  M_z  V_xy  V_xz  Mₓ ]ᵀ
-
-                       ⎡ EA      0      0      0      0     0 ⎤
-                       ⎢  0    EI_y    0      0      0     0 ⎥
-    N = D · ε  ,   D = ⎢  0      0   EI_z     0      0     0 ⎥
-                       ⎢  0      0      0   κGA      0     0 ⎥
-                       ⎢  0      0      0     0    κGA     0 ⎥
-                       ⎣  0      0      0     0      0  GJ_t⎦
-
-        EA   = E · A       (axial stiffness)
-        EI_y = E · I_y     (bending about y)
-        EI_z = E · I_z     (bending about z)
-        κGA  = κ · G · A   (shear stiffness; κ = shear correction factor)
-        GJ_t = G · J_t     (torsional stiffness)
+    Stores assembly and post-processing copies of the same 6x6 ``D``.
 
     Parameters
     ----------
@@ -67,17 +43,16 @@ class MaterialStiffnessOperator:
         Pre-factored diagonal blocks for axial, bending-y, bending-z,
         torsion, shear-xy and shear-xz.
 
-    Public API
-    ----------
-    assembly_form()
-        Return the assembly-optimised D-matrix, 6×6 matrix used in Kᵉ = ∫ Bᵀ D B |J| dξ
-    postprocessing_form()
-        Return the full post-processing D-matrix, identical copy, kept for symmetry with other
-        element types that may differ  
-    compute_stress_resultants(ε)
-        σ = D · ε for one or many strain vectors.
-    energy_density_components(ε)
-        Detailed strain-energy breakdown.
+    Notes
+    -----
+    Voigt: ``eps`` and ``S`` order per ``FORMULATION_DOCSTRING_STANDARDS.md``. ``D`` is diagonal with
+    ``EA``, ``EI_y``, ``EI_z``, ``kappa*G*A`` on rows 3 and 4 (shear), ``GJ_t`` for torsion.
+    Weak form: ``K_e += B.T @ D @ B * w_g * detJ`` on ``xi in [-1, 1]``; parent may use different Gauss rules for bending vs shear blocks.
+
+    See Also
+    --------
+    linear_timoshenko_3D.LinearTimoshenkoBeamElement3D
+    docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md
 
     """
 
@@ -118,12 +93,7 @@ class MaterialStiffnessOperator:
 
     def assembly_form(self) -> np.ndarray:
         """
-        Retrieves the material matrix optimized for stiffness matrix assembly.
-        
-        Used in the computation of Kᵉ = ∫BᵀDB dx where:
-        - B is the strain-displacement matrix
-        - D is this material stiffness matrix
-        - Integration is performed over element domain
+        Material matrix for ``K_e += B.T @ D @ B * w_g * detJ`` at each Gauss point.
 
         Returns
         -------

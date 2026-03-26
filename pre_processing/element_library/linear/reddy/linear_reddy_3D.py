@@ -1,5 +1,21 @@
 # pre_processing/element_library/linear/reddy/linear_reddy_3D.py
-"""2-node 3D Reddy beam element. Same third-order shear kinematics as Levinson; variationally consistent. K_e (12, 12), F_e (12,); GA without κ."""
+"""
+2-node 3D Reddy beam (variationally consistent third-order shear).
+
+**Tensors:** Same sizes as Levinson — ``U_e`` (12,), ``K_e`` (12,12), ``F_e`` (12,), ``B`` (6,12), ``D`` (6,6), ``eps``, ``S`` —
+per ``docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md``. ``D`` matches Levinson (``G*A`` shear, no ``kappa``).
+
+**Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` with selective bending/shear rules as Levinson;
+``F_dist += w_g * N.T @ q * detJ``; ``F_point = N.T @ P``; ``M_e`` per ``FORMULATION_DOCSTRING_STANDARDS.md``. ``detJ = L/2``.
+
+**Kinematics:** Same Voigt strain layout as Levinson; ``B`` includes section parameter ``alpha`` (``StrainDisplacementOperator``),
+from ``section_array[6]`` or ``I_z/A``. Operators re-exported from Levinson where noted in ``utilities/``.
+
+**Quadrature:** Selective integration in ``element_stiffness_matrix`` matches Levinson-style bending/shear split.
+
+**Public API:** ``element_stiffness_matrix`` → ``ElementObject``; ``element_force_vector`` → ``ForceObject``;
+``element_mass_matrix`` → ``MassObject``.
+"""
 
 import numpy as np
 from typing import Tuple
@@ -17,8 +33,11 @@ logger = logging.getLogger(__name__)
 
 class LinearReddyBeamElement3D(Element1DBase):
     """
-    2-node 3D Reddy beam element (variationally consistent third-order shear).
-    Same kinematics as Levinson: quintic u_y/u_z, cubic rotation; γ = du/dx - θ + α d²θ/dx²; GA, no κ.
+    **Identity:** 2 nodes, 6 DOF/node, 12 global DOFs (standard beam ordering).
+
+    **Tensors / kinematics:** **Same Voigt row meaning as Levinson**; Reddy–Levinson distinction is in the
+    **strain–displacement** definitions (α-term). **Selective integration** in ``element_stiffness_matrix`` matches
+    the Levinson-style bending/shear split (see implementation).
     """
 
     element_type_name = "Reddy-3D"

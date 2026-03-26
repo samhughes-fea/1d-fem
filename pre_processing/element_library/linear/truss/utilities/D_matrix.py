@@ -1,5 +1,9 @@
 # pre_processing/element_library/linear/truss/utilities/D_matrix.py
-"""Material stiffness D for 2-node 3-D Truss. N = D @ ε; D shape (3, 3), diag(EA, κGA, GJ_t). Full 6-component view (N, M_y, M_z, V_y, V_z, T) uses zeros for bending/shear not modelled."""
+"""
+Material stiffness ``D`` (3, 3): ``diag(EA, kappa*G*A, GJ_t)`` for ``eps`` (3,) [axial, transverse shear, torsion].
+
+Used in ``K_e += B.T @ D @ B * w_g * detJ``. Can embed in a 6x6 resultant layout with zeros on unused rows.
+"""
 
 import numpy as np
 from typing import Dict
@@ -31,6 +35,14 @@ class MaterialStiffnessOperator:
         Torsional constant J_t [m⁴].
     shear_correction_factor : float, default 5/6
         κ for transverse shear (κGA).
+
+    Notes
+    -----
+    Weak-form linkage: same Gauss pattern as ``linear_truss_3D.LinearTrussElement3D``.
+
+    See Also
+    --------
+    linear_truss_3D.LinearTrussElement3D
     """
 
     youngs_modulus: float

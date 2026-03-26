@@ -1,5 +1,8 @@
 # pre_processing/element_library/linear/euler_bernoulli/utilities/D_matrix.py
-"""Material stiffness D (6×6) for Euler-Bernoulli beam. N = D @ ε; diag(EA, EI_y, EI_z, 0, 0, GJ_t). Rows 4–5 (V_y, V_z) zero."""
+"""Material stiffness ``D`` (6, 6) for Euler-Bernoulli beam. ``S = D @ eps`` with diagonal ``EA``, ``EI_y``, ``EI_z``, zero shear rows, ``GJ_t``.
+
+Used inside ``K_e += B.T @ D @ B * w_g * detJ`` in the parent element (see ``linear_euler_bernoulli_3D.py``).
+"""
 
 import numpy as np
 from typing import Dict
@@ -8,41 +11,9 @@ from dataclasses import dataclass, field
 @dataclass(frozen=True)
 class MaterialStiffnessOperator:
     """
-    Constitutive operator for 3-D Euler–Bernoulli beam elements.
+    Constitutive operator (``D`` matrix) for 3-D Euler–Bernoulli beam elements.
 
-    This class builds and stores the element-level material stiffness
-    tensor (**D-matrix**) in two convenient forms:
-
-    * **assembly form** – a matrix tailored for the stiffness-integration
-      loop : `Kᵉ = ∫ Bᵀ D B dx`
-    * **post-processing form** – the same matrix kept for stress recovery,
-      energy checks, result visualisation, etc.
-
-    Mathematical Formulation
-    ------------------------
-    Classical Euler–Bernoulli theory couples axial, bending and torsional
-    actions while shear terms remain identically zero:
-
-        ε = [ εₓ  κᵧ  κ_z  γ_xy  γ_xz  φₓ ]ᵀ
-        N = [ N   Mᵧ  M_z  V_xy  V_xz  Mₓ ]ᵀ
-
-                       ⎡ EA    0     0     0     0     0 ⎤
-                       ⎢  0   EI_y   0     0     0     0 ⎥
-    N = D · ε  ,   D = ⎢  0    0   EI_z    0     0     0 ⎥
-                       ⎢  0    0     0     0     0     0 ⎥
-                       ⎢  0    0     0     0     0     0 ⎥
-                       ⎣  0    0     0     0     0   GJ_t⎦
-
-        EA   = E · A       (axial stiffness)
-        EI_y = E · I_y     (bending about y)
-        EI_z = E · I_z     (bending about z)
-        GJ_t = G · J_t     (torsional stiffness)
-
-    The fourth and fifth rows (shear) are zero, so V_y = V_z = 0 from D @ ε.
-    The EB element does not produce shear force from the constitutive law;
-    shear in EB is from equilibrium (V = dM/dx). Shear-deformable elements
-    (e.g. Timoshenko, Levinson) use non-zero shear stiffness and do produce
-    V_y, V_z from D @ ε.
+    Stores **assembly** and **post-processing** copies of the same 6x6 ``D`` (identical for EB; split supports other theories).
 
     Parameters
     ----------
@@ -69,17 +40,19 @@ class MaterialStiffnessOperator:
         Pre-factored diagonal blocks for axial, bending-y, bending-z,
         torsion, shear-xy (zero) and shear-xz (zero).
 
-    Public API
-    ----------
-    assembly_form()
-        Return the assembly-optimised D-matrix, 6×6 matrix used in Kᵉ = ∫ Bᵀ D B |J| dξ
-    postprocessing_form()
-        Return the full post-processing D-matrix, identical copy, kept for symmetry with other
-        element types that may differ  
-    compute_stress_resultants(ε)
-        σ = D · ε for one or many strain vectors.
-    energy_density_components(ε)
-        Detailed strain-energy breakdown.
+    Notes
+    -----
+    Strain and stress resultants (Voigt): ``eps`` = [eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x],
+    ``S`` = [N, M_y, M_z, V_y, V_z, T] with ``S = D @ eps``. ``D`` is diagonal in ``EA``, ``EI_y``, ``EI_z``,
+    rows 3–4 (shear) are zero, last diagonal is ``GJ_t``. Shear forces from constitutive law are zero for EB;
+    use equilibrium ``V = dM/dx`` if shear is needed. Timoshenko/Levinson use non-zero shear stiffness on ``D``.
+
+    Weak form: parent element accumulates ``K_e += B.T @ D @ B * w_g * detJ`` on ``xi in [-1, 1]`` with ``detJ = L/2``.
+
+    See Also
+    --------
+    linear_euler_bernoulli_3D.LinearEulerBernoulliBeamElement3D : assembles ``K_e`` from ``B`` and this ``D``.
+    docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md : Voigt table.
 
     """
 
@@ -115,17 +88,12 @@ class MaterialStiffnessOperator:
 
     def assembly_form(self) -> np.ndarray:
         """
-        Retrieves the material matrix optimized for stiffness matrix assembly.
-        
-        Used in the computation of Kᵉ = ∫BᵀDB dx where:
-        - B is the strain-displacement matrix
-        - D is this material stiffness matrix
-        - Integration is performed over element domain
+        Material matrix for stiffness assembly: ``K_e += B.T @ D @ B * w_g * detJ`` at each Gauss point.
 
         Returns
         -------
         np.ndarray
-            6×6 material stiffness matrix in assembly-optimized form
+            Material stiffness matrix, shape (6, 6).
         """
         return self._D_assembly
 
@@ -187,11 +155,11 @@ class MaterialStiffnessOperator:
         | Voigt component | Meaning                    | Row/col in D | Filled with |
         | --------------- | -------------------------- | -------------| ----------- |
         | 0               | ε_x  (axial)               | 0            | **EA**      |
-        | 1               | κ_y (bending about y)      | 1            | **EI\_y**   |
-        | 2               | κ_z (bending about z)      | 2            | **EI\_z**   |
+        | 1               | κ_y (bending about y)      | 1            | **EI_y**    |
+        | 2               | κ_z (bending about z)      | 2            | **EI_z**    |
         | 3               | γ_xy (shear-xy)            | 3            | 0           |
         | 4               | γ_xz (shear-xz)            | 4            | 0           |
-        | 5               | φ_x  (torsion)             | 5            | **GJ\_t**   |
+        | 5               | φ_x  (torsion)             | 5            | **GJ_t**    |
 
         """
         # Compute stiffness terms (consistent units)

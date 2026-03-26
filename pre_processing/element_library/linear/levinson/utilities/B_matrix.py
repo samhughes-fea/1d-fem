@@ -1,5 +1,9 @@
 # pre_processing/element_library/linear/levinson/utilities/B_matrix.py
-"""Strain-displacement matrix B for 2-node 3-D Levinson beam. ε = [ε_x, κ_z, κ_y, γ_xy, γ_xz, φ_x]ᵀ; shear includes α(∂²θ/∂x²). B shape (6, 12) per GP."""
+"""Strain-displacement ``B`` (6, 12) per Gauss point for 2-node 3-D Levinson beam.
+
+Voigt ``eps`` order matches implementation: [eps_x, kappa_z, kappa_y, gamma_xy, gamma_xz, phi_x]; shear includes ``alpha * d2(theta)/dx2`` terms.
+Parent: ``K_e += B.T @ D @ B * w_g * detJ`` with selective bending/shear rules (``linear_levinson_3D.py``).
+"""
 
 import numpy as np
 from typing import Tuple
@@ -47,6 +51,14 @@ class StrainDisplacementOperator:
 
     d2ξ_dx2 : float
         Second derivative of ξ with respect to x: ∂²ξ/∂x² = 4 / L²
+
+    Notes
+    -----
+    Same Gauss weak form as Timoshenko family; ``D`` uses ``G*A`` shear stiffness (no ``kappa`` factor). See module one-liner for Voigt row order.
+
+    See Also
+    --------
+    linear_levinson_3D.LinearLevinsonBeamElement3D
     """
 
     element_length: float

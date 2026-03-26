@@ -1,5 +1,8 @@
 # pre_processing/element_library/linear/truss/utilities/B_matrix.py
-"""Strain-displacement matrix B for 2-node 3-D Truss (axial + transverse + torsion). ε = B @ u_e; B shape (3, 12) per GP."""
+"""
+Strain-displacement ``B`` (3, 12) per Gauss point for 2-node 3-D truss: ``eps = B @ U_e`` with
+``eps`` = [eps_axial, gamma_transverse, phi_torsion]. Parent: ``K_e += B.T @ D @ B * w_g * detJ``.
+"""
 
 import numpy as np
 from typing import Tuple
@@ -26,6 +29,10 @@ class StrainDisplacementOperator:
         Unit vector along the element.
     transverse : np.ndarray, shape (3,)
         Unit vector for transverse direction (local y).
+
+    Notes
+    -----
+    ``B`` is constant in ``xi``; ``detJ = L/2``. See ``linear_truss_3D.py`` for quadrature.
     """
 
     element_length: float

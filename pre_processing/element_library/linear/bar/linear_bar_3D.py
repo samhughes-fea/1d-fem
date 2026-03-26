@@ -1,10 +1,21 @@
 # pre_processing/element_library/linear/bar/linear_bar_3D.py
 """
-2-node 3D Bar element: axial and torsion only (no transverse).
+2-node 3D bar: axial + torsion only (no bending/shear DOF coupling in ``B``).
 
-Uses generalised 3D layout: K_e shape (12, 12), F_e shape (12,). Reduced strain (2,) maps to full
-ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]ᵀ with κ_y = κ_z = γ_xy = γ_xz = 0. Stiffness K_e = ∫ Bᵀ D B dx
-via Gauss-Legendre (one point exact for constant B); |J| = L/2.
+**Tensors:** ``U_e`` (12,), ``K_e`` (12,12), ``F_e`` (12,) — six DOF/node for job compatibility.
+Per Gauss point ``B`` (2, 12), ``D`` (2, 2) (``EA``, ``GJ_t``); ``eps`` (2,) = [axial strain, twist rate].
+``N`` (12, 6) per GP (``linear/bar/utilities/shape_functions.py``). ``detJ = L/2``.
+
+**Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ``; ``F_dist += w_g * N.T @ q * detJ``;
+``F_point = N.T @ P`` at load station; ``M_e`` consistent mass.
+
+**Kinematics / frame:** Local operators use direction cosines along the chord; for 4-DOF axial–torsion global maps,
+``linear/bar/utilities/local_frame.build_L_matrix_4x12`` builds ``L`` from the axial unit vector.
+
+**Quadrature:** Order from argument or ``element_array`` (axial, torsion integration columns).
+
+**Public API:** ``element_stiffness_matrix`` → ``ElementObject``; ``element_force_vector`` → ``ForceObject``;
+``element_mass_matrix`` → ``MassObject`` where implemented.
 """
 
 import numpy as np
@@ -22,11 +33,11 @@ from pre_processing.element_library.shape_function_registry import get_shape_fun
 
 class LinearBarElement3D(Element1DBase):
     """
-    2-node 3D Bar element: axial and torsion only.
+    2 nodes, 6 DOF/node; only axial and torsion strains are non-zero in ``B``.
 
-    K_e = ∫ Bᵀ D B |J| dξ via Gauss-Legendre (one point exact for constant B). Returns K_e shape
-    (12, 12), F_e shape (12,). Strain vector in reduced form (2,) [ε_axial, φ_torsion]; full
-    stress resultants (N, M_y, M_z, V_y, V_z, T) with only N and T non-zero from constitutive.
+    Notes
+    -----
+    Tensor shapes, ``detJ``, and ``build_L_matrix_4x12`` for 4-DOF global maps: module docstring.
     """
 
     element_type_name = "Bar-3D"
