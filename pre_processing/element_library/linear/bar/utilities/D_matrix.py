@@ -1,8 +1,8 @@
 # pre_processing/element_library/linear/bar/utilities/D_matrix.py
 """
-Material stiffness ``D`` (2, 2) for bar: ``diag(EA, GJ_t)``; ``S_section = D @ eps`` (axial force, torque).
+Material stiffness D (2, 2) for bar: diag(EA, GJ_t), with S = D ε (axial force, torque).
 
-Used in ``K_e += B.T @ D @ B * w_g * detJ`` in ``linear_bar_3D.py``. Optional 6x6 stress view zeros out unused rows for post-processing.
+Used in `K_e += B.T @ D @ B * w_g * detJ` in `linear_bar_3D.py`.
 """
 
 import numpy as np
@@ -47,8 +47,8 @@ class MaterialStiffnessOperator:
     [ 0    GJ_t ]
     ```
 
-    **D tensor (shape (2, 2))**: ``D[0,0] = EA``, ``D[1,1] = GJ_t``, off-diagonals are zero.
-    **Resultants:** ``S = [N_axial, T] = D @ [eps_axial, phi_torsion]``.
+    **D tensor (shape (2, 2))**: D[0,0] = EA, D[1,1] = GJ_t, off-diagonals are zero.
+    **Resultants:** S = [N_axial, T] = D @ [ε_axial, φ_torsion].
     **N/B linkage:** parent bar element uses reduced shape/strain operators, then sums
     ``K_e += B.T @ D @ B * w_g * detJ`` with ``detJ = L/2`` on ``xi in [-1, 1]``.
 

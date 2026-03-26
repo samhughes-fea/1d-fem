@@ -1,8 +1,10 @@
 # pre_processing/element_library/linear/levinson/utilities/B_matrix.py
-"""Strain-displacement ``B`` (6, 12) per Gauss point for 2-node 3-D Levinson beam.
+"""Strain-displacement B (6, 12) per Gauss point for 2-node 3-D Levinson beam.
 
-Voigt ``eps`` order matches implementation: [eps_x, kappa_z, kappa_y, gamma_xy, gamma_xz, phi_x]; shear includes ``alpha * d2(theta)/dx2`` terms.
-Parent: ``K_e += B.T @ D @ B * w_g * detJ`` with selective bending/shear rules (``linear_levinson_3D.py``).
+Voigt order is [ε_x, κ_z, κ_y, γ_xy, γ_xz, φ_x];
+shear rows include α ∂²θ/∂x² terms.
+Parent assembly uses `K_e += B.T @ D @ B * w_g * detJ`
+with selective bending/shear rules in `linear_levinson_3D.py`.
 """
 
 import numpy as np
@@ -14,12 +16,12 @@ class StrainDisplacementOperator:
     """
     Strain-displacement ``B`` (6, 12) per Gauss point for a 2-node 3-D Levinson beam.
 
-    Voigt ``eps = B @ U_e`` with rows **``[eps_x, kappa_z, kappa_y, gamma_xy, gamma_xz, phi_x]``**
-    (``kappa_z`` before ``kappa_y``, matching implementation):
-    ``eps_x = d(u_x)/dx``; ``kappa_z = d(theta_z)/dx``; ``kappa_y = d(theta_y)/dx``;
-    ``gamma_xy = d(u_y)/dx - theta_z + alpha*d2(theta_z)/dx2``;
-    ``gamma_xz = d(u_z)/dx - theta_y + alpha*d2(theta_y)/dx2``;
-    ``phi_x = d(theta_x)/dx``. Coefficient ``alpha`` (e.g. ``h**2/12`` for rectangular sections) is a section property.
+    Voigt ε = B U_e with rows [ε_x, κ_z, κ_y, γ_xy, γ_xz, φ_x]
+    (κ_z before κ_y, matching implementation):
+    ε_x = ∂u_x/∂x; κ_z = ∂θ_z/∂x; κ_y = ∂θ_y/∂x;
+    γ_xy = ∂u_y/∂x - θ_z + α ∂²θ_z/∂x²;
+    γ_xz = ∂u_z/∂x - θ_y + α ∂²θ_y/∂x²;
+    φ_x = ∂θ_x/∂x. Coefficient α (for example h²/12 on rectangular sections) is a section property.
 
     Map: ``x(xi)`` linear on chord, ``dx/dxi = L/2``, ``dxi_dx = 2/L``, ``d2xi_dx2 = 4/L**2``.
 

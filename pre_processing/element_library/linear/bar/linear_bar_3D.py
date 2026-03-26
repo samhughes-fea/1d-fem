@@ -1,10 +1,10 @@
 # pre_processing/element_library/linear/bar/linear_bar_3D.py
 """
-2-node 3D bar: axial + torsion only (no bending/shear DOF coupling in ``B``).
+2-node 3D bar: axial + torsion only (no bending/shear DOF coupling in B).
 
-**Tensors:** ``U_e`` (12,), ``K_e`` (12,12), ``F_e`` (12,) — six DOF/node for job compatibility.
-Per Gauss point ``B`` (2, 12), ``D`` (2, 2) (``EA``, ``GJ_t``); ``eps`` (2,) = [axial strain, twist rate].
-``N`` (12, 6) per GP (``linear/bar/utilities/shape_functions.py``). ``detJ = L/2``.
+**Tensors:** U_e (12,), K_e (12,12), F_e (12,) with six DOF/node for job compatibility.
+Per Gauss point B (2,12), D (2,2) with EA and GJ_t; ε (2,) = [axial strain, twist rate].
+N is (12,6) per Gauss point (see `linear/bar/utilities/shape_functions.py`). detJ = L/2.
 
 **Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ``; ``F_dist += w_g * N.T @ q * detJ``;
 ``F_point = N.T @ P`` at load station; ``M_e`` consistent mass.

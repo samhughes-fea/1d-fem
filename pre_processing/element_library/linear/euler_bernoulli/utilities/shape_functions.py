@@ -2,9 +2,11 @@
 """
 Shape functions for 2-node 3D Euler–Bernoulli beam.
 
-``natural_coordinate_form(xi)`` returns ``N`` (n_gp, 12, 6), ``dN_dxi``, ``d2N_dxi2`` — row ``a`` = global DOF ``a``,
-column ``c`` = ``(u_x,u_y,u_z,theta_x,theta_y,theta_z)``. Hermite on bending DOFs, linear on axial and torsion.
-Used to form ``B`` and ``F_dist += w_g * N.T @ q * detJ``. See ``FORMULATION_DOCSTRING_STANDARDS.md``.
+`natural_coordinate_form(xi)` returns N (n_gp, 12, 6), dN/dξ, d²N/dξ².
+Rows are global DOFs a, columns are components (u_x, u_y, u_z, θ_x, θ_y, θ_z).
+Hermite functions are used on bending channels; axial and torsion use linear terms.
+Used to form B and `F_dist += w_g * N.T @ q * detJ`.
+See `FORMULATION_DOCSTRING_STANDARDS.md`.
 """
 
 import numpy as np

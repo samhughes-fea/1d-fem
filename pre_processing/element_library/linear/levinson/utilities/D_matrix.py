@@ -1,7 +1,10 @@
 # pre_processing/element_library/linear/levinson/utilities/D_matrix.py
-"""Material stiffness ``D`` (6, 6) for Levinson beam. ``S = D @ eps``; diagonal ``EA``, ``EI_z``, ``EI_y``, ``G*A`` (shear, twice), ``GJ_t`` — no ``kappa`` factor (shear is ``G*A``).
+"""Material stiffness D (6, 6) for Levinson beam.
 
-Matches Voigt order used in ``levinson/utilities/B_matrix.py``. Parent: ``K_e += B.T @ D @ B * w_g * detJ``.
+S = D ε with diagonal EA, EI_z, EI_y, GA (shear, twice), and GJ_t.
+No shear-correction factor is used in D.
+Voigt order matches `levinson/utilities/B_matrix.py`.
+Parent assembly uses `K_e += B.T @ D @ B * w_g * detJ`.
 """
 
 import numpy as np

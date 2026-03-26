@@ -1,8 +1,9 @@
 # pre_processing/element_library/linear/timoshenko/utilities/B_matrix.py
-"""Strain-displacement ``B`` (6, 12) per Gauss point for 2-node 3-D Timoshenko beam.
+"""Strain-displacement B (6, 12) per Gauss point for 2-node 3-D Timoshenko beam.
 
-``eps = B @ U_e``; Voigt ``eps`` = [eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x] with shear
-``gamma_xy = d(u_y)/dx - theta_z``, ``gamma_xz = d(u_z)/dx - theta_y``. Parent sums ``K_e += B.T @ D @ B * w_g * detJ``.
+ε = B U_e with Voigt order [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x].
+Shear terms are γ_xy = ∂u_y/∂x - θ_z and γ_xz = ∂u_z/∂x - θ_y.
+Parent assembly uses `K_e += B.T @ D @ B * w_g * detJ`.
 """
 
 import numpy as np
@@ -14,11 +15,9 @@ class StrainDisplacementOperator:
     """
     Strain-displacement ``B`` (6, 12) per Gauss point for a 2-node 3-D Timoshenko beam.
 
-    Voigt ``eps = B @ U_e`` with rows
-    ``[eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x]``:
-    ``eps_x = d(u_x)/dx``; ``kappa_y = d(theta_y)/dx``, ``kappa_z = d(theta_z)/dx`` (rotation-based bending);
-    ``gamma_xy = d(u_y)/dx - theta_z``, ``gamma_xz = d(u_z)/dx - theta_y``;
-    ``phi_x = d(theta_x)/dx``.
+    Voigt ε = B U_e with rows [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]:
+    ε_x = ∂u_x/∂x; κ_y = ∂θ_y/∂x, κ_z = ∂θ_z/∂x (rotation-based bending);
+    γ_xy = ∂u_y/∂x - θ_z, γ_xz = ∂u_z/∂x - θ_y; φ_x = ∂θ_x/∂x.
 
     Map: ``x(xi)`` linear on chord, ``dx/dxi = L/2``, ``dxi_dx = 2/L``, ``d2xi_dx2 = 4/L**2``.
 

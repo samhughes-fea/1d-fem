@@ -1,17 +1,17 @@
 # pre_processing/element_library/linear/levinson/linear_levinson_3D.py
 """
-2-node 3D Levinson beam (third-order shear, no shear correction factor kappa on ``D``).
+2-node 3D Levinson beam (third-order shear, no shear correction factor κ in D).
 
-**Tensors:** ``U_e`` (12,) — Voigt / DOF order per ``docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md``;
-``K_e`` (12,12), ``F_e`` (12,); per Gauss point ``B`` (6,12), ``D`` (6,6) with shear stiffness ``G*A`` (not ``kappa*G*A``);
-``eps`` (6,), ``S = D @ eps``. ``detJ = L/2``.
+**Tensors:** U_e (12,) in the standard Voigt/DOF order; K_e (12,12), F_e (12,);
+per Gauss point B (6,12), D (6,6) with shear stiffness GA (not κGA), ε (6,), and S = D ε.
+detJ = L/2.
 
 **Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` (full rule plus selective bending/shear block replacements);
 ``F_dist += w_g * N.T @ q * detJ``; ``F_point = N.T @ P``; ``M_e`` consistent mass per ``FORMULATION_DOCSTRING_STANDARDS.md``.
 
-**Kinematics:** Third-order shear kinematics (see ``utilities/B_matrix.py``). Local ``x`` along chord.
+**Kinematics:** third-order shear kinematics (see `utilities/B_matrix.py`). Local x along chord.
 
-**Constitutive:** Same Voigt layout as Timoshenko-style beams; shear diagonal uses ``G*A`` (Levinson).
+**Constitutive:** same Voigt layout as Timoshenko-style beams; shear diagonal uses GA (Levinson).
 
 **Quadrature / selective integration:** Same pattern as linear Timoshenko: full ``K`` on ``max_order``, then separate bending and shear Gauss sums (shear typically lower order). See ``element_stiffness_matrix``.
 

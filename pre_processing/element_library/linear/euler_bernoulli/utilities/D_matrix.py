@@ -1,7 +1,8 @@
 # pre_processing/element_library/linear/euler_bernoulli/utilities/D_matrix.py
-"""Material stiffness ``D`` (6, 6) for Euler-Bernoulli beam. ``S = D @ eps`` with diagonal ``EA``, ``EI_y``, ``EI_z``, zero shear rows, ``GJ_t``.
+"""Material stiffness D (6, 6) for Euler-Bernoulli beam.
 
-Used inside ``K_e += B.T @ D @ B * w_g * detJ`` in the parent element (see ``linear_euler_bernoulli_3D.py``).
+S = D ε with diagonal terms EA, EI_y, EI_z, zero shear rows, and GJ_t.
+Used in `K_e += B.T @ D @ B * w_g * detJ` in the parent element (see `linear_euler_bernoulli_3D.py`).
 """
 
 import numpy as np
@@ -59,18 +60,18 @@ class MaterialStiffnessOperator:
     ```
 
     **D tensor (shape (6, 6), Voigt row/column order)**
-    - 0 ``eps_x``: ``D[0,0] = EA``.
-    - 1 ``kappa_y``: ``D[1,1] = EI_y``.
-    - 2 ``kappa_z``: ``D[2,2] = EI_z``.
-    - 3 ``gamma_xy``: ``D[3,:] = D[:,3] = 0`` (EB shear not constitutively modelled).
-    - 4 ``gamma_xz``: ``D[4,:] = D[:,4] = 0`` (EB shear not constitutively modelled).
-    - 5 ``phi_x``: ``D[5,5] = GJ_t``.
+    - 0 ε_x: D[0,0] = EA.
+    - 1 κ_y: D[1,1] = EI_y.
+    - 2 κ_z: D[2,2] = EI_z.
+    - 3 γ_xy: D[3,:] = D[:,3] = 0 (EB shear not constitutively modeled).
+    - 4 γ_xz: D[4,:] = D[:,4] = 0 (EB shear not constitutively modeled).
+    - 5 φ_x: D[5,5] = GJ_t.
     - all other off-diagonal entries are zero.
 
     **Resultant mapping**
-    - ``S = D @ eps`` with ``eps = [eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x]``.
-    - ``S`` rows are ``[N, M_y, M_z, V_y, V_z, T]``.
-    - EB constitutive shear resultants ``V_y`` and ``V_z`` are therefore zero.
+    - S = D ε with ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x].
+    - S rows are [N, M_y, M_z, V_y, V_z, T].
+    - EB constitutive shear resultants V_y and V_z are therefore zero.
 
     **B/N linkage**
     - Parent stiffness uses ``K_e += B.T @ D @ B * w_g * detJ`` on ``xi in [-1, 1]``.

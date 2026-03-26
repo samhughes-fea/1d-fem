@@ -2,13 +2,13 @@
 """
 Shape functions for 2-node 3-D Levinson beam (higher-order transverse fields).
 
-**Tensors:** ``natural_coordinate_form(xi)`` returns ``N``, ``dN_dxi``, ``d2N_dxi2``, each shape ``(n_gp, 12, 6)`` —
-row = element DOF index, column = component ``(u_x, u_y, u_z, theta_x, theta_y, theta_z)``.
+`natural_coordinate_form(xi)` returns N, dN/dξ, and d²N/dξ², each with shape (n_gp, 12, 6):
+row = element DOF index, column = component (u_x, u_y, u_z, θ_x, θ_y, θ_z).
 
-**Weak form:** ``F_dist += w_g * N.T @ q * detJ`` with ``detJ = L/2``, ``xi in [-1, 1]``.
+Weak-form force assembly uses `F_dist += w_g * N.T @ q * detJ` with `detJ = L/2` and ξ in [-1, 1].
 
-**Diff vs EB/Timoshenko (12 DOF contract):** same ``U_e`` length and ``N`` layout as standard beam elements; Levinson uses
-quintic transverse / cubic bending rotations and feeds ``B_matrix`` with ``kappa_z`` before ``kappa_y`` in the strain vector.
+Compared with EB/Timoshenko (same 12-DOF contract), Levinson keeps the same N layout but uses
+quintic transverse and cubic bending-rotation fields, and B uses κ_z before κ_y in the strain vector.
 
 See Also
 --------
@@ -24,8 +24,8 @@ class ShapeFunctionOperator:
     """
     Evaluate Levinson beam shape functions and natural derivatives on ``xi``.
 
-    Axial and torsion: linear Lagrange; transverse ``u_y``, ``u_z``: quintic with zero slope at nodes;
-    ``theta_y``, ``theta_z``: cubic. ``physical_coordinate_form`` scales to ``dN/dx``, ``d2N/dx2`` via ``dxi_dx``, ``d2xi_dx2``.
+    Axial and torsion: linear Lagrange; transverse u_y, u_z: quintic with zero slope at nodes;
+    θ_y, θ_z: cubic. `physical_coordinate_form` scales to dN/dx and d²N/dx² via dξ/dx and d²ξ/dx².
 
     Parameters
     ----------

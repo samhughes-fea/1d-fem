@@ -2,10 +2,10 @@
 """
 2-node 3D Timoshenko beam with 7 DOF/node (six + warping chi) for Vlasov non-uniform torsion.
 
-**Tensors:** ``U_e`` (14,) — standard Timoshenko layout for DOFs 0–11, chi at 12–13. Per Gauss point ``B`` (7, 14) —
-first six rows from linear Timoshenko ``B`` (6, 12) on columns 0–11; row 6 is ``phi_x_prime`` (same as warping EB).
-``D`` (7, 7) — 6x6 Timoshenko ``D`` (``kappa*G*A`` shear) plus ``D[6,6] = E*Gamma``. ``eps`` (7,), ``S = D @ eps``;
-``detJ = L/2``.
+**Tensors:** U_e (14,) with standard Timoshenko DOFs in 0–11 and warping χ at 12–13.
+Per Gauss point B (7,14): first six rows come from linear Timoshenko B on columns 0–11; row 6 is φ_x'
+(same warping extension as EB). D is (7,7): 6x6 Timoshenko D (κGA shear) plus D[6,6] = EΓ.
+ε is (7,), S = D ε, and detJ = L/2.
 
 **Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` with ``D`` (7,7); ``F_dist``, ``F_point``, ``M_e`` as for warping EB.
 

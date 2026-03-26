@@ -1,7 +1,9 @@
 # pre_processing/element_library/linear/timoshenko/utilities/D_matrix.py
-"""Material stiffness ``D`` (6, 6) for Timoshenko beam. ``S = D @ eps``; diagonal ``EA``, ``EI_y``, ``EI_z``, ``kappa*G*A`` (shear, twice), ``GJ_t``.
+"""Material stiffness D (6, 6) for Timoshenko beam.
 
-Parent element: ``K_e += B.T @ D @ B * w_g * detJ`` (with selective bending/shear quadrature in ``linear_timoshenko_3D.py``).
+S = D ε with diagonal EA, EI_y, EI_z, κGA (shear, twice), and GJ_t.
+Parent element uses `K_e += B.T @ D @ B * w_g * detJ`
+with selective bending/shear quadrature in `linear_timoshenko_3D.py`.
 """
 
 import numpy as np

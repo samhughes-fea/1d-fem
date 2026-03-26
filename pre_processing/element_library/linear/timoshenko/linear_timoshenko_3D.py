@@ -2,18 +2,18 @@
 """
 2-node 3D Timoshenko beam (shear-deformable).
 
-**Tensors:** ``U_e`` (12,) node-major ``(u_x,u_y,u_z,theta_x,theta_y,theta_z)`` per node; ``K_e`` (12,12), ``F_e`` (12,);
-per Gauss point ``B`` (6,12), ``D`` (6,6), ``eps`` (6,), ``S = D @ eps`` (6,) — Voigt order per
-``docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md``. ``detJ = L/2``.
+**Tensors:** U_e (12,) node-major (u_x, u_y, u_z, θ_x, θ_y, θ_z) per node; K_e (12,12), F_e (12,);
+per Gauss point B (6,12), D (6,6), ε (6,), S = D ε (6,) in the standard Voigt order.
+See `docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md`. detJ = L/2.
 
 **Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` summed over Gauss point sets
 (full rule plus bending/shear block replacements — still weak-form quadrature);
 ``F_dist += w_g * N.T @ q * detJ``; ``F_point = N.T @ P`` at load station; ``M_e`` consistent mass per
 ``FORMULATION_DOCSTRING_STANDARDS.md``.
 
-**Kinematics:** Non-zero shear strains ``gamma_xy``, ``gamma_xz``; curvatures from rotations per theory. Local ``x`` along chord.
+**Kinematics:** non-zero shear strains γ_xy, γ_xz; curvatures from rotations per theory. Local x along chord.
 
-**Constitutive:** ``D`` includes ``EA``, ``EI``, ``kappa*G*A`` shear diagonal, ``GJ_t`` (see ``utilities/D_matrix.py``).
+**Constitutive:** D includes EA, EI, κGA shear diagonal terms, and GJ_t (see `utilities/D_matrix.py`).
 
 **Quadrature / selective integration:** ``element_stiffness_matrix`` builds a full ``K_e`` on a max-order rule, then
 replaces the bending block (rows 1–2 of ``D`` / ``B``) and shear block (rows 3–4) with separate Gauss sums:

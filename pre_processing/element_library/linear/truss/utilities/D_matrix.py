@@ -1,8 +1,8 @@
 # pre_processing/element_library/linear/truss/utilities/D_matrix.py
 """
-Material stiffness ``D`` (3, 3): ``diag(EA, kappa*G*A, GJ_t)`` for ``eps`` (3,) [axial, transverse shear, torsion].
+Material stiffness D (3, 3): diag(EA, κGA, GJ_t) for ε = [ε_axial, γ_transverse, φ_torsion].
 
-Used in ``K_e += B.T @ D @ B * w_g * detJ``. Can embed in a 6x6 resultant layout with zeros on unused rows.
+Used in `K_e += B.T @ D @ B * w_g * detJ`.
 """
 
 import numpy as np
@@ -51,8 +51,8 @@ class MaterialStiffnessOperator:
     [ 0     0   GJ_t ]
     ```
 
-    **D tensor (shape (3, 3))**: ``diag(EA, kappa*G*A, GJ_t)`` with zero off-diagonals.
-    **Resultants:** ``S = [N_axial, V_transverse, T] = D @ [eps_axial, gamma_transverse, phi_torsion]``.
+    **D tensor (shape (3, 3))**: diag(EA, κGA, GJ_t) with zero off-diagonals.
+    **Resultants:** S = [N_axial, V_transverse, T] = D @ [ε_axial, γ_transverse, φ_torsion].
     **N/B linkage:** parent truss element uses reduced shape/strain operators, then sums
     ``K_e += B.T @ D @ B * w_g * detJ``.
 

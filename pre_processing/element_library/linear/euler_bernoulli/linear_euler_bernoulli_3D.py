@@ -2,17 +2,17 @@
 """
 2-node 3D Euler–Bernoulli beam.
 
-**Tensors:** ``U_e`` (12,) node-major DOFs ``(u_x,u_y,u_z,theta_x,theta_y,theta_z)`` per node;
-``K_e`` (12,12), ``F_e`` (12,); per Gauss point ``B`` (6,12), ``D`` (6,6), ``eps`` (6,), ``S = D @ eps`` (6,) with
-Voigt order per ``docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md``. ``detJ = |J| = L/2`` (chord map).
+**Tensors:** U_e (12,) node-major DOFs (u_x, u_y, u_z, θ_x, θ_y, θ_z) per node;
+K_e (12,12), F_e (12,); per Gauss point B (6,12), D (6,6), ε (6,), S = D ε (6,).
+Voigt order follows `docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md`. detJ = |J| = L/2.
 
-**Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` summed over Gauss points ``g``;
-``F_dist += w_g * N.T @ q * detJ``; ``F_point = N.T @ P`` at the load station; ``M_e`` via consistent mass
-(see ``FORMULATION_DOCSTRING_STANDARDS.md``).
+**Weak forms (Gauss, ξ in [-1, 1]):** `K_e += B.T @ D @ B * w_g * detJ` summed over Gauss points;
+`F_dist += w_g * N.T @ q * detJ`; `F_point = N.T @ P` at the load station; M_e via consistent mass.
 
-**Kinematics:** ``gamma_xy = gamma_xz = 0``; ``kappa_y``, ``kappa_z`` from transverse displacement (Hermite); local ``x`` along chord. See ``utilities/B_matrix.py``.
+**Kinematics:** γ_xy = γ_xz = 0; κ_y and κ_z from transverse displacement (Hermite); local x along chord.
+See `utilities/B_matrix.py`.
 
-**Constitutive:** ``D`` diagonal in axial, bending, torsion; shear rows of ``D`` are zero (``V_y``, ``V_z`` from equilibrium, not ``D @ eps``).
+**Constitutive:** D is diagonal in axial, bending, torsion; shear rows of D are zero (V_y, V_z from equilibrium, not D ε).
 
 **Quadrature:** Gauss–Legendre order ``quadrature_order`` from argument or ``element_array`` (axial, bending_y, bending_z, torsion, load columns).
 

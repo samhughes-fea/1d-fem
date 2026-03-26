@@ -1,8 +1,9 @@
 # pre_processing/element_library/linear/euler_bernoulli/utilities/B_matrix.py
-"""Strain-displacement ``B`` (6, 12) per Gauss point for 2-node 3-D Euler-Bernoulli beam.
+"""Strain-displacement B (6, 12) per Gauss point for 2-node 3-D Euler-Bernoulli beam.
 
-``eps = B @ U_e`` with ``eps`` = [eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x]; ``gamma_xy = gamma_xz = 0``.
-Parent element: ``K_e += B.T @ D @ B * w_g * detJ`` with ``detJ = L/2``. Voigt order per ``FORMULATION_DOCSTRING_STANDARDS.md``.
+ε = B U_e with ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]; γ_xy = γ_xz = 0.
+Parent element uses `K_e += B.T @ D @ B * w_g * detJ` with `detJ = L/2`.
+Voigt order follows `FORMULATION_DOCSTRING_STANDARDS.md`.
 """
 
 import numpy as np
@@ -15,15 +16,15 @@ class StrainDisplacementOperator:
     Builds the strain-displacement matrix ``B`` for a 2-node 3-D Euler-Bernoulli beam.
 
     The operator maps shape-function derivatives to beam strain rows in Voigt order:
-    ``eps = [eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x]``.
+    ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x].
 
     **B tensor (per Gauss point, shape (6, 12))**
-    - row 0 ``eps_x``: axial terms from ``d(u_x)/dx`` at DOFs 0 and 6.
-    - row 1 ``kappa_y``: bending terms from ``d2(u_z)/dx2`` and ``d2(theta_y)/dx2``.
-    - row 2 ``kappa_z``: bending terms from ``d2(u_y)/dx2`` and ``d2(theta_z)/dx2``.
-    - row 3 ``gamma_xy``: identically zero in EB kinematics.
-    - row 4 ``gamma_xz``: identically zero in EB kinematics.
-    - row 5 ``phi_x``: torsion terms from ``d(theta_x)/dx`` at DOFs 3 and 9.
+    - row 0 ε_x: axial terms from ∂u_x/∂x at DOFs 0 and 6.
+    - row 1 κ_y: bending terms from ∂²u_z/∂x² and ∂²θ_y/∂x².
+    - row 2 κ_z: bending terms from ∂²u_y/∂x² and ∂²θ_z/∂x².
+    - row 3 γ_xy: identically zero in EB kinematics.
+    - row 4 γ_xz: identically zero in EB kinematics.
+    - row 5 φ_x: torsion terms from ∂θ_x/∂x at DOFs 3 and 9.
 
     **D linkage and zeros**
     - Parent constitutive step is ``S = D @ eps`` with ``S = [N, M_y, M_z, V_y, V_z, T]``.
@@ -61,8 +62,8 @@ class StrainDisplacementOperator:
     ε = B U_e
     B =
     [ b1,1  0     0     0     0     0    b1,7  0     0     0      0      0   ]  # ε_x
-    [ 0     0    b2,3   0    b2,5   0     0    0    b2,9   0    b2,11   0   ]  # κ_y
-    [ 0    b3,2   0     0     0    b3,6   0   b3,8   0     0      0    b3,12]  # κ_z
+    [ 0     0    b2,3   0    b2,5   0     0    0    b2,9   0    b2,11    0   ]  # κ_y
+    [ 0    b3,2   0     0     0    b3,6   0   b3,8   0     0      0    b3,12 ]  # κ_z
     [ 0     0     0     0     0     0     0    0     0     0      0      0   ]  # γ_xy = 0
     [ 0     0     0     0     0     0     0    0     0     0      0      0   ]  # γ_xz = 0
     [ 0     0     0    b6,4   0     0     0    0     0    b6,10   0      0   ]  # φ_x

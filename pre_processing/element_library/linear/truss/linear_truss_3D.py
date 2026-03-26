@@ -2,14 +2,15 @@
 """
 2-node 3D truss: axial + one transverse shear direction + torsion (six DOF/node for layout compatibility).
 
-**Tensors:** ``U_e`` (12,), ``K_e`` (12,12), ``F_e`` (12,). Per Gauss point ``B`` (3, 12), ``D`` (3, 3)
-(axial, transverse shear, torsion); ``eps`` (3,). ``N`` (12, 6) per GP (``linear/truss/utilities/shape_functions.py``).
-``detJ = L/2``. ``B`` is constant along the element → one Gauss point is often exact for ``K_e``.
+**Tensors:** U_e (12,), K_e (12,12), F_e (12,). Per Gauss point B (3,12), D (3,3)
+(axial, transverse shear, torsion), ε (3,), and N (12,6) per Gauss point.
+See `linear/truss/utilities/shape_functions.py`. detJ = L/2.
+B is constant along the element, so one Gauss point is often exact for K_e.
 
 **Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ``; ``F_dist += w_g * N.T @ q * detJ``;
 ``F_point = N.T @ P`` at load station; ``M_e`` consistent mass.
 
-**Kinematics / frame:** ``direction_cosines_and_transverse`` supplies axial and transverse unit vectors for ``B``.
+**Kinematics / frame:** `direction_cosines_and_transverse` supplies axial and transverse unit vectors for B.
 
 **Quadrature:** Order from argument or ``element_array`` (axial, shear_y, shear_z, torsion columns).
 

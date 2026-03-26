@@ -2,10 +2,10 @@
 """
 2-node 3D Euler–Bernoulli beam with 7 DOF/node (standard six + warping intensity chi) for Vlasov non-uniform torsion.
 
-**Tensors:** ``U_e`` (14,) node-major; DOFs 0–11 match linear EB, warping chi at indices 12–13 (one per node).
-Per Gauss point ``B`` (7, 14) — first six rows from linear EB ``B`` on columns 0–11; row 6 is
-``phi_x_prime = d(theta_x)/dx + d(chi)/dx`` (warping / bimoment strain). ``D`` (7, 7) — upper 6x6 is linear EB ``D``;
-``D[6,6] = E*Gamma`` (bimoment stiffness). ``eps`` (7,), ``S = D @ eps``. ``detJ = L/2``.
+**Tensors:** U_e (14,) node-major; DOFs 0–11 match linear EB, warping χ at indices 12–13.
+Per Gauss point B (7,14): first six rows are linear EB B on columns 0–11; row 6 is
+φ_x' = ∂θ_x/∂x + ∂χ/∂x (warping/bimoment strain). D is (7,7): upper 6x6 is linear EB D and D[6,6] = EΓ.
+ε is (7,), S = D ε, and detJ = L/2.
 
 **Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` with ``B`` (7,14); distributed and point loads on first 12 standard DOFs; ``M_e`` uses extended ``N`` (14,6) per ``FORMULATION_DOCSTRING_STANDARDS.md``.
 
