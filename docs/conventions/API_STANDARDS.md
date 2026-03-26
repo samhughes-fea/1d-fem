@@ -2,6 +2,8 @@
 
 Applied conventions for this repository: **weak-form assembly**, **tensor layout**, **linear `utilities/` modules**, **nonlinear TL extensions**, and minimal Python style rules.
 
+**Element and utility docstrings:** Use **NumPy / numpydoc** section layout and **plain-text, code-like math** in Python source (e.g. ``K_e += B.T @ D @ B * w_g * detJ``), not LaTeX-only exposition. Full checklist, Voigt tables, TL utility roles, and copy-paste weak-form lines: [FORMULATION_DOCSTRING_STANDARDS.md](FORMULATION_DOCSTRING_STANDARDS.md) (*Docstring gold standard*, *Plain-text math*, *Nonlinear Total Lagrangian*).
+
 ---
 
 ## 1. Stiffness: B, D, J
@@ -46,13 +48,15 @@ Under each `pre_processing/element_library/linear/<theory>/utilities/`:
 
 **Composition:** Nonlinear elements **import** linear **`D_matrix`**, **`B_matrix`** / shape derivatives, **load** utilities, and registry where applicable.
 
+**Weak-form Gauss rule (mandatory):** `F_int`, `K_mat`, and `K_σ` must be assembled as **sums over Gauss points** with weights `w_g` and `detJ`, consistent with [FORMULATION_DOCSTRING_STANDARDS.md](FORMULATION_DOCSTRING_STANDARDS.md) § *Weak-form assembly*. In particular, **`K_σ`** must not rely on undocumented closed-form matrices; it must match a stated integral (e.g. stress-weighted products of bending **slopes** `∂h/∂x` summed with `w_g |J|`).
+
 **Nonlinear `utilities/` (typical):**
 
 | Module | Role |
 |--------|------|
 | `green_lagrange_strain.py` | `E(u)`, `B_lin`, `B_nl` |
 | `stress_resultant.py` | `S = D @ E`, extract `N, M_y, M_z` |
-| `geometric_stiffness.py` | `K_σ` from section forces and shape derivatives |
+| `geometric_stiffness.py` | `K_σ` via **Gauss sum** of section forces with `dN/dx` (bending planes) |
 
 Other families (e.g. GEBT) may use a **different** utility set; document per family.
 
