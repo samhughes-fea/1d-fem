@@ -50,6 +50,12 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
 
     Notes
     -----
+    **B tensor:** ``(6, 12)`` with all six rows active, including shear rows
+    ``gamma_xy = d(u_y)/dx - theta_z`` and ``gamma_xz = d(u_z)/dx - theta_y``.
+    **D tensor:** ``(6, 6)`` with shear diagonals ``kappa*G*A`` (rows 3 and 4); optional coupling terms
+    may appear if shear-centre offsets are set in the constitutive operator.
+    **N tensor:** per-Gauss shape-function slice is ``(12, 6)``; shear rows in ``B`` explicitly depend on ``N`` terms.
+
     Kinematics: ``gamma_xy = d(u_y)/dx - theta_z``, ``gamma_xz = d(u_z)/dx - theta_y`` (``utilities/B_matrix.py``).
     Constitutive: ``D`` uses ``kappa * G * A`` on shear diagonals.
     Quadrature: orders from ``element_array``; shear columns default to 2 if zero; selective bending/shear assembly (module docstring).

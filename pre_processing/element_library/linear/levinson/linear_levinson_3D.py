@@ -43,6 +43,12 @@ class LinearLevinsonBeamElement3D(Element1DBase):
     """
     **Identity:** 2 nodes, **6 DOF/node**, local **x** along chord.
 
+    **B tensor:** ``(6, 12)`` with Levinson row order ``[eps_x, kappa_z, kappa_y, gamma_xy, gamma_xz, phi_x]``;
+    shear rows include higher-order ``alpha*d2(theta)/dx2`` terms.
+    **D tensor:** ``(6, 6)`` in the same row order; shear diagonals use ``G*A`` (no Timoshenko ``kappa``).
+    **N tensor:** per-Gauss shape-function slice is ``(12, 6)``; same 12-DOF contract as EB/Timoshenko with
+    different polynomial content in transverse/rotation components.
+
     **Kinematics:** Higher-order transverse displacement and rotation fields; shear strains include
     third-order terms (see ``utilities/B_matrix.py``). **Constitutive:** ``D`` matches Timoshenko layout but
     shear diagonal uses **G·A** (Levinson theory — no κ factor in this implementation).

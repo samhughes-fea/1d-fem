@@ -41,9 +41,23 @@ class StrainDisplacementOperator:
 
     Notes
     -----
-    **Contract:** same outer sizes as Timoshenko: ``B`` (6, 12), ``U_e`` (12,).
-    **Diff vs Timoshenko:** Voigt curvature order is ``kappa_z`` then ``kappa_y``; shear rows add ``alpha`` times
-    second derivatives of rotations; ``D`` uses ``G*A`` on shear rows **without** Timoshenko ``kappa`` factor.
+    **B tensor (per Gauss point, shape (6, 12))**
+    - row 0 ``eps_x``: ``d(u_x)/dx``.
+    - row 1 ``kappa_z``: ``d(theta_z)/dx``.
+    - row 2 ``kappa_y``: ``d(theta_y)/dx``.
+    - row 3 ``gamma_xy``: ``d(u_y)/dx - theta_z + alpha*d2(theta_z)/dx2``.
+    - row 4 ``gamma_xz``: ``d(u_z)/dx - theta_y + alpha*d2(theta_y)/dx2``.
+    - row 5 ``phi_x``: ``d(theta_x)/dx``.
+
+    **D linkage and zeros**
+    - ``S = D @ eps`` with ``S = [N, M_z, M_y, V_y, V_z, T]`` for this row order.
+    - Shear rows are active; unlike Timoshenko constitutive form, Levinson shear stiffness is ``G*A``
+      (no ``kappa`` factor), while higher-order terms enter via ``B`` through ``alpha``.
+
+    **N tensor linkage**
+    - Shear rows require both derivatives and shape values; inputs ``N``, ``dN_dxi``, ``d2N_dxi2``
+      use batch shape ``(n_gp, 12, 6)``.
+    - Entries not referenced by the row definitions remain zero.
 
     Same Gauss weak form as the shear-deformable beam family; see module one-liner for Voigt row order.
 

@@ -12,18 +12,32 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class StrainDisplacementOperator:
     """
-    Strain-displacement ``B`` (6, 12) per Gauss point for a 2-node 3-D Euler-Bernoulli beam.
+    Builds the strain-displacement matrix ``B`` for a 2-node 3-D Euler-Bernoulli beam.
 
-    Voigt ``eps = B @ U_e`` with rows
-    ``[eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x]``:
-    ``eps_x = d(u_x)/dx``; ``kappa_y``, ``kappa_z`` from transverse Hermite bending;
-    ``gamma_xy = gamma_xz = 0`` (no shear strain in EB kinematics);
-    ``phi_x = d(theta_x)/dx`` (torsion rate).
+    The operator maps shape-function derivatives to beam strain rows in Voigt order:
+    ``eps = [eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x]``.
 
-    Then ``S = D @ eps`` gives ``V_y = V_z = 0`` from constitutive ``D``; equilibrium gives
-    shear ``V = dM/dx`` if needed.
+    **B tensor (per Gauss point, shape (6, 12))**
+    - row 0 ``eps_x``: axial terms from ``d(u_x)/dx`` at DOFs 0 and 6.
+    - row 1 ``kappa_y``: bending terms from ``d2(u_z)/dx2`` and ``d2(theta_y)/dx2``.
+    - row 2 ``kappa_z``: bending terms from ``d2(u_y)/dx2`` and ``d2(theta_z)/dx2``.
+    - row 3 ``gamma_xy``: identically zero in EB kinematics.
+    - row 4 ``gamma_xz``: identically zero in EB kinematics.
+    - row 5 ``phi_x``: torsion terms from ``d(theta_x)/dx`` at DOFs 3 and 9.
 
-    Map: ``x(xi)`` linear on chord, ``dx/dxi = L/2``, ``dxi_dx = 2/L``, ``d2xi_dx2 = 4/L**2``.
+    **D linkage and zeros**
+    - Parent constitutive step is ``S = D @ eps`` with ``S = [N, M_y, M_z, V_y, V_z, T]``.
+    - Because EB shear strain rows are zero and EB ``D`` shear rows are zero, constitutive
+      shear resultants ``V_y`` and ``V_z`` are zero in this operator path.
+    - If shear force is needed for reporting, use equilibrium relation ``V = dM/dx``.
+
+    **N tensor linkage**
+    - Shape functions come from ``shape_functions.natural_coordinate_form`` as
+      ``N``, ``dN_dxi``, ``d2N_dxi2`` with batch shape ``(n_gp, 12, 6)``.
+    - ``B`` uses the derivative tensors; entries not referenced by the row rules above remain zero.
+
+    Coordinate mapping: ``x(xi)`` linear on chord, ``dx/dxi = L/2``,
+    ``dxi_dx = 2/L``, ``d2xi_dx2 = 4/L**2``.
 
     Parameters
     ----------

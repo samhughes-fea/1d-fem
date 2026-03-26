@@ -38,7 +38,10 @@ class MaterialStiffnessOperator:
 
     Notes
     -----
-    Weak-form linkage: same Gauss pattern as ``linear_truss_3D.LinearTrussElement3D``.
+    **D tensor (shape (3, 3))**: ``diag(EA, kappa*G*A, GJ_t)`` with zero off-diagonals.
+    **Resultants:** ``S = [N_axial, V_transverse, T] = D @ [eps_axial, gamma_transverse, phi_torsion]``.
+    **N/B linkage:** parent truss element uses reduced shape/strain operators, then sums
+    ``K_e += B.T @ D @ B * w_g * detJ``.
 
     See Also
     --------

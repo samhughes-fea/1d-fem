@@ -42,12 +42,24 @@ class MaterialStiffnessOperator:
 
     Notes
     -----
-    Strain and stress resultants (Voigt): ``eps`` = [eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x],
-    ``S`` = [N, M_y, M_z, V_y, V_z, T] with ``S = D @ eps``. ``D`` is diagonal in ``EA``, ``EI_y``, ``EI_z``,
-    rows 3–4 (shear) are zero, last diagonal is ``GJ_t``. Shear forces from constitutive law are zero for EB;
-    use equilibrium ``V = dM/dx`` if shear is needed. Timoshenko/Levinson use non-zero shear stiffness on ``D``.
+    **D tensor (shape (6, 6), Voigt row/column order)**
+    - 0 ``eps_x``: ``D[0,0] = EA``.
+    - 1 ``kappa_y``: ``D[1,1] = EI_y``.
+    - 2 ``kappa_z``: ``D[2,2] = EI_z``.
+    - 3 ``gamma_xy``: ``D[3,:] = D[:,3] = 0`` (EB shear not constitutively modelled).
+    - 4 ``gamma_xz``: ``D[4,:] = D[:,4] = 0`` (EB shear not constitutively modelled).
+    - 5 ``phi_x``: ``D[5,5] = GJ_t``.
+    - all other off-diagonal entries are zero.
 
-    Weak form: parent element accumulates ``K_e += B.T @ D @ B * w_g * detJ`` on ``xi in [-1, 1]`` with ``detJ = L/2``.
+    **Resultant mapping**
+    - ``S = D @ eps`` with ``eps = [eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x]``.
+    - ``S`` rows are ``[N, M_y, M_z, V_y, V_z, T]``.
+    - EB constitutive shear resultants ``V_y`` and ``V_z`` are therefore zero.
+
+    **B/N linkage**
+    - Parent stiffness uses ``K_e += B.T @ D @ B * w_g * detJ`` on ``xi in [-1, 1]``.
+    - ``B`` comes from ``euler_bernoulli/utilities/B_matrix.py``; shape-function tensors
+      ``N``, ``dN_dxi``, ``d2N_dxi2`` come from ``shape_functions.py`` with batch shape ``(n_gp, 12, 6)``.
 
     See Also
     --------

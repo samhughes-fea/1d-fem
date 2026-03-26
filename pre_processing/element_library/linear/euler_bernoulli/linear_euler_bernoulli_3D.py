@@ -46,6 +46,11 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
 
     Notes
     -----
+    **B tensor:** ``(6, 12)`` with active rows ``eps_x``, ``kappa_y``, ``kappa_z``, ``phi_x``;
+    shear rows ``gamma_xy`` and ``gamma_xz`` are structural zeros in EB kinematics.
+    **D tensor:** ``(6, 6)`` diagonal in axial/bending/torsion with shear rows/cols zero.
+    **N tensor:** per-Gauss shape-function slice is ``(12, 6)`` in node-major DOF order used by loads and mass.
+
     Constitutive: ``D`` is diagonal in axial, bending, and torsion; rows 3–4 (shear) are zero, so
     ``V_y = V_z = 0`` from ``S = D @ eps``. Equilibrium gives shear ``V = dM/dx``, not ``D @ eps``.
 

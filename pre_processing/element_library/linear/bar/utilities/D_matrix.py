@@ -35,7 +35,10 @@ class MaterialStiffnessOperator:
 
     Notes
     -----
-    Weak-form linkage: same Gauss accumulation as other 1-D elements; ``detJ = L/2`` on ``xi in [-1, 1]``.
+    **D tensor (shape (2, 2))**: ``D[0,0] = EA``, ``D[1,1] = GJ_t``, off-diagonals are zero.
+    **Resultants:** ``S = [N_axial, T] = D @ [eps_axial, phi_torsion]``.
+    **N/B linkage:** parent bar element uses reduced shape/strain operators, then sums
+    ``K_e += B.T @ D @ B * w_g * detJ`` with ``detJ = L/2`` on ``xi in [-1, 1]``.
 
     See Also
     --------

@@ -41,6 +41,10 @@ class ShapeFunctionOperator:
 
     Notes
     -----
+    **N tensor contract:** ``N``/``dN_dxi``/``d2N_dxi2`` use ``(n_gp, 12, 6)`` with
+    row = element DOF index and column = component ``(u_x, u_y, u_z, theta_x, theta_y, theta_z)``.
+    Entries outside the active polynomial couplings are structurally zero.
+
     **Contract:** ``N`` batch shape ``(n_gp, 12, 6)`` matches standard beam load and stiffness assembly.
     **Diff:** Higher-order ``u`` / ``theta`` fields vs linear Timoshenko; shear correction factor not used in ``D`` (``G*A``);
     strain definitions and ``alpha`` terms live in ``B_matrix``.

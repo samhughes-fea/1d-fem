@@ -38,9 +38,23 @@ class StrainDisplacementOperator:
 
     Notes
     -----
-    **Contract:** same outer sizes as standard 12-DOF beam: ``B`` (6, 12), ``U_e`` (12,).
-    **Diff vs EB:** shear rows ``gamma_xy``, ``gamma_xz`` are non-zero; ``D`` uses ``kappa*G*A`` on those rows.
-    Levinson/Reddy keep ``(6, 12)`` but change kinematics in ``B`` and may use ``G*A`` without ``kappa``.
+    **B tensor (per Gauss point, shape (6, 12))**
+    - row 0 ``eps_x``: ``d(u_x)/dx``.
+    - row 1 ``kappa_y``: ``d(theta_y)/dx``.
+    - row 2 ``kappa_z``: ``d(theta_z)/dx``.
+    - row 3 ``gamma_xy``: ``d(u_y)/dx - theta_z`` (non-zero).
+    - row 4 ``gamma_xz``: ``d(u_z)/dx - theta_y`` (non-zero).
+    - row 5 ``phi_x``: ``d(theta_x)/dx``.
+
+    **D linkage and zeros**
+    - ``S = D @ eps`` with ``S = [N, M_y, M_z, V_y, V_z, T]``.
+    - Unlike EB, shear rows 3 and 4 are active in both ``B`` and ``D``.
+    - Parent ``D`` uses ``kappa*G*A`` on shear rows.
+
+    **N tensor linkage**
+    - Shear rows use shape functions ``N`` (not only derivatives): input tensors
+      ``N``, ``dN_dxi``, ``d2N_dxi2`` are batched ``(n_gp, 12, 6)``.
+    - If ``N`` is omitted, shear rows cannot be assembled and remain zero in this utility call.
 
     Weak-form linkage: ``linear_timoshenko_3D`` uses ``physical_coordinate_form`` in the stiffness loop; ``detJ = L/2``.
 

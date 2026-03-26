@@ -33,7 +33,10 @@ class ShapeFunctionOperator:
 
     Notes
     -----
-    **Contract:** same ``(n_gp, 12, 6)`` layout as module docstring (row = DOF, column = component).
+    **N tensor contract:** ``N``/``dN_dxi``/``d2N_dxi2`` all use ``(n_gp, 12, 6)``.
+    Rows are DOFs in node-major 12-DOF order; columns are components
+    ``(u_x, u_y, u_z, theta_x, theta_y, theta_z)``.
+    Unused row/column combinations remain zero (sparse-by-structure).
 
     **Formulation (natural coordinate xi in [-1, 1]):** axial ``u_x`` and torsion ``theta_x`` use linear
     Lagrange; transverse ``u_y``, ``u_z`` and bending rotations use Hermite cubics (standard beam pair per plane).

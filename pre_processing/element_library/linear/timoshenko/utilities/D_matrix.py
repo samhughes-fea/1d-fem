@@ -45,9 +45,23 @@ class MaterialStiffnessOperator:
 
     Notes
     -----
-    Voigt: ``eps`` and ``S`` order per ``FORMULATION_DOCSTRING_STANDARDS.md``. ``D`` is diagonal with
-    ``EA``, ``EI_y``, ``EI_z``, ``kappa*G*A`` on rows 3 and 4 (shear), ``GJ_t`` for torsion.
-    Weak form: ``K_e += B.T @ D @ B * w_g * detJ`` on ``xi in [-1, 1]``; parent may use different Gauss rules for bending vs shear blocks.
+    **D tensor (shape (6, 6), Voigt row/column order)**
+    - 0 ``eps_x``: ``D[0,0] = EA``.
+    - 1 ``kappa_y``: ``D[1,1] = EI_y``.
+    - 2 ``kappa_z``: ``D[2,2] = EI_z``.
+    - 3 ``gamma_xy``: ``D[3,3] = kappa*G*A``.
+    - 4 ``gamma_xz``: ``D[4,4] = kappa*G*A``.
+    - 5 ``phi_x``: ``D[5,5] = GJ_t``.
+    - all non-coupling off-diagonal entries are zero; optional shear-centre coupling can fill
+      ``D[1,5]``, ``D[5,1]``, ``D[2,5]``, ``D[5,2]`` when offsets are non-zero.
+
+    **Resultant mapping**
+    - ``S = D @ eps`` with ``eps = [eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x]``.
+    - ``S`` rows are ``[N, M_y, M_z, V_y, V_z, T]``.
+
+    **B/N linkage**
+    - Parent weak form uses ``K_e += B.T @ D @ B * w_g * detJ`` on ``xi in [-1, 1]``.
+    - ``B``/``N`` tensors come from Timoshenko shape and B operators with batch shape ``(n_gp, 12, 6)``.
 
     See Also
     --------

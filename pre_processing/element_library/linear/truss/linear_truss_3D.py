@@ -36,6 +36,11 @@ class LinearTrussElement3D(Element1DBase):
 
     Notes
     -----
+    **B tensor:** per-Gauss ``B`` is ``(3, 12)`` with rows for axial, one transverse shear, and torsion;
+    non-modelled bending channels are structural zeros in this truss reduction.
+    **D tensor:** ``(3, 3)`` from ``truss/utilities/D_matrix.py`` with ``diag(EA, kappa*G*A, GJ_t)`` and zero off-diagonals.
+    **N tensor:** per-Gauss shape-function slice is ``(12, 6)``; load projection uses the standard 12-DOF layout,
+    with reduced-kinematics coupling handled by the truss ``B`` operator.
     Weak forms and tensor sizes: module docstring.
     """
 

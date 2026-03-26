@@ -37,6 +37,11 @@ class LinearBarElement3D(Element1DBase):
 
     Notes
     -----
+    **B tensor:** per-Gauss ``B`` is ``(2, 12)`` with active rows for axial strain and torsion only;
+    all bending/shear strain paths are structural zeros in this reduced theory.
+    **D tensor:** ``(2, 2)`` from ``bar/utilities/D_matrix.py`` with ``diag(EA, GJ_t)`` and zero off-diagonals.
+    **N tensor:** shape-function slices are ``(12, 6)`` per Gauss point; only the components needed by
+    axial/torsion and load projection are active, with other combinations left zero by operator structure.
     Tensor shapes, ``detJ``, and ``build_L_matrix_4x12`` for 4-DOF global maps: module docstring.
     """
 

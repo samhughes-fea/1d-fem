@@ -45,8 +45,23 @@ class MaterialStiffnessOperator:
 
     Notes
     -----
-    Voigt strain order matches ``B_matrix``: ``eps_x``, ``kappa_z``, ``kappa_y``, ``gamma_xy``, ``gamma_xz``, ``phi_x``.
-    Weak form: ``linear_levinson_3D`` sums ``B.T @ D @ B * w_g * detJ`` with selective bending/shear quadrature.
+    **D tensor (shape (6, 6), Levinson Voigt order)**
+    - row/col 0 ``eps_x``: ``D[0,0] = EA``.
+    - row/col 1 ``kappa_z``: ``D[1,1] = EI_z``.
+    - row/col 2 ``kappa_y``: ``D[2,2] = EI_y``.
+    - row/col 3 ``gamma_xy``: ``D[3,3] = G*A`` (no ``kappa`` factor).
+    - row/col 4 ``gamma_xz``: ``D[4,4] = G*A`` (no ``kappa`` factor).
+    - row/col 5 ``phi_x``: ``D[5,5] = GJ_t``.
+    - default off-diagonal entries are zero; optional warping coupling may fill
+      ``D[1,5]``, ``D[5,1]``, ``D[2,5]``, ``D[5,2]``.
+
+    **Resultant mapping**
+    - ``S = D @ eps`` with ``eps = [eps_x, kappa_z, kappa_y, gamma_xy, gamma_xz, phi_x]``.
+    - Rows of ``S`` are ``[N, M_z, M_y, V_y, V_z, T]``.
+
+    **B/N linkage**
+    - Parent weak form: ``K_e += B.T @ D @ B * w_g * detJ`` with selective bending/shear quadrature.
+    - ``B`` and ``N`` tensors come from Levinson utilities with batch shape ``(n_gp, 12, 6)``.
 
     See Also
     --------
