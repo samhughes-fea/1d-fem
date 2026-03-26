@@ -35,10 +35,10 @@ from post_processing.validation_visualisers.abaqus.config import (
     ELEMENT_TYPE_MAP,
     SUPPORTED_ELEMENT_TYPES,
 )
-from pre_processing.element_library.euler_bernoulli.utilities.interpolate_loads import (
+from pre_processing.element_library.linear.euler_bernoulli.utilities.interpolate_loads import (
     LoadInterpolationOperator,
 )
-from pre_processing.element_library.euler_bernoulli.utilities.shape_functions import (
+from pre_processing.element_library.linear.euler_bernoulli.utilities.shape_functions import (
     ShapeFunctionOperator,
 )
 
