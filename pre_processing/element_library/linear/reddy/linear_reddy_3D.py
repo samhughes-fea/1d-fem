@@ -264,7 +264,35 @@ class LinearReddyBeamElement3D(Element1DBase):
         return self.x_start - tol <= x < self.x_end
 
     def element_mass_matrix(self):
-        raise NotImplementedError(
-            f"{self.__class__.__name__} does not implement element_mass_matrix(); "
-            "required for modal/dynamic simulation."
+        """
+        Consistent mass using Reddy/Levinson kinematic shape functions (same DOF layout as Timoshenko beam):
+        translations ρA, torsion ρJ_t, bending rotations ρI_y / ρI_z.
+        """
+        from pre_processing.element_library.gauss_point_data import MassObject
+
+        self._assert_logging_ready()
+        rho = float(self.material_array[3])
+        mu = np.zeros(12, dtype=np.float64)
+        for i in (0, 1, 2, 6, 7, 8):
+            mu[i] = rho * self.A
+        for i in (3, 9):
+            mu[i] = rho * self.J_t
+        for i in (4, 10):
+            mu[i] = rho * self.I_y
+        for i in (5, 11):
+            mu[i] = rho * self.I_z
+        M_e = np.zeros((12, 12), dtype=np.float64)
+        xi, w = self.integration_points
+        detJ = self.jacobian_determinant
+        for xi_g, w_g in zip(xi, w):
+            N, _, _ = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            Ng = N[0]
+            for i in range(12):
+                for j in range(12):
+                    mij = 0.5 * (mu[i] + mu[j])
+                    M_e[i, j] += mij * float(np.dot(Ng[i, :], Ng[j, :])) * w_g * detJ
+        return MassObject(
+            element_id=self.element_id,
+            element_type=self.element_type_name,
+            M_e=M_e,
         )

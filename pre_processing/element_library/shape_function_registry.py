@@ -55,8 +55,9 @@ def _truss_operator(L: float) -> Any:
     return ShapeFunctionOperator(element_length=L)
 
 
-# Keys must match class names in element_factory.ELEMENT_CLASS_MAP
-# Warping elements use same shape functions as base (12 DOF); warping DOFs use linear Lagrange in-element
+# Keys must match class names in element_factory.ELEMENT_CLASS_MAP (plus nonlinear aliases below).
+# Warping elements use same shape functions as base (12 DOF); warping DOFs use linear Lagrange in-element.
+# GEBT uses Timoshenko 12-DOF shapes at the same quadrature points as linear Timoshenko.
 SHAPE_FUNCTION_REGISTRY: dict[str, ShapeFunctionOperatorFactory] = {
     "LinearEulerBernoulliBeamElement3D": _eb_operator,
     "LinearWarpingEulerBernoulliBeamElement3D": _eb_operator,
@@ -65,6 +66,7 @@ SHAPE_FUNCTION_REGISTRY: dict[str, ShapeFunctionOperatorFactory] = {
     "LinearWarpingTimoshenkoBeamElement3D": _timoshenko_operator,
     "LinearCurvedTimoshenkoBeamElement3D": _timoshenko_operator,
     "NonlinearTimoshenkoBeamElement3D": _timoshenko_operator,
+    "GEBTShearBeamElement3D": _timoshenko_operator,
     "LinearLevinsonBeamElement3D": _levinson_operator,
     "LinearReddyBeamElement3D": _reddy_operator,
     "LinearBarElement3D": _bar_operator,

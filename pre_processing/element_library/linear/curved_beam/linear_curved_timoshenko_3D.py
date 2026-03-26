@@ -235,6 +235,37 @@ class LinearCurvedTimoshenkoBeamElement3D(Element1DBase):
             point_loads=self.point_load_array.copy() if self.point_load_array.size > 0 else None,
         )
 
+    def element_mass_matrix(self):
+        """Consistent mass in reference chord frame (same N as straight Timoshenko); rho*A, rho*J_t, rho*I_y/I_z."""
+        from pre_processing.element_library.gauss_point_data import MassObject
+
+        self._assert_logging_ready()
+        rho = float(self.material_array[3])
+        mu = np.zeros(12, dtype=np.float64)
+        for i in (0, 1, 2, 6, 7, 8):
+            mu[i] = rho * self.A
+        for i in (3, 9):
+            mu[i] = rho * self.J_t
+        for i in (4, 10):
+            mu[i] = rho * self.I_y
+        for i in (5, 11):
+            mu[i] = rho * self.I_z
+        M_e = np.zeros((12, 12), dtype=np.float64)
+        xi, w = self.integration_points
+        detJ = self.jacobian_determinant
+        for xi_g, w_g in zip(xi, w):
+            N, _, _ = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            Ng = N[0]
+            for i in range(12):
+                for j in range(12):
+                    mij = 0.5 * (mu[i] + mu[j])
+                    M_e[i, j] += mij * float(np.dot(Ng[i, :], Ng[j, :])) * w_g * detJ
+        return MassObject(
+            element_id=self.element_id,
+            element_type=self.element_type_name,
+            M_e=M_e,
+        )
+
     def _compute_point_load_contribution(self) -> np.ndarray:
         Fe = np.zeros(12, dtype=np.float64)
         for load in self.point_load_array:

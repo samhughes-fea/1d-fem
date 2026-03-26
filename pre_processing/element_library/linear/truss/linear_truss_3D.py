@@ -101,6 +101,16 @@ class LinearTrussElement3D(Element1DBase):
         return float(self.section_array[4])
 
     @property
+    def I_y(self) -> float:
+        """Bending inertia about y (for consistent rotary mass; may be zero)."""
+        return float(self.section_array[2]) if self.section_array.size > 2 else 0.0
+
+    @property
+    def I_z(self) -> float:
+        """Bending inertia about z (for consistent rotary mass; may be zero)."""
+        return float(self.section_array[3]) if self.section_array.size > 3 else 0.0
+
+    @property
     def E(self) -> float:
         return float(self.material_array[0])
 
@@ -274,4 +284,38 @@ class LinearTrussElement3D(Element1DBase):
             F_e=F_e,
             gauss_data=gauss_cache,
             point_loads=point_loads_cache,
+        )
+
+    def element_mass_matrix(self):
+        """
+        Consistent mass using the same shape functions as stiffness: translations rho*A,
+        torsion rho*J_t, bending rotations rho*I_y / rho*I_z (often zero for ideal truss input).
+        """
+        from pre_processing.element_library.gauss_point_data import MassObject
+
+        self._assert_logging_ready()
+        rho = float(self.material_array[3])
+        mu = np.zeros(12, dtype=np.float64)
+        for i in (0, 1, 2, 6, 7, 8):
+            mu[i] = rho * self.A
+        for i in (3, 9):
+            mu[i] = rho * self.J_t
+        for i in (4, 10):
+            mu[i] = rho * self.I_y
+        for i in (5, 11):
+            mu[i] = rho * self.I_z
+        M_e = np.zeros((12, 12), dtype=np.float64)
+        xi, w = self.integration_points
+        detJ = self.jacobian_determinant
+        for xi_g, w_g in zip(xi, w):
+            N, _, _ = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            Ng = N[0]
+            for i in range(12):
+                for j in range(12):
+                    mij = 0.5 * (mu[i] + mu[j])
+                    M_e[i, j] += mij * float(np.dot(Ng[i, :], Ng[j, :])) * w_g * detJ
+        return MassObject(
+            element_id=self.element_id,
+            element_type=self.element_type_name,
+            M_e=M_e,
         )

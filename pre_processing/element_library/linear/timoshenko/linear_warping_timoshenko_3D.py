@@ -256,6 +256,51 @@ class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
             point_loads=self.point_load_array.copy() if self.point_load_array.size > 0 else None,
         )
 
+    def _N_14x6_at_xi(self, xi_g: float, N12: np.ndarray) -> np.ndarray:
+        """Extend standard (12, 6) N to (14, 6); warping DOFs use linear Lagrange on θ_x component."""
+        Nf = np.zeros((N_DOF, 6), dtype=np.float64)
+        Nf[:N_STANDARD_DOF, :] = N12
+        xi = float(xi_g)
+        Nf[12, 3] = 0.5 * (1.0 - xi)
+        Nf[13, 3] = 0.5 * (1.0 + xi)
+        return Nf
+
+    def element_mass_matrix(self):
+        """
+        Consistent mass: first 12 DOFs as straight Timoshenko; warping DOFs 12–13 with ρ·Γ
+        and linear shape (θ_x component slot).
+        """
+        from pre_processing.element_library.gauss_point_data import MassObject
+
+        self._assert_logging_ready()
+        rho = float(self.material_array[3])
+        mu = np.zeros(N_DOF, dtype=np.float64)
+        for i in (0, 1, 2, 6, 7, 8):
+            mu[i] = rho * self.A
+        for i in (3, 9):
+            mu[i] = rho * self.J_t
+        for i in (4, 10):
+            mu[i] = rho * self.I_y
+        for i in (5, 11):
+            mu[i] = rho * self.I_z
+        mu[12] = rho * self.Gamma
+        mu[13] = rho * self.Gamma
+        M_e = np.zeros((N_DOF, N_DOF), dtype=np.float64)
+        xi, w = self.integration_points
+        detJ = self.jacobian_determinant
+        for xi_g, w_g in zip(xi, w):
+            N12, _, _ = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            Ng = self._N_14x6_at_xi(xi_g, N12[0])
+            for i in range(N_DOF):
+                for j in range(N_DOF):
+                    mij = 0.5 * (mu[i] + mu[j])
+                    M_e[i, j] += mij * float(np.dot(Ng[i, :], Ng[j, :])) * w_g * detJ
+        return MassObject(
+            element_id=self.element_id,
+            element_type=self.element_type_name,
+            M_e=M_e,
+        )
+
     def _compute_distributed_load_contribution(self):
         from pre_processing.element_library.gauss_point_data import ForceGaussPointData
 
