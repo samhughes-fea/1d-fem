@@ -1,10 +1,16 @@
 # pre_processing/element_library/nonlinear/gebt_shear/gebt_shear_3D.py
 """
-2-node 3D GEBT shear beam (Phase 3a): shear-deformable geometrically exact beam theory.
+2-node 3D GEBT shear element — Phase 3a: TL stack on linear Timoshenko; at ``U_e = 0``, tangent stiffness equals linear ``K_e``.
 
-K_T = K_0 + K_σ, F_int = ∫ Bᵀ S. At U_e=0, tangent stiffness equals linear Timoshenko K_e.
-Uses same linear Timoshenko B, D and Total Lagrangian operators (Green–Lagrange strain,
-geometric stiffness) so limit test passes; full current-config GEBT kinematics can be added later.
+**Tensors:** ``U_e`` (12,), ``B`` (6, 12), ``D`` (6, 6) Timoshenko; ``E``, ``S = D @ E`` as nonlinear Timoshenko.
+``F_int += B.T @ S * w_g * detJ`` (linear Timoshenko ``B``); ``K_T = K_0 + K_sigma``. ``element_mass_matrix`` → ``M_e`` (12, 12) (reference, same as linear Timoshenko).
+``detJ = L/2``. ``K_0`` uses selective integration like linear Timoshenko (``_get_K_0``).
+
+**Weak forms (Gauss, xi in [-1, 1]):** ``F_int``, ``K_0``, ``K_sigma`` as Gauss sums (``K_sigma`` operator matches nonlinear Timoshenko); ``M_e`` consistent mass sum.
+
+**Public API:** Same entry points as nonlinear Timoshenko for stiffness, force, mass where implemented.
+
+**See Also:** ``NonlinearTimoshenkoBeamElement3D``; ``FORMULATION_DOCSTRING_STANDARDS.md``.
 """
 
 import logging
@@ -27,11 +33,11 @@ logger = logging.getLogger(__name__)
 
 class GEBTShearBeamElement3D(Element1DBase):
     """
-    2-node 3D GEBT shear beam: finite rotations and shear; K_T(U_e), F_int(U_e).
+    Phase 3a GEBT shear: same TL utilities as ``NonlinearTimoshenkoBeamElement3D``; ``K_0`` cached from linear Timoshenko.
 
-    At U_e=0, tangent stiffness equals linear Timoshenko K_e (same B, D, quadrature).
-    Uses Total Lagrangian strain (Green–Lagrange) and geometric stiffness for nonlinear
-    response; compatible with nonlinear static runner and build_converged_formulation_cache.
+    Notes
+    -----
+    ``K_sigma`` and strain pipeline match nonlinear Timoshenko. Module docstring: shapes and weak forms.
     """
 
     element_type_name = "GEBTShear-3D"
@@ -226,10 +232,12 @@ class GEBTShearBeamElement3D(Element1DBase):
         xi, w = self.integration_points
         detJ = self.jacobian_determinant
         dξ_dx = 2.0 / self.L
-        N_sum, M_y_sum, M_z_sum = 0.0, 0.0, 0.0
         n_g = len(xi)
+        N_gp = np.zeros(n_g, dtype=np.float64)
+        M_y_gp = np.zeros(n_g, dtype=np.float64)
+        M_z_gp = np.zeros(n_g, dtype=np.float64)
         dN_dx_list = []
-        for xi_g, w_g in zip(xi, w):
+        for k, (xi_g, w_g) in enumerate(zip(xi, w)):
             N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
             dN_dx = dN_dξ.copy() * dξ_dx
             B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
@@ -237,16 +245,13 @@ class GEBTShearBeamElement3D(Element1DBase):
             E_nl = self.green_lagrange_strain_operator.strain_nonlinear_part(dN_dx[0], U_e)
             E = E_lin + E_nl
             N_i, M_y_i, M_z_i = self.stress_resultant_operator.section_forces_from_strain(E, D)
-            N_sum += N_i * w_g
-            M_y_sum += M_y_i * w_g
-            M_z_sum += M_z_i * w_g
+            N_gp[k] = N_i
+            M_y_gp[k] = M_y_i
+            M_z_gp[k] = M_z_i
             dN_dx_list.append(dN_dx[0])
-        N_avg = N_sum * detJ / (2.0 * detJ) if n_g > 0 else N_sum
-        M_y_avg = M_y_sum * detJ / (2.0 * detJ) if n_g > 0 else M_y_sum
-        M_z_avg = M_z_sum * detJ / (2.0 * detJ) if n_g > 0 else M_z_sum
         dN_dx_arr = np.stack(dN_dx_list, axis=0)
         K_sigma = self.geometric_stiffness_operator.assemble_K_sigma(
-            N_avg, M_y_avg, M_z_avg, xi, w, dN_dx_arr, detJ
+            N_gp, M_y_gp, M_z_gp, w, dN_dx_arr, detJ
         )
         return K_0 + K_sigma
 

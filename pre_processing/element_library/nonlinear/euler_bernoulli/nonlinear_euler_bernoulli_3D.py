@@ -1,8 +1,22 @@
-# pre_processing/element_library/nonlinear/euler_bernoulli_3D/euler_bernoulli_3D_nonlinear.py
+# pre_processing/element_library/nonlinear/euler_bernoulli/nonlinear_euler_bernoulli_3D.py
 """
-2-node 3D Euler-Bernoulli beam with geometric nonlinearity (Total Lagrangian).
-Governing equations: K_T = K_mat + K_σ (full nonlinear curvature in K_mat), F_int = ∫ Bᵀ S; residual R = F_ext - F_int.
-Composes linear operators (shape, B_lin, D) and TL operators (GreenLagrangeStrain, StressResultant, GeometricStiffness).
+2-node 3D Euler-Bernoulli beam, Total Lagrangian (TL) geometric nonlinearity.
+
+**Tensors:** ``U_e`` (12,); per Gauss point ``B_lin`` (6, 12), ``B_nl`` (6, 12) from ``GreenLagrangeStrainOperator``;
+``D`` (6, 6) linear EB section law. Green-Lagrange strain ``E`` (6,) = ``E_lin + E_nl``; ``S = D @ E`` (Voigt, 2PK-style pairing).
+``detJ = L/2``. Tangent ``K_T = K_mat + K_sigma`` (12, 12); ``K_sigma`` from ``GeometricStiffnessOperator``.
+
+**Weak forms (Gauss, xi in [-1, 1]):** ``F_int += B_lin.T @ S * w_g * detJ``; ``K_mat += B_tot.T @ D @ B_tot * w_g * detJ`` with ``B_tot = B_lin + B_nl``;
+``K_sigma`` += stress-weighted Gauss sum (axial ``N`` and bending ``M_y``, ``M_z`` with shape slopes — see ``utilities/geometric_stiffness.py``).
+``F_dist += w_g * N.T @ q * detJ``; ``F_point = N.T @ P`` as linear EB.
+
+**Kinematics / constitutive:** EB: shear rows of ``E`` / ``B`` stack remain zero in the small-strain sense used here; ``N``, ``M_y``, ``M_z`` drive ``K_sigma``.
+
+**Quadrature:** Gauss-Legendre order from argument or ``element_array`` (same columns as linear EB).
+
+**Public API:** ``tangent_stiffness_matrix`` / internal force paths use the sums above; loads use linear EB operators.
+
+**See Also:** ``docs/element_library/total_lagrangian_beam_formulation.md``; ``docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md``.
 """
 
 import logging
@@ -25,30 +39,13 @@ logger = logging.getLogger(__name__)
 
 class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
     """
-    2-node 3D Euler-Bernoulli beam with geometric nonlinearity (Total Lagrangian).
-    Tangent stiffness K_T = K_mat(U_e) + K_σ(U_e); internal force F_int = ∫ Bᵀ S.
-    Full nonlinear curvature included (κ_y, κ_z axial–curvature coupling).
+    TL EB element: Green-Lagrange strain, ``S = D @ E``, material and geometric tangents from Gauss sums.
 
-    Features
-    --------
-    - Operator composition: linear operators (shape, B_lin, D) from linear/euler_bernoulli
-      and Total Lagrangian operators (GreenLagrangeStrain, StressResultant, GeometricStiffness).
-    - Full nonlinear curvature: K_mat = ∫ (B_lin + B_nl)ᵀ D (B_lin + B_nl) dx.
-    - Configurable quadrature order; same distributed and point load handling as linear EB.
-    - Integrated logging when ``logger_operator`` is set (inherited from base).
-
-    Governing equations and operators
-    ---------------------------------
-    - **K_mat** (material tangent): ∫ (B_lin + B_nl)ᵀ D (B_lin + B_nl) dx via
-      ``green_lagrange_strain_operator`` (B_lin, B_nl = nonlinear_strain_displacement_gradient).
-    - **K_σ** (geometric stiffness): from ``geometric_stiffness_operator`` using current
-      section forces N, M_y, M_z from ``stress_resultant_operator``.
-    - **E(u)** (strain): E_lin + E_nl (axial and curvature nonlinear terms) from
-      ``green_lagrange_strain_operator``; N, M from ``stress_resultant_operator.section_forces_from_strain(E, D)``.
-    - **F_int**: ∫ B_linᵀ S via E = E_lin + E_nl, S = D E.
-
-    Shear (same as linear EB): no shear deformation (γ_xy = γ_xz = 0); shear force from
-    equilibrium (V = dM/dx) if needed.
+    Notes
+    -----
+    Operators: ``green_lagrange_strain_operator``, ``stress_resultant_operator``, ``geometric_stiffness_operator``
+    compose linear EB ``B_lin``, ``D``, and shapes. Shear rows in the engineering Voigt layout stay in the EB pattern;
+    ``N``, ``M_y``, ``M_z`` for ``K_sigma`` from ``section_forces_from_strain(E, D)``. Full weak forms: module docstring.
     """
 
     element_type_name = "Euler-Bernoulli-3D-Nonlinear"
@@ -273,11 +270,13 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
         detJ = self.jacobian_determinant
         dξ_dx = 2.0 / self.L
         d2ξ_dx2 = 4.0 / (self.L ** 2)
-        # Section forces and dN_dx for K_σ
-        N_sum, M_y_sum, M_z_sum = 0.0, 0.0, 0.0
+        # Section forces and dN_dx for K_σ (per Gauss point; weak-form sum in operator)
         n_g = len(xi)
+        N_gp = np.zeros(n_g, dtype=np.float64)
+        M_y_gp = np.zeros(n_g, dtype=np.float64)
+        M_z_gp = np.zeros(n_g, dtype=np.float64)
         dN_dx_list = []
-        for xi_g, w_g in zip(xi, w):
+        for k, (xi_g, w_g) in enumerate(zip(xi, w)):
             N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
             dN_dx = dN_dξ.copy() * dξ_dx
             dN_dx[:, 3] = dN_dξ[:, 3] * dξ_dx  # torsion
@@ -290,17 +289,13 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
             )
             E = E_lin + E_nl
             N_i, M_y_i, M_z_i = self.stress_resultant_operator.section_forces_from_strain(E, D)
-            N_sum += N_i * w_g
-            M_y_sum += M_y_i * w_g
-            M_z_sum += M_z_i * w_g
+            N_gp[k] = N_i
+            M_y_gp[k] = M_y_i
+            M_z_gp[k] = M_z_i
             dN_dx_list.append(dN_dx[0])
-        # Average
-        N_avg = N_sum * detJ / (2.0 * detJ) if n_g > 0 else N_sum
-        M_y_avg = M_y_sum * detJ / (2.0 * detJ) if n_g > 0 else M_y_sum
-        M_z_avg = M_z_sum * detJ / (2.0 * detJ) if n_g > 0 else M_z_sum
         dN_dx_arr = np.stack(dN_dx_list, axis=0)
         K_sigma = self.geometric_stiffness_operator.assemble_K_sigma(
-            N_avg, M_y_avg, M_z_avg, xi, w, dN_dx_arr, detJ
+            N_gp, M_y_gp, M_z_gp, w, dN_dx_arr, detJ
         )
         # Material tangent with full nonlinear curvature: K_mat = ∫ (B_lin + B_nl)ᵀ D (B_lin + B_nl) dx
         K_mat = np.zeros((12, 12), dtype=np.float64)

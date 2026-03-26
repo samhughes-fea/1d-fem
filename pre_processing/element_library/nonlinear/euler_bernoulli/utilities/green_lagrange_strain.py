@@ -1,7 +1,9 @@
 # pre_processing/element_library/nonlinear/euler_bernoulli/utilities/green_lagrange_strain.py
 """
-Green–Lagrange strain operator for 2-node 3D Euler–Bernoulli beam (Total Lagrangian).
-Euler–Bernoulli: no shear (γ_xy = γ_xz = 0); bending from curvature only.
+Green-Lagrange strain utilities for 2-node 3D Euler-Bernoulli (Total Lagrangian).
+
+Per Gauss point: ``E`` (6,), ``B_lin`` and ``B_nl`` each (6, 12); inputs ``dN_dx``, ``d2N_dx2`` (12, 6), ``u_e`` (12,).
+Shear rows of ``E`` / ``B_lin`` / ``B_nl`` are zero. Parent element sums material tangent using ``B_lin + B_nl`` and ``D``.
 """
 
 from dataclasses import dataclass
@@ -33,7 +35,17 @@ class GreenLagrangeStrainOperator:
     element_length : float
         Reference length L of the beam element (must be > 0).
     include_shear : bool
-        For Euler–Bernoulli this is False (no shear strain); kept for API consistency.
+        For Euler-Bernoulli this is False (no shear strain); kept for API consistency with Timoshenko operator.
+
+    Notes
+    -----
+    This module only evaluates strain and ``B`` operators at a station; the element loops Gauss points with ``w_g`` and ``detJ``.
+    Chord map: ``dx/dxi = L/2``. Moderate-rotation TL: axial Green-Lagrange term and axial-bending curvature coupling as coded.
+
+    See Also
+    --------
+    nonlinear_euler_bernoulli_3D.NonlinearEulerBernoulliBeamElement3D
+    docs/element_library/total_lagrangian_beam_formulation.md
     """
 
     element_length: float
@@ -176,7 +188,7 @@ class GreenLagrangeStrainOperator:
         N: np.ndarray | None = None,
     ) -> np.ndarray:
         """
-        Linearized strain–displacement matrix B_lin (6×12) for K_0 = ∫ B_linᵀ D B_lin dx.
+        Linearized strain-displacement ``B_lin`` (6, 12); element uses ``B_lin`` in ``F_int`` and in linear stiffness part.
 
         Same structure as the linear Euler–Bernoulli B matrix. Shear rows (3, 4) are zero.
 

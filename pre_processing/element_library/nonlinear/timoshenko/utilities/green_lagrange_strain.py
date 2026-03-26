@@ -1,7 +1,11 @@
 # pre_processing/element_library/nonlinear/timoshenko/utilities/green_lagrange_strain.py
 """
-Green–Lagrange strain operator for 2-node 3D Timoshenko beam (Total Lagrangian).
-Timoshenko-specific: include_shear=True for γ_xy, γ_xz.
+Green-Lagrange strain for 2-node 3D Timoshenko (Total Lagrangian).
+
+``E`` (6,), ``B_lin`` (6, 12) matches linear Timoshenko ``B`` at each station. With ``include_shear=True``, nonlinear shear rows
+``gamma_xy``, ``gamma_xz`` are filled per implementation. Inputs ``dN_dx``, ``d2N_dx2`` (12, 6), ``u_e`` (12,).
+
+Parent element uses ``B`` from this operator with ``S = D @ E`` and Gauss sums for ``F_int`` and tangents.
 """
 
 from dataclasses import dataclass
@@ -31,7 +35,17 @@ class GreenLagrangeStrainOperator:
     element_length : float
         Reference length L of the beam element (must be > 0).
     include_shear : bool
-        If True, include shear strain (Timoshenko); if False, shear = 0 (Euler–Bernoulli).
+        If True, Timoshenko shear strain rows; if False, shear rows zero (EB-like).
+
+    Notes
+    -----
+    Per-Gauss-point only; element supplies ``w_g``, ``detJ``. Nonlinear ``B_nl`` / tangent details live in method docstrings and source.
+    For ``include_shear=True``, curvature nonlinearities follow the Timoshenko implementation in this file (not identical to EB utility).
+
+    See Also
+    --------
+    nonlinear_timoshenko_3D.NonlinearTimoshenkoBeamElement3D
+    nonlinear.euler_bernoulli.utilities.green_lagrange_strain (EB variant)
     """
 
     element_length: float

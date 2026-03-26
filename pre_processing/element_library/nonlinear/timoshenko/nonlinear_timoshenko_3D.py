@@ -1,7 +1,21 @@
-# pre_processing/element_library/nonlinear/timoshenko_3D/timoshenko_3D_nonlinear.py
+# pre_processing/element_library/nonlinear/timoshenko/nonlinear_timoshenko_3D.py
 """
-2-node 3D Timoshenko beam with geometric nonlinearity (Total Lagrangian).
-K_T = K_0 + K_σ, F_int = ∫ Bᵀ S. Composes linear Timoshenko operators and TL operators.
+2-node 3D Timoshenko beam, Total Lagrangian geometric nonlinearity.
+
+**Tensors:** ``U_e`` (12,); reference ``B`` (6, 12), ``D`` (6, 6) from linear Timoshenko (``kappa*G*A`` shear).
+``E = E_lin + E_nl`` (6,) with ``include_shear=True`` in ``GreenLagrangeStrainOperator``; ``S = D @ E``.
+``F_int += B.T @ S * w_g * detJ`` (``B`` = linear Timoshenko strain-displacement operator in physical coordinates);
+``K_T = K_0 + K_sigma`` — ``K_0`` (12, 12) linear Timoshenko stiffness (selective integration); ``K_sigma`` (12, 12) from
+``GeometricStiffnessOperator`` using ``N``, ``M_y``, ``M_z``. ``detJ = L/2``.
+
+**Weak forms (Gauss, xi in [-1, 1]):** internal force and ``K_0`` as Gauss sums; ``K_sigma`` same kernel as nonlinear EB but with Timoshenko ``dN/dx``;
+``F_dist``, ``M_e`` as linear Timoshenko.
+
+**Quadrature:** ``max(quadrature_order, 2)`` default; matches linear Timoshenko shear needs.
+
+**Public API:** See ``tangent_stiffness_matrix`` and internal force methods in source.
+
+**See Also:** ``docs/element_library/total_lagrangian_beam_formulation.md``; ``FORMULATION_DOCSTRING_STANDARDS.md`` (TL utilities).
 """
 
 import logging
@@ -24,27 +38,11 @@ logger = logging.getLogger(__name__)
 
 class NonlinearTimoshenkoBeamElement3D(Element1DBase):
     """
-    2-node 3D Timoshenko beam with geometric nonlinearity (Total Lagrangian).
-    Tangent stiffness K_T = K_0 + K_σ(U_e); internal force F_int = ∫ Bᵀ S.
+    TL Timoshenko: linear ``B``, ``D`` for ``K_0``; Green-Lagrange ``E_nl`` with shear; ``K_sigma`` from ``N``, ``M_y``, ``M_z``.
 
-    Features
-    --------
-    - Operator composition: linear operators (shape, B, D) from linear/timoshenko
-      and Total Lagrangian operators (GreenLagrangeStrain with include_shear=True,
-      StressResultant, GeometricStiffness).
-    - Configurable quadrature order (minimum 2 for shear); same load handling as linear Timoshenko.
-    - Integrated logging when ``logger_operator`` is set (inherited from base).
-
-    Governing equations and operators
-    ---------------------------------
-    - **K_0** (material stiffness): ∫ Bᵀ D B dx via ``strain_displacement_operator``
-      and ``material_stiffness_operator`` (linear Timoshenko B including shear).
-    - **K_σ** (geometric stiffness): from ``geometric_stiffness_operator`` using current
-      N, M_y, M_z from ``stress_resultant_operator``.
-    - **E(u)** (strain): E_lin from linear B @ U_e; E_nl from ``green_lagrange_strain_operator``
-      (include_shear=True); N, M from ``stress_resultant_operator.section_forces_from_strain``.
-    - **F_int**: ∫ Bᵀ S via ``strain_displacement_operator`` (B), ``green_lagrange_strain_operator``
-      (E_nl), and ``material_stiffness_operator`` (D); S = D E.
+    Notes
+    -----
+    Module docstring lists tensor shapes and Gauss sums. ``GeometricStiffnessOperator`` is shared with nonlinear EB family (Timoshenko shapes).
     """
 
     element_type_name = "Timoshenko-3D-Nonlinear"
@@ -263,29 +261,26 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         xi, w = self.integration_points
         detJ = self.jacobian_determinant
         dξ_dx = 2.0 / self.L
-        d2ξ_dx2 = 4.0 / (self.L ** 2)
-        N_sum, M_y_sum, M_z_sum = 0.0, 0.0, 0.0
         n_g = len(xi)
+        N_gp = np.zeros(n_g, dtype=np.float64)
+        M_y_gp = np.zeros(n_g, dtype=np.float64)
+        M_z_gp = np.zeros(n_g, dtype=np.float64)
         dN_dx_list = []
-        for xi_g, w_g in zip(xi, w):
+        for k, (xi_g, w_g) in enumerate(zip(xi, w)):
             N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
             dN_dx = dN_dξ.copy() * dξ_dx
-            d2N_dx2 = d2N_dξ2.copy() * d2ξ_dx2
             B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
             E_lin = (B @ U_e).ravel()
             E_nl = self.green_lagrange_strain_operator.strain_nonlinear_part(dN_dx[0], U_e)
             E = E_lin + E_nl
             N_i, M_y_i, M_z_i = self.stress_resultant_operator.section_forces_from_strain(E, D)
-            N_sum += N_i * w_g
-            M_y_sum += M_y_i * w_g
-            M_z_sum += M_z_i * w_g
+            N_gp[k] = N_i
+            M_y_gp[k] = M_y_i
+            M_z_gp[k] = M_z_i
             dN_dx_list.append(dN_dx[0])
-        N_avg = N_sum * detJ / (2.0 * detJ) if n_g > 0 else N_sum
-        M_y_avg = M_y_sum * detJ / (2.0 * detJ) if n_g > 0 else M_y_sum
-        M_z_avg = M_z_sum * detJ / (2.0 * detJ) if n_g > 0 else M_z_sum
         dN_dx_arr = np.stack(dN_dx_list, axis=0)
         K_sigma = self.geometric_stiffness_operator.assemble_K_sigma(
-            N_avg, M_y_avg, M_z_avg, xi, w, dN_dx_arr, detJ
+            N_gp, M_y_gp, M_z_gp, w, dN_dx_arr, detJ
         )
         return K_0 + K_sigma
 

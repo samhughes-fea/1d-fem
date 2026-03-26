@@ -1,7 +1,8 @@
 # pre_processing/element_library/nonlinear/timoshenko/utilities/stress_resultant.py
 """
-Section force (stress resultant) operator for 2-node 3D beam (Total Lagrangian).
-S = D @ E; N, M_y, M_z at Gauss points.
+Stress resultants for TL Timoshenko beam: ``S = D @ E`` with ``E``, ``S`` (6,) Voigt.
+
+``section_forces_from_strain`` returns ``(N, M_y, M_z)`` = ``(S[0], S[1], S[2])`` for ``K_sigma`` assembly; full ``S`` retains Timoshenko shear and torsion rows.
 """
 
 from dataclasses import dataclass
@@ -22,6 +23,15 @@ class StressResultantOperator:
     Parameters
     ----------
     None (stateless; D and E are passed to methods).
+
+    Notes
+    -----
+    Same API as EB ``StressResultantOperator``; Timoshenko ``D`` gives non-zero ``V_y``, ``V_z`` in full ``S`` but this method only exposes ``N``, ``M_y``, ``M_z`` for geometric stiffness.
+
+    See Also
+    --------
+    nonlinear_timoshenko_3D.NonlinearTimoshenkoBeamElement3D
+    nonlinear.euler_bernoulli.utilities.geometric_stiffness.GeometricStiffnessOperator
     """
 
     def section_forces_from_strain(

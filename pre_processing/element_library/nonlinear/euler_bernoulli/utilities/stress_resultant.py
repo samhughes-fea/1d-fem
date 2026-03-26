@@ -1,7 +1,8 @@
 # pre_processing/element_library/nonlinear/euler_bernoulli/utilities/stress_resultant.py
 """
-Section force (stress resultant) operator for 2-node 3D Euler–Bernoulli beam (Total Lagrangian).
-S = D @ E; N, M_y, M_z at Gauss points.
+Stress resultant helper for 2-node 3D Euler-Bernoulli TL beam.
+
+``S = D @ E``; extracts ``N``, ``M_y``, ``M_z`` for geometric stiffness. Full ``S`` (6,) follows linear ``D`` / Voigt order.
 """
 
 from dataclasses import dataclass
@@ -23,6 +24,16 @@ class StressResultantOperator:
     Parameters
     ----------
     None (stateless; D and E are passed to methods).
+
+    Notes
+    -----
+    Stateless: does not integrate. The element supplies ``E`` and ``D`` per Gauss point; ``GeometricStiffnessOperator`` uses ``N``, ``M_y``, ``M_z``.
+    EB ``D`` zeros shear rows — constitutive ``V_y``, ``V_z`` are zero; equilibrium shear is separate.
+
+    See Also
+    --------
+    nonlinear_euler_bernoulli_3D.NonlinearEulerBernoulliBeamElement3D
+    geometric_stiffness.GeometricStiffnessOperator
     """
 
     def section_forces_from_strain(
