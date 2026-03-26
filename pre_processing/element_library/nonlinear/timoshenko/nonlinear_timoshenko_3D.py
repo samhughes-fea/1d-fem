@@ -222,7 +222,7 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         )
 
     def _get_K_0(self) -> np.ndarray:
-        """Material stiffness K_0 = ∫ Bᵀ D B dx (linear Timoshenko B, full quadrature).
+        """Material stiffness ``K_0 = sum_g B.T @ D @ B * w_g * detJ`` (linear Timoshenko ``B``, full quadrature).
 
         Returns
         -------
@@ -444,7 +444,7 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
 
         Notes
         -----
-        Combines distributed load contribution F_dist = ∫ Nᵀ q dx and point loads
+        Combines distributed load ``F_dist += sum_g w_g * N.T @ q * detJ`` and point loads
         F_point = N(x_p)ᵀ P at load locations.
         """
         from pre_processing.element_library.gauss_point_data import ForceObject, ForceGaussPointData

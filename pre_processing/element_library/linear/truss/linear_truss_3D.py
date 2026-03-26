@@ -194,7 +194,7 @@ class LinearTrussElement3D(Element1DBase):
         return Fe_point
 
     def _compute_distributed_load_contribution(self) -> Tuple[np.ndarray, list]:
-        """Distributed load via multi-GP quadrature: F_dist = ∫ Nᵀ q dx."""
+        """Distributed load: ``F_dist += sum_g w_g * N.T @ q * detJ`` at Gauss ``xi_g``."""
         from pre_processing.element_library.gauss_point_data import ForceGaussPointData
 
         xi_gauss, weights = self.integration_points
@@ -227,7 +227,7 @@ class LinearTrussElement3D(Element1DBase):
         return Fe_dist, gauss_cache
 
     def element_stiffness_matrix(self):
-        """K_e = ∫ Bᵀ D B dx via Gauss-Legendre quadrature."""
+        """Stiffness ``K_e += sum_g B.T @ D @ B * w_g * detJ`` (Gauss-Legendre on ``xi``)."""
         from pre_processing.element_library.gauss_point_data import ElementObject, StiffnessGaussPointData
 
         self._assert_logging_ready()

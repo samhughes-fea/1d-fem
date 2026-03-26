@@ -12,29 +12,16 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class StrainDisplacementOperator:
     """
-    Constructs the strain-displacement matrix `B` for a 3D Levinson beam element.
+    Strain-displacement ``B`` (6, 12) per Gauss point for a 2-node 3-D Levinson beam.
 
-    The operator transforms first and second derivatives of shape functions with respect 
-    to the natural coordinate ξ ∈ [-1, 1] into physical strain measures in x ∈ [0, L]. 
+    Voigt ``eps = B @ U_e`` with rows **``[eps_x, kappa_z, kappa_y, gamma_xy, gamma_xz, phi_x]``**
+    (``kappa_z`` before ``kappa_y``, matching implementation):
+    ``eps_x = d(u_x)/dx``; ``kappa_z = d(theta_z)/dx``; ``kappa_y = d(theta_y)/dx``;
+    ``gamma_xy = d(u_y)/dx - theta_z + alpha*d2(theta_z)/dx2``;
+    ``gamma_xz = d(u_z)/dx - theta_y + alpha*d2(theta_y)/dx2``;
+    ``phi_x = d(theta_x)/dx``. Coefficient ``alpha`` (e.g. ``h**2/12`` for rectangular sections) is a section property.
 
-    Strain vector:
-        ε = [εₓ, κ_z, κ_y, γ_xy, γ_xz, φₓ]ᵀ
-
-    where:
-        - εₓ  = ∂uₓ/∂x          (axial strain)
-        - κ_z = ∂θ_z/∂x         (curvature in x–y plane, bending about z)
-        - κ_y = ∂θ_y/∂x         (curvature in x–z plane, bending about y)
-        - γ_xy = ∂u_y/∂x - θ_z + α(∂²θ_z/∂x²)  (higher-order shear in x-y plane)
-        - γ_xz = ∂u_z/∂x - θ_y + α(∂²θ_y/∂x²)  (higher-order shear in x-z plane)
-        - φₓ  = ∂θₓ/∂x          (torsional strain)
-        
-    The α coefficient for higher-order shear is typically h²/12 for rectangular sections,
-    where h is the beam depth. For general sections, it may be computed from section properties.
-
-    Coordinate mapping:
-        - x(ξ) = ((1 - ξ) / 2) * x₁ + ((1 + ξ) / 2) * x₂
-        - dx/dξ = L/2 ⇒ ∂ξ/∂x = 2/L
-        - ∂²ξ/∂x² = 4 / L²
+    Map: ``x(xi)`` linear on chord, ``dx/dxi = L/2``, ``dxi_dx = 2/L``, ``d2xi_dx2 = 4/L**2``.
 
     Parameters
     ----------
@@ -54,7 +41,11 @@ class StrainDisplacementOperator:
 
     Notes
     -----
-    Same Gauss weak form as Timoshenko family; ``D`` uses ``G*A`` shear stiffness (no ``kappa`` factor). See module one-liner for Voigt row order.
+    **Contract:** same outer sizes as Timoshenko: ``B`` (6, 12), ``U_e`` (12,).
+    **Diff vs Timoshenko:** Voigt curvature order is ``kappa_z`` then ``kappa_y``; shear rows add ``alpha`` times
+    second derivatives of rotations; ``D`` uses ``G*A`` on shear rows **without** Timoshenko ``kappa`` factor.
+
+    Same Gauss weak form as the shear-deformable beam family; see module one-liner for Voigt row order.
 
     See Also
     --------

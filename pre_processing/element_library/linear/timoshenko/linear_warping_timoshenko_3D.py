@@ -44,6 +44,9 @@ class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
 
     Notes
     -----
+    **Contract/Diff vs 12-DOF Timoshenko:** ``U_e`` (14,) adds warping ``chi`` at 12–13; first six strain rows and 6x6
+    ``D`` block match linear Timoshenko on standard DOFs; row 6 / ``D[6,6]`` add Vlasov bimoment stiffness.
+
     Assembly: ``K_e += B.T @ D @ B * w_g * detJ`` with ``B`` (7,14), ``D`` (7,7).
     If ``quadrature_order`` is ``None`` or ``3``, derive from ``element_array`` (shear columns at least 2); else use the given integer.
     """

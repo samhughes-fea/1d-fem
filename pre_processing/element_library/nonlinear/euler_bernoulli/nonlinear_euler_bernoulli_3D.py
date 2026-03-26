@@ -230,7 +230,7 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
         )
 
     def _get_K_0(self) -> np.ndarray:
-        """Material stiffness K_0 = ∫ B_linᵀ D B_lin dx (cached).
+        """Material stiffness ``K_0 = sum_g B_lin.T @ D @ B_lin * w_g * detJ`` (cached; linear ``B_lin``).
 
         Returns
         -------
@@ -252,8 +252,8 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
 
     def tangent_stiffness_matrix(self, U_e: np.ndarray) -> np.ndarray:
         """
-        Tangent stiffness K_T = K_mat(U_e) + K_σ(U_e). K_mat = ∫ (B_lin + B_nl)ᵀ D (B_lin + B_nl) dx
-        includes full nonlinear curvature; K_σ is geometric stiffness.
+        Tangent stiffness ``K_T = K_mat(U_e) + K_sigma(U_e)``. ``K_mat += sum_g B_tot.T @ D @ B_tot * w_g * detJ``
+        with ``B_tot = B_lin + B_nl`` (full nonlinear curvature); ``K_sigma`` is geometric stiffness.
 
         Parameters
         ----------
@@ -297,7 +297,7 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
         K_sigma = self.geometric_stiffness_operator.assemble_K_sigma(
             N_gp, M_y_gp, M_z_gp, w, dN_dx_arr, detJ
         )
-        # Material tangent with full nonlinear curvature: K_mat = ∫ (B_lin + B_nl)ᵀ D (B_lin + B_nl) dx
+        # Material tangent: K_mat += sum_g B_tot.T @ D @ B_tot * w_g * detJ, B_tot = B_lin + B_nl
         K_mat = np.zeros((12, 12), dtype=np.float64)
         for xi_g, w_g in zip(xi, w):
             N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
@@ -502,7 +502,7 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
 
         Notes
         -----
-        Combines distributed load contribution F_dist = ∫ Nᵀ q dx and point loads
+        Combines distributed load ``F_dist += sum_g w_g * N.T @ q * detJ`` and point loads
         F_point = N(x_p)ᵀ P at load locations.
         """
         from pre_processing.element_library.gauss_point_data import ForceObject, ForceGaussPointData

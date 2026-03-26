@@ -42,6 +42,10 @@ class LinearWarpingEulerBernoulliBeamElement3D(Element1DBase):
 
     Notes
     -----
+    **Contract/Diff vs 12-DOF EB:** ``U_e`` (14,) extends the standard (12,) packing with warping ``chi`` at indices 12–13;
+    ``B`` (7,14) and ``D`` (7,7) embed linear EB on columns 0–11 and the upper 6x6 of ``D``; the seventh strain row
+    (warping rate / bimoment strain) and ``D[6,6] = E*Gamma`` are the extension.
+
     Stiffness: ``K_e += B.T @ D @ B * w_g * detJ`` with ``B`` (7,14), ``D`` (7,7) as in the module docstring.
     ``Gamma`` from ``section_array[9]`` when length >= 10 (otherwise 0 — no bimoment stiffness).
     """

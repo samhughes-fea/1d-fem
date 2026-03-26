@@ -100,6 +100,15 @@ Nonlinear elements assemble **internal force** and **tangents** in the parent `*
 
 Use this table as the **single source of truth** for straight 12-DOF beam elements unless the theory explicitly extends it (e.g. warping, bar/truss reductions). Element and `B_matrix` / `D_matrix` docstrings should say “Voigt order per FORMULATION_DOCSTRING_STANDARDS” or repeat this table once per family.
 
+### Outer sizes as comparison frame
+
+When multiple theories share the same **outer** tensor shapes (e.g. `B` `(6, 12)`, `U_e` `(12,)` for EB, Timoshenko, Levinson), use **Contract** / **Diff** notes in utility or class docstrings so reviewers see **row activity, order, zeros, and extensions** at a glance:
+
+- **Baseline:** simpler models often have **zero rows** in `B` or `D` (e.g. EB shear strains constitutively zero).
+- **Progression:** higher-order or shear-deformable theories **fill** those rows with kinematic terms and matching stiffness (e.g. `kappa*G*A` vs `G*A`); warping adds DOFs and an extra strain row; curved or TL formulations add parameters (`kappa0`, `B_nl`) while keeping the packing explicit.
+
+Extensions such as `(14,) U_e` and `(7, 14) B` should state how the **first 12 DOFs and 6 strain rows** embed the linear baseline.
+
 **Local frame:** Straight elements use local **`x`** along the chord from node 1 → node 2. Curved Timoshenko uses the same **isoparametric** map \(x(\xi)\) on the chord; strain operators in code may use **`s`** or coupling with curvature κ₀ — state which in the element docstring.
 
 **Nodal displacement vector `U_e`:** Length **`2 × dof_per_node`**, **node-major**: all DOFs at node 1, then node 2. For **`dof_per_node = 6`**:

@@ -14,37 +14,32 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class ShapeFunctionOperator:
     """
-    Operator for evaluating 3D Euler-Bernoulli beam shape functions and their derivatives.
-    Provides rigorous transformation between natural (ξ ∈ [-1,1]) and physical (x ∈ [0,L]) coordinates.
+    Evaluate 3D Euler-Bernoulli beam shape functions and natural derivatives on ``xi``.
 
-    Mathematical Formulation
-    -----------------------
-    Shape functions follow standard beam theory with:
-    - Axial displacement: Linear Lagrange polynomials
-    - Bending displacement: Hermite cubic polynomials
-    - Torsional rotation: Linear Lagrange polynomials
-
-    Coordinate Transformation:
-    - Physical to natural: ξ = (2x - L)/L
-    - Derivatives:
-      ∂N/∂x = (∂N/∂ξ)(∂ξ/∂x) = (∂N/∂ξ)(2/L)
-      ∂²N/∂x² = (∂²N/∂ξ²)(∂ξ/∂x)² = (∂²N/∂ξ²)(4/L²)
+    ``natural_coordinate_form`` returns ``N``, ``dN_dxi``, ``d2N_dxi2`` (batch ``n_points``, 12, 6);
+    ``physical_coordinate_form`` scales to ``dN/dx``, ``d2N/dx2`` via ``dxi_dx``, ``d2xi_dx2``.
 
     Parameters
     ----------
     element_length : float
-        Physical length of element (x ∈ [0,L], L > 0)
+        Chord length ``L`` (physical ``x`` in ``[0, L]``, must be > 0).
 
     Attributes
     ----------
     dξ_dx : float
-        First derivative transform (∂ξ/∂x = 2/L)
+        First derivative chain factor ``2/L``.
     d2ξ_dx2 : float
-        Second derivative transform (∂²ξ/∂x² = 4/L²)
+        Second derivative chain factor ``4/L**2``.
 
     Notes
     -----
-    Natural ``xi`` in [-1, 1]; chord length ``L``. Weak-form linkage: ``linear_euler_bernoulli_3D``.
+    **Contract:** same ``(n_gp, 12, 6)`` layout as module docstring (row = DOF, column = component).
+
+    **Formulation (natural coordinate xi in [-1, 1]):** axial ``u_x`` and torsion ``theta_x`` use linear
+    Lagrange; transverse ``u_y``, ``u_z`` and bending rotations use Hermite cubics (standard beam pair per plane).
+    Map ``xi = (2*x - L)/L`` on the chord; ``dN/dx = dN_dxi * dxi_dx``, ``d2N/dx2 = d2N_dxi2 * d2xi_dx2``.
+
+    Weak-form linkage: ``linear_euler_bernoulli_3D``.
 
     See Also
     --------
@@ -71,14 +66,14 @@ class ShapeFunctionOperator:
         """Second derivative transform ∂²ξ/∂x² = 4/L² (1/m²)"""
         return self._d2ξ_dx2
 
-    def natural_coordinate_form(self, ξ: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def natural_coordinate_form(self, xi: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Evaluate shape functions and derivatives in natural coordinates (ξ-space).
+        Evaluate shape functions and derivatives in natural coordinates (xi-space).
 
         Parameters
         ----------
-        ξ : np.ndarray
-            Natural coordinates ∈ [-1, 1] with shape (n_points,)
+        xi : np.ndarray
+            Natural coordinates in [-1, 1], shape (n_points,).
 
         Returns
         -------
@@ -98,9 +93,9 @@ class ShapeFunctionOperator:
         Node 1: [u_x, u_y, u_z, θ_x, θ_y, θ_z]
         Node 2: [u_x, u_y, u_z, θ_x, θ_y, θ_z]
         """
-        ξ = np.asarray(ξ, dtype=np.float64)
-        n_points = ξ.size
-        ξ = ξ.reshape(-1, 1, 1)  # Prepare for broadcasting
+        xi = np.asarray(xi, dtype=np.float64)
+        n_points = xi.size
+        ξ = xi.reshape(-1, 1, 1)  # Prepare for broadcasting
 
         # Initialize output arrays
         N = np.zeros((n_points, 12, 6))
@@ -168,14 +163,14 @@ class ShapeFunctionOperator:
 
         return N, dN_dξ, d2N_dξ2
 
-    def physical_coordinate_form(self, ξ: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def physical_coordinate_form(self, xi: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Evaluate shape functions and derivatives in physical coordinates (x-space).
 
         Parameters
         ----------
-        ξ : np.ndarray
-            Natural coordinates ∈ [-1, 1] with shape (n_points,)
+        xi : np.ndarray
+            Natural coordinates in [-1, 1], shape (n_points,).
 
         Returns
         -------
@@ -188,11 +183,9 @@ class ShapeFunctionOperator:
 
         Notes
         -----
-        Derivatives are transformed using:
-        ∂N/∂x = (∂N/∂ξ)(∂ξ/∂x) = (∂N/∂ξ)(2/L)
-        ∂²N/∂x² = (∂²N/∂ξ²)(∂ξ/∂x)² = (∂²N/∂ξ²)(4/L²)
+        ``dN_dx = dN_dxi * dxi_dx``, ``d2N_dx2 = d2N_dxi2 * d2xi_dx2`` with ``dxi_dx = 2/L``.
         """
-        N, dN_dξ, d2N_dξ2 = self.natural_coordinate_form(ξ)
+        N, dN_dξ, d2N_dξ2 = self.natural_coordinate_form(xi)
         
         # Apply coordinate transforms
         dN_dx = dN_dξ * self.dξ_dx

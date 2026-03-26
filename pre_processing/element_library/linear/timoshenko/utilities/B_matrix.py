@@ -2,7 +2,7 @@
 """Strain-displacement ``B`` (6, 12) per Gauss point for 2-node 3-D Timoshenko beam.
 
 ``eps = B @ U_e``; Voigt ``eps`` = [eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x] with shear
-``gamma_xy = d(u_y)/dx - theta_z``, ``gamma_xz = d(u_z)/dx + theta_y``. Parent sums ``K_e += B.T @ D @ B * w_g * detJ``.
+``gamma_xy = d(u_y)/dx - theta_z``, ``gamma_xz = d(u_z)/dx - theta_y``. Parent sums ``K_e += B.T @ D @ B * w_g * detJ``.
 """
 
 import numpy as np
@@ -12,25 +12,15 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class StrainDisplacementOperator:
     """
-    Builds the strain–displacement matrix **B** for a 2-node 3-D Timoshenko beam element.
+    Strain-displacement ``B`` (6, 12) per Gauss point for a 2-node 3-D Timoshenko beam.
 
-    The operator transforms derivatives of shape functions into physical strain measures.
+    Voigt ``eps = B @ U_e`` with rows
+    ``[eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x]``:
+    ``eps_x = d(u_x)/dx``; ``kappa_y = d(theta_y)/dx``, ``kappa_z = d(theta_z)/dx`` (rotation-based bending);
+    ``gamma_xy = d(u_y)/dx - theta_z``, ``gamma_xz = d(u_z)/dx - theta_y``;
+    ``phi_x = d(theta_x)/dx``.
 
-    Strain vector:
-        ε = [ ε_x  κ_y  κ_z  γ_xy  γ_xz  φ_x ]ᵀ
-
-    where:
-        ε_x   = ∂uₓ/∂x        (axial)
-        κ_y   = ∂θ_y/∂x       (bending about y, x–z plane) - Timoshenko: rotation-based
-        κ_z   = ∂θ_z/∂x       (bending about z, x–y plane) - Timoshenko: rotation-based
-        γ_xy  = ∂u_y/∂x - θ_z (shear xy - Timoshenko includes shear deformation)
-        γ_xz  = ∂u_z/∂x - θ_y (shear xz - Timoshenko includes shear deformation)
-        φ_x   = ∂θₓ/∂x        (torsion)
-
-    Coordinate mapping:
-        - x(ξ) = ((1 - ξ)/2)x₁ + ((1 + ξ)/2)x₂
-        - dx/dξ = L/2 ⇒ ∂ξ/∂x = 2/L
-        - ∂²ξ/∂x² = 4/L²
+    Map: ``x(xi)`` linear on chord, ``dx/dxi = L/2``, ``dxi_dx = 2/L``, ``d2xi_dx2 = 4/L**2``.
 
     Parameters
     ----------
@@ -48,8 +38,11 @@ class StrainDisplacementOperator:
 
     Notes
     -----
+    **Contract:** same outer sizes as standard 12-DOF beam: ``B`` (6, 12), ``U_e`` (12,).
+    **Diff vs EB:** shear rows ``gamma_xy``, ``gamma_xz`` are non-zero; ``D`` uses ``kappa*G*A`` on those rows.
+    Levinson/Reddy keep ``(6, 12)`` but change kinematics in ``B`` and may use ``G*A`` without ``kappa``.
+
     Weak-form linkage: ``linear_timoshenko_3D`` uses ``physical_coordinate_form`` in the stiffness loop; ``detJ = L/2``.
-    Chord map ``x(xi)`` linear between nodes.
 
     See Also
     --------

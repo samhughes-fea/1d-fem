@@ -131,7 +131,7 @@ class GreenLagrangeStrainOperator:
     ) -> np.ndarray:
         """
         Gradient of E_nl w.r.t. u_e: B_nl such that dE_nl/du_e = B_nl (6×12).
-        Used for consistent tangent: K_mat = ∫ (B_lin + B_nl)ᵀ D (B_lin + B_nl) dx.
+        Used for consistent tangent: ``K_mat += sum_g B_tot.T @ D @ B_tot * w_g * detJ`` with ``B_tot = B_lin + B_nl``.
 
         Parameters
         ----------

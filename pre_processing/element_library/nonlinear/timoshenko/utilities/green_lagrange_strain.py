@@ -116,7 +116,7 @@ class GreenLagrangeStrainOperator:
         N: np.ndarray | None = None,
     ) -> np.ndarray:
         """
-        Linearized strain–displacement matrix B_lin (6×12) for K_0 = ∫ B_linᵀ D B_lin dx.
+        Linearized strain-displacement ``B_lin`` (6, 12); parent caches ``K_0 += sum_g B_lin.T @ D @ B_lin * w_g * detJ``.
 
         Same structure as the linear beam B matrix. For Timoshenko shear, pass N (12×6) at the Gauss point.
 

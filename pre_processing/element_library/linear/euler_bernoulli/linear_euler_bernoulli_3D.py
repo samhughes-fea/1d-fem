@@ -197,7 +197,7 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
         return self.shape_function_operator.natural_coordinate_form(xi)
 
     def B_matrix(self, dN_dξ: np.ndarray, d2N_dξ2: np.ndarray) -> np.ndarray:
-        """B̃-matrix in natural coordinates (∫ B̃ᵀ D B̃ |J| dξ)."""
+        """``B_tilde`` in natural ``xi``; element sums ``K_e += B.T @ D @ B * w_g * detJ`` (physical ``B``)."""
         return self.strain_displacement_operator.natural_coordinate_form(dN_dξ, d2N_dξ2)
 
     def D_matrix(self) -> np.ndarray:
@@ -326,7 +326,7 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
         Notes
         -----
         Combines contributions from:
-        - Distributed loads: F_dist = ∫ N^T q dx
+        - Distributed loads: ``F_dist += sum_g w_g * N.T @ q * detJ``
         - Point loads: F_point = N(x_p)^T P
         """
         from pre_processing.element_library.gauss_point_data import ForceObject, ForceGaussPointData
