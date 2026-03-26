@@ -19,8 +19,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 def _minimal_formulation_cache_and_mesh():
     """One Euler-Bernoulli element, formulation cache with shape_functions."""
-    from pre_processing.element_library.euler_bernoulli.euler_bernoulli_3D import (
-        EulerBernoulliBeamElement3D,
+    from pre_processing.element_library.linear.euler_bernoulli.linear_euler_bernoulli_3D import (
+        LinearEulerBernoulliBeamElement3D,
     )
     from processing.static.results.containers import FormulationResultSet
 
@@ -28,7 +28,7 @@ def _minimal_formulation_cache_and_mesh():
     element_dictionary = {
         "ids": np.array([0]),
         "connectivity": np.array([[0, 1]]),
-        "types": np.array(["EulerBernoulliBeamElement3D"]),
+        "types": np.array(["LinearEulerBernoulliBeamElement3D"]),
         "integration_orders": {
             "axial": np.array([3]),
             "bending_y": np.array([3]),
@@ -65,7 +65,7 @@ def _minimal_formulation_cache_and_mesh():
     os.makedirs(job_results_dir, exist_ok=True)
     os.makedirs(os.path.join(job_results_dir, "element_stiffness_matrices"), exist_ok=True)
     os.makedirs(os.path.join(job_results_dir, "element_force_vectors"), exist_ok=True)
-    element = EulerBernoulliBeamElement3D(
+    element = LinearEulerBernoulliBeamElement3D(
         element_id=0,
         element_dictionary=element_dictionary,
         grid_dictionary=grid_dictionary,

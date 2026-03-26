@@ -42,8 +42,8 @@ def test_evaluator_n1_xi_hand_values():
 
 def test_evaluator_matches_eb_operator():
     """Full EB coefficient arrays (from EB export) should match ShapeFunctionOperator at sample ξ."""
-    from pre_processing.element_library.euler_bernoulli.euler_bernoulli_3D import (
-        EulerBernoulliBeamElement3D,
+    from pre_processing.element_library.linear.euler_bernoulli.linear_euler_bernoulli_3D import (
+        LinearEulerBernoulliBeamElement3D,
     )
     import tempfile
     import os
@@ -53,7 +53,7 @@ def test_evaluator_matches_eb_operator():
     element_dictionary = {
         "ids": np.array([0]),
         "connectivity": np.array([[0, 1]]),
-        "types": np.array(["EulerBernoulliBeamElement3D"]),
+        "types": np.array(["LinearEulerBernoulliBeamElement3D"]),
         "integration_orders": {
             "axial": np.array([3]),
             "bending_y": np.array([3]),
@@ -84,7 +84,7 @@ def test_evaluator_matches_eb_operator():
     os.makedirs(os.path.join(job_results_dir, "element_stiffness_matrices"), exist_ok=True)
     os.makedirs(os.path.join(job_results_dir, "element_force_vectors"), exist_ok=True)
     try:
-        element = EulerBernoulliBeamElement3D(
+        element = LinearEulerBernoulliBeamElement3D(
             element_id=0,
             element_dictionary=element_dictionary,
             grid_dictionary=grid_dictionary,

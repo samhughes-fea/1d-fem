@@ -16,8 +16,8 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.euler_bernoulli.euler_bernoulli_3D import (
-    EulerBernoulliBeamElement3D,
+from pre_processing.element_library.linear.euler_bernoulli.linear_euler_bernoulli_3D import (
+    LinearEulerBernoulliBeamElement3D,
 )
 
 
@@ -71,7 +71,7 @@ def _minimal_eb_element_and_job_dir():
     os.makedirs(job_results_dir, exist_ok=True)
     os.makedirs(os.path.join(job_results_dir, "element_stiffness_matrices"), exist_ok=True)
     os.makedirs(os.path.join(job_results_dir, "element_force_vectors"), exist_ok=True)
-    element = EulerBernoulliBeamElement3D(
+    element = LinearEulerBernoulliBeamElement3D(
         element_id=0,
         element_dictionary=element_dictionary,
         grid_dictionary=grid_dictionary,

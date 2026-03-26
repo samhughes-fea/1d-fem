@@ -46,7 +46,7 @@ def test_job_to_abaqus_script_generates_file_with_expected_content():
 
 def test_deformation_comparison_runs():
     """Run deformation comparison (FEM vs Abaqus); must not raise when abaqus_results empty."""
-    from post_processing.validation_visualisers.deflection_tables.deformation_comparison import (
+    from post_processing.validation_visualisers.deformation.deformation_comparison import (
         run_deformation_comparison,
     )
     run_deformation_comparison()

@@ -12,8 +12,8 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.truss.truss_3D import TrussElement3D
-from pre_processing.element_library.bar.bar_3D import BarElement3D
+from pre_processing.element_library.linear.truss.linear_truss_3D import LinearTrussElement3D
+from pre_processing.element_library.linear.bar.linear_bar_3D import LinearBarElement3D
 
 
 def _make_job_dir():
@@ -62,7 +62,7 @@ def test_truss_element_stiffness_shape_and_symmetry():
     }
     job_results_dir = _make_job_dir()
 
-    el = TrussElement3D(
+    el = LinearTrussElement3D(
         element_id=0,
         element_dictionary=element_dictionary,
         grid_dictionary=grid_dictionary,
@@ -95,7 +95,7 @@ def test_bar_element_stiffness_shape_and_blocks():
     element_dictionary = {
         "ids": np.array([0]),
         "connectivity": np.array([[0, 1]]),
-        "types": np.array(["BarElement3D"]),
+        "types": np.array(["LinearBarElement3D"]),
         "integration_orders": {
             "axial": np.array([1]),
             "bending_y": np.array([0]),
@@ -122,7 +122,7 @@ def test_bar_element_stiffness_shape_and_blocks():
     }
     job_results_dir = _make_job_dir()
 
-    el = BarElement3D(
+    el = LinearBarElement3D(
         element_id=0,
         element_dictionary=element_dictionary,
         grid_dictionary=grid_dictionary,
@@ -159,7 +159,7 @@ def test_truss_force_vector():
     material_dictionary = {"E": np.array([2.1e11]), "G": np.array([8.1e10]), "nu": np.array([0.3]), "rho": np.array([7850.0])}
     job_results_dir = _make_job_dir()
 
-    el = TrussElement3D(
+    el = LinearTrussElement3D(
         element_id=0,
         element_dictionary=element_dictionary,
         grid_dictionary=grid_dictionary,
@@ -181,7 +181,7 @@ def test_bar_force_vector():
     element_dictionary = {
         "ids": np.array([0]),
         "connectivity": np.array([[0, 1]]),
-        "types": np.array(["BarElement3D"]),
+        "types": np.array(["LinearBarElement3D"]),
         "integration_orders": {k: np.array([1]) for k in ["axial", "bending_y", "bending_z", "shear_y", "shear_z", "torsion", "load"]},
     }
     grid_dictionary = {"coordinates": node_coords}
@@ -189,7 +189,7 @@ def test_bar_force_vector():
     material_dictionary = {"E": np.array([2.1e11]), "G": np.array([8.1e10]), "nu": np.array([0.3]), "rho": np.array([7850.0])}
     job_results_dir = _make_job_dir()
 
-    el = BarElement3D(
+    el = LinearBarElement3D(
         element_id=0,
         element_dictionary=element_dictionary,
         grid_dictionary=grid_dictionary,

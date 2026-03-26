@@ -12,7 +12,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.linear.timoshenko.timoshenko_3D import TimoshenkoBeamElement3D
+from pre_processing.element_library.linear.timoshenko.linear_timoshenko_3D import (
+    LinearTimoshenkoBeamElement3D,
+)
 from scripts.analytical_timoshenko_benchmark import analytical_timoshenko_tip_deflection
 
 def test_single_element_timoshenko():
@@ -91,7 +93,7 @@ def test_single_element_timoshenko():
     
     try:
         # Create element
-        element = TimoshenkoBeamElement3D(
+        element = LinearTimoshenkoBeamElement3D(
             element_id=0,
             element_dictionary=element_dictionary,
             grid_dictionary=grid_dictionary,

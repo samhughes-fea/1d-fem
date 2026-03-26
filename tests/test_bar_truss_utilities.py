@@ -10,13 +10,13 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.bar.utilities import (
+from pre_processing.element_library.linear.bar.utilities import (
     ShapeFunctionOperator as BarShapeFunctionOperator,
     StrainDisplacementOperator as BarStrainDisplacementOperator,
     MaterialStiffnessOperator as BarMaterialStiffnessOperator,
     LoadInterpolationOperator as BarLoadInterpolationOperator,
 )
-from pre_processing.element_library.truss.utilities import (
+from pre_processing.element_library.linear.truss.utilities import (
     ShapeFunctionOperator as TrussShapeFunctionOperator,
     StrainDisplacementOperator as TrussStrainDisplacementOperator,
     MaterialStiffnessOperator as TrussMaterialStiffnessOperator,
@@ -199,14 +199,14 @@ def test_bar_element_stiffness_gauss_data_uses_operators():
     """Bar element_stiffness_matrix gauss_data has B, D, N from utilities."""
     import os
     import tempfile
-    from pre_processing.element_library.bar.bar_3D import BarElement3D
+    from pre_processing.element_library.linear.bar.linear_bar_3D import LinearBarElement3D
 
     L = 1.0
     node_coords = np.array([[0.0, 0.0, 0.0], [L, 0.0, 0.0]], dtype=np.float64)
     element_dictionary = {
         "ids": np.array([0]),
         "connectivity": np.array([[0, 1]]),
-        "types": np.array(["BarElement3D"]),
+        "types": np.array(["LinearBarElement3D"]),
         "integration_orders": {k: np.array([1]) for k in ["axial", "bending_y", "bending_z", "shear_y", "shear_z", "torsion", "load"]},
     }
     grid_dictionary = {"coordinates": node_coords}
@@ -216,7 +216,7 @@ def test_bar_element_stiffness_gauss_data_uses_operators():
     os.makedirs(os.path.join(job_dir, "element_stiffness_matrices"), exist_ok=True)
     os.makedirs(os.path.join(job_dir, "element_force_vectors"), exist_ok=True)
 
-    el = BarElement3D(
+    el = LinearBarElement3D(
         element_id=0,
         element_dictionary=element_dictionary,
         grid_dictionary=grid_dictionary,
@@ -245,8 +245,8 @@ def test_bar_Ke_equals_Lt_Klocal_L():
     """Bar K_e from ∫ Bᵀ D B dx (quadrature) matches analytical Lᵀ K_local L."""
     import os
     import tempfile
-    from pre_processing.element_library.bar.bar_3D import BarElement3D
-    from pre_processing.element_library.bar.utilities import build_L_matrix_4x12, direction_cosines
+    from pre_processing.element_library.linear.bar.linear_bar_3D import LinearBarElement3D
+    from pre_processing.element_library.linear.bar.utilities import build_L_matrix_4x12, direction_cosines
 
     L = 2.0
     E, G = 2.1e11, 8.1e10
@@ -255,7 +255,7 @@ def test_bar_Ke_equals_Lt_Klocal_L():
     element_dictionary = {
         "ids": np.array([0]),
         "connectivity": np.array([[0, 1]]),
-        "types": np.array(["BarElement3D"]),
+        "types": np.array(["LinearBarElement3D"]),
         "integration_orders": {k: np.array([1]) for k in ["axial", "bending_y", "bending_z", "shear_y", "shear_z", "torsion", "load"]},
     }
     grid_dictionary = {"coordinates": node_coords}
@@ -265,7 +265,7 @@ def test_bar_Ke_equals_Lt_Klocal_L():
     os.makedirs(os.path.join(job_dir, "element_stiffness_matrices"), exist_ok=True)
     os.makedirs(os.path.join(job_dir, "element_force_vectors"), exist_ok=True)
 
-    el = BarElement3D(
+    el = LinearBarElement3D(
         element_id=0,
         element_dictionary=element_dictionary,
         grid_dictionary=grid_dictionary,
@@ -293,8 +293,8 @@ def test_truss_Ke_equals_Lt_Klocal_L():
     """Truss K_e from ∫ Bᵀ D B dx (quadrature) matches analytical Lᵀ K_local L."""
     import os
     import tempfile
-    from pre_processing.element_library.truss.truss_3D import TrussElement3D
-    from pre_processing.element_library.truss.utilities import (
+    from pre_processing.element_library.linear.truss.linear_truss_3D import LinearTrussElement3D
+    from pre_processing.element_library.linear.truss.utilities import (
         direction_cosines_and_transverse,
         build_L_matrix_6x12,
     )
@@ -307,7 +307,7 @@ def test_truss_Ke_equals_Lt_Klocal_L():
     element_dictionary = {
         "ids": np.array([0]),
         "connectivity": np.array([[0, 1]]),
-        "types": np.array(["TrussElement3D"]),
+        "types": np.array(["LinearTrussElement3D"]),
         "integration_orders": {k: np.array([1]) for k in ["axial", "bending_y", "bending_z", "shear_y", "shear_z", "torsion", "load"]},
     }
     grid_dictionary = {"coordinates": node_coords}
@@ -317,7 +317,7 @@ def test_truss_Ke_equals_Lt_Klocal_L():
     os.makedirs(os.path.join(job_dir, "element_stiffness_matrices"), exist_ok=True)
     os.makedirs(os.path.join(job_dir, "element_force_vectors"), exist_ok=True)
 
-    el = TrussElement3D(
+    el = LinearTrussElement3D(
         element_id=0,
         element_dictionary=element_dictionary,
         grid_dictionary=grid_dictionary,
