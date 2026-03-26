@@ -434,6 +434,25 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
             if prescribed_displacement_dict is not None:
                 runner.prescribed_displacements = prescribed_displacement_dict
 
+        elif solver_type == "static_nonlinear":
+            from simulation_runner.static.nonlinear_static_simulation import NonlinearStaticSimulationRunner
+            runner = NonlinearStaticSimulationRunner(
+                elements=all_elements,
+                grid_dictionary=grid_dictionary,
+                element_dictionary=element_dictionary,
+                material_dictionary=material_dictionary,
+                section_dictionary=section_dictionary,
+                point_load_array=point_load_array,
+                distributed_load_array=distributed_load_array,
+                element_objects=element_objects,
+                force_objects=force_objects,
+                job_name=case_name,
+                job_results_dir=job_results_dir,
+                simulation_settings=simulation_settings,
+            )
+            if prescribed_displacement_dict is not None:
+                runner.prescribed_displacements = prescribed_displacement_dict
+
         elif solver_type == "modal":
             from simulation_runner.modal.modal_simulation import ModalSimulationRunner
             # Extract stiffness and mass from element/mass objects

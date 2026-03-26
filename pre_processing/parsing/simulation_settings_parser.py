@@ -4,7 +4,7 @@ import os
 import logging
 import re
 
-VALID_SIMULATION_TYPES = {"static", "modal", "dynamic"}
+VALID_SIMULATION_TYPES = {"static", "static_nonlinear", "modal", "dynamic"}
 
 def _get_defaults():
     """Return default values for all configuration sections."""
@@ -35,6 +35,11 @@ def _get_defaults():
             "end_time": 1.0,
             "scheme": "newmark",
         },
+        "newton": {
+            "tolerance": 1e-8,
+            "max_iterations": 50,
+            "tolerance_delta_u": 1e-10,
+        },
     }
 
 def _validate_parallel_config(parallel_config):
@@ -50,7 +55,9 @@ def _validate_parallel_config(parallel_config):
                     raise ValueError("num_processes must be >= 1")
             except ValueError:
                 raise ValueError(f"Invalid num_processes value: {num_proc}")
-    
+        elif isinstance(num_proc, int) and num_proc < 1:
+            raise ValueError("num_processes must be >= 1")
+
     for key in ["enable_parallel_instantiation", "enable_parallel_computation"]:
         if key in parallel_config:
             val = parallel_config[key]
@@ -138,6 +145,7 @@ def parse_simulation_settings(file_path):
         "parallel": defaults["parallel"].copy(),
         "modal": defaults["modal"].copy(),
         "dynamic": defaults["dynamic"].copy(),
+        "newton": defaults["newton"].copy(),
     }
 
     current_section = None
@@ -172,6 +180,8 @@ def parse_simulation_settings(file_path):
                     current_section = "modal"
                 elif section_name == "dynamic":
                     current_section = "dynamic"
+                elif section_name == "newton":
+                    current_section = "newton"
                 else:
                     current_section = None
                 continue
@@ -236,6 +246,16 @@ def parse_simulation_settings(file_path):
                         simulation_settings["dynamic"]["end_time"] = _convert_value(value, float)
                     elif key == "scheme":
                         simulation_settings["dynamic"]["scheme"] = value.lower()
+
+            elif current_section == "newton":
+                key, value = _parse_key_value(line)
+                if key and value:
+                    if key == "tolerance":
+                        simulation_settings["newton"]["tolerance"] = _convert_value(value, float)
+                    elif key == "max_iterations":
+                        simulation_settings["newton"]["max_iterations"] = _convert_value(value, int)
+                    elif key == "tolerance_delta_u":
+                        simulation_settings["newton"]["tolerance_delta_u"] = _convert_value(value, float)
 
     # Validate simulation type was found (backward compatibility: allow missing if defaults are acceptable)
     if not type_found and simulation_settings["type"] == defaults["type"]:
