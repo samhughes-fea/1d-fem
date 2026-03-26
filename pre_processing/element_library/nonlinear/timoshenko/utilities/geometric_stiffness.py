@@ -1,33 +1,34 @@
 # pre_processing/element_library/nonlinear/timoshenko/utilities/geometric_stiffness.py
 """
-Geometric stiffness K_σ for 2-node 3D beam (Total Lagrangian).
-Depends on current N, M_y, M_z and shape derivatives.
+Geometric stiffness K_sigma for 2-node 3D Timoshenko beam (Total Lagrangian).
+Axial N and bending moments M_y, M_z: classical 4x4 beam-column template per bending plane
+(Cook / Bathe style P/(30L) matrix) plus axial u_x coupling from N.
+Moment terms use M/L^2 scaling on the same template (dimensions consistent with N/L for translations).
 """
-
 from dataclasses import dataclass
-
 import numpy as np
+
+
+def _plane_k4(L: float) -> np.ndarray:
+    return np.array(
+        [
+            [36.0, 3.0 * L, -36.0, 3.0 * L],
+            [3.0 * L, 4.0 * L * L, -3.0 * L, -L * L],
+            [-36.0, -3.0 * L, 36.0, -3.0 * L],
+            [3.0 * L, -L * L, -3.0 * L, 4.0 * L * L],
+        ],
+        dtype=np.float64,
+    )
+
+
+def _embed(K: np.ndarray, idx, K4: np.ndarray) -> None:
+    for a, ia in enumerate(idx):
+        for b, ib in enumerate(idx):
+            K[ia, ib] += K4[a, b]
 
 
 @dataclass(frozen=True)
 class GeometricStiffnessOperator:
-    """
-    Geometric stiffness matrix K_σ for a 2-node 3D beam (Total Lagrangian).
-
-    K_σ depends on current section forces N, M_y, M_z and the shape function derivatives.
-    Standard form (e.g. Przemieniecki, Bathe): axial force N contributes to the
-    transverse displacement and rotation coupling; moments M_y, M_z contribute to
-    the geometric stiffness terms in the bending rows/columns.
-
-    Reference: Theory of Matrix Structural Analysis (Przemieniecki), or
-    Finite Element Procedures (Bathe), Ch. 6.
-
-    Parameters
-    ----------
-    element_length : float
-        Reference length L of the element.
-    """
-
     element_length: float
 
     def __post_init__(self) -> None:
@@ -44,42 +45,24 @@ class GeometricStiffnessOperator:
         dN_dx: np.ndarray,
         jacobian: float,
     ) -> np.ndarray:
-        """
-        Assemble 12×12 geometric stiffness matrix K_σ by quadrature.
-
-        K_σ = ∫ (dN/dx)ᵀ S_geo (dN/dx) |J| dξ  where S_geo is the stress-dependent
-        matrix (N, M_y, M_z). For a beam, the standard form uses N in the transverse
-        and rotation DOFs (see e.g. Cook, Malkus, Plesha; or Crisfield).
-
-        Parameters
-        ----------
-        N, M_y, M_z : float
-            Current section forces (axial force, moments about y and z).
-        xi : np.ndarray
-            Gauss points in (-1, 1).
-        weights : np.ndarray
-            Gauss weights.
-        dN_dx : np.ndarray, shape (n_gauss, 12, 6)
-            Shape function derivatives w.r.t. x at each Gauss point.
-        jacobian : float
-            |J| = L/2 for the element.
-
-        Returns
-        -------
-        K_sigma : np.ndarray, shape (12, 12)
-        """
+        L = self.element_length
         K_sigma = np.zeros((12, 12), dtype=np.float64)
-        for k, (xk, wk) in enumerate(zip(xi, weights)):
-            dN = dN_dx[k]  # (12, 6)
-            # Simplified geometric stiffness: N contributes to lateral/rotation coupling.
-            # Standard beam K_σ: N * (integral of (dN_v/dx)ᵀ (dN_v/dx) for transverse dofs).
-            for i in range(12):
-                for j in range(12):
-                    if i in (0, 6) and j in (0, 6):
-                        K_sigma[i, j] += N * dN[i, 0] * dN[j, 0] * wk * jacobian
-                    if i in (1, 7) and j in (1, 7):
-                        K_sigma[i, j] += N * dN[i, 1] * dN[j, 1] * wk * jacobian
-                    if i in (2, 8) and j in (2, 8):
-                        K_sigma[i, j] += N * dN[i, 2] * dN[j, 2] * wk * jacobian
+        # Axial u_x (0, 6) — first-derivative coupling from N
+        for k, wk in enumerate(weights):
+            dN = dN_dx[k]
+            for i in (0, 6):
+                for j in (0, 6):
+                    K_sigma[i, j] += N * dN[i, 0] * dN[j, 0] * wk * jacobian
+        # Classical 4x4 templates (constant resultant along element in TL iterate)
+        K4 = _plane_k4(L)
+        cN = N / (30.0 * L) if L > 0 else 0.0
+        cMy = M_y / (30.0 * L * L) if L > 0 else 0.0
+        cMz = M_z / (30.0 * L * L) if L > 0 else 0.0
+        # Bending about z (x-y plane): u_y, theta_z -> DOF 1,5,7,11
+        Kz = (cN + cMz) * K4
+        _embed(K_sigma, [1, 5, 7, 11], Kz)
+        # Bending about y (x-z plane): u_z, theta_y -> 2,4,8,10
+        Ky = (cN + cMy) * K4
+        _embed(K_sigma, [2, 4, 8, 10], Ky)
         K_sigma = 0.5 * (K_sigma + K_sigma.T)
         return K_sigma
