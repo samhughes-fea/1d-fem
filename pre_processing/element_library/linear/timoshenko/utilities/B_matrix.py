@@ -13,64 +13,111 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class StrainDisplacementOperator:
     """
-    Strain-displacement ``B`` (6, 12) per Gauss point for a 2-node 3-D Timoshenko beam.
+    Strain-displacement tensor B ∈ ℝ^{6×12} for a 2-node 3-D Timoshenko beam.
 
-    Voigt ε = B U_e with rows [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]:
-    ε_x = ∂u_x/∂x; κ_y = ∂θ_y/∂x, κ_z = ∂θ_z/∂x (rotation-based bending);
-    γ_xy = ∂u_y/∂x - θ_z, γ_xz = ∂u_z/∂x - θ_y; φ_x = ∂θ_x/∂x.
+    B is a rank-2 tensor defined at each Gauss point such that ε = B U_e,
+    where ε ∈ ℝ^6 is the generalised strain vector and U_e ∈ ℝ^{12} is the
+    element displacement vector in node-major order:
 
-    Map: ``x(xi)`` linear on chord, ``dx/dxi = L/2``, ``dxi_dx = 2/L``, ``d2xi_dx2 = 4/L**2``.
+        U_e = [u_x¹, u_y¹, u_z¹, θ_x¹, θ_y¹, θ_z¹, u_x², u_y², u_z², θ_x², θ_y², θ_z²]^T
+
+    **Kinematic equations (Timoshenko first-order shear theory)**
+
+    The six Voigt strain components are:
+
+        ε_x  = ∂u_x/∂x               (axial extension)
+        κ_y  = ∂θ_y/∂x               (curvature about y, rotation-based)
+        κ_z  = ∂θ_z/∂x               (curvature about z, rotation-based)
+        γ_xy = ∂u_y/∂x − θ_z         (shear strain in XY plane; non-zero in Timoshenko)
+        γ_xz = ∂u_z/∂x − θ_y         (shear strain in XZ plane; non-zero in Timoshenko)
+        φ_x  = ∂θ_x/∂x               (twist rate)
+
+    Unlike Euler-Bernoulli, curvatures are first derivatives of independent rotations
+    (not second derivatives of transverse displacements). Shear strains γ_xy and γ_xz
+    couple displacement and rotation DOFs and enter the constitutive relation S = D ε
+    with D[3,3] = D[4,4] = κ·G·A (shear correction factor κ explicit).
 
     Parameters
     ----------
     element_length : float
-        Length `L` of the beam element (must be > 0)
+        Length L of the beam element (must be > 0).
 
     Attributes
     ----------
     jacobian : float
-        Jacobian of coordinate mapping (L/2)
+        Jacobian of isoparametric mapping, ∂x/∂ξ = L/2.
     dξ_dx : float
-        First derivative ∂ξ/∂x (2/L)
+        First coordinate transform factor, ∂ξ/∂x = 2/L.
     d2ξ_dx2 : float
-        Second derivative ∂²ξ/∂x² (4/L²)
+        Second coordinate transform factor, ∂²ξ/∂x² = 4/L².
 
     Notes
     -----
-    Canonical `B` block (single Gauss point, Timoshenko pattern):
+    **Isoparametric mapping and shape function basis**
+
+    x ∈ [0, L] maps to ξ ∈ [−1, 1] via x(ξ) = L(1 + ξ)/2, giving
+    ∂ξ/∂x = 2/L and ∂²ξ/∂x² = 4/L².
+
+    The same Hermite cubics and linear Lagrange functions used in EB apply here;
+    however, B uses only first derivatives of rotation functions for bending rows
+    (not second derivatives of displacement functions):
+
+        L₁(ξ) = ½(1 − ξ),   dL₁/dξ = −½
+        L₂(ξ) = ½(1 + ξ),   dL₂/dξ = +½
+        H₁(ξ) = ¼(1 − ξ)²(2 + ξ)        dH₁/dξ = −¾(1 − ξ²)
+        H₂(ξ) = (L/8)(1 − ξ)²(1 + ξ)    dH₂/dξ = (L/8)(3ξ² − 2ξ − 1)
+        H₃(ξ) = ¼(1 + ξ)²(2 − ξ)        dH₃/dξ = ¾(1 − ξ²)
+        H₄(ξ) = −(L/8)(1 + ξ)²(1 − ξ)   dH₄/dξ = −(L/8)(1 − 2ξ − 3ξ²)
+
+    **Sparsity structure of B (single Gauss point)**
 
     ```text
-    ε = B U_e
-    ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]^T
-
-    B row meanings:
-    row 0: d(u_x)/dx
-    row 1: d(θ_y)/dx
-    row 2: d(θ_z)/dx
-    row 3: d(u_y)/dx - θ_z
-    row 4: d(u_z)/dx - θ_y
-    row 5: d(θ_x)/dx
+    ε = B U_e,   ε ∈ ℝ^6,   U_e ∈ ℝ^{12}
+    DOF cols: [u_x¹, u_y¹, u_z¹, θ_x¹, θ_y¹, θ_z¹, u_x², u_y², u_z², θ_x², θ_y², θ_z²]
+    B =
+    [ b1,1  0     0     0     0     0    b1,7  0     0     0      0      0   ]  # ε_x
+    [ 0     0     0     0    b2,5   0     0    0     0     0    b2,11    0   ]  # κ_y
+    [ 0     0     0     0     0    b3,6   0    0     0     0      0    b3,12 ]  # κ_z
+    [ 0    b4,2   0     0     0    b4,6   0   b4,8   0     0      0    b4,12 ]  # γ_xy (non-zero)
+    [ 0     0    b5,3   0    b5,5   0     0    0    b5,9   0    b5,11    0   ]  # γ_xz (non-zero)
+    [ 0     0     0    b6,4   0     0     0    0     0    b6,10   0      0   ]  # φ_x
     ```
 
-    **B tensor (per Gauss point, shape (6, 12))**
-    - row 0 ``eps_x``: ``d(u_x)/dx``.
-    - row 1 ``kappa_y``: ``d(theta_y)/dx``.
-    - row 2 ``kappa_z``: ``d(theta_z)/dx``.
-    - row 3 ``gamma_xy``: ``d(u_y)/dx - theta_z`` (non-zero).
-    - row 4 ``gamma_xz``: ``d(u_z)/dx - theta_y`` (non-zero).
-    - row 5 ``phi_x``: ``d(theta_x)/dx``.
+    **Non-zero entries of B in physical coordinates**
 
-    **D linkage and zeros**
-    - ``S = D @ eps`` with ``S = [N, M_y, M_z, V_y, V_z, T]``.
-    - Unlike EB, shear rows 3 and 4 are active in both ``B`` and ``D``.
-    - Parent ``D`` uses ``kappa*G*A`` on shear rows.
+    ```text
+    ε_x row (row 0) — axial:
+      B[0,0]  = (dL₁/dξ)(2/L) = −1/L          (u_x, node 1)
+      B[0,6]  = (dL₂/dξ)(2/L) = +1/L          (u_x, node 2)
 
-    **N tensor linkage**
-    - Shear rows use shape functions ``N`` (not only derivatives): input tensors
-      ``N``, ``dN_dxi``, ``d2N_dxi2`` are batched ``(n_gp, 12, 6)``.
-    - If ``N`` is omitted, shear rows cannot be assembled and remain zero in this utility call.
+    κ_y row (row 1) — bending about y, first derivative of θ_y:
+      B[1,4]  = (d(−H₂)/dξ)(2/L) = −(L/8)(3ξ² − 2ξ − 1) · (2/L)   (θ_y, node 1)
+      B[1,10] = (d(−H₄)/dξ)(2/L) = (L/8)(1 − 2ξ − 3ξ²) · (2/L)    (θ_y, node 2)
 
-    Weak-form linkage: ``linear_timoshenko_3D`` uses ``physical_coordinate_form`` in the stiffness loop; ``detJ = L/2``.
+    κ_z row (row 2) — bending about z, first derivative of θ_z:
+      B[2,5]  = (dH₂/dξ)(2/L) = (L/8)(3ξ² − 2ξ − 1) · (2/L)       (θ_z, node 1)
+      B[2,11] = (dH₄/dξ)(2/L) = −(L/8)(1 − 2ξ − 3ξ²) · (2/L)      (θ_z, node 2)
+
+    γ_xy row (row 3) — shear in XY plane:
+      B[3,1]  = (dH₁/dξ)(2/L) = −¾(1 − ξ²) · (2/L)     (∂u_y/∂x, node 1)
+      B[3,5]  = −H₂(ξ) = −(L/8)(1 − ξ)²(1 + ξ)         (−θ_z, node 1)
+      B[3,7]  = (dH₃/dξ)(2/L) =  ¾(1 − ξ²) · (2/L)     (∂u_y/∂x, node 2)
+      B[3,11] = −H₄(ξ) = (L/8)(1 + ξ)²(1 − ξ)          (−θ_z, node 2)
+
+    γ_xz row (row 4) — shear in XZ plane:
+      B[4,2]  = (dH₁/dξ)(2/L) = −¾(1 − ξ²) · (2/L)     (∂u_z/∂x, node 1)
+      B[4,4]  = −N[4,4] = H₂(ξ)                         (−θ_y, node 1; N_θy = −H₂, so −N_θy = H₂)
+      B[4,8]  = (dH₃/dξ)(2/L) =  ¾(1 − ξ²) · (2/L)     (∂u_z/∂x, node 2)
+      B[4,10] = −N[10,4] = H₄(ξ)                        (−θ_y, node 2; N_θy = −H₄, so −N_θy = H₄)
+
+    φ_x row (row 5) — torsion:
+      B[5,3]  = (dL₁/dξ)(2/L) = −1/L          (θ_x, node 1)
+      B[5,9]  = (dL₂/dξ)(2/L) = +1/L          (θ_x, node 2)
+    ```
+
+    Weak-form assembly: `K_e += B.T @ D @ B * w_g * detJ` with `detJ = L/2`.
+    `physical_coordinate_form` applies the chain-rule factors; `natural_coordinate_form`
+    omits them. Shear rows require N (function values), not only dN_dξ.
 
     See Also
     --------

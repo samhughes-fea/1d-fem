@@ -13,53 +13,75 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class StrainDisplacementOperator:
     """
-    Builds the strain-displacement matrix ``B`` for a 2-node 3-D Euler-Bernoulli beam.
+    Strain-displacement tensor B ∈ ℝ^{6×12} for a 2-node 3-D Euler-Bernoulli beam.
 
-    The operator maps shape-function derivatives to beam strain rows in Voigt order:
-    ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x].
+    B is a rank-2 tensor defined at each Gauss point such that ε = B U_e,
+    where ε ∈ ℝ^6 is the generalised strain vector and U_e ∈ ℝ^{12} is the
+    element displacement vector in node-major order:
 
-    **B tensor (per Gauss point, shape (6, 12))**
-    - row 0 ε_x: axial terms from ∂u_x/∂x at DOFs 0 and 6.
-    - row 1 κ_y: bending terms from ∂²u_z/∂x² and ∂²θ_y/∂x².
-    - row 2 κ_z: bending terms from ∂²u_y/∂x² and ∂²θ_z/∂x².
-    - row 3 γ_xy: identically zero in EB kinematics.
-    - row 4 γ_xz: identically zero in EB kinematics.
-    - row 5 φ_x: torsion terms from ∂θ_x/∂x at DOFs 3 and 9.
+        U_e = [u_x¹, u_y¹, u_z¹, θ_x¹, θ_y¹, θ_z¹, u_x², u_y², u_z², θ_x², θ_y², θ_z²]^T
 
-    **D linkage and zeros**
-    - Parent constitutive step is ``S = D @ eps`` with ``S = [N, M_y, M_z, V_y, V_z, T]``.
-    - Because EB shear strain rows are zero and EB ``D`` shear rows are zero, constitutive
-      shear resultants ``V_y`` and ``V_z`` are zero in this operator path.
-    - If shear force is needed for reporting, use equilibrium relation ``V = dM/dx``.
+    **Kinematic equations (Euler-Bernoulli theory)**
 
-    **N tensor linkage**
-    - Shape functions come from ``shape_functions.natural_coordinate_form`` as
-      ``N``, ``dN_dxi``, ``d2N_dxi2`` with batch shape ``(n_gp, 12, 6)``.
-    - ``B`` uses the derivative tensors; entries not referenced by the row rules above remain zero.
+    The six Voigt strain components and their physical interpretations are:
 
-    Coordinate mapping: ``x(xi)`` linear on chord, ``dx/dxi = L/2``,
-    ``dxi_dx = 2/L``, ``d2xi_dx2 = 4/L**2``.
+        ε_x  = ∂u_x/∂x               (axial extension)
+        κ_y  = ∂²u_z/∂x²             (curvature about y; EB: θ_y = −∂u_z/∂x)
+        κ_z  = ∂²u_y/∂x²             (curvature about z; EB: θ_z = ∂u_y/∂x)
+        γ_xy = 0                      (shear-inextensibility, Euler-Bernoulli)
+        γ_xz = 0                      (shear-inextensibility, Euler-Bernoulli)
+        φ_x  = ∂θ_x/∂x               (twist rate, St. Venant torsion)
+
+    The constitutive relation is S = D ε with S = [N, M_y, M_z, V_y, V_z, T]^T.
+    The EB shear resultants V_y and V_z are zero from the constitutive path; shear
+    forces are recovered from equilibrium V = dM/dx, not from D ε.
 
     Parameters
     ----------
     element_length : float
-        Length `L` of the beam element (must be > 0)
+        Length L of the beam element (must be > 0).
 
     Attributes
     ----------
     jacobian : float
-        Jacobian of coordinate mapping (L/2)
+        Jacobian of isoparametric mapping, ∂x/∂ξ = L/2.
     dξ_dx : float
-        First derivative ∂ξ/∂x (2/L)
+        First coordinate transform factor, ∂ξ/∂x = 2/L.
     d2ξ_dx2 : float
-        Second derivative ∂²ξ/∂x² (4/L²)
+        Second coordinate transform factor, ∂²ξ/∂x² = 4/L².
 
     Notes
     -----
-    Canonical `B` block (single Gauss point, representative sparse pattern):
+    **Isoparametric mapping**
+
+    The physical coordinate x ∈ [0, L] maps to ξ ∈ [−1, 1] via:
+
+        x(ξ) = L(1 + ξ)/2,   ∂x/∂ξ = L/2,   ∂ξ/∂x = 2/L,   ∂²ξ/∂x² = 4/L².
+
+    Chain rule: ∂N/∂x = (∂N/∂ξ)(2/L),  ∂²N/∂x² = (∂²N/∂ξ²)(4/L²).
+
+    **Shape function basis**
+
+    Linear Lagrange polynomials on axial (u_x) and torsion (θ_x) channels:
+
+        L₁(ξ) = ½(1 − ξ),   dL₁/dξ = −½
+        L₂(ξ) = ½(1 + ξ),   dL₂/dξ = +½
+
+    Hermite cubic polynomials on bending channels (standard C¹ beam pair per plane):
+
+        H₁(ξ) = ¼(1 − ξ)²(2 + ξ)        dH₁/dξ = −¾(1 − ξ²)            d²H₁/dξ² = (3/2)ξ
+        H₂(ξ) = (L/8)(1 − ξ)²(1 + ξ)    dH₂/dξ = (L/8)(3ξ² − 2ξ − 1)   d²H₂/dξ² = (L/8)(6ξ − 2)
+        H₃(ξ) = ¼(1 + ξ)²(2 − ξ)        dH₃/dξ = ¾(1 − ξ²)             d²H₃/dξ² = −(3/2)ξ
+        H₄(ξ) = −(L/8)(1 + ξ)²(1 − ξ)   dH₄/dξ = −(L/8)(1 − 2ξ − 3ξ²)  d²H₄/dξ² = (L/8)(6ξ + 2)
+
+    H₁, H₃ are displacement functions; H₂, H₄ are rotation functions (scaled by L
+    to maintain consistent units and C¹ continuity across elements).
+
+    **Sparsity structure of B (single Gauss point)**
 
     ```text
-    ε = B U_e
+    ε = B U_e,   ε ∈ ℝ^6,   U_e ∈ ℝ^{12}
+    DOF cols: [u_x¹, u_y¹, u_z¹, θ_x¹, θ_y¹, θ_z¹, u_x², u_y², u_z², θ_x², θ_y², θ_z²]
     B =
     [ b1,1  0     0     0     0     0    b1,7  0     0     0      0      0   ]  # ε_x
     [ 0     0    b2,3   0    b2,5   0     0    0    b2,9   0    b2,11    0   ]  # κ_y
@@ -69,13 +91,39 @@ class StrainDisplacementOperator:
     [ 0     0     0    b6,4   0     0     0    0     0    b6,10   0      0   ]  # φ_x
     ```
 
-    **Contract:** same outer sizes as standard 12-DOF beam: ``B`` (6, 12), ``U_e`` (12,).
-    **Diff vs shear-deformable theories:** shear strain rows of ``eps`` stay zero here; Timoshenko/Levinson
-    populate those rows with non-zero kinematics and ``D`` adds ``G*A`` (or ``kappa*G*A``) stiffness.
+    **Non-zero entries of B in physical coordinates**
 
-    Weak-form linkage: the element sums ``K_e += B.T @ D @ B * w_g * detJ`` over Gauss points using
-    ``physical_coordinate_form`` for ``B``. Natural-coordinate ``B_tilde`` uses the Jacobian chain
-    (``dxi_dx``, ``d2xi_dx2``).
+    ```text
+    ε_x row (row 0) — axial:
+      B[0,0]  = (dL₁/dξ)(2/L) = −1/L          (u_x, node 1)
+      B[0,6]  = (dL₂/dξ)(2/L) = +1/L          (u_x, node 2)
+
+    κ_y row (row 1) — bending about y, Hermite second derivatives of XZ-plane functions:
+      B[1,2]  = (d²H₁/dξ²)(4/L²) =  6ξ/L²          (u_z, node 1)
+      B[1,4]  = (d²(−H₂)/dξ²)(4/L²) = (1 − 3ξ)/L   (θ_y, node 1; sign from EB rotation convention)
+      B[1,8]  = (d²H₃/dξ²)(4/L²) = −6ξ/L²          (u_z, node 2)
+      B[1,10] = (d²(−H₄)/dξ²)(4/L²) = −(1 + 3ξ)/L  (θ_y, node 2)
+
+    κ_z row (row 2) — bending about z, Hermite second derivatives of XY-plane functions:
+      B[2,1]  = (d²H₁/dξ²)(4/L²) =  6ξ/L²          (u_y, node 1)
+      B[2,5]  = (d²H₂/dξ²)(4/L²)  = (3ξ − 1)/L     (θ_z, node 1)
+      B[2,7]  = (d²H₃/dξ²)(4/L²) = −6ξ/L²          (u_y, node 2)
+      B[2,11] = (d²H₄/dξ²)(4/L²)  = (1 + 3ξ)/L     (θ_z, node 2)
+
+    γ_xy row (row 3): B[3,j] = 0 for all j   (EB shear-inextensibility)
+    γ_xz row (row 4): B[4,j] = 0 for all j   (EB shear-inextensibility)
+
+    φ_x row (row 5) — torsion:
+      B[5,3]  = (dL₁/dξ)(2/L) = −1/L          (θ_x, node 1)
+      B[5,9]  = (dL₂/dξ)(2/L) = +1/L          (θ_x, node 2)
+    ```
+
+    The natural-coordinate form B̃ omits the (2/L) and (4/L²) factors;
+    `physical_coordinate_form` applies them. Shear rows remain zero in both forms.
+
+    Weak-form assembly: `K_e += B.T @ D @ B * w_g * detJ` with `detJ = L/2`.
+    Shear-deformable theories (Timoshenko, Levinson) populate rows 3 and 4 with
+    non-zero kinematics and add GA or κGA to the constitutive diagonal.
 
     See Also
     --------

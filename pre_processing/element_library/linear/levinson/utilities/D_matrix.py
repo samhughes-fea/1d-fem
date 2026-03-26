@@ -13,47 +13,55 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class MaterialStiffnessOperator:
-    """Constitutive operator (``D``) for 3D Levinson beam elements.
+    """
+    Constitutive tensor D ∈ ℝ^{6×6} for 3-D Levinson beam elements.
 
-    Assembly and post-processing forms of the same 6x6 ``D``. Shear stiffness is ``G*A`` (no Timoshenko ``kappa``);
-    higher-order shear in the kinematics is carried by ``B`` (``StrainDisplacementOperator``).
+    D is a rank-2 symmetric tensor relating the generalised strain vector
+    ε ∈ ℝ^6 to the beam section resultant vector S ∈ ℝ^6 via S = D ε.
+
+    **Note on Voigt row order (Levinson)**
+
+    Levinson uses a non-standard row order with κ_z before κ_y, matching B:
+
+        ε = [ε_x,  κ_z,  κ_y,  γ_xy, γ_xz, φ_x]^T   (Voigt strains)
+        S = [N,    M_z,  M_y,  V_y,  V_z,  T  ]^T   (section resultants)
+
+    D has non-zero shear entries D[3,3] = D[4,4] = G·A (no shear correction factor κ).
+    The higher-order correction to shear enters kinematically through B via the
+    α ∂²θ/∂x² terms; D itself is constitutively uncorrected.
 
     Parameters
     ----------
     youngs_modulus : float
-        Young's modulus (E) in Pascals (Pa)
+        Young's modulus E [Pa].
     shear_modulus : float
-        Shear modulus (G) in Pascals (Pa)
+        Shear modulus G [Pa].
     cross_section_area : float
-        Cross-sectional area (A) in m²
+        Cross-sectional area A [m²].
     moment_inertia_y : float
-        Second moment of area about y-axis (I_y) in m⁴
+        Second moment of area about y, I_y [m⁴].
     moment_inertia_z : float
-        Second moment of area about z-axis (I_z) in m⁴
+        Second moment of area about z, I_z [m⁴].
     torsion_constant : float
-        Torsional constant (J_t) in m⁴
+        St. Venant torsional constant J_t [m⁴].
     warping_inertia_y : float, optional
-        Warping constant about y-axis (I_wy) in m⁶, default=0
+        Warping constant about y, I_wy [m⁶], default = 0.
     warping_inertia_z : float, optional
-        Warping constant about z-axis (I_wz) in m⁶, default=0
-
-    This operator intentionally has **no** shear_correction_factor parameter;
-    Levinson theory accounts for shear via higher-order terms in the
-    strain-displacement relation (B-matrix), not via a constitutive κ.
+        Warping constant about z, I_wz [m⁶], default = 0.
 
     Attributes
     ----------
     has_warping_coupling : bool
-        True if bending-torsion coupling exists (I_wy or I_wz ≠ 0)
+        True if bending-torsion coupling exists (I_wy or I_wz ≠ 0).
 
     Notes
     -----
-    Canonical `D` block (Levinson order, no shear correction factor):
+    **Sparsity structure of D (Levinson order, no shear correction factor)**
 
     ```text
     S = D ε
-    ε = [ε_x, κ_z, κ_y, γ_xy, γ_xz, φ_x]^T
-    S = [N,   M_z, M_y, V_y,  V_z,  T  ]^T
+    ε = [ε_x,  κ_z,  κ_y,  γ_xy, γ_xz, φ_x]^T
+    S = [N,    M_z,  M_y,  V_y,  V_z,  T  ]^T
 
     D =
     [ EA    0     0     0    0    0   ]
@@ -64,23 +72,28 @@ class MaterialStiffnessOperator:
     [ 0     0     0     0    0   GJ_t ]
     ```
 
-    **D tensor (shape (6, 6), Levinson Voigt order)**
-    - row/col 0 ``eps_x``: ``D[0,0] = EA``.
-    - row/col 1 ``kappa_z``: ``D[1,1] = EI_z``.
-    - row/col 2 ``kappa_y``: ``D[2,2] = EI_y``.
-    - row/col 3 ``gamma_xy``: ``D[3,3] = G*A`` (no ``kappa`` factor).
-    - row/col 4 ``gamma_xz``: ``D[4,4] = G*A`` (no ``kappa`` factor).
-    - row/col 5 ``phi_x``: ``D[5,5] = GJ_t``.
-    - default off-diagonal entries are zero; optional warping coupling may fill
-      ``D[1,5]``, ``D[5,1]``, ``D[2,5]``, ``D[5,2]``.
+    **Component definitions — D ∈ ℝ^{6×6}, diagonal, rank-2**
 
-    **Resultant mapping**
-    - ``S = D @ eps`` with ``eps = [eps_x, kappa_z, kappa_y, gamma_xy, gamma_xz, phi_x]``.
-    - Rows of ``S`` are ``[N, M_z, M_y, V_y, V_z, T]``.
+    ```text
+    D[0,0] = E·A      (axial stiffness)
+    D[1,1] = E·I_z    (bending stiffness about z; κ_z is row 1 in Levinson order)
+    D[2,2] = E·I_y    (bending stiffness about y; κ_y is row 2 in Levinson order)
+    D[3,3] = G·A      (shear stiffness XY; no κ factor — higher-order correction in B)
+    D[4,4] = G·A      (shear stiffness XZ; no κ factor — higher-order correction in B)
+    D[5,5] = G·J_t    (St. Venant torsional stiffness)
+    D[i,j] = 0  for all i ≠ j   (default; warping coupling may fill D[1,5], D[2,5] etc.)
+    ```
 
-    **B/N linkage**
-    - Parent weak form: ``K_e += B.T @ D @ B * w_g * detJ`` with selective bending/shear quadrature.
-    - ``B`` and ``N`` tensors come from Levinson utilities with batch shape ``(n_gp, 12, 6)``.
+    Optional warping coupling: when warping inertia I_wy or I_wz is non-zero,
+    off-diagonal entries D[1,5], D[5,1] and D[2,5], D[5,2] become non-zero.
+
+    **Weak-form assembly linkage**
+
+    The element stiffness is accumulated as `K_e += B.T @ D @ B * w_g * detJ`
+    with ξ ∈ [−1, 1] and `detJ = L/2`. B ∈ ℝ^{6×12} comes from
+    `levinson/utilities/B_matrix.py`; the shape-function tensors
+    `N`, `dN_dxi`, `d2N_dxi2` of batch shape (n_gp, 12, 6) come from
+    `shape_functions.py`. Selective integration is applied on shear rows.
 
     See Also
     --------
@@ -138,14 +151,14 @@ class MaterialStiffnessOperator:
         Parameters
         ----------
         strain : np.ndarray, shape (6,) or (6, n)
-            Voigt strain ``[eps_x, kappa_z, kappa_y, gamma_xy, gamma_xz, phi_x]``
-            (``kappa_z`` before ``kappa_y``, matching ``B_matrix`` / ``D`` row layout).
+            Voigt strain [ε_x, κ_z, κ_y, γ_xy, γ_xz, φ_x]
+            (κ_z before κ_y, matching B_matrix / D row layout).
 
         Returns
         -------
         np.ndarray
-            Same shape as ``strain``. Rows of ``S``: ``[N, M_z, M_y, V_y, V_z, T]``
-            paired with those strain rows (``T`` torsional resultant, index 5).
+            Same shape as ``strain``. Rows of S: [N, M_z, M_y, V_y, V_z, T]
+            paired with those strain rows (T: torsional resultant, index 5).
         """
         return self.postprocessing_form() @ strain
 

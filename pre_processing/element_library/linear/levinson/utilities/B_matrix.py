@@ -14,69 +14,118 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class StrainDisplacementOperator:
     """
-    Strain-displacement ``B`` (6, 12) per Gauss point for a 2-node 3-D Levinson beam.
+    Strain-displacement tensor B ∈ ℝ^{6×12} for a 2-node 3-D Levinson beam.
 
-    Voigt ε = B U_e with rows [ε_x, κ_z, κ_y, γ_xy, γ_xz, φ_x]
-    (κ_z before κ_y, matching implementation):
-    ε_x = ∂u_x/∂x; κ_z = ∂θ_z/∂x; κ_y = ∂θ_y/∂x;
-    γ_xy = ∂u_y/∂x - θ_z + α ∂²θ_z/∂x²;
-    γ_xz = ∂u_z/∂x - θ_y + α ∂²θ_y/∂x²;
-    φ_x = ∂θ_x/∂x. Coefficient α (for example h²/12 on rectangular sections) is a section property.
+    B is a rank-2 tensor defined at each Gauss point such that ε = B U_e,
+    where ε ∈ ℝ^6 is the generalised strain vector and U_e ∈ ℝ^{12} is the
+    element displacement vector in node-major order:
 
-    Map: ``x(xi)`` linear on chord, ``dx/dxi = L/2``, ``dxi_dx = 2/L``, ``d2xi_dx2 = 4/L**2``.
+        U_e = [u_x¹, u_y¹, u_z¹, θ_x¹, θ_y¹, θ_z¹, u_x², u_y², u_z², θ_x², θ_y², θ_z²]^T
+
+    **Note on Voigt row order (Levinson)**
+
+    The Levinson implementation uses a non-standard Voigt ordering with κ_z before κ_y,
+    matching the internal implementation:
+
+        ε = [ε_x, κ_z, κ_y, γ_xy, γ_xz, φ_x]^T
+        S = [N,   M_z, M_y, V_y,  V_z,  T  ]^T
+
+    **Kinematic equations (Levinson higher-order shear theory)**
+
+        ε_x  = ∂u_x/∂x                            (axial extension)
+        κ_z  = ∂θ_z/∂x                            (curvature about z, rotation-based)
+        κ_y  = ∂θ_y/∂x                            (curvature about y, rotation-based)
+        γ_xy = ∂u_y/∂x − θ_z + α ∂²θ_z/∂x²       (higher-order shear in XY; α = section property)
+        γ_xz = ∂u_z/∂x − θ_y + α ∂²θ_y/∂x²       (higher-order shear in XZ)
+        φ_x  = ∂θ_x/∂x                            (twist rate)
+
+    The coefficient α encodes the cross-section geometry (e.g. α = h²/12 for a
+    rectangular section of height h). Unlike Timoshenko, no shear correction factor κ
+    is used in D; the higher-order correction enters kinematically through B via the
+    α ∂²θ/∂x² terms, which require second derivatives of rotation shape functions.
 
     Parameters
     ----------
     element_length : float
-        Length `L` of the beam element in the global x-direction (must be > 0).
+        Length L of the beam element (must be > 0).
+    alpha_coefficient : float, optional
+        Higher-order shear coefficient α (default 0; set from section properties).
 
     Attributes
     ----------
     jacobian : float
-        Determinant of the isoparametric mapping: dx/dξ = L / 2
-
+        Jacobian of isoparametric mapping, ∂x/∂ξ = L/2.
     dξ_dx : float
-        First derivative of ξ with respect to x: ∂ξ/∂x = 2 / L
-
+        First coordinate transform factor, ∂ξ/∂x = 2/L.
     d2ξ_dx2 : float
-        Second derivative of ξ with respect to x: ∂²ξ/∂x² = 4 / L²
+        Second coordinate transform factor, ∂²ξ/∂x² = 4/L².
 
     Notes
     -----
-    Canonical `B` block (single Gauss point, Levinson row order):
+    **Isoparametric mapping and shape function basis**
+
+    x ∈ [0, L] maps to ξ ∈ [−1, 1] via x(ξ) = L(1 + ξ)/2, giving
+    ∂ξ/∂x = 2/L and ∂²ξ/∂x² = 4/L².
+
+        L₁(ξ) = ½(1 − ξ),   dL₁/dξ = −½
+        L₂(ξ) = ½(1 + ξ),   dL₂/dξ = +½
+        H₁(ξ) = ¼(1 − ξ)²(2 + ξ)        dH₁/dξ = −¾(1 − ξ²)            d²H₁/dξ² = (3/2)ξ
+        H₂(ξ) = (L/8)(1 − ξ)²(1 + ξ)    dH₂/dξ = (L/8)(3ξ² − 2ξ − 1)   d²H₂/dξ² = (L/8)(6ξ − 2)
+        H₃(ξ) = ¼(1 + ξ)²(2 − ξ)        dH₃/dξ = ¾(1 − ξ²)             d²H₃/dξ² = −(3/2)ξ
+        H₄(ξ) = −(L/8)(1 + ξ)²(1 − ξ)   dH₄/dξ = −(L/8)(1 − 2ξ − 3ξ²)  d²H₄/dξ² = (L/8)(6ξ + 2)
+
+    **Sparsity structure of B (single Gauss point, Levinson row order)**
 
     ```text
-    ε = B U_e
-    ε = [ε_x, κ_z, κ_y, γ_xy, γ_xz, φ_x]^T
-
-    B row meanings:
-    row 0: d(u_x)/dx
-    row 1: d(θ_z)/dx
-    row 2: d(θ_y)/dx
-    row 3: d(u_y)/dx - θ_z + α d2(θ_z)/dx2
-    row 4: d(u_z)/dx - θ_y + α d2(θ_y)/dx2
-    row 5: d(θ_x)/dx
+    ε = B U_e,   ε ∈ ℝ^6,   U_e ∈ ℝ^{12}
+    DOF cols: [u_x¹, u_y¹, u_z¹, θ_x¹, θ_y¹, θ_z¹, u_x², u_y², u_z², θ_x², θ_y², θ_z²]
+    B =
+    [ b1,1  0     0     0     0     0    b1,7  0     0     0      0      0   ]  # ε_x
+    [ 0     0     0     0     0    b2,6   0    0     0     0      0    b2,12 ]  # κ_z
+    [ 0     0     0     0    b3,5   0     0    0     0     0    b3,11    0   ]  # κ_y
+    [ 0    b4,2   0     0     0    b4,6   0   b4,8   0     0      0    b4,12 ]  # γ_xy (non-zero, +α terms)
+    [ 0     0    b5,3   0    b5,5   0     0    0    b5,9   0    b5,11    0   ]  # γ_xz (non-zero, +α terms)
+    [ 0     0     0    b6,4   0     0     0    0     0    b6,10   0      0   ]  # φ_x
     ```
 
-    **B tensor (per Gauss point, shape (6, 12))**
-    - row 0 ``eps_x``: ``d(u_x)/dx``.
-    - row 1 ``kappa_z``: ``d(theta_z)/dx``.
-    - row 2 ``kappa_y``: ``d(theta_y)/dx``.
-    - row 3 ``gamma_xy``: ``d(u_y)/dx - theta_z + alpha*d2(theta_z)/dx2``.
-    - row 4 ``gamma_xz``: ``d(u_z)/dx - theta_y + alpha*d2(theta_y)/dx2``.
-    - row 5 ``phi_x``: ``d(theta_x)/dx``.
+    **Non-zero entries of B in physical coordinates**
 
-    **D linkage and zeros**
-    - ``S = D @ eps`` with ``S = [N, M_z, M_y, V_y, V_z, T]`` for this row order.
-    - Shear rows are active; unlike Timoshenko constitutive form, Levinson shear stiffness is ``G*A``
-      (no ``kappa`` factor), while higher-order terms enter via ``B`` through ``alpha``.
+    ```text
+    ε_x row (row 0) — axial:
+      B[0,0]  = (dL₁/dξ)(2/L) = −1/L          (u_x, node 1)
+      B[0,6]  = (dL₂/dξ)(2/L) = +1/L          (u_x, node 2)
 
-    **N tensor linkage**
-    - Shear rows require both derivatives and shape values; inputs ``N``, ``dN_dxi``, ``d2N_dxi2``
-      use batch shape ``(n_gp, 12, 6)``.
-    - Entries not referenced by the row definitions remain zero.
+    κ_z row (row 1) — curvature about z, first derivative of θ_z:
+      B[1,5]  = (dH₂/dξ)(2/L)                 (θ_z, node 1)
+      B[1,11] = (dH₄/dξ)(2/L)                 (θ_z, node 2)
 
-    Same Gauss weak form as the shear-deformable beam family; see module one-liner for Voigt row order.
+    κ_y row (row 2) — curvature about y, first derivative of θ_y:
+      B[2,4]  = (d(−H₂)/dξ)(2/L)              (θ_y, node 1; sign from N_θy = −H₂)
+      B[2,10] = (d(−H₄)/dξ)(2/L)              (θ_y, node 2)
+
+    γ_xy row (row 3) — higher-order shear in XY, with α ∂²θ_z/∂x²:
+      B[3,1]  = (dH₁/dξ)(2/L)                          (∂u_y/∂x, node 1)
+      B[3,5]  = −H₂(ξ) + α · (d²H₂/dξ²)(4/L²)         (−θ_z + α κ_z correction, node 1)
+      B[3,7]  = (dH₃/dξ)(2/L)                          (∂u_y/∂x, node 2)
+      B[3,11] = −H₄(ξ) + α · (d²H₄/dξ²)(4/L²)         (−θ_z + α κ_z correction, node 2)
+
+    γ_xz row (row 4) — higher-order shear in XZ, with α ∂²θ_y/∂x²:
+      B[4,2]  = (dH₁/dξ)(2/L)                          (∂u_z/∂x, node 1)
+      B[4,4]  = H₂(ξ) + α · (d²(−H₂)/dξ²)(4/L²)       (−θ_y + α κ_y correction, node 1)
+      B[4,8]  = (dH₃/dξ)(2/L)                          (∂u_z/∂x, node 2)
+      B[4,10] = H₄(ξ) + α · (d²(−H₄)/dξ²)(4/L²)       (−θ_y + α κ_y correction, node 2)
+
+    φ_x row (row 5) — torsion:
+      B[5,3]  = (dL₁/dξ)(2/L) = −1/L          (θ_x, node 1)
+      B[5,9]  = (dL₂/dξ)(2/L) = +1/L          (θ_x, node 2)
+    ```
+
+    When α = 0 (default), the γ_xy and γ_xz rows reduce to the standard Timoshenko
+    form (without κ factor). The full α expression requires second derivatives of the
+    Hermite rotation functions.
+
+    Weak-form assembly: `K_e += B.T @ D @ B * w_g * detJ` with `detJ = L/2`.
+    Shear rows require N (function values) and d²N/dξ²; selective integration applies.
 
     See Also
     --------

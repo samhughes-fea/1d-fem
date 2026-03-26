@@ -22,50 +22,93 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class ShapeFunctionOperator:
     """
-    Evaluate Levinson beam shape functions and natural derivatives on ``xi``.
+    Shape-function tensor N ∈ ℝ^{n_gp × 12 × 6} for a 2-node 3-D Levinson beam.
 
-    Axial and torsion: linear Lagrange; transverse u_y, u_z: quintic with zero slope at nodes;
-    θ_y, θ_z: cubic. `physical_coordinate_form` scales to dN/dx and d²N/dx² via dξ/dx and d²ξ/dx².
+    N is a rank-3 tensor; the slice N_g ∈ ℝ^{12×6} at Gauss point g maps the
+    12-component element displacement vector U_e ∈ ℝ^{12} to the 6-component
+    displacement field u ∈ ℝ^6 at that point:
+
+        u = N_g U_e,   u = [u_x, u_y, u_z, θ_x, θ_y, θ_z]^T
+
+    Returns N and its natural-coordinate derivatives dN/dξ, d²N/dξ² (same shape)
+    via `natural_coordinate_form`; `physical_coordinate_form` scales to dN/dx,
+    d²N/dx² using the chain-rule factors ∂ξ/∂x = 2/L and ∂²ξ/∂x² = 4/L².
+
+    Compared with Euler-Bernoulli (same 12-DOF contract), Levinson uses quintic
+    polynomials for transverse displacements (u_y, u_z) and cubic polynomials for
+    bending rotations (θ_y, θ_z). Higher-order shear enters via the B operator
+    through the α ∂²θ/∂x² terms, not through N directly.
 
     Parameters
     ----------
     element_length : float
-        Chord length ``L`` (must be > 0).
+        Chord length L (must be > 0).
 
     Attributes
     ----------
     dξ_dx : float
-        ``2/L`` (first derivative chain rule factor).
+        First derivative chain rule factor ∂ξ/∂x = 2/L.
     d2ξ_dx2 : float
-        ``4/L**2`` (second derivative chain rule factor).
+        Second derivative chain rule factor ∂²ξ/∂x² = 4/L².
 
     Notes
     -----
-    Canonical `N` block (single Gauss point slice `N_g`, shape `(12,6)`):
+    **Sparsity structure of N_g (single Gauss point slice, shape (12, 6))**
 
     ```text
     cols = [u_x, u_y, u_z, θ_x, θ_y, θ_z]
-    N_g[a,c] uses Levinson polynomials (quintic/cubic on transverse channels),
-    with the same sparse placement pattern as 12-DOF beam families:
-    nonzero entries align with each DOF's own component channel; all other entries = 0.
+    N_g =
+    [ n1,1   0      0      0      0       0   ]   row 0:  u_x DOF, node 1
+    [ 0     n2,2    0      0      0       0   ]   row 1:  u_y DOF, node 1
+    [ 0      0     n3,3    0      0       0   ]   row 2:  u_z DOF, node 1
+    [ 0      0      0     n4,4    0       0   ]   row 3:  θ_x DOF, node 1
+    [ 0      0      0      0     n5,5     0   ]   row 4:  θ_y DOF, node 1
+    [ 0      0      0      0      0      n6,6 ]   row 5:  θ_z DOF, node 1
+    [ n7,1   0      0      0      0       0   ]   row 6:  u_x DOF, node 2
+    [ 0     n8,2    0      0      0       0   ]   row 7:  u_y DOF, node 2
+    [ 0      0     n9,3    0      0       0   ]   row 8:  u_z DOF, node 2
+    [ 0      0      0    n10,4    0       0   ]   row 9:  θ_x DOF, node 2
+    [ 0      0      0      0    n11,5     0   ]   row 10: θ_y DOF, node 2
+    [ 0      0      0      0      0     n12,6 ]   row 11: θ_z DOF, node 2
     ```
 
-    **N tensor contract:** ``N``/``dN_dxi``/``d2N_dxi2`` use ``(n_gp, 12, 6)`` with
-    row = element DOF index and column = component ``(u_x, u_y, u_z, theta_x, theta_y, theta_z)``.
-    Entries outside the active polynomial couplings are structurally zero.
+    **Shape function polynomials and active entries of N_g**
 
-    **Contract:** ``N`` batch shape ``(n_gp, 12, 6)`` matches standard beam load and stiffness assembly.
-    **Diff:** Higher-order ``u`` / ``theta`` fields vs linear Timoshenko; shear correction factor not used in ``D`` (``G*A``);
-    strain definitions and ``alpha`` terms live in ``B_matrix``.
+    Natural coordinate ξ ∈ [−1, 1]. Chain rule: ∂N/∂x = (∂N/∂ξ)(2/L), ∂²N/∂x² = (∂²N/∂ξ²)(4/L²).
 
-    **Polynomial detail (natural coordinate xi):**
+    Linear Lagrange (axial u_x and torsion θ_x channels):
 
-    - ``u_x``: ``N1_u = 0.5*(1-xi)``, ``N2_u = 0.5*(1+xi)``.
-    - ``u_y``, ``u_z`` (quintic): ``N1_v = 1/2 - (15/16)*xi + (5/8)*xi**3 - (3/16)*xi**5``, etc.; zero slope at nodes.
-    - ``theta_y``, ``theta_z`` (cubic): ``N1_theta = (1/4)*(2 - 3*xi + xi**3)``, ``N2_theta = (1/4)*(2 + 3*xi - xi**3)``.
+        L₁(ξ) = ½(1 − ξ),   L₂(ξ) = ½(1 + ξ)
 
-    Strain linkage (in ``B_matrix``): ``gamma_xy = du_y/dx - theta_z + alpha*d2(theta_z)/dx2``, etc.;
-    ``kappa_z = d(theta_z)/dx``, ``kappa_y = d(theta_y)/dx``, ``phi_x = d(theta_x)/dx``.
+    Quintic polynomials (transverse displacement channels u_y, u_z);
+    boundary conditions: value 1 at own node, value 0 at other node, zero slope at both nodes:
+
+        Q₁(ξ) = ½ − (15/16)ξ + (5/8)ξ³ − (3/16)ξ⁵   (node 1; Q₁(−1)=1, Q₁(1)=0, Q₁'(±1)=0)
+        Q₂(ξ) = ½ + (15/16)ξ − (5/8)ξ³ + (3/16)ξ⁵   (node 2; Q₂(1)=1, Q₂(−1)=0, Q₂'(±1)=0)
+
+    Cubic polynomials (bending rotation channels θ_y, θ_z):
+
+        C₁(ξ) = ¼(2 − 3ξ + ξ³)   (node 1; C₁(−1)=1, C₁(1)=0)
+        C₂(ξ) = ¼(2 + 3ξ − ξ³)   (node 2; C₂(1)=1, C₂(−1)=0)
+
+    ```text
+    Active entries of N_g (rows = DOF index a, columns = displacement component c):
+
+      N_g[0,0]  = L₁(ξ_g)     N_g[6,0]  = L₂(ξ_g)     [u_x channel]
+      N_g[1,1]  = Q₁(ξ_g)     N_g[7,1]  = Q₂(ξ_g)     [u_y channel]
+      N_g[2,2]  = Q₁(ξ_g)     N_g[8,2]  = Q₂(ξ_g)     [u_z channel]
+      N_g[3,3]  = L₁(ξ_g)     N_g[9,3]  = L₂(ξ_g)     [θ_x channel]
+      N_g[4,4]  = −C₁(ξ_g)    N_g[10,4] = −C₂(ξ_g)    [θ_y channel; sign from EB-type convention]
+      N_g[5,5]  = C₁(ξ_g)     N_g[11,5] = C₂(ξ_g)     [θ_z channel]
+      N_g[a,c]  = 0  for all other (a,c) pairs          (sparse by structure)
+    ```
+
+    The strain linkage in B_matrix uses:
+        κ_z = ∂θ_z/∂x = (dC₁/dξ)(2/L)·θ_z¹ + (dC₂/dξ)(2/L)·θ_z²
+        γ_xy = ∂u_y/∂x − θ_z + α ∂²θ_z/∂x²   (higher-order correction)
+
+    Weak-form linkage: `K_e += B.T @ D @ B * w_g * detJ` and
+    `F_dist += w_g * N.T @ q * detJ` with `detJ = L/2`.
 
     See Also
     --------

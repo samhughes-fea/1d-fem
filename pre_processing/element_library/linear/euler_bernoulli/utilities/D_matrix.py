@@ -12,43 +12,52 @@ from dataclasses import dataclass, field
 @dataclass(frozen=True)
 class MaterialStiffnessOperator:
     """
-    Constitutive operator (``D`` matrix) for 3-D Euler–Bernoulli beam elements.
+    Constitutive tensor D ∈ ℝ^{6×6} for 3-D Euler-Bernoulli beam elements.
 
-    Stores **assembly** and **post-processing** copies of the same 6x6 ``D`` (identical for EB; split supports other theories).
+    D is a rank-2 symmetric tensor relating the generalised strain vector
+    ε ∈ ℝ^6 to the beam section resultant vector S ∈ ℝ^6 via S = D ε:
+
+        ε = [ε_x,  κ_y,  κ_z,  γ_xy, γ_xz, φ_x]^T   (Voigt strains)
+        S = [N,    M_y,  M_z,  V_y,  V_z,  T  ]^T   (section resultants)
+
+    D is diagonal; shear rows D[3,:] and D[4,:] are identically zero because
+    the EB hypothesis imposes γ_xy = γ_xz = 0 kinematically. Shear forces
+    V_y and V_z are recovered from equilibrium V = dM/dx. Stores assembly and
+    post-processing copies (identical for EB; split supports other theories).
 
     Parameters
     ----------
     youngs_modulus : float
-        Young’s modulus *E* [Pa].
+        Young's modulus E [Pa].
     shear_modulus : float
-        Shear modulus *G* [Pa].
+        Shear modulus G [Pa].
     cross_section_area : float
-        Cross-sectional area *A* [m²].
+        Cross-sectional area A [m²].
     moment_inertia_y : float
-        Second moment of area about **y** (*I_y*) [m⁴].
+        Second moment of area about y, I_y [m⁴].
     moment_inertia_z : float
-        Second moment of area about **z** (*I_z*) [m⁴].
+        Second moment of area about z, I_z [m⁴].
     torsion_constant : float
-        Torsional constant *J_t* [m⁴].
+        St. Venant torsional constant J_t [m⁴].
 
     Attributes
     ----------
-    _D_assembly : ndarray (6 × 6)
+    _D_assembly : ndarray, shape (6, 6)
         Sparse-by-design matrix used inside the element stiffness loop.
-    _D_postprocess : ndarray (6 × 6)
-        Copy of *D* kept intact for stress / energy work.
+    _D_postprocess : ndarray, shape (6, 6)
+        Copy of D kept intact for stress/energy post-processing.
     _energy_components : dict[str, ndarray]
-        Pre-factored diagonal blocks for axial, bending-y, bending-z,
-        torsion, shear-xy (zero) and shear-xz (zero).
+        Pre-factored diagonal blocks for each deformation mode.
+
 
     Notes
     -----
-    Canonical `D` block (Euler-Bernoulli, Voigt order):
+    **Sparsity structure of D (Euler-Bernoulli, Voigt order)**
 
     ```text
     S = D ε
-    ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]^T
-    S = [N,   M_y, M_z, V_y,  V_z,  T  ]^T
+    ε = [ε_x,  κ_y,  κ_z,  γ_xy, γ_xz, φ_x]^T
+    S = [N,    M_y,  M_z,  V_y,  V_z,  T  ]^T
 
     D =
     [ EA    0     0     0    0    0   ]
@@ -59,29 +68,30 @@ class MaterialStiffnessOperator:
     [ 0     0     0     0    0   GJ_t ]
     ```
 
-    **D tensor (shape (6, 6), Voigt row/column order)**
-    - 0 ε_x: D[0,0] = EA.
-    - 1 κ_y: D[1,1] = EI_y.
-    - 2 κ_z: D[2,2] = EI_z.
-    - 3 γ_xy: D[3,:] = D[:,3] = 0 (EB shear not constitutively modeled).
-    - 4 γ_xz: D[4,:] = D[:,4] = 0 (EB shear not constitutively modeled).
-    - 5 φ_x: D[5,5] = GJ_t.
-    - all other off-diagonal entries are zero.
+    **Component definitions — D ∈ ℝ^{6×6}, diagonal, rank-2**
 
-    **Resultant mapping**
-    - S = D ε with ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x].
-    - S rows are [N, M_y, M_z, V_y, V_z, T].
-    - EB constitutive shear resultants V_y and V_z are therefore zero.
+    ```text
+    D[0,0] = E·A      (axial stiffness)
+    D[1,1] = E·I_y    (bending stiffness about y)
+    D[2,2] = E·I_z    (bending stiffness about z)
+    D[3,3] = 0        (no constitutive shear; γ_xy = 0 by EB kinematic constraint)
+    D[4,4] = 0        (no constitutive shear; γ_xz = 0 by EB kinematic constraint)
+    D[5,5] = G·J_t    (St. Venant torsional stiffness)
+    D[i,j] = 0  for all i ≠ j   (uncoupled; no shear-centre offset terms)
+    ```
 
-    **B/N linkage**
-    - Parent stiffness uses ``K_e += B.T @ D @ B * w_g * detJ`` on ``xi in [-1, 1]``.
-    - ``B`` comes from ``euler_bernoulli/utilities/B_matrix.py``; shape-function tensors
-      ``N``, ``dN_dxi``, ``d2N_dxi2`` come from ``shape_functions.py`` with batch shape ``(n_gp, 12, 6)``.
+    **Weak-form assembly linkage**
+
+    The element stiffness is accumulated as `K_e += B.T @ D @ B * w_g * detJ`
+    with ξ ∈ [−1, 1] and `detJ = L/2`. B ∈ ℝ^{6×12} comes from
+    `euler_bernoulli/utilities/B_matrix.py`; the shape-function tensors
+    `N`, `dN_dxi`, `d2N_dxi2` of batch shape (n_gp, 12, 6) come from
+    `shape_functions.py`.
 
     See Also
     --------
-    linear_euler_bernoulli_3D.LinearEulerBernoulliBeamElement3D : assembles ``K_e`` from ``B`` and this ``D``.
-    docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md : Voigt table.
+    linear_euler_bernoulli_3D.LinearEulerBernoulliBeamElement3D
+    docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md
 
     """
 
@@ -146,14 +156,14 @@ class MaterialStiffnessOperator:
         Parameters
         ----------
         strain : np.ndarray, shape (6,) or (6, n)
-            Voigt strain columns ``[eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x]``
-            (EB: ``gamma_xy = gamma_xz = 0``).
+            Voigt strain vector [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]
+            (EB: γ_xy = γ_xz = 0).
 
         Returns
         -------
         np.ndarray
-            Same shape as ``strain``. Rows of ``S``: ``[N, M_y, M_z, V_y, V_z, T]``
-            paired with strain rows (EB: ``V_y``, ``V_z`` from ``D`` are zero).
+            Same shape as ``strain``. Rows of S: [N, M_y, M_z, V_y, V_z, T]
+            paired with strain rows (EB: V_y, V_z from D are zero).
         """
         return self.postprocessing_form() @ strain
 

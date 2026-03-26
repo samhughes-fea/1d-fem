@@ -16,54 +16,87 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class ShapeFunctionOperator:
     """
-    Evaluate 3D Euler-Bernoulli beam shape functions and natural derivatives on ``xi``.
+    Shape-function tensor N ∈ ℝ^{n_gp × 12 × 6} for a 2-node 3-D Euler-Bernoulli beam.
 
-    ``natural_coordinate_form`` returns ``N``, ``dN_dxi``, ``d2N_dxi2`` (batch ``n_points``, 12, 6);
-    ``physical_coordinate_form`` scales to ``dN/dx``, ``d2N/dx2`` via ``dxi_dx``, ``d2xi_dx2``.
+    N is a rank-3 tensor; the slice N_g ∈ ℝ^{12×6} at Gauss point g maps the
+    12-component element displacement vector U_e ∈ ℝ^{12} to the 6-component
+    displacement field u ∈ ℝ^6 at that point:
+
+        u = N_g U_e,   u = [u_x, u_y, u_z, θ_x, θ_y, θ_z]^T
+
+    Returns N and its natural-coordinate derivatives dN/dξ, d²N/dξ² (same shape)
+    via `natural_coordinate_form`; `physical_coordinate_form` scales to dN/dx,
+    d²N/dx² using the chain-rule factors ∂ξ/∂x = 2/L and ∂²ξ/∂x² = 4/L².
 
     Parameters
     ----------
     element_length : float
-        Chord length ``L`` (physical ``x`` in ``[0, L]``, must be > 0).
+        Chord length L (physical x ∈ [0, L], must be > 0).
 
     Attributes
     ----------
     dξ_dx : float
-        First derivative chain factor ``2/L``.
+        First derivative chain factor ∂ξ/∂x = 2/L.
     d2ξ_dx2 : float
-        Second derivative chain factor ``4/L**2``.
+        Second derivative chain factor ∂²ξ/∂x² = 4/L².
 
     Notes
     -----
-    Canonical `N` block (single Gauss point slice `N_g`, shape `(12,6)`):
+    **Sparsity structure of N_g (single Gauss point slice, shape (12, 6))**
 
     ```text
     cols = [u_x, u_y, u_z, θ_x, θ_y, θ_z]
     N_g =
-    [ n1,1   0      0      0      0       0   ]
-    [ 0     n2,2    0      0      0       0   ]
-    [ 0      0     n3,3    0      0       0   ]
-    [ 0      0      0     n4,4    0       0   ]
-    [ 0      0      0      0     n5,5     0   ]
-    [ 0      0      0      0      0      n6,6 ]
-    [ n7,1   0      0      0      0       0   ]
-    [ 0     n8,2    0      0      0       0   ]
-    [ 0      0     n9,3    0      0       0   ]
-    [ 0      0      0    n10,4    0       0   ]
-    [ 0      0      0      0    n11,5     0   ]
-    [ 0      0      0      0      0     n12,6 ]
+    [ n1,1   0      0      0      0       0   ]   row 0:  u_x DOF, node 1
+    [ 0     n2,2    0      0      0       0   ]   row 1:  u_y DOF, node 1
+    [ 0      0     n3,3    0      0       0   ]   row 2:  u_z DOF, node 1
+    [ 0      0      0     n4,4    0       0   ]   row 3:  θ_x DOF, node 1
+    [ 0      0      0      0     n5,5     0   ]   row 4:  θ_y DOF, node 1
+    [ 0      0      0      0      0      n6,6 ]   row 5:  θ_z DOF, node 1
+    [ n7,1   0      0      0      0       0   ]   row 6:  u_x DOF, node 2
+    [ 0     n8,2    0      0      0       0   ]   row 7:  u_y DOF, node 2
+    [ 0      0     n9,3    0      0       0   ]   row 8:  u_z DOF, node 2
+    [ 0      0      0    n10,4    0       0   ]   row 9:  θ_x DOF, node 2
+    [ 0      0      0      0    n11,5     0   ]   row 10: θ_y DOF, node 2
+    [ 0      0      0      0      0     n12,6 ]   row 11: θ_z DOF, node 2
     ```
 
-    **N tensor contract:** ``N``/``dN_dxi``/``d2N_dxi2`` all use ``(n_gp, 12, 6)``.
-    Rows are DOFs in node-major 12-DOF order; columns are components
-    ``(u_x, u_y, u_z, theta_x, theta_y, theta_z)``.
-    Unused row/column combinations remain zero (sparse-by-structure).
+    N is sparse-by-structure: each DOF row activates exactly one displacement component
+    column. All other entries are zero.
 
-    **Formulation (natural coordinate xi in [-1, 1]):** axial ``u_x`` and torsion ``theta_x`` use linear
-    Lagrange; transverse ``u_y``, ``u_z`` and bending rotations use Hermite cubics (standard beam pair per plane).
-    Map ``xi = (2*x - L)/L`` on the chord; ``dN/dx = dN_dxi * dxi_dx``, ``d2N/dx2 = d2N_dxi2 * d2xi_dx2``.
+    **Shape function basis and active entries of N_g**
 
-    Weak-form linkage: ``linear_euler_bernoulli_3D``.
+    Natural coordinate ξ ∈ [−1, 1] maps to x ∈ [0, L] via ξ = (2x − L)/L.
+
+    Linear Lagrange polynomials (axial u_x and torsion θ_x channels):
+
+        L₁(ξ) = ½(1 − ξ),   L₂(ξ) = ½(1 + ξ)
+
+    Hermite cubic polynomials (bending channels, standard C¹ beam pair per plane):
+
+        H₁(ξ) = ¼(1 − ξ)²(2 + ξ)         (displacement, node 1; H₁(−1)=1, H₁(1)=0)
+        H₂(ξ) = (L/8)(1 − ξ)²(1 + ξ)     (rotation, node 1;    dH₂/dξ|_{ξ=−1}=L/2)
+        H₃(ξ) = ¼(1 + ξ)²(2 − ξ)         (displacement, node 2; H₃(1)=1, H₃(−1)=0)
+        H₄(ξ) = −(L/8)(1 + ξ)²(1 − ξ)    (rotation, node 2;    dH₄/dξ|_{ξ=1}=−L/2)
+
+    ```text
+    Active entries of N_g (rows = DOF index a, columns = displacement component c):
+
+      N_g[0,0]  = L₁(ξ_g)     N_g[6,0]  = L₂(ξ_g)     [u_x channel]
+      N_g[1,1]  = H₁(ξ_g)     N_g[7,1]  = H₃(ξ_g)     [u_y channel]
+      N_g[2,2]  = H₁(ξ_g)     N_g[8,2]  = H₃(ξ_g)     [u_z channel]
+      N_g[3,3]  = L₁(ξ_g)     N_g[9,3]  = L₂(ξ_g)     [θ_x channel]
+      N_g[4,4]  = −H₂(ξ_g)    N_g[10,4] = −H₄(ξ_g)    [θ_y channel; sign from EB θ_y = −∂u_z/∂x]
+      N_g[5,5]  = H₂(ξ_g)     N_g[11,5] = H₄(ξ_g)     [θ_z channel]
+      N_g[a,c]  = 0  for all other (a,c) pairs          (sparse by structure)
+    ```
+
+    The same sparsity pattern holds for dN/dξ and d²N/dξ² (derivatives of the
+    polynomials above, entering via the chain rule into B).
+
+    Weak-form linkage: `linear_euler_bernoulli_3D` accumulates
+    `K_e += B.T @ D @ B * w_g * detJ` and distributed-load vectors via
+    `F_dist += w_g * N.T @ q * detJ` with `detJ = L/2`.
 
     See Also
     --------

@@ -13,46 +13,54 @@ from dataclasses import dataclass, field
 @dataclass(frozen=True)
 class MaterialStiffnessOperator:
     """
-    Constitutive operator (``D`` matrix) for 3-D Timoshenko beam elements.
+    Constitutive tensor D ∈ ℝ^{6×6} for 3-D Timoshenko beam elements.
 
-    Stores assembly and post-processing copies of the same 6x6 ``D``.
+    D is a rank-2 symmetric tensor relating the generalised strain vector
+    ε ∈ ℝ^6 to the beam section resultant vector S ∈ ℝ^6 via S = D ε:
+
+        ε = [ε_x,  κ_y,  κ_z,  γ_xy, γ_xz, φ_x]^T   (Voigt strains)
+        S = [N,    M_y,  M_z,  V_y,  V_z,  T  ]^T   (section resultants)
+
+    Unlike the Euler-Bernoulli theory, the shear diagonal entries D[3,3] and
+    D[4,4] are non-zero; they are set to κ·G·A where κ is the shear correction
+    factor that accounts for the non-uniform shear stress distribution across the
+    cross-section (κ = 5/6 for rectangular sections by default). Stores assembly
+    and post-processing copies of the same 6×6 D.
 
     Parameters
     ----------
     youngs_modulus : float
-        Young's modulus *E* [Pa].
+        Young's modulus E [Pa].
     shear_modulus : float
-        Shear modulus *G* [Pa].
+        Shear modulus G [Pa].
     cross_section_area : float
-        Cross-sectional area *A* [m²].
+        Cross-sectional area A [m²].
     moment_inertia_y : float
-        Second moment of area about **y** (*I_y*) [m⁴].
+        Second moment of area about y, I_y [m⁴].
     moment_inertia_z : float
-        Second moment of area about **z** (*I_z*) [m⁴].
+        Second moment of area about z, I_z [m⁴].
     torsion_constant : float
-        Torsional constant *J_t* [m⁴].
+        St. Venant torsional constant J_t [m⁴].
     shear_correction_factor : float, optional
         Shear correction factor κ (default: 5/6 for rectangular sections).
-        Accounts for non-uniform shear stress distribution across the cross-section.
 
     Attributes
     ----------
-    _D_assembly : ndarray (6 × 6)
+    _D_assembly : ndarray, shape (6, 6)
         Sparse-by-design matrix used inside the element stiffness loop.
-    _D_postprocess : ndarray (6 × 6)
-        Copy of *D* kept intact for stress / energy work.
+    _D_postprocess : ndarray, shape (6, 6)
+        Copy of D kept intact for stress/energy post-processing.
     _energy_components : dict[str, ndarray]
-        Pre-factored diagonal blocks for axial, bending-y, bending-z,
-        torsion, shear-xy and shear-xz.
+        Pre-factored diagonal blocks for each deformation mode.
 
     Notes
     -----
-    Canonical `D` block (Timoshenko, Voigt order):
+    **Sparsity structure of D (Timoshenko, Voigt order)**
 
     ```text
     S = D ε
-    ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]^T
-    S = [N,   M_y, M_z, V_y,  V_z,  T  ]^T
+    ε = [ε_x,  κ_y,  κ_z,  γ_xy, γ_xz, φ_x]^T
+    S = [N,    M_y,  M_z,  V_y,  V_z,  T  ]^T
 
     D =
     [ EA    0     0     0    0    0   ]
@@ -63,23 +71,29 @@ class MaterialStiffnessOperator:
     [ 0     0     0     0    0   GJ_t ]
     ```
 
-    **D tensor (shape (6, 6), Voigt row/column order)**
-    - 0 ``eps_x``: ``D[0,0] = EA``.
-    - 1 ``kappa_y``: ``D[1,1] = EI_y``.
-    - 2 ``kappa_z``: ``D[2,2] = EI_z``.
-    - 3 ``gamma_xy``: ``D[3,3] = kappa*G*A``.
-    - 4 ``gamma_xz``: ``D[4,4] = kappa*G*A``.
-    - 5 ``phi_x``: ``D[5,5] = GJ_t``.
-    - all non-coupling off-diagonal entries are zero; optional shear-centre coupling can fill
-      ``D[1,5]``, ``D[5,1]``, ``D[2,5]``, ``D[5,2]`` when offsets are non-zero.
+    **Component definitions — D ∈ ℝ^{6×6}, diagonal, rank-2**
 
-    **Resultant mapping**
-    - ``S = D @ eps`` with ``eps = [eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x]``.
-    - ``S`` rows are ``[N, M_y, M_z, V_y, V_z, T]``.
+    ```text
+    D[0,0] = E·A      (axial stiffness)
+    D[1,1] = E·I_y    (bending stiffness about y)
+    D[2,2] = E·I_z    (bending stiffness about z)
+    D[3,3] = κ·G·A    (shear stiffness in XY plane; κ is shear correction factor)
+    D[4,4] = κ·G·A    (shear stiffness in XZ plane; κ is shear correction factor)
+    D[5,5] = G·J_t    (St. Venant torsional stiffness)
+    D[i,j] = 0  for all i ≠ j   (uncoupled in the absence of shear-centre offset)
+    ```
 
-    **B/N linkage**
-    - Parent weak form uses ``K_e += B.T @ D @ B * w_g * detJ`` on ``xi in [-1, 1]``.
-    - ``B``/``N`` tensors come from Timoshenko shape and B operators with batch shape ``(n_gp, 12, 6)``.
+    Optional shear-centre offset coupling: when the shear centre is offset from the
+    centroid by (y_sc, z_sc), off-diagonal entries D[1,5], D[5,1], D[2,5], D[5,2]
+    become non-zero (Vlasov warping correction). The default is y_sc = z_sc = 0.
+
+    **Weak-form assembly linkage**
+
+    The element stiffness is accumulated as `K_e += B.T @ D @ B * w_g * detJ`
+    with ξ ∈ [−1, 1] and `detJ = L/2`. B ∈ ℝ^{6×12} comes from
+    `timoshenko/utilities/B_matrix.py`; the shape-function tensors
+    `N`, `dN_dxi` of batch shape (n_gp, 12, 6) come from `shape_functions.py`.
+    Selective reduced integration on shear rows avoids shear locking.
 
     See Also
     --------
