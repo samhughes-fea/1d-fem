@@ -41,6 +41,21 @@ class StrainDisplacementOperator:
 
     Notes
     -----
+    Canonical `B` block (single Gauss point, Levinson row order):
+
+    ```text
+    ε = B U_e
+    ε = [ε_x, κ_z, κ_y, γ_xy, γ_xz, φ_x]^T
+
+    B row meanings:
+    row 0: d(u_x)/dx
+    row 1: d(θ_z)/dx
+    row 2: d(θ_y)/dx
+    row 3: d(u_y)/dx - θ_z + α d2(θ_z)/dx2
+    row 4: d(u_z)/dx - θ_y + α d2(θ_y)/dx2
+    row 5: d(θ_x)/dx
+    ```
+
     **B tensor (per Gauss point, shape (6, 12))**
     - row 0 ``eps_x``: ``d(u_x)/dx``.
     - row 1 ``kappa_z``: ``d(theta_z)/dx``.

@@ -41,6 +41,15 @@ class ShapeFunctionOperator:
 
     Notes
     -----
+    Canonical `N` block (single Gauss point slice `N_g`, shape `(12,6)`):
+
+    ```text
+    cols = [u_x, u_y, u_z, θ_x, θ_y, θ_z]
+    N_g[a,c] uses Levinson polynomials (quintic/cubic on transverse channels),
+    with the same sparse placement pattern as 12-DOF beam families:
+    nonzero entries align with each DOF's own component channel; all other entries = 0.
+    ```
+
     **N tensor contract:** ``N``/``dN_dxi``/``d2N_dxi2`` use ``(n_gp, 12, 6)`` with
     row = element DOF index and column = component ``(u_x, u_y, u_z, theta_x, theta_y, theta_z)``.
     Entries outside the active polynomial couplings are structurally zero.

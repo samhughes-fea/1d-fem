@@ -33,6 +33,25 @@ class ShapeFunctionOperator:
 
     Notes
     -----
+    Canonical `N` block (single Gauss point slice `N_g`, shape `(12,6)`):
+
+    ```text
+    cols = [u_x, u_y, u_z, θ_x, θ_y, θ_z]
+    N_g =
+    [ n1,1   0      0      0      0       0   ]
+    [ 0     n2,2    0      0      0       0   ]
+    [ 0      0     n3,3    0      0       0   ]
+    [ 0      0      0     n4,4    0       0   ]
+    [ 0      0      0      0     n5,5     0   ]
+    [ 0      0      0      0      0      n6,6 ]
+    [ n7,1   0      0      0      0       0   ]
+    [ 0     n8,2    0      0      0       0   ]
+    [ 0      0     n9,3    0      0       0   ]
+    [ 0      0      0    n10,4    0       0   ]
+    [ 0      0      0      0    n11,5     0   ]
+    [ 0      0      0      0      0     n12,6 ]
+    ```
+
     **N tensor contract:** ``N``/``dN_dxi``/``d2N_dxi2`` all use ``(n_gp, 12, 6)``.
     Rows are DOFs in node-major 12-DOF order; columns are components
     ``(u_x, u_y, u_z, theta_x, theta_y, theta_z)``.

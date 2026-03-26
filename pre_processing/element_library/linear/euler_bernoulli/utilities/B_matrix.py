@@ -55,6 +55,19 @@ class StrainDisplacementOperator:
 
     Notes
     -----
+    Canonical `B` block (single Gauss point, representative sparse pattern):
+
+    ```text
+    ε = B U_e
+    B =
+    [ b1,1  0     0     0     0     0    b1,7  0     0     0      0      0   ]  # ε_x
+    [ 0     0    b2,3   0    b2,5   0     0    0    b2,9   0    b2,11   0   ]  # κ_y
+    [ 0    b3,2   0     0     0    b3,6   0   b3,8   0     0      0    b3,12]  # κ_z
+    [ 0     0     0     0     0     0     0    0     0     0      0      0   ]  # γ_xy = 0
+    [ 0     0     0     0     0     0     0    0     0     0      0      0   ]  # γ_xz = 0
+    [ 0     0     0    b6,4   0     0     0    0     0    b6,10   0      0   ]  # φ_x
+    ```
+
     **Contract:** same outer sizes as standard 12-DOF beam: ``B`` (6, 12), ``U_e`` (12,).
     **Diff vs shear-deformable theories:** shear strain rows of ``eps`` stay zero here; Timoshenko/Levinson
     populate those rows with non-zero kinematics and ``D`` adds ``G*A`` (or ``kappa*G*A``) stiffness.

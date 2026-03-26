@@ -38,6 +38,19 @@ class MaterialStiffnessOperator:
 
     Notes
     -----
+    Canonical `D` block (truss reduction):
+
+    ```text
+    S = D ε
+    ε = [ε_axial, γ_transverse, φ_torsion]^T
+    S = [N_axial, V_transverse, T]^T
+
+    D =
+    [ EA    0    0   ]
+    [ 0    κGA   0   ]
+    [ 0     0   GJ_t ]
+    ```
+
     **D tensor (shape (3, 3))**: ``diag(EA, kappa*G*A, GJ_t)`` with zero off-diagonals.
     **Resultants:** ``S = [N_axial, V_transverse, T] = D @ [eps_axial, gamma_transverse, phi_torsion]``.
     **N/B linkage:** parent truss element uses reduced shape/strain operators, then sums

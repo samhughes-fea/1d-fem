@@ -35,6 +35,18 @@ class MaterialStiffnessOperator:
 
     Notes
     -----
+    Canonical `D` block (bar):
+
+    ```text
+    S = D ε
+    ε = [ε_axial, φ_torsion]^T
+    S = [N_axial, T]^T
+
+    D =
+    [ EA    0   ]
+    [ 0    GJ_t ]
+    ```
+
     **D tensor (shape (2, 2))**: ``D[0,0] = EA``, ``D[1,1] = GJ_t``, off-diagonals are zero.
     **Resultants:** ``S = [N_axial, T] = D @ [eps_axial, phi_torsion]``.
     **N/B linkage:** parent bar element uses reduced shape/strain operators, then sums

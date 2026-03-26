@@ -45,6 +45,22 @@ class MaterialStiffnessOperator:
 
     Notes
     -----
+    Canonical `D` block (Levinson order, no shear correction factor):
+
+    ```text
+    S = D ε
+    ε = [ε_x, κ_z, κ_y, γ_xy, γ_xz, φ_x]^T
+    S = [N,   M_z, M_y, V_y,  V_z,  T  ]^T
+
+    D =
+    [ EA    0     0     0    0    0   ]
+    [ 0    EI_z   0     0    0    0   ]
+    [ 0     0    EI_y   0    0    0   ]
+    [ 0     0     0     GA   0    0   ]
+    [ 0     0     0     0    GA   0   ]
+    [ 0     0     0     0    0   GJ_t ]
+    ```
+
     **D tensor (shape (6, 6), Levinson Voigt order)**
     - row/col 0 ``eps_x``: ``D[0,0] = EA``.
     - row/col 1 ``kappa_z``: ``D[1,1] = EI_z``.

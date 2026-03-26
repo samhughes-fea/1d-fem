@@ -45,6 +45,22 @@ class MaterialStiffnessOperator:
 
     Notes
     -----
+    Canonical `D` block (Timoshenko, Voigt order):
+
+    ```text
+    S = D ε
+    ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]^T
+    S = [N,   M_y, M_z, V_y,  V_z,  T  ]^T
+
+    D =
+    [ EA    0     0     0    0    0   ]
+    [ 0    EI_y   0     0    0    0   ]
+    [ 0     0    EI_z   0    0    0   ]
+    [ 0     0     0    κGA   0    0   ]
+    [ 0     0     0     0   κGA   0   ]
+    [ 0     0     0     0    0   GJ_t ]
+    ```
+
     **D tensor (shape (6, 6), Voigt row/column order)**
     - 0 ``eps_x``: ``D[0,0] = EA``.
     - 1 ``kappa_y``: ``D[1,1] = EI_y``.

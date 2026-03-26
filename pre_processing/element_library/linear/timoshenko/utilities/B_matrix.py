@@ -38,6 +38,21 @@ class StrainDisplacementOperator:
 
     Notes
     -----
+    Canonical `B` block (single Gauss point, Timoshenko pattern):
+
+    ```text
+    ε = B U_e
+    ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]^T
+
+    B row meanings:
+    row 0: d(u_x)/dx
+    row 1: d(θ_y)/dx
+    row 2: d(θ_z)/dx
+    row 3: d(u_y)/dx - θ_z
+    row 4: d(u_z)/dx - θ_y
+    row 5: d(θ_x)/dx
+    ```
+
     **B tensor (per Gauss point, shape (6, 12))**
     - row 0 ``eps_x``: ``d(u_x)/dx``.
     - row 1 ``kappa_y``: ``d(theta_y)/dx``.
