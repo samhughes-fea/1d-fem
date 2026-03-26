@@ -1,4 +1,19 @@
 # pre_processing\element_library\levinson\utilities\shape_functions.py
+"""
+Shape functions for 2-node 3-D Levinson beam (higher-order transverse fields).
+
+**Tensors:** ``natural_coordinate_form(xi)`` returns ``N``, ``dN_dxi``, ``d2N_dxi2``, each shape ``(n_gp, 12, 6)`` —
+row = element DOF index, column = component ``(u_x, u_y, u_z, theta_x, theta_y, theta_z)``.
+
+**Weak form:** ``F_dist += w_g * N.T @ q * detJ`` with ``detJ = L/2``, ``xi in [-1, 1]``.
+
+**Diff vs EB/Timoshenko (12 DOF contract):** same ``U_e`` length and ``N`` layout as standard beam elements; Levinson uses
+quintic transverse / cubic bending rotations and feeds ``B_matrix`` with ``kappa_z`` before ``kappa_y`` in the strain vector.
+
+See Also
+--------
+linear_levinson_3D.LinearLevinsonBeamElement3D
+"""
 
 import numpy as np
 from typing import Tuple
@@ -7,46 +22,41 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class ShapeFunctionOperator:
     """
-    Operator for 3D Levinson beam with higher-order parabolic shear deformation.
+    Evaluate Levinson beam shape functions and natural derivatives on ``xi``.
 
-    Mathematical Formulation
-    -----------------------
-    DOF Interpolation:
-    - Axial displacement (u_x): 
-      Linear Lagrange polynomials (O(ξ^1))
-        N1_u = 0.5(1 - ξ), N2_u = 0.5(1 + ξ)
-    
-    - Transverse displacements (u_y, u_z):
-      Quintic polynomials (O(ξ^5)) with C1 continuity at nodes:
-        N1_v = 1/2 - (15/16)*ξ + (5/8)*ξ^3 - (3/16)*ξ^5
-        N2_v = 1/2 + (15/16)*ξ - (5/8)*ξ^3 + (3/16)*ξ^5
-        Satisfies: N1_v(-1)=1, N1_v(1)=0, N2_v(-1)=0, N2_v(1)=1; N1_v'=N2_v'=0 at ±1.
-    
-    - Rotations (θ_y, θ_z):
-      Cubic polynomials (O(ξ^3)) with C1 continuity:
-        N1_θ = (1/4)(2 - 3*ξ + ξ^3)
-        N2_θ = (1/4)(2 + 3*ξ - ξ^3)
-        Satisfies: N1_θ(-1)=1, N1_θ(1)=0, N2_θ(-1)=0, N2_θ(1)=1.
-    
-    - Torsional rotation (θ_x):
-      Linear Lagrange polynomials (O(ξ^1)) same as axial displacement
+    Axial and torsion: linear Lagrange; transverse ``u_y``, ``u_z``: quintic with zero slope at nodes;
+    ``theta_y``, ``theta_z``: cubic. ``physical_coordinate_form`` scales to ``dN/dx``, ``d2N/dx2`` via ``dxi_dx``, ``d2xi_dx2``.
 
-    Strain Formulation:
-    - Axial strain: ε_xx = du_x/dx
-    - Shear strains: γ_xy = du_y/dx - θ_z + α(d²θ_z/dx²)
-                    γ_xz = du_z/dx - θ_y + α(d²θ_y/dx²)
-    - Curvatures: κ_z = dθ_z/dx (x-y plane), κ_y = dθ_y/dx (x-z plane), φ_x = dθ_x/dx (torsion)
+    Parameters
+    ----------
+    element_length : float
+        Chord length ``L`` (must be > 0).
 
-    Element Characteristics:
-    - 2 nodes, 6 DOFs per node (u_x, u_y, u_z, θ_x, θ_y, θ_z)
-    - Higher-order interpolation eliminates shear correction factors
-    - Parabolic shear stress distribution (O(ξ^2))
-    - Consistent with Levinson's improved shear deformation theory
+    Attributes
+    ----------
+    dξ_dx : float
+        ``2/L`` (first derivative chain rule factor).
+    d2ξ_dx2 : float
+        ``4/L**2`` (second derivative chain rule factor).
 
-    Coordinate Transformation:
-    - Requires second derivatives for curvature terms:
-      ∂²/∂x² = (4/L²)∂²/∂ξ²
-    - Jacobian scaling factors applied to all strain components
+    Notes
+    -----
+    **Contract:** ``N`` batch shape ``(n_gp, 12, 6)`` matches standard beam load and stiffness assembly.
+    **Diff:** Higher-order ``u`` / ``theta`` fields vs linear Timoshenko; shear correction factor not used in ``D`` (``G*A``);
+    strain definitions and ``alpha`` terms live in ``B_matrix``.
+
+    **Polynomial detail (natural coordinate xi):**
+
+    - ``u_x``: ``N1_u = 0.5*(1-xi)``, ``N2_u = 0.5*(1+xi)``.
+    - ``u_y``, ``u_z`` (quintic): ``N1_v = 1/2 - (15/16)*xi + (5/8)*xi**3 - (3/16)*xi**5``, etc.; zero slope at nodes.
+    - ``theta_y``, ``theta_z`` (cubic): ``N1_theta = (1/4)*(2 - 3*xi + xi**3)``, ``N2_theta = (1/4)*(2 + 3*xi - xi**3)``.
+
+    Strain linkage (in ``B_matrix``): ``gamma_xy = du_y/dx - theta_z + alpha*d2(theta_z)/dx2``, etc.;
+    ``kappa_z = d(theta_z)/dx``, ``kappa_y = d(theta_y)/dx``, ``phi_x = d(theta_x)/dx``.
+
+    See Also
+    --------
+    linear_levinson_3D.LinearLevinsonBeamElement3D
     """
 
     element_length: float

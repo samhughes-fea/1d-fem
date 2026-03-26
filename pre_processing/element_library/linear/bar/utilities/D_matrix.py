@@ -80,11 +80,23 @@ class MaterialStiffnessOperator:
         return self._D_assembly
 
     def postprocessing_form(self) -> np.ndarray:
-        """Return 2×2 D-matrix for stress recovery and post-processing."""
+        """Return ``D`` (2, 2) for resultants ``S = D @ eps`` and energy post-processing."""
         return self._D_postprocess
 
     def compute_stress_resultants(self, strain: np.ndarray) -> np.ndarray:
-        """Compute stress resultants N = D @ ε. strain shape (2,) or (2, n)."""
+        """
+        Section resultants ``S = D @ strain`` (bar Voigt, length 2).
+
+        Parameters
+        ----------
+        strain : np.ndarray, shape (2,) or (2, n)
+            ``[eps_axial, phi_torsion]`` matching ``B_matrix`` (axial strain, twist rate).
+
+        Returns
+        -------
+        np.ndarray
+            Same shape as ``strain``; rows ``[N_axial, T]`` (axial force, torque).
+        """
         return self.postprocessing_form() @ np.asarray(strain, dtype=np.float64)
 
     def energy_density_components(self, strain: np.ndarray) -> Dict[str, float]:

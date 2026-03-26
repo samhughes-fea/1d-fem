@@ -104,33 +104,32 @@ class MaterialStiffnessOperator:
 
     def postprocessing_form(self) -> np.ndarray:
         """
-        Retrieves the complete material matrix for analysis and visualization.
-        
-        Used for:
-        - Stress recovery (σ = Dε)
-        - Strain energy calculations
-        - Result verification and postprocessing
+        Full section stiffness ``D`` for post-processing (same numbers as ``assembly_form``).
+
+        Used for stress resultants ``S = D @ eps``, strain energy density, and verification.
 
         Returns
         -------
-        np.ndarray 
-            6×6 material stiffness matrix in complete form
+        np.ndarray
+            Material stiffness matrix, shape (6, 6).
         """
         return self._D_postprocess
 
     def compute_stress_resultants(self, strain: np.ndarray) -> np.ndarray:
         """
-        Compute stress resultants from strain measures using full constitutive relation.
-        
+        Stress resultants ``S = D @ strain`` (beam Voigt, not 3D Cauchy stress).
+
         Parameters
         ----------
-        strain : np.ndarray, shape (6,) or (6,n)
-            Strain vector/matrix in Voigt notation ε = [ εₓ  κᵧ  κ_z  γ_xy  γ_xz  φₓ ]ᵀ
+        strain : np.ndarray, shape (6,) or (6, n)
+            Voigt strain ``[eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x]``
+            (same row order as ``FORMULATION_DOCSTRING_STANDARDS.md``).
 
         Returns
         -------
-        np.ndarray`
-            Stress resultants [N, M_z, M_y, M_x] in same shape as input
+        np.ndarray
+            Same shape as ``strain``. Rows of ``S``: ``[N, M_y, M_z, V_y, V_z, T]``
+            paired with strain rows.
         """
         return self.postprocessing_form() @ strain
 

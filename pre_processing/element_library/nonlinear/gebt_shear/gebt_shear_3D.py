@@ -256,6 +256,19 @@ class GEBTShearBeamElement3D(Element1DBase):
         return K_0 + K_sigma
 
     def internal_force_vector(self, U_e: np.ndarray) -> np.ndarray:
+        """
+        Same internal force assembly as nonlinear Timoshenko: ``F_int += B.T @ S * w_g * detJ`` (``B`` linear Timoshenko).
+
+        Parameters
+        ----------
+        U_e : np.ndarray
+            Element displacement vector, shape (12,).
+
+        Returns
+        -------
+        np.ndarray
+            Internal force vector, shape (12,).
+        """
         D = self.material_stiffness_operator.assembly_form()
         xi, w = self.integration_points
         detJ = self.jacobian_determinant

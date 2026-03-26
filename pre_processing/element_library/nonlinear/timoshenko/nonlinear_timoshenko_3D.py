@@ -286,7 +286,10 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
 
     def internal_force_vector(self, U_e: np.ndarray) -> np.ndarray:
         """
-        Internal force F_int = ∫ Bᵀ S dx (residual contribution).
+        Internal (residual) force using linear Timoshenko ``B`` in physical coordinates.
+
+        Accumulates ``F_int += B.T @ S * w_g * detJ`` over Gauss points with ``S = D @ E``,
+        ``E = E_lin + E_nl``.
 
         Parameters
         ----------

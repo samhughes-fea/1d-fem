@@ -12,29 +12,18 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class StrainDisplacementOperator:
     """
-    Builds the strain–displacement matrix **B** for a 2-node 3-D Euler–Bernoulli beam element.
+    Strain-displacement ``B`` (6, 12) per Gauss point for a 2-node 3-D Euler-Bernoulli beam.
 
-    The operator transforms derivatives of shape functions into physical strain measures.
+    Voigt ``eps = B @ U_e`` with rows
+    ``[eps_x, kappa_y, kappa_z, gamma_xy, gamma_xz, phi_x]``:
+    ``eps_x = d(u_x)/dx``; ``kappa_y``, ``kappa_z`` from transverse Hermite bending;
+    ``gamma_xy = gamma_xz = 0`` (no shear strain in EB kinematics);
+    ``phi_x = d(theta_x)/dx`` (torsion rate).
 
-    Strain vector:
-        ε = [ ε_x  κ_y  κ_z  γ_xy  γ_xz  φ_x ]ᵀ
+    Then ``S = D @ eps`` gives ``V_y = V_z = 0`` from constitutive ``D``; equilibrium gives
+    shear ``V = dM/dx`` if needed.
 
-    where:
-        ε_x   = ∂uₓ/∂x        (axial)
-        κ_y   = ∂²w /∂x²      (bending about y, x–z plane)
-        κ_z   = ∂²v /∂x²      (bending about z, x–y plane)
-        γ_xy  = 0             (shear xy not modelled in Euler-Bernoulli theory)
-        γ_xz  = 0             (shear xz not modelled in Euler-Bernoulli theory)
-        φ_x   = ∂θₓ/∂x        (torsion)
-
-    Consequence: stress resultants from σ = D @ ε give V_y = V_z = 0 for EB.
-    Shear force in Euler-Bernoulli is from equilibrium (V = dM/dx), not from
-    this constitutive output.
-
-    Coordinate mapping:
-        - x(ξ) = ((1 - ξ)/2)x₁ + ((1 + ξ)/2)x₂
-        - dx/dξ = L/2 ⇒ ∂ξ/∂x = 2/L
-        - ∂²ξ/∂x² = 4/L²
+    Map: ``x(xi)`` linear on chord, ``dx/dxi = L/2``, ``dxi_dx = 2/L``, ``d2xi_dx2 = 4/L**2``.
 
     Parameters
     ----------
@@ -52,9 +41,17 @@ class StrainDisplacementOperator:
 
     Notes
     -----
+    **Contract:** same outer sizes as standard 12-DOF beam: ``B`` (6, 12), ``U_e`` (12,).
+    **Diff vs shear-deformable theories:** shear strain rows of ``eps`` stay zero here; Timoshenko/Levinson
+    populate those rows with non-zero kinematics and ``D`` adds ``G*A`` (or ``kappa*G*A``) stiffness.
+
     Weak-form linkage: the element sums ``K_e += B.T @ D @ B * w_g * detJ`` over Gauss points using
-    ``physical_coordinate_form`` for ``B``. Natural-coordinate ``B_tilde`` relates via the Jacobian chain
-    (``dxi_dx``, ``d2xi_dx2``). Coordinate map: ``x(xi)`` linear from node 1 to node 2; ``dx/dxi = L/2``.
+    ``physical_coordinate_form`` for ``B``. Natural-coordinate ``B_tilde`` uses the Jacobian chain
+    (``dxi_dx``, ``d2xi_dx2``).
+
+    See Also
+    --------
+    linear_euler_bernoulli_3D.LinearEulerBernoulliBeamElement3D
     """
 
     element_length: float
