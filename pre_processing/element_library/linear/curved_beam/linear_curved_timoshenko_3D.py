@@ -5,10 +5,10 @@ import numpy as np
 from typing import Tuple
 
 from pre_processing.element_library.element_1D_base import Element1DBase
-from pre_processing.element_library.linear.timoshenko.utilities.D_matrix import MaterialStiffnessOperator
 from pre_processing.element_library.linear.curved_beam.utilities.B_matrix import CurvedStrainDisplacementOperator
+from pre_processing.element_library.linear.curved_beam.utilities.D_matrix import MaterialStiffnessOperator
+from pre_processing.element_library.linear.curved_beam.utilities.interpolate_loads import LoadInterpolationOperator
 from pre_processing.element_library.shape_function_registry import get_shape_function_operator
-from pre_processing.element_library.linear.timoshenko.utilities.interpolate_loads import LoadInterpolationOperator
 import logging
 
 logger = logging.getLogger(__name__)
