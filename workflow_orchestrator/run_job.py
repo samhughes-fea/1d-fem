@@ -384,29 +384,35 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
         element_mass_matrices = None
         if solver_type in ("modal", "dynamic"):
             step_start = time.time()
+            from pre_processing.element_library.parallel_compute import (
+                compute_element_mass_parallel,
+                compute_element_mass_sequential,
+            )
             if enable_parallel_computation:
                 try:
-                    from pre_processing.element_library.parallel_compute import compute_element_mass_parallel
                     mass_objects = compute_element_mass_parallel(
                         all_elements,
                         num_processes=num_processes
                     )
                 except Exception as e:
                     logger.warning(f"Parallel mass computation failed: {e}, falling back to sequential")
-                    mass_objects = np.array(
-                        [elem.element_mass_matrix() if elem else None for elem in all_elements],
-                        dtype=object
-                    )
+                    mass_objects = compute_element_mass_sequential(all_elements)
             else:
-                mass_objects = np.array(
-                    [elem.element_mass_matrix() if elem else None for elem in all_elements],
-                    dtype=object
-                )
+                mass_objects = compute_element_mass_sequential(all_elements)
             mass_none = sum(1 for o in mass_objects if o is None)
             if mass_none:
+                missing_types = sorted(
+                    {
+                        elem.__class__.__name__
+                        for obj, elem in zip(mass_objects, all_elements)
+                        if obj is None and elem is not None
+                    }
+                )
+                detail = f" Missing or unsupported types: {', '.join(missing_types)}." if missing_types else ""
                 raise RuntimeError(
-                    f"Cannot run {solver_type} simulation: {mass_none} element(s) do not implement element_mass_matrix(). "
-                    "Only element types with mass implemented (e.g. Bar-3D) are supported for modal/dynamic."
+                    f"Cannot run {solver_type} simulation: {mass_none} element(s) lack a usable "
+                    f"element_mass_matrix() (NotImplementedError or error).{detail} "
+                    "See docs/conventions/API_STANDARDS.md (mixed meshes / modal–dynamic)."
                 )
             element_mass_matrices = np.array([obj.M_e for obj in mass_objects], dtype=object)
             performance_data.append(["Element Mass Computation", time.time() - step_start, *track_usage().values()])

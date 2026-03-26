@@ -114,6 +114,16 @@ def _sequential_mass_compute(elements: List[Any]) -> np.ndarray:
     return np.array(results, dtype=object)
 
 
+def compute_element_mass_sequential(elements: List[Any]) -> np.ndarray:
+    """
+    Compute element mass objects sequentially.
+
+    Catches NotImplementedError per element (returns None for that slot), matching
+    parallel mass workers and modal/dynamic assembly in run_job.
+    """
+    return _sequential_mass_compute(elements)
+
+
 def compute_element_stiffness_parallel(
     elements: List[Any],
     num_processes: Optional[int] = None,
