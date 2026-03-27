@@ -2,7 +2,8 @@
 """Strain–displacement B (7, 14) per Gauss point for 2-node 3-D Euler–Bernoulli beam with Vlasov warping.
 
 At each Gauss point, ``ε = B U_e`` with ``ε ∈ ℝ^7`` and ``U_e ∈ ℝ^{14}``; rows 0–5 match
-``docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md`` / linear EB; row 6 is the warping-extension strain.
+``docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md`` / linear EB; row 6 is the Vlasov-type warping strain
+rate (``∂θ_x/∂x + ∂χ/∂x``), work-conjugate to ``S_w`` with ``E·Γ`` on ``D`` (see class docstring).
 Parent element uses ``K_e += B.T @ D @ B * w_g * detJ`` with ``detJ = L/2``.
 Voigt order follows ``FORMULATION_DOCSTRING_STANDARDS.md`` (extensions for ``(14,) U_e`` and ``(7, 14) B``).
 """
@@ -46,6 +47,15 @@ class WarpingStrainDisplacementOperator:
     see ``WarpingMaterialStiffnessOperator``):
 
         φ_x′  = ∂θ_x/∂x + ∂χ/∂x                  (row 6; bimoment-type strain rate)
+
+    **Theory context (Vlasov-type 1D beam)**
+
+    For open sections, codes that add **non-uniform** torsion and **bimoment**-type physics to **St. Venant**
+    torsion introduce a warping DOF (or amplitude) and section data **Γ** (m⁶). In that family, the kinematic
+    extension is **twist rate** plus **warping gradient**; this implementation’s seventh strain row
+    ``φ_x′ = ∂θ_x/∂x + ∂χ/∂x`` is paired with ``S_w`` via ``D`` with **``E·Γ``** on ``D[6,6]``, while row 5
+    ``φ_x = ∂θ_x/∂x`` pairs with **``G·J_t``** for uniform (shear-dominated) torsion—see
+    ``WarpingMaterialStiffnessOperator`` for **G** vs **E**.
 
     **Constitutive hook**
 

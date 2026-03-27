@@ -1,9 +1,9 @@
 # pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli_with_warp/utilities/D_matrix.py
 """Material stiffness D (7, 7) for Euler–Bernoulli beam with Vlasov warping.
 
-``S = D ε`` embeds linear EB ``D`` on rows/columns 0–5, zero shear rows, St. Venant torsion on ``D[5,5]``,
-and warping stiffness ``E·Γ`` on ``D[6,6]``. Used in ``K_e += B.T @ D @ B * w_g * detJ`` in the parent element
-(see ``linear_warping_euler_bernoulli_3D.py``).
+``S = D ε`` embeds linear EB on rows/columns 0–5, St. Venant torsion ``G·J_t`` on ``D[5,5]`` (shear-dominated
+uniform twist), and warping / bimoment-type stiffness ``E·Γ`` on ``D[6,6]`` (see class docstring for **G** vs **E**).
+Used in ``K_e += B.T @ D @ B * w_g * detJ`` in the parent element (see ``linear_warping_euler_bernoulli_3D.py``).
 """
 
 from __future__ import annotations
@@ -32,6 +32,16 @@ class WarpingMaterialStiffnessOperator:
     3–4 zero). The only entry involving the warping strain is ``D[6, 6] = E·Γ``; all other entries in
     row or column 6 are zero. Shear resultants ``V_y``, ``V_z`` remain zero from the constitutive path;
     shear forces are recovered from equilibrium where applicable, as for pure EB.
+
+    For **open** thin-walled sections, a **warping DOF** (or warping amplitude) together with a section
+    **warping constant** ``Γ`` (m⁶; sectorial / warping inertia) is standard in formulations that extend
+    **St. Venant** uniform torsion with **non-uniform** torsion and **bimoment**-type effects. In this 1D
+    model, row 5 pairs twist rate ``φ_x`` with torque ``T`` via **``G·J_t``**: uniform twist is
+    **shear-dominated**, so **G** is the appropriate modulus. Row 6 pairs the warping strain with ``S_w``
+    via **``E·Γ``**: restrained warping drives **longitudinal normal** stresses in the beam direction
+    (fibers stretch as the section warps out of plane and is constrained)—an **axial-stretch-type**
+    mechanism in the warping sense—so the usual Vlasov-type 1D stiffness uses **Young’s modulus E**
+    times ``Γ``, not **G·Γ**.
 
     Parameters
     ----------
@@ -69,8 +79,8 @@ class WarpingMaterialStiffnessOperator:
     D[2,2] = E·I_z      (bending stiffness about z)
     D[3,3] = 0          (no constitutive shear; γ_xy = 0 by EB kinematic constraint)
     D[4,4] = 0          (no constitutive shear; γ_xz = 0 by EB kinematic constraint)
-    D[5,5] = G·J_t      (St. Venant torsional stiffness)
-    D[6,6] = E·Γ        (warping / bimoment stiffness; Γ from section)
+    D[5,5] = G·J_t      (St. Venant torsional stiffness; shear-dominated uniform twist)
+    D[6,6] = E·Γ        (warping / bimoment stiffness; Γ [m⁶]; normal-stress-type warping mode)
     D[i,j] = 0  for all i ≠ j   (uncoupled across the seven modes in this implementation)
     ```
 
