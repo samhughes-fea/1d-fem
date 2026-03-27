@@ -22,9 +22,9 @@ from typing import Tuple
 
 from pre_processing.element_library.element_1D_base import Element1DBase
 from pre_processing.element_library.shape_function_registry import get_shape_function_operator
-from pre_processing.element_library.linear.reddy.utilities.B_matrix import StrainDisplacementOperator
-from pre_processing.element_library.linear.reddy.utilities.D_matrix import MaterialStiffnessOperator
-from pre_processing.element_library.linear.reddy.utilities.interpolate_loads import LoadInterpolationOperator
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.utilities.B_matrix import StrainDisplacementOperator
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.utilities.D_matrix import MaterialStiffnessOperator
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.utilities.interpolate_loads import LoadInterpolationOperator
 
 import logging
 

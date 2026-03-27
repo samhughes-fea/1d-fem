@@ -11,7 +11,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.linear.reddy.utilities.shape_functions import ShapeFunctionOperator
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.utilities.shape_functions import ShapeFunctionOperator
 
 
 def test_higher_order_shear_shape_functions():

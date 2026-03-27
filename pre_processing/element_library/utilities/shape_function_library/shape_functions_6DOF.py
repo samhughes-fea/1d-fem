@@ -2,7 +2,7 @@
 #
 # DEPRECATED: This module uses an older EB formulation (e.g. N2 = 1 - 3*ξ² + 2*ξ³).
 # The canonical implementation for Euler-Bernoulli is in
-# pre_processing.element_library.linear.euler_bernoulli.utilities.shape_functions.
+# pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.shape_functions.
 # Do not use this module for new work. See docs/element_library/shape_function_conventions.md.
 
 import numpy as np

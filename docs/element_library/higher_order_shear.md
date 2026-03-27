@@ -5,7 +5,7 @@ This document describes the **higher-order shear** beam formulations implemented
 ## Implemented elements
 
 - **Reddy:** `LinearReddyBeamElement3D` — 2-node, 12 DOF; same kinematics as Levinson (quintic transverse displacement, cubic rotation); γ = ∂u/∂x − θ + α ∂²θ/∂x²; D-matrix uses GA (no κ).
-- **Levinson:** Same strain and material formulation as Reddy; see `pre_processing/element_library/linear/levinson/` and `linear/reddy/` (Reddy re-exports Levinson B and D).
+- **Levinson:** Same strain and material formulation as Reddy; see `pre_processing/element_library/linear/beam/third_order_shear_deformation_theory/levinson/` and `.../reddy/` (Reddy re-exports Levinson B and D).
 
 ## Tests
 

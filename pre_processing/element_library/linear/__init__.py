@@ -1,9 +1,9 @@
 # pre_processing/element_library/linear/__init__.py
 # Linear element formulations (Euler-Bernoulli, Timoshenko, Levinson, Bar, Truss).
 
-from pre_processing.element_library.linear.euler_bernoulli.linear_euler_bernoulli_3D import LinearEulerBernoulliBeamElement3D
-from pre_processing.element_library.linear.timoshenko.linear_timoshenko_3D import LinearTimoshenkoBeamElement3D
-from pre_processing.element_library.linear.levinson.linear_levinson_3D import LinearLevinsonBeamElement3D
+from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import LinearEulerBernoulliBeamElement3D
+from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import LinearTimoshenkoBeamElement3D
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.linear_levinson_3D import LinearLevinsonBeamElement3D
 from pre_processing.element_library.linear.truss.linear_truss_3D import LinearTrussElement3D
 from pre_processing.element_library.linear.bar.linear_bar_3D import LinearBarElement3D
 

@@ -12,7 +12,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.linear.curved_beam.linear_curved_timoshenko_3D import (
+from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.curved_beam.linear_curved_timoshenko_3D import (
     LinearCurvedTimoshenkoBeamElement3D,
 )
 
@@ -138,7 +138,7 @@ def test_curved_beam_B_matrix_straight_limit():
             distributed_load_array=distributed_load_array,
             job_results_dir=job_results_dir,
         )
-        from pre_processing.element_library.linear.timoshenko.utilities.B_matrix import StrainDisplacementOperator
+        from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.B_matrix import StrainDisplacementOperator
         straight_op = StrainDisplacementOperator(element_length=L)
         xi = np.array([0.0])
         N, dN_dξ, d2N_dξ2 = element.shape_function_operator.natural_coordinate_form(xi)

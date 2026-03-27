@@ -42,7 +42,7 @@ def test_evaluator_n1_xi_hand_values():
 
 def test_evaluator_matches_eb_operator():
     """Full EB coefficient arrays (from EB export) should match ShapeFunctionOperator at sample ξ."""
-    from pre_processing.element_library.linear.euler_bernoulli.linear_euler_bernoulli_3D import (
+    from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
         LinearEulerBernoulliBeamElement3D,
     )
     import tempfile

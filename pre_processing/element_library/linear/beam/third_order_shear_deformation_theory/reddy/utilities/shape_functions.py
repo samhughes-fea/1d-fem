@@ -6,7 +6,7 @@ Distributed loads: ``F_dist += w_g * N.T @ q * detJ``. Strain operator differs v
 See ``linear_reddy_3D.py``.
 """
 
-from pre_processing.element_library.linear.levinson.utilities.shape_functions import (
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.utilities.shape_functions import (
     ShapeFunctionOperator,
 )
 

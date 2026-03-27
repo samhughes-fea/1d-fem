@@ -6,7 +6,7 @@ Reddy beam ``B``: re-export of Levinson ``StrainDisplacementOperator``.
 Parent ``linear_reddy_3D`` uses ``K_e += B.T @ D @ B * w_g * detJ`` with selective integration like Levinson.
 """
 
-from pre_processing.element_library.linear.levinson.utilities.B_matrix import (
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.utilities.B_matrix import (
     StrainDisplacementOperator,
 )
 

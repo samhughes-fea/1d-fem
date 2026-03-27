@@ -15,7 +15,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 def verify_gebt_shear_initial_stiffness():
     """Run comparison: GEBT tangent at U=0 vs linear Timoshenko K_e."""
-    from pre_processing.element_library.linear.timoshenko.linear_timoshenko_3D import LinearTimoshenkoBeamElement3D
+    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import LinearTimoshenkoBeamElement3D
     from pre_processing.element_library.nonlinear.gebt_shear.gebt_shear_3D import GEBTShearBeamElement3D
 
     L, E, G = 2.0, 2.1e11, 8.1e10

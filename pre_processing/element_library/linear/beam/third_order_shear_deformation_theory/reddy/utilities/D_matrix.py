@@ -3,7 +3,7 @@
 Reddy ``D``: re-export of Levinson ``MaterialStiffnessOperator`` — ``D`` (6, 6), ``S = D @ eps``, ``G*A`` shear (no ``kappa``).
 """
 
-from pre_processing.element_library.linear.levinson.utilities.D_matrix import (
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.utilities.D_matrix import (
     MaterialStiffnessOperator,
 )
 

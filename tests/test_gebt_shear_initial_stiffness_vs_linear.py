@@ -51,7 +51,7 @@ def _cantilever_dicts(L=2.0, E=2.1e11, G=8.1e10, A=0.00131, I_z=2.08769e-06, I_y
 
 def test_gebt_shear_initial_stiffness_vs_linear():
     """At U_e=0, GEBT shear tangent stiffness K_T equals linear Timoshenko K_e (same L, section, material)."""
-    from pre_processing.element_library.linear.timoshenko.linear_timoshenko_3D import LinearTimoshenkoBeamElement3D
+    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import LinearTimoshenkoBeamElement3D
     from pre_processing.element_library.nonlinear.gebt_shear.gebt_shear_3D import GEBTShearBeamElement3D
 
     grid_dictionary, element_dictionary, material_dictionary, section_dictionary = _cantilever_dicts()

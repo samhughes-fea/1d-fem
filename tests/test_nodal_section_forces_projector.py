@@ -19,7 +19,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 def _minimal_formulation_cache_and_mesh():
     """One Euler-Bernoulli element, formulation cache with shape_functions."""
-    from pre_processing.element_library.linear.euler_bernoulli.linear_euler_bernoulli_3D import (
+    from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
         LinearEulerBernoulliBeamElement3D,
     )
     from processing.static.results.containers import FormulationResultSet

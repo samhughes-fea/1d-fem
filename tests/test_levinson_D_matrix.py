@@ -13,7 +13,7 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.linear.levinson.utilities.D_matrix import MaterialStiffnessOperator
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.utilities.D_matrix import MaterialStiffnessOperator
 
 
 def test_levinson_D_matrix_shear_terms_are_GA_no_kappa():

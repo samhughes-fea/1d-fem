@@ -12,9 +12,9 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 def verify_curved_beam_straight_limit():
     """At κ0=0, curved strain-displacement B equals straight Timoshenko B at a Gauss point."""
-    from pre_processing.element_library.linear.curved_beam.utilities.B_matrix import CurvedStrainDisplacementOperator
-    from pre_processing.element_library.linear.timoshenko.utilities.B_matrix import StrainDisplacementOperator
-    from pre_processing.element_library.linear.timoshenko.utilities.shape_functions import ShapeFunctionOperator
+    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.curved_beam.utilities.B_matrix import CurvedStrainDisplacementOperator
+    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.B_matrix import StrainDisplacementOperator
+    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.shape_functions import ShapeFunctionOperator
 
     L = 1.0
     xi = np.array([0.0])

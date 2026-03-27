@@ -63,6 +63,6 @@ Full set **N**, **M_y**, **M_z**, **V_y**, **V_z**, **T**. Second Piola–Kirchh
 | Linear / nonlinear strain | `strain_linear_part`, `strain_nonlinear_part` |
 | Strain–displacement (linearized) | `linearized_strain_displacement` |
 | Section forces from strain | `StressResultantOperator.section_forces_from_strain`, [utilities/stress_resultant.py](utilities/stress_resultant.py) |
-| Geometric stiffness **K_σ** | `GeometricStiffnessOperator.assemble_K_sigma`, [utilities/geometric_stiffness.py](utilities/geometric_stiffness.py) |
+| Geometric stiffness **K_σ** | Re-exported from EB utility — same `assemble_K_sigma` Gauss API, [utilities/geometric_stiffness.py](utilities/geometric_stiffness.py) |
 
 For residual, Newton–Raphson, and logging details, see the [Total Lagrangian document](../../../../docs/element_library/total_lagrangian_beam_formulation.md).

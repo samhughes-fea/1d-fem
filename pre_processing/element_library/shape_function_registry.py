@@ -14,28 +14,28 @@ ShapeFunctionOperatorFactory = Callable[[float], Any]
 
 
 def _eb_operator(L: float) -> Any:
-    from pre_processing.element_library.linear.euler_bernoulli.utilities.shape_functions import (
+    from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.shape_functions import (
         ShapeFunctionOperator,
     )
     return ShapeFunctionOperator(element_length=L)
 
 
 def _timoshenko_operator(L: float) -> Any:
-    from pre_processing.element_library.linear.timoshenko.utilities.shape_functions import (
+    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.shape_functions import (
         ShapeFunctionOperator,
     )
     return ShapeFunctionOperator(element_length=L)
 
 
 def _levinson_operator(L: float) -> Any:
-    from pre_processing.element_library.linear.levinson.utilities.shape_functions import (
+    from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.utilities.shape_functions import (
         ShapeFunctionOperator,
     )
     return ShapeFunctionOperator(element_length=L)
 
 
 def _reddy_operator(L: float) -> Any:
-    from pre_processing.element_library.linear.reddy.utilities.shape_functions import (
+    from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.utilities.shape_functions import (
         ShapeFunctionOperator,
     )
     return ShapeFunctionOperator(element_length=L)

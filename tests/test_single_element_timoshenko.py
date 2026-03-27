@@ -12,7 +12,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.linear.timoshenko.linear_timoshenko_3D import (
+from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
     LinearTimoshenkoBeamElement3D,
 )
 from scripts.analytical_timoshenko_benchmark import analytical_timoshenko_tip_deflection

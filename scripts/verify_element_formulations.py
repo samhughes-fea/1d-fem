@@ -10,17 +10,17 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.linear.euler_bernoulli.utilities.shape_functions import ShapeFunctionOperator as EBShapeOp
-from pre_processing.element_library.linear.euler_bernoulli.utilities.B_matrix import StrainDisplacementOperator as EBBOp
-from pre_processing.element_library.linear.euler_bernoulli.utilities.D_matrix import MaterialStiffnessOperator as EBDOp
+from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.shape_functions import ShapeFunctionOperator as EBShapeOp
+from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.B_matrix import StrainDisplacementOperator as EBBOp
+from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.D_matrix import MaterialStiffnessOperator as EBDOp
 
-from pre_processing.element_library.linear.timoshenko.utilities.shape_functions import ShapeFunctionOperator as TimShapeOp
-from pre_processing.element_library.linear.timoshenko.utilities.B_matrix import StrainDisplacementOperator as TimBOp
-from pre_processing.element_library.linear.timoshenko.utilities.D_matrix import MaterialStiffnessOperator as TimDOp
+from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.shape_functions import ShapeFunctionOperator as TimShapeOp
+from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.B_matrix import StrainDisplacementOperator as TimBOp
+from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.D_matrix import MaterialStiffnessOperator as TimDOp
 
-from pre_processing.element_library.linear.levinson.utilities.shape_functions import ShapeFunctionOperator as LevShapeOp
-from pre_processing.element_library.linear.levinson.utilities.B_matrix import StrainDisplacementOperator as LevBOp
-from pre_processing.element_library.linear.levinson.utilities.D_matrix import MaterialStiffnessOperator as LevDOp
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.utilities.shape_functions import ShapeFunctionOperator as LevShapeOp
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.utilities.B_matrix import StrainDisplacementOperator as LevBOp
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.utilities.D_matrix import MaterialStiffnessOperator as LevDOp
 
 def verify_timoshenko():
     """Verify Timoshenko element formulation."""

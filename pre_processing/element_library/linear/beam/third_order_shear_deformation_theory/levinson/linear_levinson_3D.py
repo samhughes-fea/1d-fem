@@ -26,12 +26,12 @@ from typing import Tuple
 from pre_processing.element_library.element_1D_base import Element1DBase
 
 # Import MaterialStiffnessOperator, ShapeFunctionOperator and StrainDisplacementOperator classes
-from pre_processing.element_library.linear.levinson.utilities.D_matrix import MaterialStiffnessOperator
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.utilities.D_matrix import MaterialStiffnessOperator
 from pre_processing.element_library.shape_function_registry import get_shape_function_operator
-from pre_processing.element_library.linear.levinson.utilities.B_matrix import StrainDisplacementOperator
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.utilities.B_matrix import StrainDisplacementOperator
 
 # Import LoadInterpolationOperator class
-from pre_processing.element_library.linear.levinson.utilities.interpolate_loads import LoadInterpolationOperator
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.utilities.interpolate_loads import LoadInterpolationOperator
 
 # --- logging ----------------------------------------------
 import logging

@@ -19,9 +19,9 @@ from typing import List, Tuple
 import numpy as np
 
 from pre_processing.element_library.element_1D_base import Element1DBase
-from pre_processing.element_library.linear.timoshenko.utilities.D_matrix import MaterialStiffnessOperator
+from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.D_matrix import MaterialStiffnessOperator
 from pre_processing.element_library.shape_function_registry import get_shape_function_operator
-from pre_processing.element_library.linear.timoshenko.utilities.B_matrix import StrainDisplacementOperator
+from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.B_matrix import StrainDisplacementOperator
 from pre_processing.element_library.nonlinear.timoshenko.utilities import (
     GreenLagrangeStrainOperator,
     StressResultantOperator,
@@ -360,7 +360,7 @@ class GEBTShearBeamElement3D(Element1DBase):
 
     def element_force_vector(self):
         from pre_processing.element_library.gauss_point_data import ForceObject, ForceGaussPointData
-        from pre_processing.element_library.linear.timoshenko.utilities.interpolate_loads import LoadInterpolationOperator
+        from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.interpolate_loads import LoadInterpolationOperator
         self._assert_logging_ready()
         Fe = np.zeros(12, dtype=np.float64)
         gauss_cache = []

@@ -1,59 +1,58 @@
-# pre_processing/element_library/linear/timoshenko/linear_warping_timoshenko_3D.py
+# pre_processing/element_library/linear/euler_bernoulli/linear_warping_euler_bernoulli_3D.py
 """
-2-node 3D Timoshenko beam with 7 DOF/node (six + warping chi) for Vlasov non-uniform torsion.
+2-node 3D Euler–Bernoulli beam with 7 DOF/node (standard six + warping intensity chi) for Vlasov non-uniform torsion.
 
-**Tensors:** U_e (14,) with standard Timoshenko DOFs in 0–11 and warping χ at 12–13.
-Per Gauss point B (7,14): first six rows come from linear Timoshenko B on columns 0–11; row 6 is φ_x'
-(same warping extension as EB). D is (7,7): 6x6 Timoshenko D (κGA shear) plus D[6,6] = EΓ.
+**Tensors:** U_e (14,) node-major; DOFs 0–11 match linear EB, warping χ at indices 12–13.
+Per Gauss point B (7,14): first six rows are linear EB B on columns 0–11; row 6 is
+φ_x' = ∂θ_x/∂x + ∂χ/∂x (warping/bimoment strain). D is (7,7): upper 6x6 is linear EB D and D[6,6] = EΓ.
 ε is (7,), S = D ε, and detJ = L/2.
 
-**Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` with ``D`` (7,7); ``F_dist``, ``F_point``, ``M_e`` as for warping EB.
+**Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` with ``B`` (7,14); distributed and point loads on first 12 standard DOFs; ``M_e`` uses extended ``N`` (14,6) per ``FORMULATION_DOCSTRING_STANDARDS.md``.
 
-**Kinematics / shapes:** Registry ``LinearTimoshenkoBeamElement3D`` → ``N`` (12, 6); warping extension in ``_N_14x6_at_xi``.
+**Kinematics / shapes:** Registry ``LinearEulerBernoulliBeamElement3D`` supplies ``N`` (12, 6) per GP; warping DOFs use
+linear Lagrange on the ``theta_x`` slot (``_N_14x6_at_xi``).
 
-**Quadrature:** Same selective shear logic as linear Timoshenko where applicable (see ``element_stiffness_matrix``).
-
-**Mass:** ``M_e`` (14, 14) consistent on ``N`` (14, 6) with ``rho*Gamma`` on warping DOFs.
+**Mass:** ``element_mass_matrix`` returns ``M_e`` (14, 14) — consistent mass on ``N`` (14, 6) with ``rho*Gamma`` on warping DOFs.
 
 **Public API:** ``element_stiffness_matrix`` → ``ElementObject``; ``element_force_vector`` → ``ForceObject``;
 ``element_mass_matrix`` → ``MassObject``.
 """
 
 import numpy as np
-from typing import Tuple
+from typing import Optional, Tuple
 
 from pre_processing.element_library.element_1D_base import Element1DBase
-from pre_processing.element_library.linear.timoshenko.utilities.D_matrix import MaterialStiffnessOperator
-from pre_processing.element_library.linear.timoshenko.utilities.B_matrix import StrainDisplacementOperator
+from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.D_matrix import MaterialStiffnessOperator
+from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.B_matrix import StrainDisplacementOperator
 from pre_processing.element_library.shape_function_registry import get_shape_function_operator
-from pre_processing.element_library.linear.timoshenko.utilities.interpolate_loads import LoadInterpolationOperator
+from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.interpolate_loads import LoadInterpolationOperator
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Number of standard DOF and warping DOF
 N_STANDARD_DOF = 12
 N_WARPING_DOF = 2
-N_DOF = N_STANDARD_DOF + N_WARPING_DOF  # 14
-N_STRAIN = 7  # axial, κ_y, κ_z, γ_xy, γ_xz, φ_x, φ_x′
+N_DOF = N_STANDARD_DOF + N_WARPING_DOF
+N_STRAIN = 7
 
 
-class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
+class LinearWarpingEulerBernoulliBeamElement3D(Element1DBase):
     """
-    2 nodes, 7 DOF/node; same chord-frame convention as linear Timoshenko.
+    2 nodes, 7 DOF/node; local ``x`` along chord.
 
     Notes
     -----
-    **Contract/Diff vs 12-DOF Timoshenko:** ``U_e`` (14,) adds warping ``chi`` at 12–13; first six strain rows and 6x6
-    ``D`` block match linear Timoshenko on standard DOFs; row 6 / ``D[6,6]`` add Vlasov bimoment stiffness.
-    **N tensor:** extended shape functions are ``(14, 6)`` per Gauss point:
-    rows 0–11 follow standard Timoshenko ``N`` layout, rows 12–13 carry warping contribution in the torsion channel.
+    **Contract/Diff vs 12-DOF EB:** ``U_e`` (14,) extends the standard (12,) packing with warping ``chi`` at indices 12–13;
+    ``B`` (7,14) and ``D`` (7,7) embed linear EB on columns 0–11 and the upper 6x6 of ``D``; the seventh strain row
+    (warping rate / bimoment strain) and ``D[6,6] = E*Gamma`` are the extension.
+    **N tensor:** load/mass mapping uses extended ``N`` with shape ``(14, 6)`` per Gauss point:
+    first 12 rows are standard EB ``N``; warping rows (12, 13) populate the torsion component channel.
 
-    Assembly: ``K_e += B.T @ D @ B * w_g * detJ`` with ``B`` (7,14), ``D`` (7,7).
-    If ``quadrature_order`` is ``None`` or ``3``, derive from ``element_array`` (shear columns at least 2); else use the given integer.
+    Stiffness: ``K_e += B.T @ D @ B * w_g * detJ`` with ``B`` (7,14), ``D`` (7,7) as in the module docstring.
+    ``Gamma`` from ``section_array[9]`` when length >= 10 (otherwise 0 — no bimoment stiffness).
     """
 
-    element_type_name = "WarpingTimoshenko-3D"
+    element_type_name = "WarpingEulerBernoulli-3D"
 
     def __init__(
         self,
@@ -66,7 +65,7 @@ class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
         point_load_array: np.ndarray,
         distributed_load_array: np.ndarray,
         job_results_dir: str,
-        quadrature_order: int = 3,
+        quadrature_order: Optional[int] = None,
     ):
         super().__init__(
             element_id=element_id,
@@ -80,20 +79,17 @@ class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
             dof_per_node=7,
         )
 
-        if quadrature_order is None or quadrature_order == 3:
-            axial_order = self.element_array[3]
-            bending_y_order = self.element_array[4]
-            bending_z_order = self.element_array[5]
-            shear_y_order = max(self.element_array[6], 2) if self.element_array[6] > 0 else 2
-            shear_z_order = max(self.element_array[7], 2) if self.element_array[7] > 0 else 2
-            torsion_order = self.element_array[8]
-            max_order = max(
-                axial_order, bending_y_order, bending_z_order,
-                shear_y_order, shear_z_order, torsion_order
-            )
-            self.quadrature_order = max(max_order, 2)
-        else:
+        if quadrature_order is not None:
             self.quadrature_order = quadrature_order
+        else:
+            axial_order = int(self.element_array[3])
+            bending_y_order = int(self.element_array[4])
+            bending_z_order = int(self.element_array[5])
+            torsion_order = int(self.element_array[8])
+            load_order = int(self.element_array[9])
+            self.quadrature_order = max(
+                axial_order, bending_y_order, bending_z_order, torsion_order, load_order, 2
+            )
 
         self.node_coords = self.grid_array
         self.L = np.linalg.norm(self.node_coords[1] - self.node_coords[0])
@@ -104,7 +100,7 @@ class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
         self._validate_element_properties()
         self._assert_logging_ready()
 
-        self.shape_function_operator = get_shape_function_operator("LinearTimoshenkoBeamElement3D", self.L)
+        self.shape_function_operator = get_shape_function_operator("LinearEulerBernoulliBeamElement3D", self.L)
         self.strain_displacement_operator = StrainDisplacementOperator(element_length=self.L)
         self.material_stiffness_operator = MaterialStiffnessOperator(
             youngs_modulus=self.E,
@@ -113,9 +109,6 @@ class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
             moment_inertia_y=self.I_y,
             moment_inertia_z=self.I_z,
             torsion_constant=self.J_t,
-            shear_correction_factor=self.kappa,
-            y_sc=self.y_sc,
-            z_sc=self.z_sc,
         )
 
     def _validate_element_properties(self) -> None:
@@ -143,26 +136,7 @@ class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
         return self.section_array[4]
 
     @property
-    def kappa(self) -> float:
-        if self.section_array.size >= 7:
-            return float(self.section_array[5])
-        return 5.0 / 6.0
-
-    @property
-    def y_sc(self) -> float:
-        if self.section_array.size >= 9:
-            return float(self.section_array[7])
-        return 0.0
-
-    @property
-    def z_sc(self) -> float:
-        if self.section_array.size >= 9:
-            return float(self.section_array[8])
-        return 0.0
-
-    @property
     def Gamma(self) -> float:
-        """Warping constant Γ (general section integration); 0 if not in section_array."""
         if self.section_array.size >= 10:
             return float(self.section_array[9])
         return 0.0
@@ -183,29 +157,27 @@ class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
     def integration_points(self) -> Tuple[np.ndarray, np.ndarray]:
         return np.polynomial.legendre.leggauss(self.quadrature_order)
 
-    def _B_warping_row(self, dξ_dx: float) -> np.ndarray:
-        """Row 6 of B: φ_x′ = dθ_x/dx + dχ/dx. Linear shape for θ_x and warping: dN/dx = ±1/L."""
+    def _B_warping_row(self) -> np.ndarray:
+        """Row 6 of B: φ_x′ = dθ_x/dx + dχ/dx. Linear: ±1/L for θ_x and warping DOFs."""
         row = np.zeros(N_DOF, dtype=np.float64)
-        # θ_x at DOF 3 (node1), 9 (node2): linear N1=(1-ξ)/2, N2=(1+ξ)/2 => dN1/dx=-1/L, dN2/dx=1/L
         row[3] = -1.0 / self.L
         row[9] = 1.0 / self.L
-        # Warping DOF 12, 13: same linear
         row[12] = -1.0 / self.L
         row[13] = 1.0 / self.L
         return row
 
-    def _B_matrix_7x14(self, dN_dξ: np.ndarray, d2N_dξ2: np.ndarray, N: np.ndarray) -> np.ndarray:
-        """Build B (7, 14) from Timoshenko B (6, 12) plus warping row."""
+    def _B_matrix_7x14(self, dN_dξ: np.ndarray, d2N_dξ2: np.ndarray) -> np.ndarray:
+        """Build B (7, 14) from EB B (6, 12) plus warping row."""
         n_gauss = dN_dξ.shape[0]
-        B_6x12 = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)
+        B_6x12 = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)
         B = np.zeros((n_gauss, N_STRAIN, N_DOF), dtype=np.float64)
         B[:, :6, :12] = B_6x12
         for g in range(n_gauss):
-            B[g, 6, :] = self._B_warping_row(self.strain_displacement_operator.dξ_dx)
+            B[g, 6, :] = self._B_warping_row()
         return B
 
     def _D_matrix_7x7(self) -> np.ndarray:
-        """D (7,7): first 6×6 from Timoshenko, D[6,6] = E·Γ."""
+        """D (7,7): first 6×6 from EB (shear rows zero), D[6,6] = E·Γ."""
         D6 = self.material_stiffness_operator.assembly_form()
         D = np.zeros((N_STRAIN, N_STRAIN), dtype=np.float64)
         D[:6, :6] = D6
@@ -218,15 +190,12 @@ class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
         self._assert_logging_ready()
         Ke = np.zeros((N_DOF, N_DOF), dtype=np.float64)
         D = self._D_matrix_7x7()
-        xi_full, w_full = np.polynomial.legendre.leggauss(self.quadrature_order)
+        xi_full, w_full = self.integration_points
         gauss_cache = []
 
         for g, (xi_g, w_g) in enumerate(zip(xi_full, w_full)):
             N_12, dN_dξ_12, d2N_dξ2_12 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-            N = N_12
-            dN_dξ = dN_dξ_12
-            d2N_dξ2 = d2N_dξ2_12
-            B = self._B_matrix_7x14(dN_dξ, d2N_dξ2, N)[0]
+            B = self._B_matrix_7x14(dN_dξ_12, d2N_dξ2_12)[0]
             detJ = self.jacobian_determinant
             Ke += B.T @ D @ B * w_g * detJ
             gauss_cache.append(StiffnessGaussPointData(
@@ -240,7 +209,7 @@ class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
             ))
 
         if self.logger_operator:
-            self.logger_operator.log_text("stiffness", f"\n=== Element {self.element_id} Warping Timoshenko K_e (14,14) ===")
+            self.logger_operator.log_text("stiffness", f"\n=== Element {self.element_id} Warping EB K_e (14,14) ===")
             self.logger_operator.log_matrix("stiffness", Ke, {"name": "Element Stiffness Matrix"})
             self.logger_operator.flush("stiffness")
 
@@ -253,14 +222,14 @@ class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
         )
 
     def element_force_vector(self):
-        from pre_processing.element_library.gauss_point_data import ForceObject
+        from pre_processing.element_library.gauss_point_data import ForceObject, ForceGaussPointData
 
         self._assert_logging_ready()
         Fe = np.zeros(N_DOF, dtype=np.float64)
 
+        gauss_cache = []
         if self.distributed_load_array.size > 0:
-            Fe_dist, _ = self._compute_distributed_load_contribution()
-            Fe[:N_STANDARD_DOF] += Fe_dist
+            Fe[:N_STANDARD_DOF], gauss_cache = self._compute_distributed_load_contribution()
 
         if self.point_load_array.size > 0:
             Fe[:N_STANDARD_DOF] += self._compute_point_load_contribution()
@@ -274,7 +243,7 @@ class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
             element_id=self.element_id,
             element_type=self.element_type_name,
             F_e=Fe,
-            gauss_data=[],
+            gauss_data=gauss_cache,
             point_loads=self.point_load_array.copy() if self.point_load_array.size > 0 else None,
         )
 
@@ -289,7 +258,7 @@ class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
 
     def element_mass_matrix(self):
         """
-        Consistent mass: first 12 DOFs as straight Timoshenko; warping DOFs 12–13 with ρ·Γ
+        Consistent mass: first 12 DOFs as straight Euler–Bernoulli; warping DOFs 12–13 with ρ·Γ
         and linear shape (θ_x component slot).
         """
         from pre_processing.element_library.gauss_point_data import MassObject
