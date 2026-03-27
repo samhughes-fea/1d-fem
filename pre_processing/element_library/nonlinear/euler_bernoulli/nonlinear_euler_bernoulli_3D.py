@@ -387,46 +387,6 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
             result.append(np.asarray(E, dtype=np.float64))
         return result
 
-    def _build_shape_function_coefficients_b2(
-        self,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Build B2 coefficient arrays (12, 6, 4) for N, dN/dξ, d²N/dξ² in monomial basis ξ^0..ξ^3 (same as linear EB)."""
-        L = self.L
-        c = np.zeros((12, 6, 4), dtype=np.float64)
-        dc = np.zeros((12, 6, 4), dtype=np.float64)
-        d2c = np.zeros((12, 6, 4), dtype=np.float64)
-        # Axial: N₀ = 0.5(1-ξ), N₆ = 0.5(1+ξ)
-        c[0, 0, 0], c[0, 0, 1] = 0.5, -0.5
-        c[6, 0, 0], c[6, 0, 1] = 0.5, 0.5
-        dc[0, 0, 0] = -0.5
-        dc[6, 0, 0] = 0.5
-        # Bending XY displacement: N1 = 0.5 - 0.75ξ + 0.25ξ³, N3 = 0.5 + 0.75ξ - 0.25ξ³
-        c[1, 1, 0], c[1, 1, 1], c[1, 1, 3] = 0.5, -0.75, 0.25
-        c[7, 1, 0], c[7, 1, 1], c[7, 1, 3] = 0.5, 0.75, -0.25
-        dc[1, 1, 0], dc[1, 1, 2] = -0.75, 0.75
-        dc[7, 1, 0], dc[7, 1, 2] = 0.75, -0.75
-        d2c[1, 1, 1] = 1.5
-        d2c[7, 1, 1] = -1.5
-        # Bending XY rotation: N2 = (L/8)(1 - ξ - ξ² + ξ³), N4 = -(L/8)(1 + ξ - ξ² - ξ³)
-        scale = L / 8.0
-        c[5, 5, 0], c[5, 5, 1], c[5, 5, 2], c[5, 5, 3] = scale, -scale, -scale, scale
-        c[11, 5, 0], c[11, 5, 1], c[11, 5, 2], c[11, 5, 3] = -scale, -scale, scale, scale
-        dc[5, 5, 0], dc[5, 5, 1], dc[5, 5, 2] = -scale, -2 * scale, 3 * scale
-        dc[11, 5, 0], dc[11, 5, 1], dc[11, 5, 2] = -scale, 2 * scale, 3 * scale
-        d2c[5, 5, 0], d2c[5, 5, 1] = -2 * scale, 6 * scale
-        d2c[11, 5, 0], d2c[11, 5, 1] = 2 * scale, 6 * scale
-        # Bending XZ: copy from XY
-        c[2, 2], c[8, 2] = c[1, 1].copy(), c[7, 1].copy()
-        dc[2, 2], dc[8, 2] = dc[1, 1].copy(), dc[7, 1].copy()
-        d2c[2, 2], d2c[8, 2] = d2c[1, 1].copy(), d2c[7, 1].copy()
-        c[4, 4], c[10, 4] = -c[5, 5].copy(), -c[11, 5].copy()
-        dc[4, 4], dc[10, 4] = -dc[5, 5].copy(), -dc[11, 5].copy()
-        d2c[4, 4], d2c[10, 4] = -d2c[5, 5].copy(), -d2c[11, 5].copy()
-        # Torsion: same as axial
-        c[3, 3], c[9, 3] = c[0, 0].copy(), c[6, 0].copy()
-        dc[3, 3], dc[9, 3] = dc[0, 0].copy(), dc[6, 0].copy()
-        return c, dc, d2c
-
     def element_stiffness_matrix(self):
         """
         Return ElementObject with K_e = initial tangent at U=0 (same as linear K_e).
@@ -478,7 +438,7 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
             self.logger_operator.flush("stiffness")
         op = self.shape_function_operator
         evaluate_shape_functions = lambda xi_val: op.natural_coordinate_form(np.asarray(xi_val))
-        N_coeffs, dN_coeffs, d2N_coeffs = self._build_shape_function_coefficients_b2()
+        N_coeffs, dN_coeffs, d2N_coeffs = op.build_shape_function_coefficients_b2()
         return ElementObject(
             element_id=self.element_id,
             element_type=self.element_type_name,
