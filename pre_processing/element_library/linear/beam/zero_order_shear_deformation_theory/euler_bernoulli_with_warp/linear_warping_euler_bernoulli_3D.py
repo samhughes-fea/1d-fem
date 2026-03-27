@@ -1,4 +1,4 @@
-# pre_processing/element_library/linear/euler_bernoulli/linear_warping_euler_bernoulli_3D.py
+# pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli_with_warp/linear_warping_euler_bernoulli_3D.py
 """
 2-node 3D Euler–Bernoulli beam with 7 DOF/node (standard six + warping intensity chi) for Vlasov non-uniform torsion.
 
@@ -22,10 +22,11 @@ import numpy as np
 from typing import Optional, Tuple
 
 from pre_processing.element_library.element_1D_base import Element1DBase
-from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.D_matrix import MaterialStiffnessOperator
-from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.B_matrix import StrainDisplacementOperator
 from pre_processing.element_library.shape_function_registry import get_shape_function_operator
-from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.interpolate_loads import LoadInterpolationOperator
+
+from ..euler_bernoulli.utilities.B_matrix import StrainDisplacementOperator
+from ..euler_bernoulli.utilities.D_matrix import MaterialStiffnessOperator
+from ..euler_bernoulli.utilities.interpolate_loads import LoadInterpolationOperator
 import logging
 
 logger = logging.getLogger(__name__)

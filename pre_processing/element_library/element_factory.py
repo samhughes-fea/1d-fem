@@ -30,7 +30,7 @@ class ElementFactory:
         "LinearEulerBernoulliBeamElement3D":
             "pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D",
         "LinearWarpingEulerBernoulliBeamElement3D":
-            "pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_warping_euler_bernoulli_3D",
+            "pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli_with_warp.linear_warping_euler_bernoulli_3D",
         "LinearTimoshenkoBeamElement3D":
             "pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D",
         "LinearWarpingTimoshenkoBeamElement3D":
