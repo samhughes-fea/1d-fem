@@ -1,13 +1,15 @@
 # pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli_with_warp/utilities/shape_functions.py
-"""Extend registry EB shape tensor (12, 6) to (14, 6) for warping χ DOFs (mass and kinematics).
+"""Extend registry EB shape tensor (12, 6) to (14, 6) for warping χ DOFs (consistent mass).
 
 The shape-function registry returns ``N``, ``∂N/∂ξ``, ``∂²N/∂ξ²`` with batch shape (n_gp, 12, 6) for
 ``LinearEulerBernoulliBeamElement3D`` — one row per global DOF (0–11), one column per displacement component
 (0–5). This module defines the **extended** ``N`` slice (14, 6) used for **consistent mass** on 14 DOFs: rows 0–11
 copy the EB block; rows 12–13 interpolate χ in the **θ_x component column** (index 3) with linear Lagrange in ξ.
 
-Stiffness ``B`` is **not** built from this extended ``N``; it uses ``StrainDisplacementOperator`` + warping row
-(see ``B_matrix.py``). See ``docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md`` for column semantics.
+Stiffness ``B`` (7, 14) is built from the same registry ``(dN/dξ, d²N/dξ²)`` as linear EB via
+``StrainDisplacementOperator.physical_coordinate_form``; the seventh strain row composes rows of that ``B_6x12``
+(see ``B_matrix.WarpingStrainDisplacementOperator``). Extended ``N`` here is **not** used for ``K_e``. See
+``docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md`` for column semantics.
 """
 
 import numpy as np
@@ -38,8 +40,8 @@ def extend_natural_shape_to_warping(N12: np.ndarray, xi: float) -> np.ndarray:
 
     Notes
     -----
-    Used in ``element_mass_matrix`` with per-DOF weights including ``ρ·Γ`` on χ DOFs. Not used for
-    ``K_e`` assembly (stiffness uses ``B`` from ``WarpingStrainDisplacementOperator``).
+    Used in ``element_mass_matrix`` with per-DOF weights including ``ρ·Γ`` on χ DOFs. ``K_e`` uses
+    ``WarpingStrainDisplacementOperator`` built from registry derivatives, not this extended ``N``.
 
     **Sparsity (χ rows)**
 
