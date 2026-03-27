@@ -1,21 +1,30 @@
 # pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli_with_warp/linear_warping_euler_bernoulli_3D.py
 """
-2-node 3D Euler–Bernoulli beam with 7 DOF/node (standard six + warping intensity chi) for Vlasov non-uniform torsion.
+2-node 3D Euler–Bernoulli beam with Vlasov warping (7 DOF/node: six standard + warping intensity χ per node).
 
-**Tensors:** U_e (14,) node-major; DOFs 0–11 match linear EB, warping χ at indices 12–13.
-Per Gauss point B (7,14): first six rows are linear EB B on columns 0–11; row 6 is
-φ_x' = ∂θ_x/∂x + ∂χ/∂x (warping/bimoment strain). D is (7,7): upper 6x6 is linear EB D and D[6,6] = EΓ.
-ε is (7,), S = D ε, and detJ = L/2.
+**Tensors:** ``U_e`` (14,) node-major; ``K_e``, ``M_e`` (14, 14); ``F_e`` (14,). Per Gauss point ``B`` (7, 14),
+``D`` (7, 7); ``ε`` (7,), ``S = D @ ε`` (7,). Voigt order for rows 0–5 follows
+``docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md``; row 6 is the warping-extension strain (see **Kinematics**).
+``detJ = |J| = L/2``.
 
-**Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` with ``B`` (7,14); distributed and point loads on first 12 standard DOFs; ``M_e`` uses extended ``N`` (14,6) per ``FORMULATION_DOCSTRING_STANDARDS.md``.
+**Weak forms (Gauss, ξ in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` summed over Gauss points.
+Distributed and point loads fill only the **first 12** standard DOFs using the registry EB shape tensor ``N`` (12, 6)
+per point (same as linear EB). Consistent mass uses ``N`` extended to (14, 6); see ``utilities/shape_functions.py``.
 
-**Kinematics / shapes:** Registry ``LinearEulerBernoulliBeamElement3D`` supplies ``N`` (12, 6) per GP; warping DOFs use
-linear Lagrange on the ``theta_x`` slot (see ``utilities/shape_functions.extend_natural_shape_to_warping``).
+**Kinematics:** Rows 0–5 of ``B`` on columns 0–11 match linear EB ``B`` (6, 12); column blocks 12–13 are the warping DOFs
+for row 6. Strain row 6 is ``φ_x′ = ∂θ_x/∂x + ∂χ/∂x`` (bimoment-type warping rate), assembled as constant coefficients
+on ``θ_x`` and ``χ`` DOFs in ``utilities/B_matrix.py``. Registry ``LinearEulerBernoulliBeamElement3D`` supplies
+``N``, ``∂N/∂ξ``, ``∂²N/∂ξ²`` with batch slice (n_gp, 12, 6); χ rows for mass use
+``utilities/shape_functions.extend_natural_shape_to_warping``.
 
-**Mass:** ``element_mass_matrix`` returns ``M_e`` (14, 14) — consistent mass on ``N`` (14, 6) with ``rho*Gamma`` on warping DOFs.
+**Constitutive:** ``D[:6, :6]`` is the linear EB material matrix; shear rows 3–4 remain zero. ``D[6, 6] = E·Γ`` with Γ
+from ``section_array[9]`` when provided (else 0). See ``utilities/D_matrix.py``.
+
+**Quadrature:** Gauss–Legendre order ``quadrature_order`` from the constructor or from ``element_array`` (axial,
+bending_y, bending_z, torsion, load columns), same convention as linear EB.
 
 **Public API:** ``element_stiffness_matrix`` → ``ElementObject``; ``element_force_vector`` → ``ForceObject``;
-``element_mass_matrix`` → ``MassObject``.
+``element_mass_matrix`` → ``MassObject`` (consistent mass).
 """
 
 import numpy as np
@@ -42,18 +51,39 @@ logger = logging.getLogger(__name__)
 
 class LinearWarpingEulerBernoulliBeamElement3D(Element1DBase):
     """
-    2 nodes, 7 DOF/node; local ``x`` along chord.
+    Two nodes; ``dof_per_node = 7``; local ``x`` along the chord (node 1 → node 2).
+
+    **Identity / U_e:** Node-major displacement vector ``U_e ∈ ℝ^{14}``:
+
+        [u_x¹, u_y¹, u_z¹, θ_x¹, θ_y¹, θ_z¹, χ¹,
+         u_x², u_y², u_z², θ_x², θ_y², θ_z², χ²]
+
+    Indices 0–11 are the standard 12-DOF EB packing; indices 12–13 are warping intensities χ at nodes 1 and 2.
+
+    **Tensors:** Same outer shapes as the module docstring: ``K_e``, ``M_e`` (14, 14); ``B`` (7, 14), ``D`` (7, 7);
+    ``ε``, ``S`` (7,) with Voigt rows 0–5 per ``FORMULATION_DOCSTRING_STANDARDS`` and row 6 the warping strain.
+
+    **Weak forms:** As the module **Weak forms** block; stiffness uses ``utilities/B_matrix.WarpingStrainDisplacementOperator``
+    and ``utilities/D_matrix.WarpingMaterialStiffnessOperator``.
+
+    **Constitutive / data:** ``Gamma`` (Γ) from ``section_array[9]`` when ``len(section_array) >= 10``, else 0.
 
     Notes
     -----
-    **Contract/Diff vs 12-DOF EB:** ``U_e`` (14,) extends the standard (12,) packing with warping ``chi`` at indices 12–13;
-    ``B`` (7,14) and ``D`` (7,7) embed linear EB on columns 0–11 and the upper 6x6 of ``D``; the seventh strain row
-    (warping rate / bimoment strain) and ``D[6,6] = E*Gamma`` are the extension.
-    **N tensor:** load/mass mapping uses extended ``N`` with shape ``(14, 6)`` per Gauss point:
-    first 12 rows are standard EB ``N``; warping rows (12, 13) populate the torsion component channel.
+    **Contract vs 12-DOF EB:** The first 12 DOFs and first six strain rows/columns embed the linear EB baseline;
+    the seventh strain row and DOFs 12–13 extend the model for warping, per
+    ``FORMULATION_DOCSTRING_STANDARDS`` (extensions for ``(14,) U_e`` and ``(7, 14) B``).
 
-    Stiffness: ``K_e += B.T @ D @ B * w_g * detJ`` with ``B`` (7,14), ``D`` (7,7) as in the module docstring.
-    ``Gamma`` from ``section_array[9]`` when length >= 10 (otherwise 0 — no bimoment stiffness).
+    See Also
+    --------
+    LinearEulerBernoulliBeamElement3D
+        12-DOF baseline in ``../euler_bernoulli/linear_euler_bernoulli_3D.py``.
+    WarpingStrainDisplacementOperator, WarpingMaterialStiffnessOperator
+        Warping ``B`` and ``D`` assembly in ``utilities/B_matrix.py`` and ``utilities/D_matrix.py``.
+    extend_natural_shape_to_warping
+        Extended ``N`` for consistent mass in ``utilities/shape_functions.py``.
+    docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md
+        Voigt order for rows 0--5; extensions for ``(14,) U_e`` and ``(7, 14) B``.
     """
 
     element_type_name = "WarpingEulerBernoulli-3D"
