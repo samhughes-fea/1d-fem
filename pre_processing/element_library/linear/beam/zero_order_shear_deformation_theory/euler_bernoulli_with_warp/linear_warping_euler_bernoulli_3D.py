@@ -10,7 +10,7 @@ Per Gauss point B (7,14): first six rows are linear EB B on columns 0–11; row 
 **Weak forms (Gauss, xi in [-1, 1]):** ``K_e += B.T @ D @ B * w_g * detJ`` with ``B`` (7,14); distributed and point loads on first 12 standard DOFs; ``M_e`` uses extended ``N`` (14,6) per ``FORMULATION_DOCSTRING_STANDARDS.md``.
 
 **Kinematics / shapes:** Registry ``LinearEulerBernoulliBeamElement3D`` supplies ``N`` (12, 6) per GP; warping DOFs use
-linear Lagrange on the ``theta_x`` slot (``_N_14x6_at_xi``).
+linear Lagrange on the ``theta_x`` slot (see ``utilities/shape_functions.extend_natural_shape_to_warping``).
 
 **Mass:** ``element_mass_matrix`` returns ``M_e`` (14, 14) — consistent mass on ``N`` (14, 6) with ``rho*Gamma`` on warping DOFs.
 
@@ -27,14 +27,17 @@ from pre_processing.element_library.shape_function_registry import get_shape_fun
 from ..euler_bernoulli.utilities.B_matrix import StrainDisplacementOperator
 from ..euler_bernoulli.utilities.D_matrix import MaterialStiffnessOperator
 from ..euler_bernoulli.utilities.interpolate_loads import LoadInterpolationOperator
+
+from .utilities import (
+    N_DOF,
+    N_STANDARD_DOF,
+    WarpingMaterialStiffnessOperator,
+    WarpingStrainDisplacementOperator,
+    extend_natural_shape_to_warping,
+)
 import logging
 
 logger = logging.getLogger(__name__)
-
-N_STANDARD_DOF = 12
-N_WARPING_DOF = 2
-N_DOF = N_STANDARD_DOF + N_WARPING_DOF
-N_STRAIN = 7
 
 
 class LinearWarpingEulerBernoulliBeamElement3D(Element1DBase):
@@ -111,6 +114,15 @@ class LinearWarpingEulerBernoulliBeamElement3D(Element1DBase):
             moment_inertia_z=self.I_z,
             torsion_constant=self.J_t,
         )
+        self.warping_strain_displacement_operator = WarpingStrainDisplacementOperator(
+            element_length=self.L,
+            base_strain_operator=self.strain_displacement_operator,
+        )
+        self.warping_material_stiffness_operator = WarpingMaterialStiffnessOperator(
+            base_material_operator=self.material_stiffness_operator,
+            youngs_modulus=self.E,
+            warping_gamma=self.Gamma,
+        )
 
     def _validate_element_properties(self) -> None:
         if self.L <= 0:
@@ -158,45 +170,18 @@ class LinearWarpingEulerBernoulliBeamElement3D(Element1DBase):
     def integration_points(self) -> Tuple[np.ndarray, np.ndarray]:
         return np.polynomial.legendre.leggauss(self.quadrature_order)
 
-    def _B_warping_row(self) -> np.ndarray:
-        """Row 6 of B: φ_x′ = dθ_x/dx + dχ/dx. Linear: ±1/L for θ_x and warping DOFs."""
-        row = np.zeros(N_DOF, dtype=np.float64)
-        row[3] = -1.0 / self.L
-        row[9] = 1.0 / self.L
-        row[12] = -1.0 / self.L
-        row[13] = 1.0 / self.L
-        return row
-
-    def _B_matrix_7x14(self, dN_dξ: np.ndarray, d2N_dξ2: np.ndarray) -> np.ndarray:
-        """Build B (7, 14) from EB B (6, 12) plus warping row."""
-        n_gauss = dN_dξ.shape[0]
-        B_6x12 = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)
-        B = np.zeros((n_gauss, N_STRAIN, N_DOF), dtype=np.float64)
-        B[:, :6, :12] = B_6x12
-        for g in range(n_gauss):
-            B[g, 6, :] = self._B_warping_row()
-        return B
-
-    def _D_matrix_7x7(self) -> np.ndarray:
-        """D (7,7): first 6×6 from EB (shear rows zero), D[6,6] = E·Γ."""
-        D6 = self.material_stiffness_operator.assembly_form()
-        D = np.zeros((N_STRAIN, N_STRAIN), dtype=np.float64)
-        D[:6, :6] = D6
-        D[6, 6] = self.E * self.Gamma
-        return D
-
     def element_stiffness_matrix(self):
         from pre_processing.element_library.gauss_point_data import ElementObject, StiffnessGaussPointData
 
         self._assert_logging_ready()
         Ke = np.zeros((N_DOF, N_DOF), dtype=np.float64)
-        D = self._D_matrix_7x7()
+        D = self.warping_material_stiffness_operator.assembly_form()
         xi_full, w_full = self.integration_points
         gauss_cache = []
 
         for g, (xi_g, w_g) in enumerate(zip(xi_full, w_full)):
             N_12, dN_dξ_12, d2N_dξ2_12 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-            B = self._B_matrix_7x14(dN_dξ_12, d2N_dξ2_12)[0]
+            B = self.warping_strain_displacement_operator.physical_coordinate_form(dN_dξ_12, d2N_dξ2_12)[0]
             detJ = self.jacobian_determinant
             Ke += B.T @ D @ B * w_g * detJ
             gauss_cache.append(StiffnessGaussPointData(
@@ -248,15 +233,6 @@ class LinearWarpingEulerBernoulliBeamElement3D(Element1DBase):
             point_loads=self.point_load_array.copy() if self.point_load_array.size > 0 else None,
         )
 
-    def _N_14x6_at_xi(self, xi_g: float, N12: np.ndarray) -> np.ndarray:
-        """Extend standard (12, 6) N to (14, 6); warping DOFs use linear Lagrange on θ_x component."""
-        Nf = np.zeros((N_DOF, 6), dtype=np.float64)
-        Nf[:N_STANDARD_DOF, :] = N12
-        xi = float(xi_g)
-        Nf[12, 3] = 0.5 * (1.0 - xi)
-        Nf[13, 3] = 0.5 * (1.0 + xi)
-        return Nf
-
     def element_mass_matrix(self):
         """
         Consistent mass: first 12 DOFs as straight Euler–Bernoulli; warping DOFs 12–13 with ρ·Γ
@@ -282,7 +258,7 @@ class LinearWarpingEulerBernoulliBeamElement3D(Element1DBase):
         detJ = self.jacobian_determinant
         for xi_g, w_g in zip(xi, w):
             N12, _, _ = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-            Ng = self._N_14x6_at_xi(xi_g, N12[0])
+            Ng = extend_natural_shape_to_warping(N12[0], xi_g)
             for i in range(N_DOF):
                 for j in range(N_DOF):
                     mij = 0.5 * (mu[i] + mu[j])
