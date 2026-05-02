@@ -4,8 +4,8 @@
 
 **Tensors:** ``U_e`` (12,); reference ``B`` (6, 12), ``D`` (6, 6) from linear Timoshenko (``kappa*G*A`` shear).
 ``E = E_lin + E_nl`` (6,) with ``include_shear=True`` in ``GreenLagrangeStrainOperator``; ``S = D @ E``.
-``F_int += B.T @ S * w_g * detJ`` (``B`` = linear Timoshenko strain-displacement operator in physical coordinates);
-``K_T = K_0 + K_sigma`` — ``K_0`` from ``assemble_timoshenko_K0`` (same selective material stiffness as linear Timoshenko);
+``F_int += B_tot.T @ S * w_g * detJ`` with ``B_tot = B_lin + B_nl`` (linear Timoshenko ``B`` plus TL gradient);
+``K_T = K_0 + K_delta + K_sigma`` — ``K_0`` from ``assemble_timoshenko_K0`` (linear selective stiffness); ``K_delta`` is the TL material correction ``Σ (B_tot.T @ D @ B_tot − B_lin.T @ D @ B_lin)`` on the TL Gauss loop so ``U=0`` recovers linear ``K_e``;
 ``K_sigma`` from ``GeometricStiffnessOperator``. ``detJ = L/2``.
 
 **Weak forms (Gauss, xi in [-1, 1]):** ``F_int`` and ``K_sigma`` use one Gauss rule of order ``loop_order`` (default ``max`` of mesh
@@ -47,7 +47,8 @@ logger = logging.getLogger(__name__)
 
 class NonlinearTimoshenkoBeamElement3D(Element1DBase):
     """
-    TL Timoshenko: linear ``B``, ``D`` for ``K_0``; Green-Lagrange ``E_nl`` with shear; ``K_sigma`` from ``N``, ``M_y``, ``M_z``.
+    TL Timoshenko: ``K_0`` (linear selective assembly); ``E_nl`` and ``B_tot`` for ``F_int`` and ``K_delta``;
+    ``K_sigma`` from ``N``, ``M_y``, ``M_z``.
 
     Notes
     -----
@@ -250,7 +251,10 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
         E_lin = (B @ U_e).ravel()
         dN_dx = dN_dξ[0] * self.dxi_dx
-        E_nl = self.green_lagrange_strain_operator.strain_nonlinear_part(dN_dx, U_e)
+        d2N_dx2 = d2N_dξ2[0] * (self.dxi_dx**2)
+        E_nl = self.green_lagrange_strain_operator.strain_nonlinear_part(
+            dN_dx, d2N_dx2, U_e, N[0]
+        )
         E = E_lin + E_nl
         return N, dN_dξ, d2N_dξ2, B, E, dN_dx
 
@@ -272,7 +276,11 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
 
     def tangent_stiffness_matrix(self, U_e: np.ndarray) -> np.ndarray:
         """
-        Tangent stiffness K_T = K_0 + K_σ(U_e) in global (element) coordinates.
+        Tangent stiffness ``K_T = K_0 + K_delta(U_e) + K_sigma(U_e)``.
+
+        ``K_0`` is the selective linear Timoshenko assembly; ``K_delta`` is the TL material
+        stiffness increment ``Σ (B_totᵀ D B_tot − B_linᵀ D B_lin)`` on the TL Gauss loop so that
+        at ``U_e = 0``, ``K_delta = 0`` and ``K_T`` matches the linear element stiffness.
 
         Parameters
         ----------
@@ -304,33 +312,39 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         K_sigma = self.geometric_stiffness_operator.assemble_K_sigma(
             N_gp, M_y_gp, M_z_gp, w, dN_dx_arr, detJ
         )
-        return K_0 + K_sigma
+        # TL material correction vs linear K_0: same Gauss loop as F_int / Green–Lagrange ``B_nl``.
+        K_delta = np.zeros((12, 12), dtype=np.float64)
+        for xi_g, w_g in zip(xi, w):
+            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B_lin = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
+            dN_dx = dN_dξ[0] * self.dxi_dx
+            d2N_dx2 = d2N_dξ2[0] * (self.dxi_dx**2)
+            B_nl = self.green_lagrange_strain_operator.nonlinear_strain_displacement_gradient(
+                dN_dx, d2N_dx2, U_e, N[0]
+            )
+            B_tot = B_lin + B_nl
+            K_delta += (B_tot.T @ D @ B_tot - B_lin.T @ D @ B_lin) * w_g * detJ
+        return K_0 + K_delta + K_sigma
 
     def internal_force_vector(self, U_e: np.ndarray) -> np.ndarray:
         """
-        Internal (residual) force using linear Timoshenko ``B`` in physical coordinates.
+        Internal force using ``B_tot = B_lin + B_nl`` with ``S = D @ E``, ``E = E_lin + E_nl``.
 
-        Accumulates ``F_int += B.T @ S * w_g * detJ`` over Gauss points with ``S = D @ E``,
-        ``E = E_lin + E_nl``.
-
-        Parameters
-        ----------
-        U_e : np.ndarray
-            Element displacement vector, shape (12,).
-
-        Returns
-        -------
-        np.ndarray
-            Internal force vector, shape (12,).
+        Matches the nonlinear material tangent correction ``K_delta`` (same ``B_tot`` structure).
         """
         D = self.material_stiffness_operator.assembly_form()
         xi, w = self.integration_points
         detJ = self.jacobian_determinant
         F_int = np.zeros(12, dtype=np.float64)
         for xi_g, w_g in zip(xi, w):
-            _, _, _, B, E, _ = self._gp_tl_kinematics(U_e, xi_g)
+            N, dN_dξ, d2N_dξ2, B_lin, E, dN_dx = self._gp_tl_kinematics(U_e, xi_g)
+            d2N_dx2 = d2N_dξ2[0] * (self.dxi_dx**2)
+            B_nl = self.green_lagrange_strain_operator.nonlinear_strain_displacement_gradient(
+                dN_dx, d2N_dx2, U_e, N[0]
+            )
+            B_tot = B_lin + B_nl
             S = D @ E
-            F_int += (B.T @ S) * w_g * detJ
+            F_int += (B_tot.T @ S) * w_g * detJ
         return F_int
 
     def strain_at_gauss_points(self, U_e: np.ndarray) -> List[np.ndarray]:

@@ -2,6 +2,18 @@
 
 This document describes the geometrically nonlinear 2-node 3D beam formulation used for **Euler-Bernoulli-3D-Nonlinear** and **Timoshenko-3D-Nonlinear** elements. The formulation is **Total Lagrangian**: all quantities are referred to the **initial (undeformed) configuration**.
 
+## Scope
+
+Implementations are **1D beam elements in 3D space** (the library’s line mesh). There are **no** shell elements or separate 2D finite-element meshes of the cross-section.
+
+## Frozen kinematic summary
+
+| Item | Euler–Bernoulli NL | Timoshenko NL |
+|------|---------------------|----------------|
+| Linear strain \(\mathbf{E}_{\mathrm{lin}}\) | Hermite-based \(\varepsilon_x\), curvature from transverse \(u_y,u_z\) / rotations | \(\kappa_y=\partial\theta_y/\partial x\), \(\kappa_z=\partial\theta_z/\partial x\), shear \(\gamma_{xy},\gamma_{xz}\), \(\phi_x\) — same **linear** `B` as linear Timoshenko |
+| \(\mathbf{E}_{\mathrm{nl}}\) | Axial Green–Lagrange quadratics; \(\kappa\) axial–curvature coupling (`GreenLagrangeStrainOperator`, EB utility) | Same axial row; **rotation-based** \(\kappa\) coupling \(\kappa_{y,\mathrm{nl}} \approx u_x'\,\partial^2\theta_y/\partial x^2\) (and \(\theta_z\) analogue); centroid nonlinear shear remainders when shear NL is on |
+| Equilibrium \(\mathbf{F}_{\mathrm{int}}\) | \(\sum_g \mathbf{B}_{\mathrm{tot}}^\top \mathbf{S}\, w_g \det J\), \(\mathbf{B}_{\mathrm{tot}}=\mathbf{B}_{\mathrm{lin}}+\mathbf{B}_{\mathrm{nl}}\) | Same structure using Timoshenko \(\mathbf{B}_{\mathrm{lin}}\) from `StrainDisplacementOperator` |
+
 ## Reference configuration
 
 - **Reference**: The **initial** geometry (element length \(L\), local axis from the grid) is fixed. No moving frame; the same local frame as in the linear formulation is used.
@@ -14,9 +26,9 @@ Strain vector \(\mathbf{E} = [\varepsilon_x,\, \kappa_y,\, \kappa_z,\, \gamma_{x
 - **Axial (Green–Lagrange)**  
   \(\varepsilon_x = \frac{\partial u_x}{\partial x} + \frac{1}{2}\left(\frac{\partial u_x}{\partial x}\right)^2 + \frac{1}{2}\left(\frac{\partial u_y}{\partial x}\right)^2 + \frac{1}{2}\left(\frac{\partial u_z}{\partial x}\right)^2\).
 
-- **Bending** \(\kappa_y\), \(\kappa_z\): linear part as in the linear beam; nonlinear corrections as implemented in the strain operator.
+- **Bending** \(\kappa_y\), \(\kappa_z\): linear part as in the **corresponding linear** beam; nonlinear supplements from `GreenLagrangeStrainOperator` (EB vs Timoshenko utilities differ — see table above).
 
-- **Shear** \(\gamma_{xy}\), \(\gamma_{xz}\): zero for Euler–Bernoulli; for Timoshenko, same linear relation as in the linear formulation (optional nonlinear terms can be added).
+- **Shear** \(\gamma_{xy}\), \(\gamma_{xz}\): zero for Euler–Bernoulli; for Timoshenko, linear relation as in linear Timoshenko plus optional centroid nonlinear remainder in `strain_nonlinear_part` when `include_shear=True`.
 
 - **Torsion** \(\phi_x = \frac{\partial\theta_x}{\partial x}\) (linear).
 
@@ -31,15 +43,22 @@ So \(\mathbf{E} = \mathbf{E}_{\mathrm{lin}}(\mathbf{u}) + \mathbf{E}_{\mathrm{nl
 
 ## Internal force and tangent stiffness
 
-- **Internal force**: From the weak form, \(\mathbf{F}_{\mathrm{int}} = \int \mathbf{B}(\mathbf{u})^\top \mathbf{S}\,\mathrm{d}V\) (beam analogue with section forces). \(\mathbf{B}\) includes the linearized strain–displacement contribution (and nonlinear contribution in the residual).
-- **Tangent stiffness**: Linearization of the residual w.r.t. \(\mathbf{U}\) gives  
-  \(\mathbf{K}_T = \mathbf{K}_0 + \mathbf{K}_\sigma\):
-  - **\(\mathbf{K}_0\) (material stiffness)**: From linearizing \(\mathbf{S} = \mathbf{D}\,\mathbf{E}\) w.r.t. \(\mathbf{u}\) using the **linear** part of the strain–displacement operator (same as the linear element stiffness).
-  - **\(\mathbf{K}_\sigma\) (geometric stiffness)**: Weak-form Gauss sum over \(\xi_g\): axial term from \(N_g\,(\partial N_i/\partial x)(\partial N_j/\partial x)\) on \(u_x\) DOFs; bending planes from \((N_g + M_z/L)\) and \((N_g + M_y/L)\) times outer products of Hermite slopes (EB) or Timoshenko slopes — see `nonlinear/euler_bernoulli/utilities/geometric_stiffness.py`.
+### Euler–Bernoulli NL
+
+- **Internal force**: \(\mathbf{F}_{\mathrm{int}} = \sum_g \mathbf{B}_{\mathrm{tot}}^\top \mathbf{S}\, w_g \det J\) with \(\mathbf{S}=\mathbf{D}\mathbf{E}\), \(\mathbf{B}_{\mathrm{tot}}=\mathbf{B}_{\mathrm{lin}}+\mathbf{B}_{\mathrm{nl}}\) from `GreenLagrangeStrainOperator`.
+- **Tangent**: \(\mathbf{K}_T = \mathbf{K}_{\mathrm{mat}} + \mathbf{K}_\sigma\) with \(\mathbf{K}_{\mathrm{mat}} = \sum_g \mathbf{B}_{\mathrm{tot}}^\top \mathbf{D}\,\mathbf{B}_{\mathrm{tot}}\, w_g \det J\) and \(\mathbf{K}_\sigma\) from `GeometricStiffnessOperator`.
+
+### Timoshenko NL
+
+- **Internal force**: Same weak-form structure with \(\mathbf{B}_{\mathrm{lin}}\) the **physical** linear Timoshenko `B` matrix and \(\mathbf{B}_{\mathrm{nl}}\) from `nonlinear.timoshenko.utilities.green_lagrange_strain`.
+- **Tangent**: \(\mathbf{K}_T = \mathbf{K}_0 + \mathbf{K}_{\delta} + \mathbf{K}_\sigma\):
+  - \(\mathbf{K}_0\): selective assembly `assemble_timoshenko_K0` — **same** linear Timoshenko stiffness as the linear element.
+  - \(\mathbf{K}_{\delta}\): \(\sum_g \bigl(\mathbf{B}_{\mathrm{tot}}^\top \mathbf{D}\,\mathbf{B}_{\mathrm{tot}} - \mathbf{B}_{\mathrm{lin}}^\top \mathbf{D}\,\mathbf{B}_{\mathrm{lin}}\bigr)\, w_g \det J\) on the TL Gauss loop so \(\mathbf{K}_{\delta}=\mathbf{0}\) at \(\mathbf{U}=\mathbf{0}\) and \(\mathbf{K}_T\) matches \(\mathbf{K}_0\) initially (with \(\mathbf{K}_\sigma=\mathbf{0}\)).
+  - \(\mathbf{K}_\sigma\): geometric stiffness from section forces as for EB.
 
 **Operators**:
-- `GreenLagrangeStrainOperator`: `strain_linear_part`, `strain_nonlinear_part`, `linearized_strain_displacement` (definitions above).
-- `GeometricStiffnessOperator.assemble_K_sigma(N_gp, M_y_gp, M_z_gp, weights, dN_dx, jacobian)` → 12×12 \(\mathbf{K}_\sigma\) (vectors `N_gp`, … length `n_gp`, one value per Gauss point).
+- Canonical strain utilities: `nonlinear.euler_bernoulli.utilities.green_lagrange_strain`, `nonlinear.timoshenko.utilities.green_lagrange_strain` (prefer these over `utilities/total_lagrangian_beam.py` stubs).
+- `GeometricStiffnessOperator.assemble_K_sigma(N_gp, M_y_gp, M_z_gp, weights, dN_dx, jacobian)` → 12×12 \(\mathbf{K}_\sigma\).
 
 ## Residual and Newton–Raphson
 
@@ -50,15 +69,15 @@ So \(\mathbf{E} = \mathbf{E}_{\mathrm{lin}}(\mathbf{u}) + \mathbf{E}_{\mathrm{nl
 
 | Concept | Class / method |
 |--------|------------------|
-| Green–Lagrange strain | `GreenLagrangeStrainOperator` (utilities/total_lagrangian_beam.py) |
+| Green–Lagrange strain | `GreenLagrangeStrainOperator` in EB or Timoshenko `utilities/` |
 | Linear / nonlinear strain | `strain_linear_part`, `strain_nonlinear_part` |
-| Strain–displacement (linearized) | `linearized_strain_displacement` |
+| Strain–displacement (linearized / NL gradient) | `linearized_strain_displacement`, `nonlinear_strain_displacement_gradient` |
 | Section forces from strain | `StressResultantOperator.section_forces_from_strain` |
 | Geometric stiffness | `GeometricStiffnessOperator.assemble_K_sigma` |
 
 ## Nonlinear static results (secondary/tertiary)
 
-For **nonlinear static** runs, the formulation cache holds the **initial** (U = 0) element evaluation. Secondary and tertiary results use the **converged** \(\mathbf{U}_{\mathrm{global}}\) (and disassembled \(\mathbf{U}_e\)) with this cache: strain and stress are computed as \(\boldsymbol{\varepsilon} = \mathbf{B}_{\mathrm{lin}}\,\mathbf{U}_e\) and \(\boldsymbol{\sigma} = \mathbf{D}\,\boldsymbol{\varepsilon}\). Thus they reflect a **linearized** strain/stress at the converged displacement; the Gauss point data in the cache do not represent the full Green–Lagrange strain at the last configuration unless the cache is updated from the last converged element evaluation (future improvement).
+For **nonlinear static** runs, the formulation cache may hold the **initial** (U = 0) element evaluation. Secondary and tertiary results use the **converged** \(\mathbf{U}_{\mathrm{global}}\) with this cache: strain and stress are sometimes computed as \(\boldsymbol{\varepsilon} = \mathbf{B}_{\mathrm{lin}}\,\mathbf{U}_e\) and \(\boldsymbol{\sigma} = \mathbf{D}\,\boldsymbol{\varepsilon}\). Thus they may reflect a **linearized** strain/stress at the converged displacement unless the cache is updated from the last converged element evaluation with full \(\mathbf{E}\).
 
 ## Element formulation logging
 

@@ -6,7 +6,7 @@
 ``D`` (6, 6) linear EB section law. Green-Lagrange strain ``E`` (6,) = ``E_lin + E_nl``; ``S = D @ E`` (Voigt, 2PK-style pairing).
 ``detJ = L/2``. Tangent ``K_T = K_mat + K_sigma`` (12, 12); ``K_sigma`` from ``GeometricStiffnessOperator``.
 
-**Weak forms (Gauss, xi in [-1, 1]):** ``F_int += B_lin.T @ S * w_g * detJ``; ``K_mat += B_tot.T @ D @ B_tot * w_g * detJ`` with ``B_tot = B_lin + B_nl``;
+**Weak forms (Gauss, xi in [-1, 1]):** ``F_int += B_tot.T @ S * w_g * detJ`` with ``B_tot = B_lin + B_nl``; ``K_mat += B_tot.T @ D @ B_tot * w_g * detJ``;
 ``K_sigma`` += stress-weighted Gauss sum (axial ``N`` and bending ``M_y``, ``M_z`` with shape slopes — see ``utilities/geometric_stiffness.py``).
 ``F_dist += w_g * N.T @ q * detJ``; ``F_point = N.T @ P`` as linear EB.
 
@@ -316,20 +316,11 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
 
     def internal_force_vector(self, U_e: np.ndarray) -> np.ndarray:
         """
-        Internal (residual) force from Green-Lagrange strain and linearized ``B_lin``.
+        Internal (residual) force from Green–Lagrange strain and ``B_tot = B_lin + B_nl``.
 
-        Accumulates ``F_int += B_lin.T @ S * w_g * detJ`` over Gauss points with ``S = D @ E``,
-        ``E = E_lin + E_nl`` (TL EB).
-
-        Parameters
-        ----------
-        U_e : np.ndarray
-            Element displacement vector, shape (12,).
-
-        Returns
-        -------
-        np.ndarray
-            Internal force vector, shape (12,).
+        Accumulates ``F_int += B_tot.T @ S * w_g * detJ`` over Gauss points with ``S = D @ E``,
+        ``E = E_lin + E_nl`` (Total Lagrangian EB). Matches the material tangent ``K_mat`` which
+        uses the same ``B_tot``.
         """
         D = self.material_stiffness_operator.assembly_form()
         xi, w = self.integration_points
@@ -344,6 +335,10 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
             B_lin = self.green_lagrange_strain_operator.linearized_strain_displacement(
                 dN_dx[0], d2N_dx2[0]
             )
+            B_nl = self.green_lagrange_strain_operator.nonlinear_strain_displacement_gradient(
+                dN_dx[0], d2N_dx2[0], U_e
+            )
+            B_tot = B_lin + B_nl
             E_lin = self.green_lagrange_strain_operator.strain_linear_part(
                 dN_dx[0], d2N_dx2[0], U_e
             )
@@ -352,7 +347,7 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
             )
             E = E_lin + E_nl
             S = D @ E
-            F_int += (B_lin.T @ S) * w_g * detJ
+            F_int += (B_tot.T @ S) * w_g * detJ
         return F_int
 
     def strain_at_gauss_points(self, U_e: np.ndarray) -> List[np.ndarray]:
