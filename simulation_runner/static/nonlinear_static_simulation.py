@@ -43,6 +43,34 @@ from processing.static.results.build_converged_formulation_cache import build_co
 logger = logging.getLogger(__name__)
 
 
+def newton_condensed_residual_converged(
+    norm_r_cond: float,
+    atol: float,
+    rtol: float | None,
+    ref_scale: float,
+) -> bool:
+    """
+    Compare ‖F_cond‖₂ (condensed Newton RHS) to atol + rtol·ref_scale.
+
+    ``ref_scale`` is set once from the first Newton iteration (first_residual)
+    or from ‖F_ext‖ on condensed DOFs (external_force), depending on settings.
+
+    Parameters
+    ----------
+    norm_r_cond
+        Euclidean norm of the condensed residual vector ``F_cond``.
+    atol
+        Absolute tolerance on forces (same units as ``F_cond`` entries).
+    rtol
+        Relative multiplier; if ``None``, only ``atol`` applies via ``atol + 0``.
+    ref_scale
+        Positive reference scale (first residual or external-load norm).
+    """
+    rt = 0.0 if rtol is None else float(rtol)
+    ref = max(float(ref_scale), np.finfo(float).eps)
+    return bool(float(norm_r_cond) <= float(atol) + rt * ref)
+
+
 def _to_coo(Ke):
     """Convert element stiffness to COO for assembly."""
     if hasattr(Ke, "tocoo"):
@@ -159,6 +187,15 @@ class NonlinearStaticSimulationRunner:
         self.newton_tol = float(newton.get("tolerance", 1e-8))
         self.newton_max_iter = int(newton.get("max_iterations", 50))
         self.newton_tol_delta_u = float(newton.get("tolerance_delta_u", 1e-10))
+        rel = newton.get("relative_tolerance", None)
+        self.newton_relative_tol = None if rel is None else float(rel)
+        ref_mode = str(newton.get("relative_reference", "first_residual")).lower().strip()
+        if ref_mode not in ("first_residual", "external_force"):
+            raise ValueError(
+                "newton.relative_reference must be 'first_residual' or 'external_force', "
+                f"got {ref_mode!r}",
+            )
+        self.newton_relative_reference = ref_mode
 
         self.prescribed_displacements = None
 
@@ -757,6 +794,8 @@ class NonlinearStaticSimulationRunner:
             newton_max = self.newton_max_iter
             tol_du = self.newton_tol_delta_u
             delta_U_cond = None
+            newton_ref_residual = None
+            newton_ref_external = None
 
             for iteration in range(newton_max):
                 with self.monitor.stage("NewtonBuildKT_Fint"):
@@ -792,6 +831,25 @@ class NonlinearStaticSimulationRunner:
                         base_tol=self.condensation_config.get("base_tol", 1e-12),
                     )
 
+                F_cond_arr = np.asarray(self.F_cond, dtype=np.float64).ravel()
+                norm_R_conv = float(np.linalg.norm(F_cond_arr))
+                norm_R_full = float(np.linalg.norm(R_global))
+                if iteration == 0:
+                    newton_ref_residual = norm_R_conv
+                    cd0 = np.asarray(self.condensed_dofs, dtype=np.intp)
+                    newton_ref_external = float(np.linalg.norm(F_ext_global[cd0]))
+
+                if self.newton_relative_reference == "external_force":
+                    ref_scale = newton_ref_external
+                else:
+                    ref_scale = newton_ref_residual
+                residual_ok = newton_condensed_residual_converged(
+                    norm_R_conv,
+                    newton_tol,
+                    self.newton_relative_tol,
+                    ref_scale,
+                )
+
                 with self.monitor.stage("NewtonSolve"):
                     delta_U_cond = self.solve_condensed_system(
                         self.K_cond,
@@ -821,13 +879,20 @@ class NonlinearStaticSimulationRunner:
                     )
                 U_global += delta_U_global
 
-                norm_R = np.linalg.norm(R_global)
-                norm_du = np.linalg.norm(delta_U_global)
+                norm_du = float(np.linalg.norm(delta_U_global))
+                thr = newton_tol
+                if self.newton_relative_tol is not None:
+                    rs = max(float(ref_scale), np.finfo(float).eps)
+                    thr = newton_tol + self.newton_relative_tol * rs
                 logger.info(
-                    "Newton iter %d: ||R||=%.4e ||delta_U||=%.4e",
-                    iteration + 1, norm_R, norm_du,
+                    "Newton iter %d: ||R||_full=%.4e ||F_cond||=%.4e (vs thr=%.4e) ||delta_U||=%.4e",
+                    iteration + 1,
+                    norm_R_full,
+                    norm_R_conv,
+                    thr,
+                    norm_du,
                 )
-                if norm_R < newton_tol and norm_du < tol_du:
+                if residual_ok and norm_du < tol_du:
                     logger.info("Newton converged at iteration %d", iteration + 1)
                     break
             else:

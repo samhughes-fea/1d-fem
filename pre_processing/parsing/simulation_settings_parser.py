@@ -39,6 +39,8 @@ def _get_defaults():
             "tolerance": 1e-8,
             "max_iterations": 50,
             "tolerance_delta_u": 1e-10,
+            "relative_tolerance": None,
+            "relative_reference": "first_residual",
         },
     }
 
@@ -256,6 +258,10 @@ def parse_simulation_settings(file_path):
                         simulation_settings["newton"]["max_iterations"] = _convert_value(value, int)
                     elif key == "tolerance_delta_u":
                         simulation_settings["newton"]["tolerance_delta_u"] = _convert_value(value, float)
+                    elif key == "relative_tolerance":
+                        simulation_settings["newton"]["relative_tolerance"] = _convert_value(value, float)
+                    elif key == "relative_reference":
+                        simulation_settings["newton"]["relative_reference"] = value.strip().lower()
 
     # Validate simulation type was found (backward compatibility: allow missing if defaults are acceptable)
     if not type_found and simulation_settings["type"] == defaults["type"]:
