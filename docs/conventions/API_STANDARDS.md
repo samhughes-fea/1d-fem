@@ -38,7 +38,7 @@ Under each beam-theory package, e.g. `pre_processing/element_library/linear/beam
 | `interpolate_loads.py` | Distributed loads at Gauss points |
 | `shape_functions.py` | `N(ξ)` and derivatives |
 
-**Re-exports:** If logic is shared (e.g. curved Timoshenko reusing straight Timoshenko `D`), the file must still exist and the module docstring must state the dependency.
+**Re-exports:** If logic is shared (e.g. warping Euler–Bernoulli reusing the straight EB `D_matrix`), the file must still exist and the module docstring must state the dependency.
 
 **Optional extras:** e.g. [`local_frame.py`](../../pre_processing/element_library/linear/bar/utilities/local_frame.py) for bar/truss — not counted against the four-file rule.
 

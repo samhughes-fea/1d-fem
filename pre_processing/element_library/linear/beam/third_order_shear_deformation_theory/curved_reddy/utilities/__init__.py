@@ -1,1 +1,0 @@
-# Curved Reddy utilities (stub).

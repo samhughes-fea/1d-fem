@@ -10,7 +10,6 @@ Reference: [FORMULATION_DOCSTRING_STANDARDS.md](../conventions/FORMULATION_DOCST
 | `linear_warping_timoshenko_3D` | Gauss | Gauss | same | Gauss | — | — | — | |
 | `linear_levinson_3D` | Gauss (selective) | Gauss | same | Gauss | — | — | — | |
 | `linear_reddy_3D` | Gauss (selective) | Gauss | same | Gauss | — | — | — | |
-| `linear_curved_timoshenko_3D` | Gauss | Gauss | same | Gauss | — | — | — | |
 | `linear_bar_3D` | Gauss | Gauss | same | Gauss | — | — | — | Constant `B` → quadrature still applied |
 | `linear_truss_3D` | Gauss | Gauss | same | Gauss | — | — | — | Same |
 | `nonlinear_euler_bernoulli_3D` | — | Gauss | same | — | Gauss | Gauss | **Gauss** | `K_σ`: sum `w_g |J| (N_g + M_z/L) h′h′ᵀ` (xy) + `(N_g + M_y/L)` (xz); axial `u_x` term per GP |

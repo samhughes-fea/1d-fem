@@ -109,7 +109,7 @@ When multiple theories share the same **outer** tensor shapes (e.g. `B` `(6, 12)
 
 Extensions such as `(14,) U_e` and `(7, 14) B` should state how the **first 12 DOFs and 6 strain rows** embed the linear baseline.
 
-**Local frame:** Straight elements use local **`x`** along the chord from node 1 → node 2. Curved Timoshenko uses the same **isoparametric** map \(x(\xi)\) on the chord; strain operators in code may use **`s`** or coupling with curvature κ₀ — state which in the element docstring.
+**Local frame:** Straight elements use local **`x`** along the chord from node 1 → node 2 (same isoparametric map \(x(\xi)\) on the chord). Reference curvature for initially curved geometry is supplied via **`precurvature.txt`** and straight beam implementations — state conventions in the element docstring when relevant.
 
 **Nodal displacement vector `U_e`:** Length **`2 × dof_per_node`**, **node-major**: all DOFs at node 1, then node 2. For **`dof_per_node = 6`**:
 

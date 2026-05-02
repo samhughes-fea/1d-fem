@@ -13,12 +13,6 @@ from pre_processing.element_library.nonlinear.euler_bernoulli_with_warp.nonlinea
 from pre_processing.element_library.nonlinear.timoshenko_with_warp.nonlinear_warping_timoshenko_3D import (
     NonlinearWarpingTimoshenkoBeamElement3D,
 )
-from pre_processing.element_library.nonlinear.curved_euler_bernoulli.nonlinear_curved_euler_bernoulli_3D import (
-    NonlinearCurvedEulerBernoulliBeamElement3D,
-)
-from pre_processing.element_library.nonlinear.curved_timoshenko.nonlinear_curved_timoshenko_3D import (
-    NonlinearCurvedTimoshenkoBeamElement3D,
-)
 from pre_processing.element_library.nonlinear.levinson.nonlinear_levinson_3D import (
     NonlinearLevinsonBeamElement3D,
 )
@@ -46,8 +40,6 @@ __all__ = [
     "NonlinearTimoshenkoBeamElement3D",
     "NonlinearWarpingEulerBernoulliBeamElement3D",
     "NonlinearWarpingTimoshenkoBeamElement3D",
-    "NonlinearCurvedEulerBernoulliBeamElement3D",
-    "NonlinearCurvedTimoshenkoBeamElement3D",
     "NonlinearLevinsonBeamElement3D",
     "NonlinearReddyBeamElement3D",
     "UpdatedLagrangianEulerBernoulliBeamElement3D",
