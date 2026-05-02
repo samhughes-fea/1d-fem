@@ -37,7 +37,7 @@ class ElementParser:
             "[axial_order]", "[bending_y_order]", "[bending_z_order]",
             "[shear_y_order]", "[shear_z_order]", "[torsion_order]", "[load_order]",
         ]
-        # Optional 12th column for curved beams (Phase 2a)
+        # Optional 12th column for legacy curved beam element types (prefer straight beam + precurvature.txt)
         self.optional_curvature_header: List[str] = self.expected_subheader + ["[curvature]"]
 
     # --------------------------------------------------------------------- #
