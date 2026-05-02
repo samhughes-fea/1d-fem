@@ -26,10 +26,14 @@ class ElementFormulationProcessor:
         if len(self.K_e) != len(self.F_e):
             raise ValueError("Mismatch between number of stiffness matrices and force vectors.")
 
-        Ke_list = [
-            ke.tocsr() if not isinstance(ke, csr_matrix) else ke
-            for ke in self.K_e
-        ]
+        def _to_csr(ke: Union[csr_matrix, coo_matrix, np.ndarray]):
+            if isinstance(ke, csr_matrix):
+                return ke
+            if isinstance(ke, np.ndarray):
+                return coo_matrix(np.asarray(ke, dtype=np.float64)).tocsr()
+            return ke.tocsr()
+
+        Ke_list = [_to_csr(ke) for ke in self.K_e]
 
         Fe_list = [fe.reshape(-1) if fe.ndim != 1 else fe.copy() for fe in self.F_e]
 

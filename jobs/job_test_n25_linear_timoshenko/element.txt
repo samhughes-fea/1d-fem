@@ -1,0 +1,27 @@
+[Element]
+[element_id]  [node1]  [node2]  [element_type]                [axial_order]     [bending_y_order] [bending_z_order] [shear_y_order]   [shear_z_order]   [torsion_order]   [load_order]
+0             0        1        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+1             1        2        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+2             2        3        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+3             3        4        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+4             4        5        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+5             5        6        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+6             6        7        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+7             7        8        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+8             8        9        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+9             9        10        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+10             10        11        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+11             11        12        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+12             12        13        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+13             13        14        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+14             14        15        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+15             15        16        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+16             16        17        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+17             17        18        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+18             18        19        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+19             19        20        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+20             20        21        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+21             21        22        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+22             22        23        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+23             23        24        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 
+24             24        25        LinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 

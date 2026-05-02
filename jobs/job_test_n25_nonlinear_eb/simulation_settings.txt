@@ -1,0 +1,8 @@
+[Simulation]
+[Type]
+static_nonlinear
+
+[Newton]
+tolerance = 1e-6
+max_iterations = 40
+tolerance_delta_u = 1e-9
