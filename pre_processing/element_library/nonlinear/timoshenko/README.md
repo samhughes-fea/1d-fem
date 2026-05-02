@@ -50,8 +50,10 @@ Full set **N**, **M_y**, **M_z**, **V_y**, **V_z**, **T**. Second Piola–Kirchh
 \mathbf{K}_T = \mathbf{K}_0 + \mathbf{K}_\sigma \quad \text{both shape } (12, 12).
 \]
 
-- **K_0 (material stiffness)**: From linearization of \(\mathbf{S} = \mathbf{D}\,\mathbf{E}\) w.r.t. \(\mathbf{u}\) using the **linear** strain–displacement operator (same as the linear Timoshenko element stiffness).
-- **K_σ (geometric stiffness)**: Depends on current section forces **N**, **M_y**, **M_z** (and **V_y**, **V_z**, **T** in the full view) and shape-function derivatives; assembled at Gauss points.
+- **K_0 (material stiffness)**: Same ``assemble_timoshenko_K0`` / ``TimoshenkoQuadratureOrders`` as linear Timoshenko ``K_e`` (block-wise axial / bending / shear / torsion quadrature).
+- **K_σ (geometric stiffness)**: Depends on current section forces **N**, **M_y**, **M_z** (and **V_y**, **V_z**, **T** in the full view) and shape-function derivatives; assembled at Gauss points using one rule of order **loop_order** (default: maximum mesh integration order, at least 2). Internal force **F_int** uses the same loop points.
+
+**Migration:** meshes that used ``GEBTShearBeamElement3D`` should use ``NonlinearTimoshenkoBeamElement3D`` with the same ``integration_orders``; see [docs/element_library/gebt_shear_formulation.md](../../../../docs/element_library/gebt_shear_formulation.md).
 
 ---
 

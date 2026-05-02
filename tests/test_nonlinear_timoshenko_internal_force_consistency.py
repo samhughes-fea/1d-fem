@@ -1,6 +1,4 @@
-"""
-Phase 3a: GEBT shear F_int consistency — F_int(0)=0 and K_T matches numerical derivative of F_int.
-"""
+"""Nonlinear Timoshenko: F_int(0)=0 and K_T symmetry sanity checks."""
 
 import os
 import shutil
@@ -14,6 +12,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 
+def _job_dirs(root: str) -> None:
+    os.makedirs(os.path.join(root, "element_stiffness_matrices"), exist_ok=True)
+    os.makedirs(os.path.join(root, "element_force_vectors"), exist_ok=True)
+    os.makedirs(os.path.join(root, "logs"), exist_ok=True)
+
+
 def _cantilever_dicts(L=1.0, E=2.1e11, G=8.1e10, A=0.001, I_z=1e-8, I_y=1e-8, J_t=1e-9):
     grid_dictionary = {
         "ids": np.array([0, 1]),
@@ -22,7 +26,7 @@ def _cantilever_dicts(L=1.0, E=2.1e11, G=8.1e10, A=0.001, I_z=1e-8, I_y=1e-8, J_
     element_dictionary = {
         "ids": np.array([0]),
         "connectivity": np.array([[0, 1]]),
-        "types": np.array(["GEBTShearBeamElement3D"]),
+        "types": np.array(["NonlinearTimoshenkoBeamElement3D"]),
         "integration_orders": {
             "axial": np.array([3]),
             "bending_y": np.array([3]),
@@ -44,23 +48,22 @@ def _cantilever_dicts(L=1.0, E=2.1e11, G=8.1e10, A=0.001, I_z=1e-8, I_y=1e-8, J_
     return grid_dictionary, element_dictionary, material_dictionary, section_dictionary
 
 
-def test_gebt_shear_internal_force_zero_at_zero_displacement():
+def test_nonlinear_timoshenko_internal_force_zero_at_zero_displacement():
     """F_int(U_e=0) should be zero."""
-    from pre_processing.element_library.nonlinear.gebt_shear.gebt_shear_3D import GEBTShearBeamElement3D
+    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+        NonlinearTimoshenkoBeamElement3D,
+    )
 
     grid_dictionary, element_dictionary, material_dictionary, section_dictionary = _cantilever_dicts()
     point_load_array = np.empty((0, 9))
     distributed_load_array = np.empty((0, 9))
 
     temp_dir = tempfile.mkdtemp()
-    job_results_dir = os.path.join(temp_dir, "gebt_fint")
-    os.makedirs(job_results_dir, exist_ok=True)
-    os.makedirs(os.path.join(job_results_dir, "element_stiffness_matrices"), exist_ok=True)
-    os.makedirs(os.path.join(job_results_dir, "element_force_vectors"), exist_ok=True)
-    os.makedirs(os.path.join(job_results_dir, "logs"), exist_ok=True)
+    job_results_dir = os.path.join(temp_dir, "nl_timo_fint")
+    _job_dirs(job_results_dir)
 
     try:
-        elem = GEBTShearBeamElement3D(
+        elem = NonlinearTimoshenkoBeamElement3D(
             element_id=0,
             element_dictionary=element_dictionary,
             grid_dictionary=grid_dictionary,
@@ -77,23 +80,22 @@ def test_gebt_shear_internal_force_zero_at_zero_displacement():
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-def test_gebt_shear_tangent_symmetric_and_internal_force_finite():
-    """K_T(U_e) is symmetric; F_int(U_e) is finite for small U (equilibrium/consistency check)."""
-    from pre_processing.element_library.nonlinear.gebt_shear.gebt_shear_3D import GEBTShearBeamElement3D
+def test_nonlinear_timoshenko_tangent_symmetric_and_internal_force_finite():
+    """K_T(U_e) is symmetric; F_int(U_e) is finite for small U."""
+    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+        NonlinearTimoshenkoBeamElement3D,
+    )
 
     grid_dictionary, element_dictionary, material_dictionary, section_dictionary = _cantilever_dicts()
     point_load_array = np.empty((0, 9))
     distributed_load_array = np.empty((0, 9))
 
     temp_dir = tempfile.mkdtemp()
-    job_results_dir = os.path.join(temp_dir, "gebt_kcons")
-    os.makedirs(job_results_dir, exist_ok=True)
-    os.makedirs(os.path.join(job_results_dir, "element_stiffness_matrices"), exist_ok=True)
-    os.makedirs(os.path.join(job_results_dir, "element_force_vectors"), exist_ok=True)
-    os.makedirs(os.path.join(job_results_dir, "logs"), exist_ok=True)
+    job_results_dir = os.path.join(temp_dir, "nl_timo_kt")
+    _job_dirs(job_results_dir)
 
     try:
-        elem = GEBTShearBeamElement3D(
+        elem = NonlinearTimoshenkoBeamElement3D(
             element_id=0,
             element_dictionary=element_dictionary,
             grid_dictionary=grid_dictionary,

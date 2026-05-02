@@ -15,10 +15,10 @@ See `docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md`. detJ = L/2.
 
 **Constitutive:** D includes EA, EI, κGA shear diagonal terms, and GJ_t (see `utilities/D_matrix.py`).
 
-**Quadrature / selective integration:** ``element_stiffness_matrix`` builds a full ``K_e`` on a max-order rule, then
-replaces the bending block (rows 1–2 of ``D`` / ``B``) and shear block (rows 3–4) with separate Gauss sums:
-bending uses ``max(bending_y_order, bending_z_order)``; shear uses 1-point reduced integration (shear locking mitigation).
-See implementation after ``Ke_full`` assembly.
+**Quadrature / selective integration:** ``element_stiffness_matrix`` calls ``assemble_timoshenko_K0`` with
+``TimoshenkoQuadratureOrders`` resolved from ``element_array`` (axial, bending_y/z, shear_y/z for the full-rule count,
+``shear_block`` default ``1`` for the shear-stiffness rows, torsion). Post-processing ``gauss_cache`` still uses the
+max-order Gauss points only.
 
 **Public API:** ``element_stiffness_matrix`` → ``ElementObject``; ``element_force_vector`` → ``ForceObject``;
 ``element_mass_matrix`` → ``MassObject``.
@@ -37,6 +37,10 @@ from pre_processing.element_library.shape_function_registry import get_shape_fun
 
 # Import LoadInterpolationOperator class
 from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.interpolate_loads import LoadInterpolationOperator
+from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.k0_timoshenko import (
+    assemble_timoshenko_K0,
+    timoshenko_quadrature_orders_from_element_array,
+)
 
 # --- logging ----------------------------------------------
 import logging
@@ -103,29 +107,10 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
             dof_per_node=6,
         )
 
-        # Determine quadrature order from element_array integration orders
-        # element_array indices: [id, n1, n2, axial, bending_y, bending_z, shear_y, shear_z, torsion, load]
-        # For Timoshenko, shear terms are critical - use max of all orders, ensuring shear is at least 2
-        if quadrature_order is None or quadrature_order == 3:  # Default case - use element_array orders
-            # Get integration orders from element_array
-            axial_order = self.element_array[3]
-            bending_y_order = self.element_array[4]
-            bending_z_order = self.element_array[5]
-            shear_y_order = self.element_array[6]
-            shear_z_order = self.element_array[7]
-            torsion_order = self.element_array[8]
-            
-            # For Timoshenko, shear terms MUST be integrated (order >= 2 for reduced integration)
-            # If shear orders are 0, use default of 2 (reduced integration to avoid shear locking)
-            if shear_y_order == 0:
-                shear_y_order = 2
-            if shear_z_order == 0:
-                shear_z_order = 2
-            
-            # Use maximum of all orders
-            max_order = max(axial_order, bending_y_order, bending_z_order, 
-                          shear_y_order, shear_z_order, torsion_order)
-            self.quadrature_order = max(max_order, 2)  # Ensure at least order 2
+        # Mass / distributed-load quadrature: default from element_array via TimoshenkoQuadratureOrders.loop_order
+        self._timoshenko_orders = timoshenko_quadrature_orders_from_element_array(self.element_array)
+        if quadrature_order is None or quadrature_order == 3:
+            self.quadrature_order = self._timoshenko_orders.loop_order
         else:
             self.quadrature_order = quadrature_order
 
@@ -160,7 +145,7 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
         """Validate critical element properties"""
         if self.L <= 0:
             raise ValueError(f"Invalid element length {self.L:.2e} for element {self.element_id}")
-        if self.material_array.size != 4 or self.section_array.size not in (5, 7):
+        if self.material_array.size != 4 or self.section_array.size not in (5, 7, 9, 10):
             raise ValueError("Material/section arrays not properly initialised")
     
         # quick access to node-id pair (n1, n2) from the slice array
@@ -263,58 +248,35 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
         
         self._assert_logging_ready()
 
-        Ke = np.zeros((12, 12), dtype=np.float64)
         L = np.array([[self.L]], dtype=np.float64)
         D = self.material_stiffness_operator.assembly_form()
-        
-        # Get integration orders from element_array
-        # element_array indices: [id, n1, n2, axial, bending_y, bending_z, shear_y, shear_z, torsion, load]
-        axial_order = max(self.element_array[3], 1)
-        bending_y_order = max(self.element_array[4], 2)
-        bending_z_order = max(self.element_array[5], 2)
-        shear_y_order = max(self.element_array[6], 2) if self.element_array[6] > 0 else 2
-        shear_z_order = max(self.element_array[7], 2) if self.element_array[7] > 0 else 2
-        torsion_order = max(self.element_array[8], 1)
-        
-        # Use maximum order for overall integration (for coupling terms)
-        max_order = max(axial_order, bending_y_order, bending_z_order, 
-                      shear_y_order, shear_z_order, torsion_order)
-        
+        orders = self._timoshenko_orders
+        max_order = orders.max_full_order
+        detJ = self.jacobian_determinant
+
         gauss_cache = []
 
         if self.logger_operator:  # Modified logging block
             self.logger_operator.log_text("stiffness", f"\n=== Element {self.element_id} Stiffness Matrix Computation (Selective Integration) ===")
-            self.logger_operator.log_text("stiffness", f"Integration orders: axial={axial_order}, bending_y={bending_y_order}, bending_z={bending_z_order}, shear_y={shear_y_order}, shear_z={shear_z_order}, torsion={torsion_order} (shear block uses 1-point reduced integration)")
+            self.logger_operator.log_text(
+                "stiffness",
+                f"Integration orders: axial={orders.axial}, bending_y={orders.bending_y}, bending_z={orders.bending_z}, "
+                f"shear_y={orders.shear_y}, shear_z={orders.shear_z}, torsion={orders.torsion}; "
+                f"full rule order={max_order}; bending block={orders.bending_rule_order}; shear block={orders.shear_block}",
+            )
             self.logger_operator.log_matrix("stiffness", L, {"name": f"Element length  L  {(1,1)}"})
             self.logger_operator.log_matrix("stiffness", D, {"name": f"Material stiffness matrix  D  {D.shape}"})
-        
-        # D-matrix structure (diagonal):
-        # D[0,0] = EA (axial)
-        # D[1,1] = EI_y (bending about y)
-        # D[2,2] = EI_z (bending about z)
-        # D[3,3] = kappa*GA (shear xy)
-        # D[4,4] = kappa*GA (shear xz)
-        # D[5,5] = GJ_t (torsion)
-        # B-matrix rows: [0:axial, 1:bending_y, 2:bending_z, 3:shear_xy, 4:shear_xz, 5:torsion]
-        
-        # Strategy: Integrate full matrix with max order, then replace bending/shear blocks
-        # with selectively integrated versions
-        
-        # First, integrate everything with max order (baseline)
-        # Note: gauss_cache uses this full-order loop so post-processing (strain, stress,
-        # section forces) has max_order GPs per element. Reduced integration below only
-        # replaces the shear/bending blocks in Ke; it does not change the cached GP set.
+
         xi_full, w_full = np.polynomial.legendre.leggauss(max_order)
+        Ke_full_bending = np.zeros((12, 12), dtype=np.float64)
+        Ke_full_shear = np.zeros((12, 12), dtype=np.float64)
         Ke_full = np.zeros((12, 12), dtype=np.float64)
-        
+
         for g, (xi_g, w_g) in enumerate(zip(xi_full, w_full)):
             N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
             B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
-            detJ = self.jacobian_determinant
             Ke_contrib = B.T @ D @ B * w_g * detJ
             Ke_full += Ke_contrib
-            
-            # Cache Gauss point data (same xi order as leggauss: ascending)
             gauss_cache.append(StiffnessGaussPointData(
                 xi=float(xi_g),
                 weight=float(w_g),
@@ -324,74 +286,39 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
                 shape_functions=N.copy(),
                 shape_derivatives=dN_dξ.copy()
             ))
-        
-        # Now compute bending contribution with bending order and extract only bending block
-        bending_order = max(bending_y_order, bending_z_order)
-        xi_bending, w_bending = np.polynomial.legendre.leggauss(bending_order)
-        Ke_bending_block = np.zeros((12, 12), dtype=np.float64)
-        
-        for g, (xi_g, w_g) in enumerate(zip(xi_bending, w_bending)):
-            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
-            detJ = self.jacobian_determinant
-            
-            # Extract bending rows (1,2) and compute contribution
-            B_bending = B[[1, 2], :]  # Shape (2, 12)
-            D_bending_diag = np.array([D[1, 1], D[2, 2]])  # EI_y, EI_z
-            Ke_contrib_bending = B_bending.T @ np.diag(D_bending_diag) @ B_bending * w_g * detJ
-            Ke_bending_block += Ke_contrib_bending
-        
-        # Compute shear contribution with 1-point quadrature (reduced integration to avoid shear locking)
-        shear_order = 1
-        xi_shear, w_shear = np.polynomial.legendre.leggauss(shear_order)
-        Ke_shear_block = np.zeros((12, 12), dtype=np.float64)
-        
-        for g, (xi_g, w_g) in enumerate(zip(xi_shear, w_shear)):
-            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
-            detJ = self.jacobian_determinant
-            
-            # Extract shear rows (3,4) and compute contribution
-            B_shear = B[[3, 4], :]  # Shape (2, 12)
-            D_shear_diag = np.array([D[3, 3], D[4, 4]])  # kappa*GA for both
-            Ke_contrib_shear = B_shear.T @ np.diag(D_shear_diag) @ B_shear * w_g * detJ
-            Ke_shear_block += Ke_contrib_shear
-        
-        # Extract bending and shear blocks from full integration
-        # Bending affects DOFs related to rotations about y and z
-        # For 12-DOF element: DOFs [4,5,10,11] are theta_y and theta_z
-        # But we need to identify which DOFs are affected by bending rows 1,2 in B-matrix
-        # B-matrix row 1 (bending_y) affects: u_y and theta_z DOFs
-        # B-matrix row 2 (bending_z) affects: u_z and theta_y DOFs
-        
-        # Extract bending block from full matrix (rows/cols affected by bending)
-        # This is complex - let's use a simpler approach: replace the full matrix
-        # with selectively integrated version by subtracting old blocks and adding new ones
-        
-        # Extract bending contribution from full matrix
-        Ke_full_bending = np.zeros((12, 12), dtype=np.float64)
-        for g, (xi_g, w_g) in enumerate(zip(xi_full, w_full)):
-            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
-            detJ = self.jacobian_determinant
-            B_bending = B[[1, 2], :]
-            D_bending_diag = np.array([D[1, 1], D[2, 2]])
-            Ke_full_bending += B_bending.T @ np.diag(D_bending_diag) @ B_bending * w_g * detJ
-        
-        # Extract shear contribution from full matrix
-        Ke_full_shear = np.zeros((12, 12), dtype=np.float64)
-        for g, (xi_g, w_g) in enumerate(zip(xi_full, w_full)):
-            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
-            detJ = self.jacobian_determinant
-            B_shear = B[[3, 4], :]
-            D_shear_diag = np.array([D[3, 3], D[4, 4]])
-            Ke_full_shear += B_shear.T @ np.diag(D_shear_diag) @ B_shear * w_g * detJ
-        
-        # Replace: Ke = Ke_full - Ke_full_bending - Ke_full_shear + Ke_bending_block + Ke_shear_block
-        Ke = Ke_full - Ke_full_bending - Ke_full_shear + Ke_bending_block + Ke_shear_block
+            if self.logger_operator:
+                B_bending = B[[1, 2], :]
+                D_bending_diag = np.array([D[1, 1], D[2, 2]])
+                Ke_full_bending += B_bending.T @ np.diag(D_bending_diag) @ B_bending * w_g * detJ
+                B_shear = B[[3, 4], :]
+                D_shear_diag = np.array([D[3, 3], D[4, 4]])
+                Ke_full_shear += B_shear.T @ np.diag(D_shear_diag) @ B_shear * w_g * detJ
 
-        if self.logger_operator:  # Modified logging block
+        Ke = assemble_timoshenko_K0(
+            self.shape_function_operator,
+            self.strain_displacement_operator,
+            D,
+            detJ,
+            orders,
+        )
+
+        if self.logger_operator:
+            Ke_bending_block = np.zeros((12, 12), dtype=np.float64)
+            xi_bending, w_bending = np.polynomial.legendre.leggauss(orders.bending_rule_order)
+            for xi_g, w_g in zip(xi_bending, w_bending):
+                N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
+                B_bending = B[[1, 2], :]
+                D_bending_diag = np.array([D[1, 1], D[2, 2]])
+                Ke_bending_block += B_bending.T @ np.diag(D_bending_diag) @ B_bending * w_g * detJ
+            Ke_shear_block = np.zeros((12, 12), dtype=np.float64)
+            xi_shear, w_shear = np.polynomial.legendre.leggauss(orders.shear_block)
+            for xi_g, w_g in zip(xi_shear, w_shear):
+                N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
+                B_shear = B[[3, 4], :]
+                D_shear_diag = np.array([D[3, 3], D[4, 4]])
+                Ke_shear_block += B_shear.T @ np.diag(D_shear_diag) @ B_shear * w_g * detJ
             self.logger_operator.log_matrix("stiffness", Ke_bending_block, {"name": "Bending contribution (selective)"})
             self.logger_operator.log_matrix("stiffness", Ke_shear_block, {"name": "Shear contribution (selective)"})
             self.logger_operator.log_matrix("stiffness", Ke_full - Ke_full_bending - Ke_full_shear, {"name": "Other terms contribution"})

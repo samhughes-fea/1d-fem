@@ -113,3 +113,34 @@ def test_evaluator_matches_eb_operator():
     finally:
         if os.path.isdir(temp_dir):
             shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def test_timoshenko_shape_function_operator_coefficients_match_pointwise():
+    """Timoshenko B2 coefficients from ShapeFunctionOperator match pointwise N, dN/dξ, dN/dx, d²N/dx²."""
+    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.shape_functions import (
+        ShapeFunctionOperator,
+    )
+
+    L = 2.3
+    op = ShapeFunctionOperator(element_length=L)
+    Nc, dN_dxi_c, d2N_dxi2_c = op.natural_coordinate_form_coefficients()
+    Nc_p, dN_dx_c, d2N_dx2_c = op.physical_coordinate_form_coefficients()
+
+    np.testing.assert_array_equal(Nc, Nc_p)
+
+    xi = np.array([-0.9, -0.2, 0.0, 0.4, 1.0])
+    N_from_b2, dN_dxi_b2, d2N_dxi2_b2 = evaluate_shape_functions_from_coefficients(
+        Nc, dN_dxi_c, d2N_dxi2_c, xi
+    )
+    N_op, dN_dxi_op, d2N_dxi2_op = op.natural_coordinate_form(xi)
+    np.testing.assert_allclose(N_from_b2, N_op, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(dN_dxi_b2, dN_dxi_op, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(d2N_dxi2_b2, d2N_dxi2_op, rtol=1e-12, atol=1e-12)
+
+    N_x, dN_dx_b2, d2N_dx2_b2 = evaluate_shape_functions_from_coefficients(
+        Nc, dN_dx_c, d2N_dx2_c, xi
+    )
+    N_xop, dN_dx_op, d2N_dx2_op = op.physical_coordinate_form(xi)
+    np.testing.assert_allclose(N_x, N_xop, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(dN_dx_b2, dN_dx_op, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(d2N_dx2_b2, d2N_dx2_op, rtol=1e-12, atol=1e-12)

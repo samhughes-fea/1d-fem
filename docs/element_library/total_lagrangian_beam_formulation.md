@@ -35,11 +35,11 @@ So \(\mathbf{E} = \mathbf{E}_{\mathrm{lin}}(\mathbf{u}) + \mathbf{E}_{\mathrm{nl
 - **Tangent stiffness**: Linearization of the residual w.r.t. \(\mathbf{U}\) gives  
   \(\mathbf{K}_T = \mathbf{K}_0 + \mathbf{K}_\sigma\):
   - **\(\mathbf{K}_0\) (material stiffness)**: From linearizing \(\mathbf{S} = \mathbf{D}\,\mathbf{E}\) w.r.t. \(\mathbf{u}\) using the **linear** part of the strain–displacement operator (same as the linear element stiffness).
-  - **\(\mathbf{K}_\sigma\) (geometric stiffness)**: Depends on the **current** section forces \(N,\, M_y,\, M_z\) and shape-function derivatives. Assembled at Gauss points from current \(N,\, M\) and \(\mathrm{d}N/\mathrm{d}x\).
+  - **\(\mathbf{K}_\sigma\) (geometric stiffness)**: Weak-form Gauss sum over \(\xi_g\): axial term from \(N_g\,(\partial N_i/\partial x)(\partial N_j/\partial x)\) on \(u_x\) DOFs; bending planes from \((N_g + M_z/L)\) and \((N_g + M_y/L)\) times outer products of Hermite slopes (EB) or Timoshenko slopes — see `nonlinear/euler_bernoulli/utilities/geometric_stiffness.py`.
 
 **Operators**:
 - `GreenLagrangeStrainOperator`: `strain_linear_part`, `strain_nonlinear_part`, `linearized_strain_displacement` (definitions above).
-- `GeometricStiffnessOperator.assemble_K_sigma(N, M_y, M_z, xi, weights, dN_dx, jacobian)` → 12×12 \(\mathbf{K}_\sigma\).
+- `GeometricStiffnessOperator.assemble_K_sigma(N_gp, M_y_gp, M_z_gp, weights, dN_dx, jacobian)` → 12×12 \(\mathbf{K}_\sigma\) (vectors `N_gp`, … length `n_gp`, one value per Gauss point).
 
 ## Residual and Newton–Raphson
 

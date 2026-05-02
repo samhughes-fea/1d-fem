@@ -31,6 +31,8 @@ class ElementFactory:
             "pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D",
         "LinearWarpingEulerBernoulliBeamElement3D":
             "pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli_with_warp.linear_warping_euler_bernoulli_3D",
+        "LinearCurvedEulerBernoulliBeamElement3D":
+            "pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.curved_beam.linear_curved_euler_bernoulli_3D",
         "LinearTimoshenkoBeamElement3D":
             "pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D",
         "LinearWarpingTimoshenkoBeamElement3D":
@@ -41,6 +43,18 @@ class ElementFactory:
             "pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.linear_levinson_3D",
         "LinearReddyBeamElement3D":
             "pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.linear_reddy_3D",
+        "LinearCurvedLevinsonBeamElement3D":
+            "pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.curved_levinson.linear_curved_levinson_3D",
+        "LinearCurvedReddyBeamElement3D":
+            "pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.curved_reddy.linear_curved_reddy_3D",
+        "LinearWarpingLevinsonBeamElement3D":
+            "pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson_with_warp.linear_warping_levinson_3D",
+        "LinearWarpingReddyBeamElement3D":
+            "pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy_with_warp.linear_warping_reddy_3D",
+        "LinearCurvedWarpingLevinsonBeamElement3D":
+            "pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.curved_levinson_with_warp.linear_curved_warping_levinson_3D",
+        "LinearCurvedWarpingReddyBeamElement3D":
+            "pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.curved_reddy_with_warp.linear_curved_warping_reddy_3D",
         "LinearTrussElement3D":
             "pre_processing.element_library.linear.truss.linear_truss_3D",
         "LinearBarElement3D":
@@ -52,8 +66,28 @@ class ElementFactory:
             "pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D",
         "NonlinearTimoshenkoBeamElement3D":
             "pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D",
-        "GEBTShearBeamElement3D":
-            "pre_processing.element_library.nonlinear.gebt_shear.gebt_shear_3D",
+        "NonlinearWarpingEulerBernoulliBeamElement3D":
+            "pre_processing.element_library.nonlinear.euler_bernoulli_with_warp.nonlinear_warping_euler_bernoulli_3D",
+        "NonlinearWarpingTimoshenkoBeamElement3D":
+            "pre_processing.element_library.nonlinear.timoshenko_with_warp.nonlinear_warping_timoshenko_3D",
+        "NonlinearCurvedEulerBernoulliBeamElement3D":
+            "pre_processing.element_library.nonlinear.curved_euler_bernoulli.nonlinear_curved_euler_bernoulli_3D",
+        "NonlinearCurvedTimoshenkoBeamElement3D":
+            "pre_processing.element_library.nonlinear.curved_timoshenko.nonlinear_curved_timoshenko_3D",
+        "NonlinearLevinsonBeamElement3D":
+            "pre_processing.element_library.nonlinear.levinson.nonlinear_levinson_3D",
+        "NonlinearReddyBeamElement3D":
+            "pre_processing.element_library.nonlinear.reddy.nonlinear_reddy_3D",
+        "UpdatedLagrangianEulerBernoulliBeamElement3D":
+            "pre_processing.element_library.nonlinear.updated_lagrangian_euler_bernoulli.updated_lagrangian_euler_bernoulli_3D",
+        "UpdatedLagrangianTimoshenkoBeamElement3D":
+            "pre_processing.element_library.nonlinear.updated_lagrangian_timoshenko.updated_lagrangian_timoshenko_3D",
+        "CorotationalBeamElement3D":
+            "pre_processing.element_library.nonlinear.corotational.corotational_3D",
+        "GeometricallyExactShearDeformableBeam3D":
+            "pre_processing.element_library.nonlinear.geometrically_exact_shear_deformable_beam.geometrically_exact_shear_deformable_beam_3D",
+        "GEBTUnshearableBeamElement3D":
+            "pre_processing.element_library.nonlinear.gebt_unshearable.gebt_unshearable_3D",
     }
 
     ELEMENT_CLASS_MAP = {**LINEAR_ELEMENT_CLASS_MAP, **NONLINEAR_ELEMENT_CLASS_MAP}

@@ -72,10 +72,10 @@ The **complete** set is **N**, **M_y**, **M_z**, **V_y**, **V_z**, **T**. Consti
 
 - **Stiffness**: \(\mathbf{K}_e = \int \mathbf{B}^\top \mathbf{D}\,\mathbf{B}\,\mathrm{d}x = \int \mathbf{B}^\top \mathbf{D}\,\mathbf{B}\,|J|\,\mathrm{d}\xi\). **Shape**: **(12, 12)**.
 - **Force**: \(\mathbf{F}_e\) shape **(12,)**.
-- **Quadrature**: Gauss–Legendre; number of points set in element (e.g. 2 or 3; reduced integration may be used to mitigate shear locking).
+- **Quadrature**: Material stiffness uses ``assemble_timoshenko_K0`` with ``TimoshenkoQuadratureOrders`` from the mesh integration columns (``axial``, ``bending_y``, ``bending_z``, ``shear_y``, ``shear_z``, ``torsion``). The full-rule order is their maximum; bending and shear-stiffness rows use separate Gauss rules (default shear block = 1 point). Post-processing caches Gauss data on that full rule. Mass and distributed loads use ``loop_order`` (\(\max(\cdot), 2\)).
 - Jacobian \(|J| = L/2\).
 
-**Code**: [linear_timoshenko_3D.py](linear_timoshenko_3D.py) (`element_stiffness_matrix`, `element_force_vector`).
+**Code**: [linear_timoshenko_3D.py](linear_timoshenko_3D.py); shared assembly [utilities/k0_timoshenko.py](utilities/k0_timoshenko.py).
 
 ---
 
@@ -85,5 +85,5 @@ The **complete** set is **N**, **M_y**, **M_z**, **V_y**, **V_z**, **T**. Consti
 |--------|-----------------|
 | Strain–displacement **B** | `StrainDisplacementOperator.physical_coordinate_form`, [utilities/B_matrix.py](utilities/B_matrix.py) |
 | Material matrix **D** | `MaterialStiffnessOperator.assembly_form`, [utilities/D_matrix.py](utilities/D_matrix.py) |
-| Element stiffness **K_e** | `LinearTimoshenkoBeamElement3D.element_stiffness_matrix`, [linear_timoshenko_3D.py](linear_timoshenko_3D.py) |
+| Element stiffness **K_e** | `assemble_timoshenko_K0`, [utilities/k0_timoshenko.py](utilities/k0_timoshenko.py); `LinearTimoshenkoBeamElement3D.element_stiffness_matrix`, [linear_timoshenko_3D.py](linear_timoshenko_3D.py) |
 | Element force **F_e** | `LinearTimoshenkoBeamElement3D.element_force_vector`, [linear_timoshenko_3D.py](linear_timoshenko_3D.py) |

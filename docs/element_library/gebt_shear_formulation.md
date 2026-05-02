@@ -1,24 +1,19 @@
-# GEBT shear beam formulation (Phase 3a)
+# Removed: `GEBTShearBeamElement3D`
 
-Shear-deformable Geometrically Exact Beam Theory element: **GEBTShearBeamElement3D**.
+The type string **`GEBTShearBeamElement3D`** and package `nonlinear/gebt_shear/` have been **removed**. That class was a Total Lagrangian Timoshenko stack with selective material stiffness — not a classical finite-rotation geometrically exact beam.
 
-## Interface
+## Migration
 
-- **tangent_stiffness_matrix(U_e):** Tangent stiffness K_T = K_0 + K_σ(U_e), shape (12, 12).
-- **internal_force_vector(U_e):** Internal force F_int = ∫ B^T S dx, shape (12,).
-- **element_stiffness_matrix():** Returns ElementObject with K_e = tangent at U_e=0 (same as linear Timoshenko K_e for same integration rule).
-- **strain_at_gauss_points(U_e):** Strain E_lin + E_nl at each Gauss point (for converged cache).
+| Old | New |
+|-----|-----|
+| `GEBTShearBeamElement3D` | `NonlinearTimoshenkoBeamElement3D` |
 
-## Limit at U=0
+Keep the same mesh **`integration_orders`** (axial, bending_y, bending_z, shear_y, shear_z, torsion). Material stiffness **`K_0`** / linear **`K_e`** both use **`assemble_timoshenko_K0`** with **`TimoshenkoQuadratureOrders`** resolved from the element row (default **shear block** = 1 Gauss point for the shear stiffness rows, matching prior selective integration).
 
-At zero displacement, K_T equals the linear Timoshenko element stiffness K_e when both use the same section, material, length, and **selective integration** (1-point shear, bending order from element integration_orders). This is enforced in `tests/test_gebt_shear_initial_stiffness_vs_linear.py` and `scripts/verify_gebt_shear_initial_stiffness.py`.
+TL internal force and **`K_sigma`** use a single Gauss rule of order **`loop_order`** (default `max` of those mesh orders, at least 2).
 
-## Relation to Total Lagrangian Timoshenko
+## Classical GEBT (future)
 
-The current implementation uses the same kinematics as the Total Lagrangian nonlinear Timoshenko beam (Green–Lagrange strain, geometric stiffness K_σ). So at U≠0 the response matches NonlinearTimoshenkoBeamElement3D. A full current-configuration GEBT formulation (exact director update, strain in deformed config) can be added later; this element satisfies the Phase 3a requirement that at U=0 the tangent matches linear Timoshenko and that the nonlinear runner can use it for Newton–Raphson.
+For a **literature** shear-deformable geometrically exact beam (finite rotations), see [geometrically_exact_shear_deformable_beam_formulation.md](geometrically_exact_shear_deformable_beam_formulation.md) and factory type **`GeometricallyExactShearDeformableBeam3D`** (stub).
 
-## References
-
-- Plan: Phase 3 GEBT and systematic tests
-- Total Lagrangian: [docs/element_library/total_lagrangian_beam_formulation.md](total_lagrangian_beam_formulation.md)
-- Nonlinear runner: simulation_runner/static/nonlinear_static_simulation.py
+Total Lagrangian reference: [total_lagrangian_beam_formulation.md](total_lagrangian_beam_formulation.md).

@@ -1,6 +1,4 @@
-"""
-Phase 3a: GEBT shear integration — cantilever with tip load; Newton solve runs; optional large-rotation reference.
-"""
+"""Cantilever with nonlinear Timoshenko: Newton-style solve smoke test."""
 
 import os
 import shutil
@@ -9,7 +7,6 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-import pytest
 import scipy.sparse as sp
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -24,7 +21,7 @@ def _cantilever_dicts(L=2.0, E=2.1e11, G=8.1e10, A=0.00131, I_z=2.08769e-06, I_y
     element_dictionary = {
         "ids": np.array([0]),
         "connectivity": np.array([[0, 1]]),
-        "types": np.array(["GEBTShearBeamElement3D"]),
+        "types": np.array(["NonlinearTimoshenkoBeamElement3D"]),
         "integration_orders": {
             "axial": np.array([3]),
             "bending_y": np.array([3]),
@@ -60,10 +57,12 @@ def _cantilever_dicts(L=2.0, E=2.1e11, G=8.1e10, A=0.00131, I_z=2.08769e-06, I_y
     )
 
 
-def test_gebt_shear_integration_cantilever_solve():
-    """Cantilever with GEBT shear element: assemble K_T and F_int at U=0, solve one Newton step; assert solution shape and fixed DOFs zero."""
+def test_nonlinear_timoshenko_integration_cantilever_solve():
+    """Assemble K_T and F_int at U=0, one Newton step; fixed DOFs remain zero."""
     from pre_processing.element_library.element_factory import ElementFactory
-    from pre_processing.element_library.nonlinear.gebt_shear.gebt_shear_3D import GEBTShearBeamElement3D
+    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+        NonlinearTimoshenkoBeamElement3D,
+    )
 
     (
         grid_dictionary,
@@ -73,10 +72,9 @@ def test_gebt_shear_integration_cantilever_solve():
         point_load_array,
         distributed_load_array,
     ) = _cantilever_dicts()
-    element_dictionary["types"] = np.array(["GEBTShearBeamElement3D"])
 
     temp_dir = tempfile.mkdtemp()
-    job_results_dir = os.path.join(temp_dir, "gebt_integration")
+    job_results_dir = os.path.join(temp_dir, "nl_timo_integration")
     os.makedirs(job_results_dir, exist_ok=True)
     os.makedirs(os.path.join(job_results_dir, "element_stiffness_matrices"), exist_ok=True)
     os.makedirs(os.path.join(job_results_dir, "element_force_vectors"), exist_ok=True)
@@ -95,7 +93,7 @@ def test_gebt_shear_integration_cantilever_solve():
         )
         assert len(elements) == 1
         elem = elements[0]
-        assert isinstance(elem, GEBTShearBeamElement3D)
+        assert isinstance(elem, NonlinearTimoshenkoBeamElement3D)
 
         U_e = np.zeros(12, dtype=np.float64)
         K_T = elem.tangent_stiffness_matrix(U_e)

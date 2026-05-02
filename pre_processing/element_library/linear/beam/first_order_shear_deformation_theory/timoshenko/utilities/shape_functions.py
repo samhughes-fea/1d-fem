@@ -172,6 +172,62 @@ class ShapeFunctionOperator:
         
         return N, dN_dx, d2N_dx2
 
+    def natural_coordinate_form_coefficients(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Monomial coefficients for N, ∂N/∂ξ, and ∂²N/∂ξ² in ξ (same layout as B2 / ElementObject).
+
+        Returns
+        -------
+        N_coefficients : np.ndarray
+            Shape (12, 6, 4). ``N_coefficients[dof, comp, k]`` is the coefficient of ξ^k in N.
+        dN_dxi_coefficients : np.ndarray
+            Shape (12, 6, 4). Coefficients of ∂N/∂ξ as a polynomial in ξ.
+        d2N_dxi2_coefficients : np.ndarray
+            Shape (12, 6, 4). Coefficients of ∂²N/∂ξ² (zero for linear Lagrange DOFs).
+
+        Notes
+        -----
+        Linear 2-node Timoshenko: axial, bending, and torsion use linear Lagrange in ξ;
+        second derivatives in ξ vanish for those shape functions.
+        """
+        c = np.zeros((12, 6, 4), dtype=np.float64)
+        dc = np.zeros((12, 6, 4), dtype=np.float64)
+        d2c = np.zeros((12, 6, 4), dtype=np.float64)
+        c[0, 0, 0], c[0, 0, 1] = 0.5, -0.5
+        c[6, 0, 0], c[6, 0, 1] = 0.5, 0.5
+        dc[0, 0, 0] = -0.5
+        dc[6, 0, 0] = 0.5
+        c[1, 1], c[7, 1] = c[0, 0].copy(), c[6, 0].copy()
+        dc[1, 1], dc[7, 1] = dc[0, 0].copy(), dc[6, 0].copy()
+        c[5, 5], c[11, 5] = c[0, 0].copy(), c[6, 0].copy()
+        dc[5, 5], dc[11, 5] = dc[0, 0].copy(), dc[6, 0].copy()
+        c[2, 2], c[8, 2] = c[1, 1].copy(), c[7, 1].copy()
+        dc[2, 2], dc[8, 2] = dc[1, 1].copy(), dc[7, 1].copy()
+        c[4, 4], c[10, 4] = -c[5, 5].copy(), -c[11, 5].copy()
+        dc[4, 4], dc[10, 4] = -dc[5, 5].copy(), -dc[11, 5].copy()
+        c[3, 3], c[9, 3] = c[0, 0].copy(), c[6, 0].copy()
+        dc[3, 3], dc[9, 3] = dc[0, 0].copy(), dc[6, 0].copy()
+        return c, dc, d2c
+
+    def physical_coordinate_form_coefficients(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Monomial coefficients for N, ∂N/∂x, and ∂²N/∂x² expressed as polynomials in ξ.
+
+        The polynomials are still parameterized by natural coordinate ξ ∈ [-1, 1];
+        values satisfy ∂N/∂x = (∂N/∂ξ)(2/L) and ∂²N/∂x² = (∂²N/∂ξ²)(4/L²) pointwise.
+
+        Returns
+        -------
+        N_coefficients : np.ndarray
+            Same as :meth:`natural_coordinate_form_coefficients` (N is invariant).
+        dN_dx_coefficients : np.ndarray
+            Shape (12, 6, 4). Polynomial in ξ for ∂N/∂x at each (dof, component).
+        d2N_dx2_coefficients : np.ndarray
+            Shape (12, 6, 4). Polynomial in ξ for ∂²N/∂x².
+        """
+        cN, cdxi, cd2xi = self.natural_coordinate_form_coefficients()
+        return cN, cdxi * self.dξ_dx, cd2xi * self.d2ξ_dx2
+
     @property
     def dof_interpretation(self) -> np.ndarray:
         """
