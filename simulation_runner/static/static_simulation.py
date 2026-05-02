@@ -449,7 +449,10 @@ class StaticSimulationRunner:
                             restart: int = 20,
                             ilu_drop_tol: float = 1e-6,
                             ilu_fill_factor: float = 1.0,
-                            disable_scaling: bool = False):
+                            disable_scaling: bool = False,
+                            load_increment_index: int | None = None,
+                            newton_iter: int | None = None,
+                            load_factor: float | None = None):
         """
         Solve the condensed linear system K_cond · U_cond = F_cond.
 
@@ -475,6 +478,8 @@ class StaticSimulationRunner:
             ILU fill factor (default 1.0).
         disable_scaling : bool, optional
             Disable row/column scaling (default False).
+        load_increment_index, newton_iter, load_factor : optional
+            Nonlinear runs pass these for inner-solve logs; linear static leaves them None.
 
         Returns
         -------
@@ -497,7 +502,11 @@ class StaticSimulationRunner:
             disable_scaling=disable_scaling
         )
 
-        U_cond = cond_solver.solve()
+        U_cond = cond_solver.solve(
+            load_increment_index=load_increment_index,
+            newton_iter=newton_iter,
+            load_factor=load_factor,
+        )
         if U_cond is None:
             raise RuntimeError(
                 "Condensed solver failed — see SolveCondensedSystem.log")
@@ -505,7 +514,7 @@ class StaticSimulationRunner:
         # Cache into self
         self.U_cond = U_cond
 
-        # Cache map and results to simulation runner results container
+        # Cache map and results to simulation_runner results container
         self.primary_results_set.global_results.U_cond = U_cond
 
         logger.info("✅ Condensed system successfully solved")

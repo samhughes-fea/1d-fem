@@ -25,6 +25,7 @@ FEM_ILU_FILL             – ILU fill-factor                      (default 1.0)
 
 from __future__ import annotations
 
+import csv
 import os
 import time
 import logging
@@ -158,6 +159,8 @@ class SolveCondensedSystem:
         self.diagnostics: Dict[str, Any] = {
             "solve_phase": {}, "residuals": [], "condition_estimate": None}
         self.U_cond: Optional[np.ndarray] = None
+        self._fallback_superlu: bool = False
+        self._solve_used_direct_only: bool = False
 
         # size checks + optional scaling
         self._validate_sizes()
@@ -181,11 +184,30 @@ class SolveCondensedSystem:
             self._solver_registry = self._apply_preconditioner(self._solver_registry)
 
     # ───────── public API ────────────────────────────────────────────
-    def solve(self) -> np.ndarray | None:
+    def solve(
+        self,
+        *,
+        load_increment_index: int | None = None,
+        newton_iter: int | None = None,
+        load_factor: float | None = None,
+    ) -> np.ndarray | None:
+        self._fallback_superlu = False
+        self._solve_used_direct_only = "direct" in self.solver_name.lower()
+
+        nr_parts = []
+        if load_increment_index is not None:
+            nr_parts.append(f"inc={load_increment_index}")
+        if newton_iter is not None:
+            nr_parts.append(f"nr={newton_iter}")
+        if load_factor is not None:
+            nr_parts.append(f"lambda={load_factor:.6g}")
+        nr_ctx = (" | " + ", ".join(nr_parts)) if nr_parts else ""
+
         self.logger.info(
-            "===== Condensed linear solve begin | solver=%s prec=%s =====",
+            "===== Condensed linear solve begin | solver=%s prec=%s%s =====",
             self.solver_name,
             self.preconditioner,
+            nr_ctx,
         )
         self.logger.info(
             f"Solver parameters • solver='{self.solver_name}', "
@@ -217,6 +239,12 @@ class SolveCondensedSystem:
         # exports & report
         self._export_U_cond()
         self._write_report()
+        self._append_inner_solve_history_row(
+            load_increment_index=load_increment_index,
+            newton_iter=newton_iter,
+            load_factor=load_factor,
+            condensed_residual_norm=float(res_norm),
+        )
         return self.U_cond
 
     # ───────── validation / logging ──────────────────────────────────
@@ -363,6 +391,7 @@ class SolveCondensedSystem:
 
         # ── final fall-back to direct
         self.logger.info("Switching to direct SuperLU fall-back.")
+        self._fallback_superlu = True
         return self._solve_direct()
 
     # ───────── CSV export of U_cond (07) ─────────────────────────────
@@ -390,3 +419,76 @@ class SolveCondensedSystem:
         self.logger.info("📊 Condensed solver report:")
         for k, v in rep.items():
             self.logger.info(f" • {k}: {v}")
+
+    def _append_inner_solve_history_row(
+        self,
+        *,
+        load_increment_index: int | None,
+        newton_iter: int | None,
+        load_factor: float | None,
+        condensed_residual_norm: float,
+    ) -> None:
+        """Append one row to ``logs/inner_solve_history.csv`` (creates header if needed)."""
+        log_dir = self.job_results_dir.parent / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        path = log_dir / "inner_solve_history.csv"
+
+        res_list = self.diagnostics["residuals"]
+        fnorm = float(np.linalg.norm(self.F_cond))
+        if self._solve_used_direct_only:
+            iterations = -1
+            final_rel = (
+                condensed_residual_norm / max(fnorm, np.finfo(float).tiny)
+                if fnorm > 0
+                else 0.0
+            )
+        elif res_list:
+            iterations = len(res_list)
+            r0 = max(float(res_list[0]), np.finfo(float).tiny)
+            final_rel = float(res_list[-1]) / r0
+        else:
+            iterations = 0
+            final_rel = (
+                condensed_residual_norm / max(fnorm, np.finfo(float).tiny)
+                if fnorm > 0
+                else 0.0
+            )
+
+        prec = self.preconditioner
+        if prec is None:
+            prec_str = ""
+        else:
+            prec_str = str(prec)
+
+        header = [
+            "load_increment_index",
+            "load_factor",
+            "newton_iter",
+            "solver",
+            "preconditioner",
+            "iterations",
+            "final_relative_residual",
+            "condensed_residual_norm",
+            "fallback_superlu",
+        ]
+        row = [
+            "" if load_increment_index is None else load_increment_index,
+            "" if load_factor is None else f"{load_factor:.17e}",
+            "" if newton_iter is None else newton_iter,
+            self.solver_name,
+            prec_str,
+            iterations,
+            f"{final_rel:.17e}",
+            f"{condensed_residual_norm:.17e}",
+            int(self._fallback_superlu),
+        ]
+
+        write_header = not path.exists() or path.stat().st_size == 0
+        try:
+            with open(path, "a", newline="", encoding="utf-8") as f:
+                w = csv.writer(f)
+                if write_header:
+                    w.writerow(header)
+                w.writerow(row)
+        except OSError as exc:
+            self.logger.warning("Could not append inner_solve_history.csv: %s", exc)

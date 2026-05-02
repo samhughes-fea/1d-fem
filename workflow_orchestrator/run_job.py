@@ -24,6 +24,8 @@ from tabulate import tabulate
 import subprocess
 from typing import List
 
+from workflow_orchestrator.run_manifest import write_run_manifest
+
 # Adjust Python Path to include project root
 script_dir = os.path.dirname(os.path.abspath(__file__))
 fem_model_root = os.path.abspath(os.path.join(script_dir, '..'))
@@ -559,6 +561,16 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
             f.write(f"Start Memory: {usage_start['Memory (MB)']:.2f} MB | End Memory: {usage_end['Memory (MB)']:.2f} MB\n")
             f.write(f"Start Disk Usage: {usage_start['Disk (GB)']:.2f} GB | End Disk Usage: {usage_end['Disk (GB)']:.2f} GB\n")
             f.write(f"Start CPU: {usage_start['CPU (%)']:.2f}% | End CPU: {usage_end['CPU (%)']:.2f}%\n")
+
+        manifest_path = write_run_manifest(
+            job_results_dir=job_results_dir,
+            job_name=case_name,
+            job_dir=job_dir,
+            wall_time_sec=end_time - start_time,
+            simulation_settings=simulation_settings,
+        )
+        if manifest_path is not None:
+            logger.info("Run manifest written: %s", manifest_path)
 
     except Exception as e:
         logger.error(f"❌ Error in job {case_name}: {e}", exc_info=True)

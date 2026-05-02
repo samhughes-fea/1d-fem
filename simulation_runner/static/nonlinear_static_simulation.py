@@ -543,6 +543,9 @@ class NonlinearStaticSimulationRunner:
         ilu_drop_tol: float = 1e-6,
         ilu_fill_factor: float = 1.0,
         disable_scaling: bool = False,
+        load_increment_index: int | None = None,
+        newton_iter: int | None = None,
+        load_factor: float | None = None,
     ):
         """
         Solve the condensed linear system K_cond · U_cond = F_cond.
@@ -567,6 +570,9 @@ class NonlinearStaticSimulationRunner:
             ILU options.
         disable_scaling : bool, optional
             Disable scaling.
+        load_increment_index, newton_iter, load_factor : optional
+            When set (nonlinear Newton loop), written to inner-solve logs/CSV
+            for joining with ``newton_history.csv``.
 
         Returns
         -------
@@ -588,7 +594,11 @@ class NonlinearStaticSimulationRunner:
             disable_scaling=disable_scaling,
         )
 
-        U_cond = solver.solve()
+        U_cond = solver.solve(
+            load_increment_index=load_increment_index,
+            newton_iter=newton_iter,
+            load_factor=load_factor,
+        )
         if U_cond is None:
             raise RuntimeError("Condensed solver failed – see SolveCondensedSystem.log")
 
@@ -948,6 +958,9 @@ class NonlinearStaticSimulationRunner:
                     ilu_drop_tol=self.solver_config.get("ilu_drop_tol", 1e-6),
                     ilu_fill_factor=self.solver_config.get("ilu_fill_factor", 1.0),
                     disable_scaling=self.solver_config.get("disable_scaling", False),
+                    load_increment_index=self.load_increment_index,
+                    newton_iter=iteration + 1,
+                    load_factor=float(load_factor),
                 )
                 if delta_U_cond is None:
                     raise RuntimeError("Newton step solve failed")

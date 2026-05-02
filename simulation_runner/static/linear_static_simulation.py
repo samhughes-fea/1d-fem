@@ -458,7 +458,10 @@ class LinearStaticSimulationRunner:
                             restart: int = 20,
                             ilu_drop_tol: float = 1e-6,
                             ilu_fill_factor: float = 1.0,
-                            disable_scaling: bool = False):
+                            disable_scaling: bool = False,
+                            load_increment_index: int | None = None,
+                            newton_iter: int | None = None,
+                            load_factor: float | None = None):
         """
         Solve the condensed linear system K_cond · U_cond = F_cond.
 
@@ -484,6 +487,8 @@ class LinearStaticSimulationRunner:
             ILU fill factor (default 1.0).
         disable_scaling : bool, optional
             Disable row/column scaling (default False).
+        load_increment_index, newton_iter, load_factor : optional
+            For inner-solve trace; linear static typically omits (None).
 
         Returns
         -------
@@ -506,7 +511,11 @@ class LinearStaticSimulationRunner:
             disable_scaling=disable_scaling
         )
 
-        U_cond = cond_solver.solve()
+        U_cond = cond_solver.solve(
+            load_increment_index=load_increment_index,
+            newton_iter=newton_iter,
+            load_factor=load_factor,
+        )
         if U_cond is None:
             raise RuntimeError(
                 "Condensed solver failed — see SolveCondensedSystem.log")
