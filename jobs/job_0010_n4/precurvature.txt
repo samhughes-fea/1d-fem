@@ -1,0 +1,9 @@
+# Optional: reference curvature / twist (1/m) in local element frame.
+# [Precurvature]
+# [element_id] [k_x0] [k_y0] [k_z0]
+[Precurvature]
+[element_id] [k_x0] [k_y0] [k_z0]
+0 0.0 0.0 0.0
+1 0.0 0.0 0.0
+2 0.0 0.0 0.0
+3 0.0 0.0 0.0
