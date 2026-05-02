@@ -68,19 +68,41 @@ def configure_logging(log_file_path):
     return logger
 
 def configure_child_logging(job_results_dir):
-    """Configures logging for a child process."""
-    log_file_path = os.path.join(job_results_dir, "logs", "process_job.log")
-    logger = logging.getLogger(f"child_{os.getpid()}")
-    logger.setLevel(logging.DEBUG)
+    """Configure logging so orchestrator + simulation_runner share ``logs/process_job.log``.
 
-    for handler in logger.handlers[:]:
-        logger.removeHandler(handler)
+    The root logger receives the job log file and stdout; ``simulation_runner`` /
+    ``processing`` INFO records propagate here (unlike a logger-only child handler).
+    """
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except OSError:
+        pass
+
+    log_file_path = os.path.join(job_results_dir, "logs", "process_job.log")
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+
+    root = logging.getLogger()
+    for h in root.handlers[:]:
+        root.removeHandler(h)
+    root.setLevel(logging.INFO)
 
     file_handler = logging.FileHandler(log_file_path, mode="w", encoding="utf-8")
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    file_handler.setLevel(logging.INFO)
+    root.addHandler(file_handler)
 
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(formatter)
+    stream_handler.setLevel(logging.INFO)
+    root.addHandler(stream_handler)
+
+    logger = logging.getLogger(f"child_{os.getpid()}")
+    logger.handlers.clear()
+    logger.setLevel(logging.INFO)
+    logger.propagate = True
     return logger
 
 def get_machine_specs():

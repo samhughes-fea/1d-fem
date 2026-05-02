@@ -225,6 +225,12 @@ class SavePrimaryResultsSummary:
                 res = np.asarray(gr.R_residual).ravel()
                 summary["max_abs_R_residual"] = np.max(np.abs(res))
                 summary["norm_R_residual"] = float(np.linalg.norm(res))
+            if gr.newton_iterations_total is not None:
+                summary["newton_iterations_total"] = int(gr.newton_iterations_total)
+            if gr.newton_converged is not None:
+                summary["newton_converged"] = bool(gr.newton_converged)
+            if gr.load_increments_completed is not None:
+                summary["load_increments_completed"] = int(gr.load_increments_completed)
 
         er = self.results.elemental_results
         if er is not None and er.U_e is not None:

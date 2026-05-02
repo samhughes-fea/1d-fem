@@ -30,3 +30,7 @@ class GlobalResults:
     # --------------------------------PrimaryResultsOrchestrator outputs
     R_global: Optional[np.ndarray] = None
     R_residual: Optional[np.ndarray] = None
+    # --------------------------------Nonlinear static only (optional summary columns)
+    newton_converged: Optional[bool] = None
+    newton_iterations_total: Optional[int] = None
+    load_increments_completed: Optional[int] = None

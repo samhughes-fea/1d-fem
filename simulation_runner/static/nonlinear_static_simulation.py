@@ -1,11 +1,12 @@
 # simulation_runner/static/nonlinear_static_simulation.py
 # Nonlinear (geometric) static finite element analysis (Newton–Raphson iteration).
 
+import csv
+import datetime
 import logging
 import numpy as np
 import os
 from pathlib import Path
-import datetime
 from scipy.sparse import coo_matrix
 
 # Diagnostics
@@ -210,6 +211,8 @@ class NonlinearStaticSimulationRunner:
         self.load_increment_index = 0
         self.last_load_factor = 1.0
         self.last_norm_F_cond = None
+        self.newton_iterations_total = 0
+        self.load_increments_completed = 0
 
         # Intermediate system storage
         self.K_global = None
@@ -224,6 +227,54 @@ class NonlinearStaticSimulationRunner:
         self.U_cond = None
         self.U_global = None
         self.local_global_dof_map = None
+
+    def _init_newton_history_csv(self) -> None:
+        """Create ``logs/newton_history.csv`` with header (one row per global Newton iteration)."""
+        path = os.path.join(self.logs_dir, "newton_history.csv")
+        os.makedirs(self.logs_dir, exist_ok=True)
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerow(
+                [
+                    "load_increment_index",
+                    "load_factor",
+                    "newton_iter",
+                    "norm_R_full",
+                    "norm_F_cond",
+                    "threshold",
+                    "norm_delta_u",
+                    "alpha",
+                    "residual_ok",
+                ]
+            )
+
+    def _append_newton_history_row(
+        self,
+        *,
+        load_increment_index: int,
+        load_factor: float,
+        newton_iter: int,
+        norm_R_full: float,
+        norm_F_cond: float,
+        threshold: float,
+        norm_delta_u: float,
+        alpha: float,
+        residual_ok: bool,
+    ) -> None:
+        path = os.path.join(self.logs_dir, "newton_history.csv")
+        with open(path, "a", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerow(
+                [
+                    load_increment_index,
+                    f"{load_factor:.17e}",
+                    newton_iter,
+                    f"{norm_R_full:.17e}",
+                    f"{norm_F_cond:.17e}",
+                    f"{threshold:.17e}",
+                    f"{norm_delta_u:.17e}",
+                    f"{alpha:.17e}",
+                    int(residual_ok),
+                ]
+            )
 
     def setup_simulation(self):
         """Create the necessary output directory structure."""
@@ -667,6 +718,9 @@ class NonlinearStaticSimulationRunner:
             R_global=self.R_global,
             R_residual=self.R_residual,
         )
+        global_results.newton_converged = getattr(self, "newton_converged", None)
+        global_results.newton_iterations_total = getattr(self, "newton_iterations_total", None)
+        global_results.load_increments_completed = getattr(self, "load_increments_completed", None)
 
         # Step 5: Construct element results
         elemental_results = ElementalResults(
@@ -810,6 +864,7 @@ class NonlinearStaticSimulationRunner:
         self,
         F_ext_global: np.ndarray,
         U_global: np.ndarray,
+        load_factor: float,
     ) -> tuple[np.ndarray, np.ndarray | None, bool]:
         """
         Newton–Raphson for fixed external load F_ext_global and starting displacement U_global.
@@ -946,6 +1001,18 @@ class NonlinearStaticSimulationRunner:
                 norm_du,
                 alpha,
             )
+            self.newton_iterations_total += 1
+            self._append_newton_history_row(
+                load_increment_index=self.load_increment_index,
+                load_factor=float(load_factor),
+                newton_iter=iteration + 1,
+                norm_R_full=norm_R_full,
+                norm_F_cond=norm_R_conv,
+                threshold=thr,
+                norm_delta_u=norm_du,
+                alpha=float(alpha),
+                residual_ok=bool(residual_ok),
+            )
             if residual_ok and norm_du < tol_du:
                 logger.info("Newton converged at iteration %d", iteration + 1)
                 converged = True
@@ -969,6 +1036,9 @@ class NonlinearStaticSimulationRunner:
             # -----------------------------------------------------------------
             self.setup_simulation()
             self.start_time = datetime.datetime.now()
+            self.newton_iterations_total = 0
+            self.load_increments_completed = 0
+            self._init_newton_history_csv()
 
             with self.monitor.stage("PrepareLocalSystem"):
                 self.prepare_local_system(job_results_dir=self.primary_results_dir)
@@ -1005,8 +1075,11 @@ class NonlinearStaticSimulationRunner:
                 U_global, delta_U_cond, converged = self._newton_raphson_solve(
                     F_ext_global,
                     U_global,
+                    lam,
                 )
                 self.newton_converged = converged
+                if converged:
+                    self.load_increments_completed = inc_i + 1
                 if not converged:
                     logger.warning(
                         "Stopping after failed Newton at load increment %d (lambda=%.6f)",

@@ -183,6 +183,11 @@ class SolveCondensedSystem:
     # ───────── public API ────────────────────────────────────────────
     def solve(self) -> np.ndarray | None:
         self.logger.info(
+            "===== Condensed linear solve begin | solver=%s prec=%s =====",
+            self.solver_name,
+            self.preconditioner,
+        )
+        self.logger.info(
             f"Solver parameters • solver='{self.solver_name}', "
             f"prec='{self.preconditioner}', "
             f"K nnz={self.K_cond.nnz}, dofs={self.K_cond.shape[0]}")
@@ -236,7 +241,7 @@ class SolveCondensedSystem:
         log_path = log_dir / "SolveCondensedSystem.log"
 
         try:
-            fh = logging.FileHandler(log_path, mode="w", encoding="utf-8")
+            fh = logging.FileHandler(log_path, mode="a", encoding="utf-8")
             fh.setFormatter(logging.Formatter(
                 "%(asctime)s [%(levelname)s] %(message)s "
                 "(Module: %(module)s, Line: %(lineno)d)"))
@@ -283,11 +288,11 @@ class SolveCondensedSystem:
             self.preconditioner = None
             return registry
 
-        # wrap each solver so it always receives M
-        return {n: (lambda fn:
-                    (lambda A, b, callback=None:
-                        fn(A, b, M=M, callback=callback)))(fn)
-                for n, fn in registry.items()}
+        # wrap each solver so it always receives M; forward rtol/maxiter etc. to SciPy
+        return {
+            n: (lambda f, p=M: (lambda A, b, callback=None, **kw: f(A, b, M=p, callback=callback, **kw)))(fn)
+            for n, fn in registry.items()
+        }
 
     # ───────── condition estimate (rough) ────────────────────────────
     def _estimate_condition(self) -> float:
