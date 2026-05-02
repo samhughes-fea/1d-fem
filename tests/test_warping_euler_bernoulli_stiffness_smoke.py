@@ -1,8 +1,8 @@
 """
 Smoke test: warping Euler–Bernoulli element stiffness shape and symmetry.
 
-`LinearWarpingEulerBernoulliBeamElement3D` is not otherwise covered by warping tests
-(which use the Timoshenko warping element).
+Uses ``LinearEulerBernoulliBeamElement3D`` with explicit ``warping`` in the element dictionary
+(replaces the removed ``LinearWarpingEulerBernoulliBeamElement3D`` alias).
 """
 
 import os
@@ -15,8 +15,8 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli_with_warp.linear_warping_euler_bernoulli_3D import (
-    LinearWarpingEulerBernoulliBeamElement3D,
+from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+    LinearEulerBernoulliBeamElement3D,
 )
 
 
@@ -41,7 +41,8 @@ def test_warping_euler_bernoulli_stiffness_smoke():
     element_dictionary = {
         "ids": np.array([0]),
         "connectivity": np.array([[0, 1]]),
-        "types": np.array(["LinearWarpingEulerBernoulliBeamElement3D"]),
+        "types": np.array(["LinearEulerBernoulliBeamElement3D"]),
+        "warping": np.array([1], dtype=np.int8),
         "integration_orders": {
             "axial": np.array([2]),
             "bending_y": np.array([2]),
@@ -70,7 +71,7 @@ def test_warping_euler_bernoulli_stiffness_smoke():
     os.makedirs(os.path.join(job_results_dir, "element_force_vectors"), exist_ok=True)
 
     try:
-        element = LinearWarpingEulerBernoulliBeamElement3D(
+        element = LinearEulerBernoulliBeamElement3D(
             element_id=0,
             element_dictionary=element_dictionary,
             grid_dictionary=grid_dictionary,

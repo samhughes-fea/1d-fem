@@ -72,7 +72,11 @@ class DynamicSimulationRunner:
             t_grid = np.linspace(0.0, end_time, n_steps + 1)
 
             num_nodes = len(self.mesh_dictionary["node_ids"])
-            total_dof = num_nodes * 6
+            from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
+
+            ed = self.settings.get("element_dictionary")
+            dpn = 7 if ed is not None and mesh_uses_warping_dof(ed) else 6
+            total_dof = num_nodes * dpn
 
             K_global, M_global, C_global, _ = assemble_global_system(
                 elements=list(self.elements),

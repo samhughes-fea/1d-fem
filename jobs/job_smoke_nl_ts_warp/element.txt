@@ -1,0 +1,27 @@
+[Element]
+[element_id]  [node1]  [node2]  [element_type]                [axial_order]     [bending_y_order] [bending_z_order] [shear_y_order]   [shear_z_order]   [torsion_order]   [load_order]  [warping]
+0             0        1        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+1             1        2        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+2             2        3        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+3             3        4        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+4             4        5        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+5             5        6        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+6             6        7        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+7             7        8        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+8             8        9        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+9             9        10        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+10             10        11        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+11             11        12        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+12             12        13        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+13             13        14        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+14             14        15        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+15             15        16        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+16             16        17        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+17             17        18        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+18             18        19        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+19             19        20        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+20             20        21        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+21             21        22        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+22             22        23        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+23             23        24        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1
+24             24        25        NonlinearTimoshenkoBeamElement3D   3                 3                 3                 2                 2                 3                 2                 1

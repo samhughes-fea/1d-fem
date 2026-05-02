@@ -27,6 +27,8 @@ class SectionParser:
     Sub-header may be 6 columns (element_id, A, I_x, I_y, I_z, J_t), 8 columns
     with [kappa] and [alpha], 10 columns with [y_sc] and [z_sc], or 11 columns
     with [Gamma] for general-section preprocessing (shear centre, warping).
+
+    See ``docs/conventions/JOB_INPUT_BEAM_WARPING.md`` for when to set ``Gamma``, shear centre, and how this ties to ``[warping]`` in ``element.txt``.
     """
 
     def __init__(self, filepath: str, job_results_dir: str) -> None:

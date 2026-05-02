@@ -1,9 +1,12 @@
 # pre_processing/element_library/linear/timoshenko/utilities/B_matrix.py
-"""Strain-displacement B (6, 12) per Gauss point for 2-node 3-D Timoshenko beam.
+"""Strain-displacement **B** (6, 12) per Gauss point — **infinitesimal strain** Timoshenko beam.
 
-ε = B U_e with Voigt order [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x].
-Shear terms are γ_xy = ∂u_y/∂x - θ_z and γ_xz = ∂u_z/∂x - θ_y.
-Parent assembly uses `K_e += B.T @ D @ B * w_g * detJ`.
+**Continuum:** Infinitesimal strain \\(\\varepsilon_{ij} = \\tfrac{1}{2}(\\partial u_i/\\partial x_j + \\partial u_j/\\partial x_i)\\).
+Voigt vector \\(\\boldsymbol{\\varepsilon} = [\\varepsilon_x,\\kappa_y,\\kappa_z,\\gamma_{xy},\\gamma_{xz},\\phi_x]^T\\).
+
+**Discrete:** \\(\\boldsymbol{\\varepsilon} = \\mathbf{B}\\,\\mathbf{U}_e\\). Shear \\(\\gamma_{xy} = \\partial u_y/\\partial x - \\theta_z\\),
+\\(\\gamma_{xz} = \\partial u_z/\\partial x - \\theta_y\\). Linear stiffness \\(\\mathbf{K} = \\int \\mathbf{B}^\\top \\mathbf{D}\\,\\mathbf{B}\\,\\mathrm{d}x\\)
+(Gauss: `K_e += B.T @ D @ B * w_g * detJ`).
 """
 
 import numpy as np
@@ -13,7 +16,9 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class StrainDisplacementOperator:
     """
-    Strain-displacement tensor B ∈ ℝ^{6×12} for a 2-node 3-D Timoshenko beam.
+    Strain-displacement tensor **B** ∈ ℝ^{6×12} for a 2-node 3-D Timoshenko beam (**linear**, infinitesimal strain).
+
+    **Governing discrete relation:** \\(\\boldsymbol{\\varepsilon} = \\mathbf{B}\\,\\mathbf{U}_e\\).
 
     B is a rank-2 tensor defined at each Gauss point such that ε = B U_e,
     where ε ∈ ℝ^6 is the generalised strain vector and U_e ∈ ℝ^{12} is the

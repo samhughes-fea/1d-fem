@@ -1,6 +1,6 @@
 # Euler–Bernoulli beam with Vlasov warping (7 DOF / node)
 
-This document is a formulation reference for the 2-node 3D **Euler–Bernoulli** beam extended with **Vlasov-type** non-uniform torsion: two extra nodal degrees of freedom carry a **warping intensity** \(\chi\). The implementation is [`LinearWarpingEulerBernoulliBeamElement3D`](linear_warping_euler_bernoulli_3D.py). Rows **0–5** of strain/stress and columns **0–11** of **B** match the linear EB element documented in [linear Euler–Bernoulli (3D)](../euler_bernoulli/README.md). Voigt ordering for those rows follows [`docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md`](../../../../../docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md).
+This document is a formulation reference for the 2-node 3D **Euler–Bernoulli** beam extended with **Vlasov-type** non-uniform torsion: two extra nodal degrees of freedom carry a **warping intensity** \(\chi\). The public implementation is [`LinearEulerBernoulliBeamElement3D`](../euler_bernoulli/linear_euler_bernoulli_3D.py) with `[warping]` in `element.txt` (this folder documents operators shared with that path). Rows **0–5** of strain/stress and columns **0–11** of **B** match the linear EB element documented in [linear Euler–Bernoulli (3D)](../euler_bernoulli/README.md). Voigt ordering for those rows follows [`docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md`](../../../../../docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md).
 
 ---
 
@@ -8,7 +8,7 @@ This document is a formulation reference for the 2-node 3D **Euler–Bernoulli**
 
 | Item | Value |
 |------|--------|
-| Class | `LinearWarpingEulerBernoulliBeamElement3D` |
+| Class | `LinearEulerBernoulliBeamElement3D` (+ `[warping]`) |
 | Nodes | 2 |
 | DOFs | **7** per node → **14** element DOFs |
 | Kinematics | ZOSDT Euler–Bernoulli + **non-uniform torsion** (warping strain row) |
@@ -158,7 +158,7 @@ For 2-node linear \(L_1, L_2\), row 6 is **constant** across Gauss points.
 
 **Force vector** \(\mathbf{F}_e \in \mathbb{R}^{14}\): distributed and point loads populate **only the first 12 entries** via the same EB shape tensor **(12, 6)** as linear EB. **No** direct external load is assembled on \(\chi\) DOFs (indices 12–13) in the current implementation; warping is driven by stiffness coupling and boundary conditions.
 
-**Code:** `element_stiffness_matrix`, `element_force_vector` in [linear_warping_euler_bernoulli_3D.py](linear_warping_euler_bernoulli_3D.py).
+**Code:** `element_stiffness_matrix`, `element_force_vector` in [linear_euler_bernoulli_3D.py](../euler_bernoulli/linear_euler_bernoulli_3D.py).
 
 ---
 
@@ -166,7 +166,7 @@ For 2-node linear \(L_1, L_2\), row 6 is **constant** across Gauss points.
 
 Same Gauss loop pattern as EB, with per-DOF weights extended by **\(\rho\Gamma\)** on DOFs 12 and 13. The shape-function matrix \(\mathbf{N}_g\) is **(14, 6)** from `extend_natural_shape_to_warping`. Pairwise averaging \(m_{ij} = \tfrac{1}{2}(\mu_i + \mu_j)\) as in EB.
 
-**Code:** `element_mass_matrix` in [linear_warping_euler_bernoulli_3D.py](linear_warping_euler_bernoulli_3D.py).
+**Code:** `element_mass_matrix` in [linear_euler_bernoulli_3D.py](../euler_bernoulli/linear_euler_bernoulli_3D.py).
 
 ---
 
@@ -200,6 +200,6 @@ Same Gauss loop pattern as EB, with per-DOF weights extended by **\(\rho\Gamma\)
 | Extended **N** (14×6) for mass | `extend_natural_shape_to_warping` | [utilities/shape_functions.py](utilities/shape_functions.py) |
 | Strain–displacement **B** (7×14) | `WarpingStrainDisplacementOperator.physical_coordinate_form` | [utilities/B_matrix.py](utilities/B_matrix.py) |
 | Material **D** (7×7) | `WarpingMaterialStiffnessOperator.assembly_form` | [utilities/D_matrix.py](utilities/D_matrix.py) |
-| \(\mathbf{K}_e\) (14×14) | `element_stiffness_matrix` | [linear_warping_euler_bernoulli_3D.py](linear_warping_euler_bernoulli_3D.py) |
-| \(\mathbf{F}_e\) (14,) | `element_force_vector` | [linear_warping_euler_bernoulli_3D.py](linear_warping_euler_bernoulli_3D.py) |
-| \(\mathbf{M}_e\) (14×14) | `element_mass_matrix` | [linear_warping_euler_bernoulli_3D.py](linear_warping_euler_bernoulli_3D.py) |
+| \(\mathbf{K}_e\) (14×14) | `element_stiffness_matrix` | [linear_euler_bernoulli_3D.py](../euler_bernoulli/linear_euler_bernoulli_3D.py) |
+| \(\mathbf{F}_e\) (14,) | `element_force_vector` | [linear_euler_bernoulli_3D.py](../euler_bernoulli/linear_euler_bernoulli_3D.py) |
+| \(\mathbf{M}_e\) (14×14) | `element_mass_matrix` | [linear_euler_bernoulli_3D.py](../euler_bernoulli/linear_euler_bernoulli_3D.py) |

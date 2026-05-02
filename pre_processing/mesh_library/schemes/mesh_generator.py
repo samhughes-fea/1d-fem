@@ -83,8 +83,14 @@ def save_grid_file(node_positions: np.ndarray, save_dir: str) -> None:
 
 def save_element_file(elements: List[Tuple[int, int]],
                       save_dir: str,
-                      element_type: str = "LevinsonBeamElement3D") -> None:
-    """Write element.txt with uniform, parser-friendly column spacing."""
+                      element_type: str = "LevinsonBeamElement3D",
+                      warping_default: int = 0) -> None:
+    """Write element.txt with uniform, parser-friendly column spacing.
+
+    Includes optional ``[warping]`` column (0/1): whether to assemble Vlasov warping stiffness
+    per element (see ``ElementParser``). Default ``0`` keeps classic 11-column behaviour
+    unnecessary for meshes without warping.
+    """
     os.makedirs(save_dir, exist_ok=True)
     path = os.path.join(save_dir, "element.txt")
 
@@ -97,6 +103,7 @@ def save_element_file(elements: List[Tuple[int, int]],
     shear_y_order = shear_z_order = 0
     torsion_order = 3
     load_order = 2
+    wcol = int(np.clip(warping_default, 0, 1))
 
     with open(path, "w") as f:
         f.write("[Element]\n")
@@ -111,7 +118,8 @@ def save_element_file(elements: List[Tuple[int, int]],
             f"{'[shear_y_order]':<{ORD_W}}"
             f"{'[shear_z_order]':<{ORD_W}}"
             f"{'[torsion_order]':<{ORD_W}}"
-            f"{'[load_order]':<{ORD_W}}\n"
+            f"{'[load_order]':<{ORD_W}}"
+            f"{'[warping]':<{ORD_W}}\n"
         )
         # ---- rows ---------------------------------------------------------
         for idx, (n1, n2) in enumerate(elements):
@@ -125,7 +133,8 @@ def save_element_file(elements: List[Tuple[int, int]],
                 f"{shear_y_order:<{ORD_W}d}"
                 f"{shear_z_order:<{ORD_W}d}"
                 f"{torsion_order:<{ORD_W}d}"
-                f"{load_order:<{ORD_W}d}\n"
+                f"{load_order:<{ORD_W}d}"
+                f"{wcol:<{ORD_W}d}\n"
             )
 
     logging.info("element.txt written → %s", path)

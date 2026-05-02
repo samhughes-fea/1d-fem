@@ -29,6 +29,14 @@ def _get_defaults():
         },
         "modal": {
             "num_modes": 10,
+            # vibration | buckling — buckling uses linear static prestress then (K_L + λ K_σ) eigenproblem
+            "analysis": "vibration",
+            # linear_static: run reference linear solve with job loads for internal forces (recommended)
+            "buckling_prestress": "linear_static",
+            # Scale reference loads before prestress solve (default 1.0)
+            "buckling_load_factor": 1.0,
+            # Twin nonlinear mesh for nonlinear_static when element.txt lists linear beams only
+            "buckling_nonlinear_prestress_twins": False,
         },
         "dynamic": {
             "time_step": 0.001,
@@ -48,6 +56,12 @@ def _get_defaults():
             "line_search": False,
             "line_search_max_backtracks": 6,
             "line_search_shrink": 0.5,
+            # Optional: CorotationalBeamElement3D — finite_difference | elastic_material
+            "corotational_tangent_mode": None,
+            # Optional: GeometricallyExactShearDeformableBeam3D — use parent TL strain hook only
+            "gesdb_tl_fallback": False,
+            # Optional: GeometricallyExactShearDeformableBeam3D — tl_locked (default) | native
+            "gesdb_kernel": "tl_locked",
         },
     }
 
@@ -248,6 +262,25 @@ def parse_simulation_settings(file_path):
                 if key and value:
                     if key == "num_modes":
                         simulation_settings["modal"]["num_modes"] = _convert_value(value, int)
+                    elif key == "analysis":
+                        av = value.strip().lower()
+                        if av not in ("vibration", "buckling"):
+                            raise ValueError(f"modal.analysis must be 'vibration' or 'buckling', got {value!r}")
+                        simulation_settings["modal"]["analysis"] = av
+                    elif key == "buckling_prestress":
+                        bp = value.strip().lower()
+                        if bp not in ("linear_static", "nonlinear_static", "none"):
+                            raise ValueError(
+                                "modal.buckling_prestress must be 'linear_static', "
+                                f"'nonlinear_static', or 'none', got {value!r}"
+                            )
+                        simulation_settings["modal"]["buckling_prestress"] = bp
+                    elif key == "buckling_load_factor":
+                        simulation_settings["modal"]["buckling_load_factor"] = _convert_value(value, float)
+                    elif key == "buckling_nonlinear_prestress_twins":
+                        simulation_settings["modal"]["buckling_nonlinear_prestress_twins"] = _convert_value(
+                            value, bool
+                        )
 
             elif current_section == "dynamic":
                 key, value = _parse_key_value(line)
@@ -291,6 +324,26 @@ def parse_simulation_settings(file_path):
                         )
                     elif key == "line_search_shrink":
                         simulation_settings["nonlinear"]["line_search_shrink"] = _convert_value(value, float)
+                    elif key == "corotational_tangent_mode":
+                        simulation_settings["nonlinear"]["corotational_tangent_mode"] = value.strip().lower()
+                    elif key == "gesdb_tl_fallback":
+                        simulation_settings["nonlinear"]["gesdb_tl_fallback"] = _convert_value(value, bool)
+                    elif key == "gesdb_kernel":
+                        gk = value.strip().lower().replace("-", "_")
+                        if gk not in (
+                            "tl_locked",
+                            "tl",
+                            "locked",
+                            "chord_tl",
+                            "native",
+                            "engineering",
+                            "gesdb_native",
+                        ):
+                            raise ValueError(
+                                "nonlinear.gesdb_kernel must be 'tl_locked' or 'native', "
+                                f"got {value!r}"
+                            )
+                        simulation_settings["nonlinear"]["gesdb_kernel"] = value.strip()
 
     # Validate simulation type was found (backward compatibility: allow missing if defaults are acceptable)
     if not type_found and simulation_settings["type"] == defaults["type"]:

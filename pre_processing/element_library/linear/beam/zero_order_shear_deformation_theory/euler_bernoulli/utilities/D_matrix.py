@@ -1,8 +1,11 @@
 # pre_processing/element_library/linear/euler_bernoulli/utilities/D_matrix.py
-"""Material stiffness D (6, 6) for Euler-Bernoulli beam.
+"""Material stiffness **D** (6, 6) — **linear elastic**, infinitesimal strain (**Cauchy** resultants).
 
-S = D ε with diagonal terms EA, EI_y, EI_z, zero shear rows, and GJ_t.
-Used in `K_e += B.T @ D @ B * w_g * detJ` in the parent element (see `linear_euler_bernoulli_3D.py`).
+**Constitutive (Voigt):** \\(\\mathbf{S} = \\mathbf{D}\\,\\boldsymbol{\\varepsilon}\\) with \\(\\boldsymbol{\\varepsilon}\\) from `B_matrix.py`
+(\\(\\mathbf{S} = [N, M_y, M_z, V_y, V_z, T]^T\\)). Diagonal **D**: \\(EA\\), \\(EI_y\\), \\(EI_z\\), zero shear rows, \\(GJ_t\\).
+
+**Stiffness:** contributes \\(\\mathbf{K} = \\int \\mathbf{B}^\\top \\mathbf{D}\\,\\mathbf{B}\\,\\mathrm{d}x\\) — **constant** w.r.t. \\(\\mathbf{U}_e\\).
+Assembly: `K_e += B.T @ D @ B * w_g * detJ` (`linear_euler_bernoulli_3D.py`).
 """
 
 import numpy as np
@@ -12,7 +15,9 @@ from dataclasses import dataclass, field
 @dataclass(frozen=True)
 class MaterialStiffnessOperator:
     """
-    Constitutive tensor D ∈ ℝ^{6×6} for 3-D Euler-Bernoulli beam elements.
+    Constitutive tensor **D** ∈ ℝ^{6×6} for 3-D Euler-Bernoulli beam elements (**linear isotropic**, infinitesimal strain).
+
+    **Governing relation:** \\(\\mathbf{S} = \\mathbf{D}\\,\\boldsymbol{\\varepsilon}\\) with \\(\\boldsymbol{\\varepsilon}\\) the infinitesimal engineering strain vector (same Voigt as TL nonlinear uses for \\(\\mathbf{E}_\\mathrm{lin}\\), but here \\(\\boldsymbol{\\varepsilon}\\) is strictly linear in \\(\\mathbf{U}_e\\)).
 
     D is a rank-2 symmetric tensor relating the generalised strain vector
     ε ∈ ℝ^6 to the beam section resultant vector S ∈ ℝ^6 via S = D ε:

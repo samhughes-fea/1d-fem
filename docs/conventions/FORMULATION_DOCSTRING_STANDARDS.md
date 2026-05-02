@@ -34,6 +34,54 @@ Docstrings are read in IDEs and `help()`, not compiled as LaTeX. Prefer readable
 
 The **Markdown tables and LaTeX below** in *this* conventions file remain the reference for documentation generators and reviews; Python docstrings should still follow the plain-text rules above when restating the same facts.
 
+## Continuum and discrete strain conventions (infinitesimal vs Green–Lagrange)
+
+This library’s **linear** 1D beam elements use **infinitesimal strain** (displacement gradients \(\ll 1\)); **Total Lagrangian (TL) nonlinear** beam elements in `nonlinear/.../euler_bernoulli` and `nonlinear/.../timoshenko` use a **Green–Lagrange–type** strain vector in the **reference (initial) configuration** and work-conjugate **2nd Piola–Kirchhoff** resultants in Voigt form. **Other** nonlinear element types (Updated Lagrangian stubs, co-rotational, GEBT placeholders) are **not** required to use the same \((\mathbf{E}, \mathbf{S})\) pair; their docstrings must state their own strain and stress measures.
+
+### Infinitesimal strain (linear track)
+
+- **Strain tensor:** \(\varepsilon_{ij} = \tfrac{1}{2}\bigl(\partial u_i/\partial x_j + \partial u_j/\partial x_i\bigr)\). **Discrete:** \(\mathbf{u} = \mathbf{N}\mathbf{d}\), generalized engineering strain vector \(\boldsymbol{\varepsilon} = \mathbf{B}\mathbf{d}\) (Voigt \((6,)\) for 12-DOF beams per table below).
+- **Stress:** Cauchy \(\sigma_{ij}\) (true stress on the current configuration in 3D theory). In the **beam resultants** used here, \(\mathbf{S} = \mathbf{D}\,\boldsymbol{\varepsilon}\) in Voigt (axial, moments, shears, torque) — the same packing as linear `B_matrix` / `D_matrix`.
+- **Stiffness:** Material stiffness \(\mathbf{K} = \int \mathbf{B}^\top \mathbf{D}\,\mathbf{B}\,\mathrm{d}x\) (Gauss form with \(|J| = L/2\)) is **constant** w.r.t. \(\mathbf{d}\); one linear solve.
+
+### Green–Lagrange strain (TL nonlinear track)
+
+- **Strain:** \(\mathbf{E} = \tfrac{1}{2}(\mathbf{F}^\top\mathbf{F} - \mathbf{I})\) with \(F_{ij} = \delta_{ij} + \partial u_i/\partial X_j\) in 3D; the code uses a **reduced beam vector** \(\mathbf{E}\) (Voigt) with \(\mathbf{E} = \mathbf{E}_\mathrm{lin} + \mathbf{E}_\mathrm{nl}\) from `GreenLagrangeStrainOperator`.
+- **Stress:** **2nd Piola–Kirchhoff** \(\mathbf{S}\) conjugate to \(\mathbf{E}\); **St. Venant–Kirchhoff–style** beam reduction \(\mathbf{S} = \mathbf{D}\,\mathbf{E}\) with the same \(\mathbf{D}\) structure as linear elasticity but evaluated on \(\mathbf{E}\) (see `stress_resultant`).
+- **Tangent:** Schematically \(\mathbf{K}_T(\mathbf{d}) = \mathbf{K}_L + \mathbf{K}_{NL}(\mathbf{d}) + \mathbf{K}_\sigma(\mathbf{d})\). In this repository’s TL Timoshenko implementation: \(\mathbf{K}_T = \mathbf{K}_0 + \mathbf{K}_\delta + \mathbf{K}_\sigma\) where \(\mathbf{K}_0\) is the linear-type material stiffness (selective assembly), \(\mathbf{K}_\delta\) captures the incremental material tangent from \(\mathbf{B}_\mathrm{tot}=\mathbf{B}_\mathrm{lin}+\mathbf{B}_\mathrm{nl}\), and \(\mathbf{K}_\sigma\) is the **geometric** stiffness from current section forces. TL Euler–Bernoulli uses the analogous \(\mathbf{B}_\mathrm{lin}\)/\(\mathbf{B}_\mathrm{nl}\) split and often denotes material tangent \(\mathbf{K}_\mathrm{mat}\) in element docs. **Newton–Raphson** rebuilds \(\mathbf{K}_T\) each iteration.
+
+### Voigt vs tensor concepts (straight 12-DOF beam)
+
+| Voigt row | Symbol | Infinitesimal (linear) meaning | TL nonlinear: Green–Lagrange vector \(\mathbf{E}\) |
+|-----------|--------|--------------------------------|---------------------------------------------------|
+| 0 | \(\varepsilon_x\) / \(E_x\) | Axial infinitesimal strain | Axial \(E\) with Green–Lagrange quadratics + coupling |
+| 1–2 | \(\kappa_y\), \(\kappa_z\) | Bending curvatures | Same rows + nonlinear supplements from `GreenLagrangeStrainOperator` |
+| 3–4 | \(\gamma_{xy}\), \(\gamma_{xz}\) | Shear (zero for EB) | EB: zero; Timoshenko: linear part + optional NL shear terms |
+| 5 | \(\phi_x\) | Twist rate | Typically linear in \(\theta_x\) |
+
+---
+
+## `utilities/` operator docstrings — governing equations checklist
+
+Every **`utilities/`** operator that participates in strain or stiffness assembly must, in its **module** and **class** docstrings, make the following explicit within the first extended summary (so reviewers see theory without opening the parent element):
+
+### Linear beam (`linear/.../utilities/B_matrix.py`, `D_matrix.py`)
+
+| Operator | Governing equations to state |
+|----------|------------------------------|
+| **StrainDisplacementOperator** | \(\varepsilon_{ij}\) (infinitesimal); discrete \(\boldsymbol{\varepsilon} = \mathbf{B}\,\mathbf{U}_e\); row packing vs Voigt table above; **reference:** small strain on the undeformed beam axis in local frame. |
+| **MaterialStiffnessOperator** | Linear elastic \(\mathbf{S} = \mathbf{D}\,\boldsymbol{\varepsilon}\); \(\mathbf{D}\) entries (EA, EI, GA, GJ, \(\kappa\)); **constant** contribution to \(\mathbf{K} = \int \mathbf{B}^\top \mathbf{D}\,\mathbf{B}\,\mathrm{d}x\). |
+
+### Nonlinear TL beam (`nonlinear/.../utilities/green_lagrange_strain.py`, `stress_resultant.py`, `geometric_stiffness.py`)
+
+| Operator | Governing equations to state |
+|----------|------------------------------|
+| **GreenLagrangeStrainOperator** | \(\mathbf{E} = \mathbf{E}_\mathrm{lin} + \mathbf{E}_\mathrm{nl}\); \(\mathbf{B}_\mathrm{lin}\), \(\mathbf{B}_\mathrm{nl}\); reference configuration \(X\); relation to `strain_linear_part` / `strain_nonlinear_part` / `nonlinear_strain_displacement_gradient`. |
+| **StressResultantOperator** | \(\mathbf{S} = \mathbf{D}\,\mathbf{E}\) (2PK-style resultants in Voigt); which components drive \(\mathbf{K}_\sigma\) (typically \(N\), \(M_y\), \(M_z\)). |
+| **GeometricStiffnessOperator** | \(\mathbf{K}_\sigma\) as Gauss sum of stress-weighted products of shape-function derivatives; **not** a substitute for \(\mathbf{K}_L\) / \(\mathbf{K}_0\). |
+
+**Naming:** In code and docstrings, prefer **`E`** / **`E_lin`** / **`E_nl`** for Green–Lagrange, **`eps`** or **`epsilon`** for infinitesimal Voigt strain, and avoid ambiguous bare `strain` without context.
+
 ## Weak-form assembly (required)
 
 Every element must assemble tensors from a **weak form** discretized with **Gauss quadrature** on the reference map \(\xi \in [-1,1]\) with Jacobian **`|J| = dx/dξ`** (chord map unless the theory states otherwise). **Do not** use closed-form element matrices for stiffness, geometric tangent, mass, or distributed loads unless that matrix is **provably identical** to the Gauss sum for that operator (e.g. constant **`B`** with one-point exact rule) and the docstring **still states the integral** the code implements.

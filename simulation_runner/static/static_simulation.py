@@ -136,8 +136,17 @@ class StaticSimulationRunner:
         else:
             raise KeyError("grid_dictionary must contain an 'ids' array of node IDs")
 
-        self.total_dof = len(self.node_ids) * 6
-        logger.debug("Total DOFs initialised: %d (nodes %d × 6)", self.total_dof, len(self.node_ids))
+        from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
+
+        _dpn = 7 if mesh_uses_warping_dof(self.element_dictionary) else 6
+        self.dof_per_node = _dpn
+        self.total_dof = len(self.node_ids) * _dpn
+        logger.debug(
+            "Total DOFs initialised: %d (nodes %d × %d)",
+            self.total_dof,
+            len(self.node_ids),
+            _dpn,
+        )
 # -----------------------------------------------------------------------
 
         # Extract simulation settings with defaults

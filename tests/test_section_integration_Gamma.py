@@ -15,8 +15,8 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_warping_timoshenko_3D import (
-    LinearWarpingTimoshenkoBeamElement3D,
+from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    LinearTimoshenkoBeamElement3D,
 )
 
 
@@ -27,7 +27,8 @@ def test_section_integration_Gamma_element_receives():
     element_dictionary = {
         "ids": np.array([0]),
         "connectivity": np.array([[0, 1]]),
-        "types": np.array(["LinearWarpingTimoshenkoBeamElement3D"]),
+        "types": np.array(["LinearTimoshenkoBeamElement3D"]),
+        "warping": np.array([1], dtype=np.int8),
         "integration_orders": {
             "axial": np.array([2]),
             "bending_y": np.array([2]),
@@ -68,7 +69,7 @@ def test_section_integration_Gamma_element_receives():
     os.makedirs(os.path.join(job_results_dir, "element_force_vectors"), exist_ok=True)
 
     try:
-        element = LinearWarpingTimoshenkoBeamElement3D(
+        element = LinearTimoshenkoBeamElement3D(
             element_id=0,
             element_dictionary=element_dictionary,
             grid_dictionary=grid_dictionary,
@@ -95,7 +96,8 @@ def test_section_integration_Gamma_optional_zero():
     element_dictionary = {
         "ids": np.array([0]),
         "connectivity": np.array([[0, 1]]),
-        "types": np.array(["LinearWarpingTimoshenkoBeamElement3D"]),
+        "types": np.array(["LinearTimoshenkoBeamElement3D"]),
+        "warping": np.array([1], dtype=np.int8),
         "integration_orders": {
             "axial": np.array([2]),
             "bending_y": np.array([2]),
@@ -136,7 +138,7 @@ def test_section_integration_Gamma_optional_zero():
     os.makedirs(os.path.join(job_results_dir, "element_force_vectors"), exist_ok=True)
 
     try:
-        element = LinearWarpingTimoshenkoBeamElement3D(
+        element = LinearTimoshenkoBeamElement3D(
             element_id=0,
             element_dictionary=element_dictionary,
             grid_dictionary=grid_dictionary,

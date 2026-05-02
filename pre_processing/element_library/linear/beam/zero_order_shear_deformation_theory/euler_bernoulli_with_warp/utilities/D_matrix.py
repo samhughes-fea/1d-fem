@@ -3,7 +3,7 @@
 
 ``S = D ε`` embeds linear EB on rows/columns 0–5, St. Venant torsion ``G·J_t`` on ``D[5,5]`` (shear-dominated
 uniform twist), and warping / bimoment-type stiffness ``E·Γ`` on ``D[6,6]`` (see class docstring for **G** vs **E**).
-Used in ``K_e += B.T @ D @ B * w_g * detJ`` in the parent element (see ``linear_warping_euler_bernoulli_3D.py``).
+Used in ``K_e += B.T @ D @ B * w_g * detJ`` for unified linear EB with warping (see ``linear_euler_bernoulli_3D.py``).
 """
 
 from __future__ import annotations
@@ -97,8 +97,8 @@ class WarpingMaterialStiffnessOperator:
         Linear EB ``D`` (6, 6) in ``euler_bernoulli/utilities/D_matrix.py``.
     WarpingStrainDisplacementOperator
         ``B`` (7, 14) in ``euler_bernoulli_with_warp/utilities/B_matrix.py``.
-    linear_warping_euler_bernoulli_3D.LinearWarpingEulerBernoulliBeamElement3D
-        Parent element.
+    linear_euler_bernoulli_3D.LinearEulerBernoulliBeamElement3D
+        Unified linear EB; use with `[warping]` / warping mesh for 14 local DOFs.
     docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md
         Baseline ``ε`` / ``S`` rows 0–5; extensions for seventh row/column.
     """

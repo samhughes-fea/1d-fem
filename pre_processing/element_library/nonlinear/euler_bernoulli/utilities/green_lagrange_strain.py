@@ -1,9 +1,15 @@
 # pre_processing/element_library/nonlinear/euler_bernoulli/utilities/green_lagrange_strain.py
 """
-Green-Lagrange strain utilities for 2-node 3D Euler-Bernoulli (Total Lagrangian).
+Green–Lagrange strain utilities — **Total Lagrangian (TL)** 2-node 3D Euler–Bernoulli beam.
 
-Per Gauss point: ``E`` (6,), ``B_lin`` and ``B_nl`` each (6, 12); inputs ``dN_dx``, ``d2N_dx2`` (12, 6), ``u_e`` (12,).
-Shear rows of ``E`` / ``B_lin`` / ``B_nl`` are zero. Parent element sums material tangent using ``B_lin + B_nl`` and ``D``.
+**Continuum:** In 3D, \\(\\mathbf{E} = \\tfrac{1}{2}(\\mathbf{F}^\\top\\mathbf{F} - \\mathbf{I})\\) (reference coordinates \\(X\\)).
+This module implements a **reduced beam Voigt** vector \\(\\mathbf{E} = [E_x,\\kappa_y,\\kappa_z,\\gamma_{xy},\\gamma_{xz},\\phi_x]^T\\) with
+\\(\\mathbf{E} = \\mathbf{E}_\\mathrm{lin} + \\mathbf{E}_\\mathrm{nl}\\) and nonlinear axial / curvature couplings in ``strain_nonlinear_part``.
+
+**Discrete:** Strain–displacement \\(\\mathbf{E} = (\\mathbf{B}_\\mathrm{lin} + \\mathbf{B}_\\mathrm{nl}(\\mathbf{U}_e))\\,\\mathbf{U}_e\\) in the code’s operator split
+(``linearized_strain_displacement`` → \\(\\mathbf{B}_\\mathrm{lin}\\), ``nonlinear_strain_displacement_gradient`` → \\(\\mathbf{B}_\\mathrm{nl}\\)).
+Per Gauss point: ``E`` (6,), ``B_lin`` and ``B_nl`` (6, 12); ``dN_dx``, ``d2N_dx2`` (12, 6), ``u_e`` (12,). Shear rows of ``E`` / ``B`` are zero (EB). Parent assembles
+\\(\\mathbf{F}_\\mathrm{int}\\) and material tangent with \\(\\mathbf{B}_\\mathrm{tot} = \\mathbf{B}_\\mathrm{lin} + \\mathbf{B}_\\mathrm{nl}\\). See `docs/element_library/total_lagrangian_beam_formulation.md`.
 """
 
 from dataclasses import dataclass
@@ -17,6 +23,8 @@ class GreenLagrangeStrainOperator:
     Green–Lagrange strain measures for a 2-node 3D Euler–Bernoulli beam (Total Lagrangian).
 
     Reference configuration: initial (undeformed) geometry; all quantities referred to it.
+    **Discrete operators:** \\(\\mathbf{E} = \\mathbf{E}_\\mathrm{lin}+\\mathbf{E}_\\mathrm{nl}\\) with \\(\\mathbf{B}_\\mathrm{lin}\\mathbf{U}_e\\) and \\(\\mathbf{B}_\\mathrm{nl}\\) from ``linearized_strain_displacement`` / ``nonlinear_strain_displacement_gradient``.
+
     Strain vector E = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]ᵀ with nonlinear terms:
 
         ε_x  = ∂u_x/∂x + ½(∂u_x/∂x)² + ½(∂u_y/∂x)² + ½(∂u_z/∂x)²   (axial, Green–Lagrange)

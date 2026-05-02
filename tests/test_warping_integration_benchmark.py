@@ -16,9 +16,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from pre_processing.element_library.element_factory import ElementFactory
-from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_warping_timoshenko_3D import (
-    LinearWarpingTimoshenkoBeamElement3D,
-)
 
 
 def test_warping_integration_benchmark_solve():
@@ -41,7 +38,8 @@ def test_warping_integration_benchmark_solve():
     element_dictionary = {
         "ids": np.array([0]),
         "connectivity": np.array([[0, 1]]),
-        "types": np.array(["LinearWarpingTimoshenkoBeamElement3D"]),
+        "types": np.array(["LinearTimoshenkoBeamElement3D"]),
+        "warping": np.array([1], dtype=np.int8),
         "integration_orders": {
             "axial": np.array([2]),
             "bending_y": np.array([2]),

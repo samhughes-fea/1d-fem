@@ -8,8 +8,94 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 import numpy as np
 
+from pre_processing.element_library.removed_element_types import ensure_element_type_allowed
+
 if TYPE_CHECKING:  # avoid runtime circular import
     from pre_processing.element_library.element_1D_base import Element1DBase
+
+
+def _corotational_tangent_mode_from_settings(
+    simulation_settings: Optional[Dict[str, Any]],
+) -> Optional[str]:
+    """Resolve ``simulation_settings['nonlinear']['corotational_tangent_mode']`` for ``CorotationalBeamElement3D``."""
+    if not simulation_settings:
+        return None
+    nl = simulation_settings.get("nonlinear")
+    if not isinstance(nl, dict):
+        return None
+    raw = nl.get("corotational_tangent_mode")
+    if raw is None:
+        return None
+    s = str(raw).strip().lower().replace("-", "_")
+    if s in ("finite_difference", "fd", "finite_diff"):
+        return "finite_difference"
+    if s in ("elastic_material", "elastic", "material"):
+        return "elastic_material"
+    raise ValueError(
+        "simulation_settings['nonlinear']['corotational_tangent_mode'] must be "
+        "'finite_difference' or 'elastic_material', "
+        f"got {raw!r}"
+    )
+
+
+def _inject_corotational_tangent_kwarg(
+    etype: str,
+    params: Dict[str, Any],
+    corotational_tangent_mode: Optional[str],
+) -> None:
+    if etype == "CorotationalBeamElement3D" and corotational_tangent_mode is not None:
+        params["tangent_stiffness_mode"] = corotational_tangent_mode
+
+
+def _gesdb_tl_fallback_from_settings(
+    simulation_settings: Optional[Dict[str, Any]],
+) -> bool:
+    """Resolve ``simulation_settings['nonlinear']['gesdb_tl_fallback']`` for GESDB elements."""
+    if not simulation_settings:
+        return False
+    nl = simulation_settings.get("nonlinear")
+    if not isinstance(nl, dict):
+        return False
+    raw = nl.get("gesdb_tl_fallback")
+    if raw is None:
+        return False
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, str):
+        return raw.strip().lower() in ("true", "1", "yes", "on")
+    return bool(raw)
+
+
+def _gesdb_kernel_from_settings(simulation_settings: Optional[Dict[str, Any]]) -> str:
+    """Resolve ``simulation_settings['nonlinear']['gesdb_kernel']`` (tl_locked | native)."""
+    if not simulation_settings:
+        return "tl_locked"
+    nl = simulation_settings.get("nonlinear")
+    if not isinstance(nl, dict):
+        return "tl_locked"
+    raw = nl.get("gesdb_kernel")
+    if raw is None:
+        return "tl_locked"
+    s = str(raw).strip().lower().replace("-", "_")
+    if s in ("tl_locked", "tl", "locked", "chord_tl"):
+        return "tl_locked"
+    if s in ("native", "engineering", "gesdb_native"):
+        return "native"
+    raise ValueError(
+        "simulation_settings['nonlinear']['gesdb_kernel'] must be 'tl_locked' or 'native', "
+        f"got {raw!r}"
+    )
+
+
+def _inject_gesdb_kwargs(
+    etype: str,
+    params: Dict[str, Any],
+    gesdb_tl_fallback: bool,
+    gesdb_kernel: str,
+) -> None:
+    if etype == "GeometricallyExactShearDeformableBeam3D":
+        params["gesdb_tl_fallback"] = bool(gesdb_tl_fallback)
+        params["gesdb_kernel"] = gesdb_kernel
 
 
 class ElementFactory:
@@ -34,20 +120,12 @@ class ElementFactory:
     LINEAR_ELEMENT_CLASS_MAP = {
         "LinearEulerBernoulliBeamElement3D":
             "pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D",
-        "LinearWarpingEulerBernoulliBeamElement3D":
-            "pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli_with_warp.linear_warping_euler_bernoulli_3D",
         "LinearTimoshenkoBeamElement3D":
             "pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D",
-        "LinearWarpingTimoshenkoBeamElement3D":
-            "pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_warping_timoshenko_3D",
         "LinearLevinsonBeamElement3D":
             "pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.linear_levinson_3D",
         "LinearReddyBeamElement3D":
             "pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.linear_reddy_3D",
-        "LinearWarpingLevinsonBeamElement3D":
-            "pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson_with_warp.linear_warping_levinson_3D",
-        "LinearWarpingReddyBeamElement3D":
-            "pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy_with_warp.linear_warping_reddy_3D",
         "LinearTrussElement3D":
             "pre_processing.element_library.linear.truss.linear_truss_3D",
         "LinearBarElement3D":
@@ -59,24 +137,20 @@ class ElementFactory:
             "pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D",
         "NonlinearTimoshenkoBeamElement3D":
             "pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D",
-        "NonlinearWarpingEulerBernoulliBeamElement3D":
-            "pre_processing.element_library.nonlinear.euler_bernoulli_with_warp.nonlinear_warping_euler_bernoulli_3D",
-        "NonlinearWarpingTimoshenkoBeamElement3D":
-            "pre_processing.element_library.nonlinear.timoshenko_with_warp.nonlinear_warping_timoshenko_3D",
         "NonlinearLevinsonBeamElement3D":
             "pre_processing.element_library.nonlinear.levinson.nonlinear_levinson_3D",
         "NonlinearReddyBeamElement3D":
             "pre_processing.element_library.nonlinear.reddy.nonlinear_reddy_3D",
         "UpdatedLagrangianEulerBernoulliBeamElement3D":
-            "pre_processing.element_library.nonlinear.updated_lagrangian_euler_bernoulli.updated_lagrangian_euler_bernoulli_3D",
+            "pre_processing.element_library.nonlinear.euler_bernoulli.updated_lagrangian_euler_bernoulli_3D",
         "UpdatedLagrangianTimoshenkoBeamElement3D":
-            "pre_processing.element_library.nonlinear.updated_lagrangian_timoshenko.updated_lagrangian_timoshenko_3D",
+            "pre_processing.element_library.nonlinear.timoshenko.updated_lagrangian_timoshenko_3D",
         "CorotationalBeamElement3D":
-            "pre_processing.element_library.nonlinear.corotational.corotational_3D",
+            "pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D",
         "GeometricallyExactShearDeformableBeam3D":
-            "pre_processing.element_library.nonlinear.geometrically_exact_shear_deformable_beam.geometrically_exact_shear_deformable_beam_3D",
+            "pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.geometrically_exact_shear_deformable_beam_3D",
         "GEBTUnshearableBeamElement3D":
-            "pre_processing.element_library.nonlinear.gebt_unshearable.gebt_unshearable_3D",
+            "pre_processing.element_library.nonlinear.large_rotations.gebt_unshearable.gebt_unshearable_3D",
     }
 
     ELEMENT_CLASS_MAP = {**LINEAR_ELEMENT_CLASS_MAP, **NONLINEAR_ELEMENT_CLASS_MAP}
@@ -104,6 +178,7 @@ class ElementFactory:
         point_load_array: np.ndarray,
         distributed_load_array: np.ndarray,
         precurvature_per_element: Optional[np.ndarray] = None,
+        simulation_settings: Optional[Dict[str, Any]] = None,
         enable_parallel: bool = False,
         num_processes: Optional[int] = None,
     ) -> List["Element1DBase"]:
@@ -132,6 +207,12 @@ class ElementFactory:
             Optional ``(N_e, 3)`` array of ``[k_x0, k_y0, k_z0]`` (1/m) per row,
             aligned with *element_ids*. Omitted or ``None``: straight beams behave
             as zero reference curvature.
+        simulation_settings
+            Optional resolved settings dict. When ``simulation_settings['nonlinear']['corotational_tangent_mode']``
+            is set, :class:`CorotationalBeamElement3D` receives ``tangent_stiffness_mode`` (``finite_difference`` or
+            ``elastic_material``).             When ``simulation_settings['nonlinear']['gesdb_tl_fallback']`` is true,
+            :class:`GeometricallyExactShearDeformableBeam3D` receives ``gesdb_tl_fallback=True``.
+            ``gesdb_kernel`` (``tl_locked`` or ``native``) is passed when present.
         enable_parallel : bool, optional
             Enable parallel instantiation (default False).
         num_processes : int, optional
@@ -159,6 +240,9 @@ class ElementFactory:
         element_dictionary_use = self._merge_precurvature_dictionary(
             element_dictionary, precurvature_per_element
         )
+        ctm = _corotational_tangent_mode_from_settings(simulation_settings)
+        gtfb = _gesdb_tl_fallback_from_settings(simulation_settings)
+        gkernel = _gesdb_kernel_from_settings(simulation_settings)
 
         # Determine if we should use parallel processing
         num_elements = len(element_ids_array)
@@ -185,7 +269,10 @@ class ElementFactory:
                     section_dictionary,
                     point_load_array,
                     distributed_load_array,
-                    num_processes
+                    num_processes,
+                    ctm,
+                    gtfb,
+                    gkernel,
                 )
             except Exception as e:
                 self.logger.warning(
@@ -200,7 +287,10 @@ class ElementFactory:
                     material_dictionary,
                     section_dictionary,
                     point_load_array,
-                    distributed_load_array
+                    distributed_load_array,
+                    ctm,
+                    gtfb,
+                    gkernel,
                 )
         else:
             elements = self._instantiate_elements_sequential(
@@ -211,7 +301,10 @@ class ElementFactory:
                 material_dictionary,
                 section_dictionary,
                 point_load_array,
-                distributed_load_array
+                distributed_load_array,
+                ctm,
+                gtfb,
+                gkernel,
             )
 
         self._validate_logging_infrastructure(elements)
@@ -307,6 +400,7 @@ class ElementFactory:
         """
         modules: Dict[str, Any] = {}
         for etype in np.unique(element_types):
+            ensure_element_type_allowed(str(etype))
             if etype not in self.ELEMENT_CLASS_MAP:
                 self.logger.error("Unregistered element type: %s", etype)
                 raise ValueError(f"Unregistered element type: {etype}")
@@ -336,6 +430,9 @@ class ElementFactory:
         section_dictionary: Dict[str, Any],
         point_load_array: np.ndarray,
         distributed_load_array: np.ndarray,
+        corotational_tangent_mode: Optional[str] = None,
+        gesdb_tl_fallback: bool = False,
+        gesdb_kernel: str = "tl_locked",
     ) -> List["Element1DBase"]:
         """Sequential element instantiation (original implementation)."""
         modules = self._load_element_modules(element_types_array)
@@ -352,6 +449,8 @@ class ElementFactory:
                 "distributed_load_array": distributed_load_array,
                 "job_results_dir":        self.job_results_dir,
             }
+            _inject_corotational_tangent_kwarg(etype, params, corotational_tangent_mode)
+            _inject_gesdb_kwargs(etype, params, gesdb_tl_fallback, gesdb_kernel)
             elem = self._instantiate_element(etype, eid, params, modules)
             elements.append(elem)
             self.logger.debug("✅ Element %s (%s) instantiated.", eid, etype)
@@ -370,6 +469,9 @@ class ElementFactory:
         point_load_array: np.ndarray,
         distributed_load_array: np.ndarray,
         num_processes: int,
+        corotational_tangent_mode: Optional[str] = None,
+        gesdb_tl_fallback: bool = False,
+        gesdb_kernel: str = "tl_locked",
     ) -> List["Element1DBase"]:
         """Parallel element instantiation using multiprocessing."""
         self.logger.info(f"Instantiating {len(element_ids_array)} elements in parallel ({num_processes} processes)")
@@ -386,6 +488,9 @@ class ElementFactory:
                 point_load_array,
                 distributed_load_array,
                 self.job_results_dir,
+                corotational_tangent_mode,
+                gesdb_tl_fallback,
+                gesdb_kernel,
                 i  # index for ordering
             )
             for i, (eid, etype) in enumerate(zip(element_ids_array, element_types_array))
@@ -470,13 +575,19 @@ def _worker_instantiate_element(args):
         point_load_array,
         distributed_load_array,
         job_results_dir,
-        index
+        corotational_tangent_mode,
+        gesdb_tl_fallback,
+        gesdb_kernel,
+        index,
     ) = args
     
     try:
         # Re-import modules in worker process (required for multiprocessing)
         import importlib
         from pre_processing.element_library.element_1D_base import Element1DBase
+        from pre_processing.element_library.removed_element_types import ensure_element_type_allowed
+
+        ensure_element_type_allowed(etype)
 
         # Use same map as main class so Bar/Truss and future elements stay in sync
         module_path = ElementFactory.ELEMENT_CLASS_MAP[etype]
@@ -497,6 +608,8 @@ def _worker_instantiate_element(args):
             "distributed_load_array": distributed_load_array,
             "job_results_dir":       job_results_dir,
         }
+        _inject_corotational_tangent_kwarg(etype, params, corotational_tangent_mode)
+        _inject_gesdb_kwargs(etype, params, gesdb_tl_fallback, gesdb_kernel)
         element = cls(**params)
         
         return (index, element)

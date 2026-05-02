@@ -1,8 +1,9 @@
 # pre_processing/element_library/nonlinear/timoshenko/utilities/stress_resultant.py
 """
-Stress resultants for TL Timoshenko beam: ``S = D @ E`` with ``E``, ``S`` (6,) Voigt.
+Stress resultants — **Total Lagrangian** Timoshenko beam (**St. Venant–Kirchhoff-style** beam reduction).
 
-``section_forces_from_strain`` returns ``(N, M_y, M_z)`` = ``(S[0], S[1], S[2])`` for ``K_sigma`` assembly; full ``S`` retains Timoshenko shear and torsion rows.
+**Governing constitutive (Voigt):** \\(\\mathbf{S} = \\mathbf{D}\\,\\mathbf{E}\\) with \\(\\mathbf{E}\\) Green–Lagrange-type from ``green_lagrange_strain``;
+\\(\\mathbf{S}\\) **2PK-type** section resultants (6,). ``section_forces_from_strain`` returns ``(N, M_y, M_z)`` for ``GeometricStiffnessOperator`` (\\(\\mathbf{K}_\\sigma\\)); full ``S`` includes shear and torsion rows.
 """
 
 from dataclasses import dataclass
@@ -14,7 +15,9 @@ import numpy as np
 @dataclass(frozen=True)
 class StressResultantOperator:
     """
-    Section forces (stress resultants) from 2nd Piola–Kirchhoff stress in reference configuration.
+    Section forces (**2PK-type resultants**) from Green–Lagrange strain \\(\\mathbf{E}\\) in the **reference** configuration.
+
+    **Governing relation:** \\(\\mathbf{S} = \\mathbf{D}\\,\\mathbf{E}\\).
 
     S = D @ E  at each Gauss point. Full 6-component view: [N, M_y, M_z, V_y, V_z, T]. For Timoshenko,
     D has non-zero shear rows so V_y, V_z and T are produced by D @ E; this method returns N, M_y, M_z;
@@ -48,7 +51,7 @@ class StressResultantOperator:
         Parameters
         ----------
         E : np.ndarray, shape (6,)
-            Strain vector [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x].
+            Green–Lagrange-type strain vector **E** (Voigt; finite-strain Timoshenko entries).
         D : np.ndarray, shape (6, 6)
             Material stiffness (same as linear D matrix).
 

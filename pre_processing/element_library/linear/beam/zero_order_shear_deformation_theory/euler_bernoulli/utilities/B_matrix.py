@@ -1,9 +1,15 @@
 # pre_processing/element_library/linear/euler_bernoulli/utilities/B_matrix.py
-"""Strain-displacement B (6, 12) per Gauss point for 2-node 3-D Euler-Bernoulli beam.
+"""Strain-displacement **B** (6, 12) per Gauss point — **infinitesimal strain** beam theory.
 
-ε = B U_e with ε = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]; γ_xy = γ_xz = 0.
-Parent element uses `K_e += B.T @ D @ B * w_g * detJ` with `detJ = L/2`.
-Voigt order follows `FORMULATION_DOCSTRING_STANDARDS.md`.
+**Continuum:** Infinitesimal strain tensor \\(\\varepsilon_{ij} = \\tfrac{1}{2}(\\partial u_i/\\partial x_j + \\partial u_j/\\partial x_i)\\).
+This module implements the **engineering Voigt** vector \\(\\boldsymbol{\\varepsilon} = [\\varepsilon_x,\\kappa_y,\\kappa_z,\\gamma_{xy},\\gamma_{xz},\\phi_x]^T\\)
+consistent with that theory on the straight **local** \\(x\\)-axis.
+
+**Discrete:** \\(\\boldsymbol{\\varepsilon} = \\mathbf{B}\\,\\mathbf{U}_e\\) with \\(\\mathbf{U}_e\\) nodal DOFs (12,).
+Linear material stiffness follows \\(\\mathbf{K} = \\int \\mathbf{B}^\\top \\mathbf{D}\\,\\mathbf{B}\\,\\mathrm{d}x\\)
+(Gauss: `K_e += B.T @ D @ B * w_g * detJ`, `detJ = L/2`). Same \\(\\mathbf{B}\\) / \\(\\mathbf{D}\\) pairing as `D_matrix.py`.
+
+\\(\\gamma_{xy}=\\gamma_{xz}=0\\) (EB). Voigt order: `docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md`.
 """
 
 import numpy as np
@@ -13,7 +19,9 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class StrainDisplacementOperator:
     """
-    Strain-displacement tensor B ∈ ℝ^{6×12} for a 2-node 3-D Euler-Bernoulli beam.
+    Strain-displacement tensor **B** ∈ ℝ^{6×12} for a 2-node 3-D Euler-Bernoulli beam (**linear**, infinitesimal strain).
+
+    **Governing discrete relation:** \\(\\boldsymbol{\\varepsilon} = \\mathbf{B}\\,\\mathbf{U}_e\\) with \\(\\boldsymbol{\\varepsilon}\\) the small-strain Voigt vector below.
 
     B is a rank-2 tensor defined at each Gauss point such that ε = B U_e,
     where ε ∈ ℝ^6 is the generalised strain vector and U_e ∈ ℝ^{12} is the

@@ -8,13 +8,15 @@ import os
 # Set up detailed logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-# DOF name to index mapping
-DOF_MAP = {
+# Standard beam DOFs per node (translations + rotations)
+DOF_MAP_6 = {
     "UX": 0, "UY": 1, "UZ": 2,
-    "RX": 3, "RY": 4, "RZ": 5
+    "RX": 3, "RY": 4, "RZ": 5,
 }
+# Seventh DOF: Vlasov warping intensity χ (only when mesh uses 7 DOF/node)
+DOF_MAP_7 = {**DOF_MAP_6, "CHI": 6, "W": 6}
 
-def parse_prescribed_displacement(file_path):
+def parse_prescribed_displacement(file_path, dof_per_node: int = 6):
     """
     Parses prescribed displacement conditions from a structured text file.
     
@@ -26,6 +28,9 @@ def parse_prescribed_displacement(file_path):
     ----------
     file_path : str
         Path to the prescribed_displacement.txt file
+    dof_per_node : int
+        6 (default) or 7 when the mesh allocates a warping DOF per node
+        (``mesh_uses_warping_dof`` / ``[warping]`` in ``element.txt``).
         
     Returns
     -------
@@ -33,12 +38,15 @@ def parse_prescribed_displacement(file_path):
         Dictionary with keys:
         - 'id': np.ndarray of condition IDs
         - 'node_id': np.ndarray of node IDs
-        - 'dof': np.ndarray of DOF names (UX, UY, UZ, RX, RY, RZ)
-        - 'dof_index': np.ndarray of DOF indices (0-5)
+        - 'dof': np.ndarray of DOF names (UX, UY, UZ, RX, RY, RZ, optional CHI/W)
+        - 'dof_index': np.ndarray of DOF indices (0-5 or 0-6)
         - 'value': np.ndarray of prescribed displacement values
         - 'type': np.ndarray of condition types
-        - 'global_dof': np.ndarray of global DOF indices (node_id * 6 + dof_index)
+        - 'global_dof': np.ndarray of global DOF indices (node_id * dof_per_node + dof_index)
     """
+    if dof_per_node not in (6, 7):
+        raise ValueError(f"dof_per_node must be 6 or 7, got {dof_per_node}")
+    dof_map = DOF_MAP_7 if dof_per_node == 7 else DOF_MAP_6
     # Check if the file exists
     if not os.path.exists(file_path):
         logging.warning(f"[Prescribed Displacement] File not found: {file_path}. Returning empty arrays.")
@@ -104,12 +112,15 @@ def parse_prescribed_displacement(file_path):
                 condition_type = parts[4].lower()
 
                 # Validate DOF name
-                if dof_name not in DOF_MAP:
-                    logging.warning(f"[Prescribed Displacement] Line {line_number}: Invalid DOF '{parts[2]}'. Expected one of {list(DOF_MAP.keys())}. Skipping.")
+                if dof_name not in dof_map:
+                    logging.warning(
+                        f"[Prescribed Displacement] Line {line_number}: Invalid DOF '{parts[2]}'. "
+                        f"Expected one of {list(dof_map.keys())}. Skipping."
+                    )
                     continue
 
-                dof_index = DOF_MAP[dof_name]
-                global_dof = node_id * 6 + dof_index
+                dof_index = dof_map[dof_name]
+                global_dof = node_id * dof_per_node + dof_index
 
                 ids.append(condition_id)
                 node_ids.append(node_id)
@@ -145,7 +156,10 @@ def parse_prescribed_displacement(file_path):
         'dof_index': np.array(dof_indices, dtype=int),
         'value': np.array(values, dtype=float),
         'type': np.array(types, dtype=str),
-        'global_dof': np.array([node_id * 6 + dof_idx for node_id, dof_idx in zip(node_ids, dof_indices)], dtype=int)
+        'global_dof': np.array(
+            [node_id * dof_per_node + dof_idx for node_id, dof_idx in zip(node_ids, dof_indices)],
+            dtype=int,
+        )
     }
 
     logging.info(f"[Prescribed Displacement] Successfully parsed {len(ids)} prescribed displacement conditions from '{file_path}'.")

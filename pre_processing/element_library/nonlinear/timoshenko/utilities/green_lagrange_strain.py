@@ -1,12 +1,13 @@
 # pre_processing/element_library/nonlinear/timoshenko/utilities/green_lagrange_strain.py
 """
-Green-Lagrange strain for 2-node 3D Timoshenko (Total Lagrangian).
+Green–Lagrange strain — **Total Lagrangian (TL)** 2-node 3D Timoshenko beam.
 
-``E`` (6,), ``B_lin`` (6, 12) matches linear Timoshenko ``B`` at each station when ``N`` is supplied for shear.
-With ``include_shear=True``, nonlinear centroid shear rows ``gamma_xy``, ``gamma_xz`` use ``N`` at the Gauss point.
-Inputs ``dN_dx``, ``d2N_dx2`` (12, 6), ``u_e`` (12,).
+**Continuum:** \\(\\mathbf{E} = \\tfrac{1}{2}(\\mathbf{F}^\\top\\mathbf{F} - \\mathbf{I})\\) in 3D (reference \\(X\\)); this file implements the **Voigt** vector
+\\(\\mathbf{E} = [E_x,\\kappa_y,\\kappa_z,\\gamma_{xy},\\gamma_{xz},\\phi_x]^T\\) with \\(\\mathbf{E} = \\mathbf{E}_\\mathrm{lin} + \\mathbf{E}_\\mathrm{nl}\\).
 
-Parent element uses ``B`` from this operator with ``S = D @ E`` and Gauss sums for ``F_int`` and tangents.
+**Discrete:** \\(\\mathbf{B}_\\mathrm{lin}\\), \\(\\mathbf{B}_\\mathrm{nl}\\) from this operator; ``E`` (6,), ``B_lin`` / ``B_nl`` (6, 12).
+``B_lin`` matches linear Timoshenko ``B`` when ``N`` is supplied for shear. With ``include_shear=True``, nonlinear centroid shear remainders in ``E_nl``.
+Inputs ``dN_dx``, ``d2N_dx2`` (12, 6), ``u_e`` (12,). Parent: ``S = D @ E``, \\(\\mathbf{F}_\\mathrm{int}\\) and \\(\\mathbf{K}_T = \\mathbf{K}_0 + \\mathbf{K}_\\delta + \\mathbf{K}_\\sigma\\) per ``nonlinear_timoshenko_3D.py``.
 """
 
 from dataclasses import dataclass
@@ -20,6 +21,8 @@ class GreenLagrangeStrainOperator:
     Green–Lagrange strain measures for a 2-node 3D beam in Total Lagrangian formulation.
 
     Reference configuration: initial (undeformed) geometry; all quantities referred to it.
+    **Discrete operators:** \\(\\mathbf{E} = \\mathbf{E}_\\mathrm{lin}+\\mathbf{E}_\\mathrm{nl}\\); \\(\\mathbf{B}_\\mathrm{lin}\\), \\(\\mathbf{B}_\\mathrm{nl}\\) from methods on this class (parent forms \\(\\mathbf{K}_T = \\mathbf{K}_0 + \\mathbf{K}_\\delta + \\mathbf{K}_\\sigma\\)).
+
     Strain vector E = [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x]ᵀ with nonlinear terms:
 
         ε_x  = ∂u_x/∂x + ½(∂u_x/∂x)² + ½(∂u_y/∂x)² + ½(∂u_z/∂x)²   (axial, Green–Lagrange)

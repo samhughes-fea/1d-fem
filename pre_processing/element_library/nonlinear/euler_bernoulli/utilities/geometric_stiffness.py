@@ -1,8 +1,12 @@
 # pre_processing/element_library/nonlinear/euler_bernoulli/utilities/geometric_stiffness.py
 """
-Geometric stiffness **K_σ** (12, 12) for 2-node 3D TL beam — **weak-form Gauss sum** only.
+Geometric stiffness \\(\\mathbf{K}_\\sigma\\) (12, 12) — **Total Lagrangian** tangent **stress stiffness** block.
 
-At each Gauss point ``g`` with weight ``w_g`` and ``|J|``:
+**Role in tangent stiffness:** The full iterative tangent is \\(\\mathbf{K}_T = \\mathbf{K}_\\mathrm{mat} + \\mathbf{K}_\\sigma\\) (EB TL naming) or
+\\(\\mathbf{K}_T = \\mathbf{K}_0 + \\mathbf{K}_\\delta + \\mathbf{K}_\\sigma\\) (Timoshenko TL). **This module implements only \\(\\mathbf{K}_\\sigma\\)** as a
+Gauss sum from current axial force \\(N\\) and bending moments \\(M_y\\), \\(M_z\\) (from \\(\\mathbf{S} = \\mathbf{D}\\mathbf{E}\\)); it does **not** assemble the material tangent \\(\\mathbf{B}^\\top \\mathbf{D}\\mathbf{B}\\).
+
+**Weak-form Gauss sum only** — At each Gauss point ``g`` with weight ``w_g`` and ``|J|``:
 
 - **Axial (u_x DOFs 0, 6):** ``K_σ[i,j] += N_g * (∂N_i/∂x)(∂N_j/∂x) w_g |J|`` for ``i,j ∈ {0,6}`` (component ``u_x``).
 
@@ -30,6 +34,13 @@ def _embed(K: np.ndarray, idx: list[int], K4: np.ndarray) -> None:
 
 @dataclass(frozen=True)
 class GeometricStiffnessOperator:
+    """
+    Assemble \\(\\mathbf{K}_\\sigma\\) from section forces and shape-function derivatives (**TL nonlinear**).
+
+    **Inputs:** \\(N\\), \\(M_y\\), \\(M_z\\) at Gauss points (typically from ``StressResultantOperator`` with \\(\\mathbf{S}=\\mathbf{D}\\mathbf{E}\\)).
+    **Output:** symmetric contribution to \\(\\mathbf{K}_T\\); combine with material tangent from \\(\\mathbf{B}_\\mathrm{lin}+\\mathbf{B}_\\mathrm{nl}\\) in the parent element.
+    """
+
     element_length: float
 
     def __post_init__(self) -> None:

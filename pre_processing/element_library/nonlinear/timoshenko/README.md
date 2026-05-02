@@ -1,6 +1,6 @@
 # Nonlinear Timoshenko beam element (3D, Total Lagrangian)
 
-2-node 3D **geometrically nonlinear** Timoshenko beam: Green–Lagrange strain with shear deformation. The element uses the **generalised 3D** layout: tangent stiffness **K_T** and internal force **F_int** are **(12×12)** and **(12×1)**. Formulation is **Total Lagrangian** (all quantities referred to the initial configuration).
+2-node 3D **geometrically nonlinear** Timoshenko beam: Green–Lagrange strain with shear deformation. The element uses the **generalised 3D** layout: tangent stiffness **K_T** and internal force **F_int** are **(12×12)** and **(12×1)** when no warping DOFs are used; with **`[warping]`** and a mesh that allocates χ per node, **(14×14)** and **(14×1)** (same Vlasov row as linear Timoshenko + warping). Formulation is **Total Lagrangian** (all quantities referred to the initial configuration).
 
 ---
 

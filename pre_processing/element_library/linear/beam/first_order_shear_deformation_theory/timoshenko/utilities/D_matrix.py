@@ -1,9 +1,11 @@
 # pre_processing/element_library/linear/timoshenko/utilities/D_matrix.py
-"""Material stiffness D (6, 6) for Timoshenko beam.
+"""Material stiffness **D** (6, 6) — **linear elastic**, infinitesimal strain (**Cauchy** resultants).
 
-S = D ε with diagonal EA, EI_y, EI_z, κGA (shear, twice), and GJ_t.
-Parent element uses `K_e += B.T @ D @ B * w_g * detJ`
-with selective bending/shear quadrature in `linear_timoshenko_3D.py`.
+**Constitutive (Voigt):** \\(\\mathbf{S} = \\mathbf{D}\\,\\boldsymbol{\\varepsilon}\\), diagonal \\(EA\\), \\(EI_y\\), \\(EI_z\\),
+\\(\\kappa GA\\) (shear, twice), \\(GJ_t\\).
+
+**Stiffness:** \\(\\mathbf{K} = \\int \\mathbf{B}^\\top \\mathbf{D}\\,\\mathbf{B}\\,\\mathrm{d}x\\) — **constant** w.r.t. \\(\\mathbf{U}_e\\).
+Assembly: `K_e += B.T @ D @ B * w_g * detJ`; selective orders in `linear_timoshenko_3D.py`.
 """
 
 import numpy as np
@@ -13,7 +15,9 @@ from dataclasses import dataclass, field
 @dataclass(frozen=True)
 class MaterialStiffnessOperator:
     """
-    Constitutive tensor D ∈ ℝ^{6×6} for 3-D Timoshenko beam elements.
+    Constitutive tensor **D** ∈ ℝ^{6×6} for 3-D Timoshenko beam elements (**linear isotropic**, infinitesimal strain).
+
+    **Governing relation:** \\(\\mathbf{S} = \\mathbf{D}\\,\\boldsymbol{\\varepsilon}\\) with \\(\\boldsymbol{\\varepsilon}\\) from `B_matrix.py`.
 
     D is a rank-2 symmetric tensor relating the generalised strain vector
     ε ∈ ℝ^6 to the beam section resultant vector S ∈ ℝ^6 via S = D ε:

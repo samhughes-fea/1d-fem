@@ -2,6 +2,8 @@
 
 This document describes the geometrically nonlinear 2-node 3D beam formulation used for **Euler-Bernoulli-3D-Nonlinear** and **Timoshenko-3D-Nonlinear** elements. The formulation is **Total Lagrangian**: all quantities are referred to the **initial (undeformed) configuration**.
 
+**Operators in code:** Green–Lagrange strain and \\(\\mathbf{B}_\\mathrm{lin}\\)/\\(\\mathbf{B}_\\mathrm{nl}\\) are implemented in ``pre_processing/element_library/nonlinear/{euler_bernoulli,timoshenko}/utilities/green_lagrange_strain.py``; section resultants \\(\\mathbf{S}=\\mathbf{D}\\mathbf{E}\\) (2PK-type, StVK beam reduction) in ``stress_resultant.py``; geometric tangent \\(\\mathbf{K}_\\sigma\\) in ``geometric_stiffness.py``. Linear infinitesimal theory uses ``linear/.../utilities/B_matrix.py`` and ``D_matrix.py`` instead.
+
 ## Scope
 
 Implementations are **1D beam elements in 3D space** (the library’s line mesh). There are **no** shell elements or separate 2D finite-element meshes of the cross-section.

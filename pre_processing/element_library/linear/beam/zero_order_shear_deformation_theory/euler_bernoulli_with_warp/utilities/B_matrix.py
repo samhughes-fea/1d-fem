@@ -139,8 +139,8 @@ class WarpingStrainDisplacementOperator:
         Linear EB ``B`` (6, 12) in ``euler_bernoulli/utilities/B_matrix.py``.
     WarpingMaterialStiffnessOperator
         ``D`` (7, 7) in ``euler_bernoulli_with_warp/utilities/D_matrix.py``.
-    linear_warping_euler_bernoulli_3D.LinearWarpingEulerBernoulliBeamElement3D
-        Parent element using this operator.
+    linear_euler_bernoulli_3D.LinearEulerBernoulliBeamElement3D
+        Unified linear EB; use with `[warping]` for operators extended to 14 DOFs.
     docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md
         Voigt order for rows 0–5; extensions for ``(14,) U_e`` and ``(7, 14) B``.
     """

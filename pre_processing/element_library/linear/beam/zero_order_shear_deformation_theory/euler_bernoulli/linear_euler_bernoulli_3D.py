@@ -18,6 +18,11 @@ See `utilities/B_matrix.py`.
 
 **Public API:** ``element_stiffness_matrix`` → ``ElementObject``; ``element_force_vector`` → ``ForceObject``;
 ``element_mass_matrix`` → ``MassObject`` (consistent mass).
+
+**Warping:** Optional Vlasov warping is controlled per element via ``[warping]`` in ``element.txt`` (0/1),
+or legacy element types whose name contains ``"Warping"``. When any element row enables warping,
+the mesh uses 7 DOF per node (14 local DOFs); ``[warping]=0`` on an element zeros ``E·Γ`` stiffness
+for that element even if the section defines Γ.
 """
 
 import numpy as np
@@ -25,6 +30,13 @@ from typing import Optional, Tuple
 
 # Import Element1DBase class
 from pre_processing.element_library.element_1D_base import Element1DBase
+from pre_processing.element_library.beam_warping import (
+    beam_warping_policy,
+    enforce_strict_section_gamma,
+    mesh_uses_warping_dof,
+    section_gamma_from_section_array,
+    warn_if_degenerate_warping_stiffness,
+)
 
 # Import MaterialStiffnessOperator and StrainDisplacementOperator classes
 from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.D_matrix import MaterialStiffnessOperator
@@ -33,6 +45,21 @@ from pre_processing.element_library.shape_function_registry import get_shape_fun
 
 # Import LoadInterpolationOperator class
 from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.interpolate_loads import LoadInterpolationOperator
+
+# Import warping utilities from ``euler_bernoulli_with_warp/utilities`` (separate from the main EB
+# package) to keep optional 7-DOF material/strain operators in one place.
+from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli_with_warp.utilities.constants import (
+    N_STANDARD_DOF as _EB_WARP_N_STANDARD_DOF,
+)
+from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli_with_warp.utilities.D_matrix import (
+    WarpingMaterialStiffnessOperator,
+)
+from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli_with_warp.utilities.B_matrix import (
+    WarpingStrainDisplacementOperator,
+)
+from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli_with_warp.utilities.shape_functions import (
+    extend_natural_shape_to_warping,
+)
 
 # --- logging ----------------------------------------------
 import logging
@@ -88,6 +115,11 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
             ``[axial, bending_y, bending_z, torsion, load]`` (indices 3–5, 8–9), at least 2.
             See ``docs/element_library/shape_function_conventions.md``.
         """
+        idx = int(np.where(element_dictionary["ids"] == element_id)[0][0])
+        etype_str = str(element_dictionary["types"][idx])
+        warp_mesh = mesh_uses_warping_dof(element_dictionary)
+        dof_pn = 7 if warp_mesh else 6
+        self._n_dof = dof_pn * 2
 
         super().__init__(
             element_id=element_id,
@@ -98,8 +130,17 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
             point_load_array=point_load_array,
             distributed_load_array=distributed_load_array,
             job_results_dir=job_results_dir,
-            dof_per_node=6,
+            dof_per_node=dof_pn,
         )
+
+        self._warp_policy = beam_warping_policy(
+            element_dictionary,
+            idx,
+            etype_str,
+            section_gamma_from_section_array(self.section_array),
+        )
+        self._warp_mesh = self._warp_policy.mesh_allocates_chi_dof
+        self._warp_stiff = self._warp_policy.warping_stiffness_on
 
         # Quadrature order: from element_array when not provided (same 7-column convention as Timoshenko)
         if quadrature_order is not None:
@@ -127,7 +168,7 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
         self._assert_logging_ready()
     
         # Initialize operator classes (shape-function implementation from registry)
-        self.shape_function_operator = get_shape_function_operator(self.__class__.__name__, self.L)
+        self.shape_function_operator = get_shape_function_operator("LinearEulerBernoulliBeamElement3D", self.L)
         self.strain_displacement_operator = StrainDisplacementOperator(element_length=self.L)
         self.material_stiffness_operator = MaterialStiffnessOperator(
             youngs_modulus=self.E,
@@ -137,12 +178,41 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
             moment_inertia_z=self.I_z,
             torsion_constant=self.J_t,
         )
+        self.warping_strain_displacement_operator = None
+        self.warping_material_stiffness_operator = None
+        if self._n_dof == 14:
+            enforce_strict_section_gamma(
+                element_dictionary=element_dictionary,
+                element_id=element_id,
+                stiffness_on=self._warp_stiff,
+                section_gamma=self._warp_policy.gamma_section,
+            )
+            warn_if_degenerate_warping_stiffness(
+                stiffness_on=self._warp_stiff,
+                section_gamma=self._warp_policy.gamma_section,
+                element_id=element_id,
+            )
+            gamma_eff = self._warp_policy.gamma_effective
+            self.warping_strain_displacement_operator = WarpingStrainDisplacementOperator(
+                element_length=self.L,
+                base_strain_operator=self.strain_displacement_operator,
+            )
+            self.warping_material_stiffness_operator = WarpingMaterialStiffnessOperator(
+                base_material_operator=self.material_stiffness_operator,
+                youngs_modulus=self.E,
+                warping_gamma=gamma_eff,
+            )
 
     def _validate_element_properties(self) -> None:
         """Validate critical element properties"""
         if self.L <= 0:
             raise ValueError(f"Invalid element length {self.L:.2e} for element {self.element_id}")
-        if self.material_array.size != 4 or self.section_array.size not in (5, 7):
+        if self.material_array.size != 4:
+            raise ValueError("Material array not properly initialised")
+        if self._warp_mesh:
+            if self.section_array.size not in (5, 7, 9, 10):
+                raise ValueError("Section array must have 5, 7, 9 or 10 entries when warping DOFs are used")
+        elif self.section_array.size not in (5, 7):
             raise ValueError("Material/section arrays not properly initialised")
     
         # quick access to node-id pair (n1, n2) from the slice array
@@ -175,6 +245,13 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
     def J_t(self) -> float:
         """Torsional constant (m⁴)"""
         return self.section_array[4]
+
+    @property
+    def Gamma(self) -> float:
+        """Warping constant Γ [m⁶] when present on ``section_array`` (index 9)."""
+        if self.section_array.size >= 10:
+            return float(self.section_array[9])
+        return 0.0
     
     @property
     def E(self) -> float:
@@ -198,16 +275,25 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
 
     def _precurvature_equivalent_load(self) -> np.ndarray:
         """``sum_g B.T @ D @ E_0 * w_g * detJ`` for ``σ = D(ε - E_0)`` (initial reference curvature)."""
+        nd = self._n_dof
         if not np.any(self._E_0_voigt):
-            return np.zeros(12, dtype=np.float64)
-        D = self.material_stiffness_operator.assembly_form()
+            return np.zeros(nd, dtype=np.float64)
         detJ = self.jacobian_determinant
         xi, w = self.integration_points
-        f_e = np.zeros(12, dtype=np.float64)
+        f_e = np.zeros(nd, dtype=np.float64)
+        if nd == 12:
+            D = self.material_stiffness_operator.assembly_form()
+            for xi_g, w_g in zip(xi, w):
+                _, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)[0]
+                f_e += (B.T @ D @ self._E_0_voigt) * w_g * detJ
+            return f_e
+        E0 = np.concatenate([self._E_0_voigt, np.zeros(1, dtype=np.float64)])
+        D = self.warping_material_stiffness_operator.assembly_form()
         for xi_g, w_g in zip(xi, w):
-            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)[0]
-            f_e += (B.T @ D @ self._E_0_voigt) * w_g * detJ
+            _, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self.warping_strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)[0]
+            f_e += (B.T @ D @ E0) * w_g * detJ
         return f_e
 
     # Operator-compatible formulation methods ----------------------------------
@@ -236,6 +322,47 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
         from pre_processing.element_library.gauss_point_data import ElementObject, StiffnessGaussPointData
         
         self._assert_logging_ready()
+
+        if self._n_dof == 14:
+            Ke = np.zeros((14, 14), dtype=np.float64)
+            D = self.warping_material_stiffness_operator.assembly_form()
+            xi, w = self.integration_points
+            gauss_cache = []
+            for g, (xi_g, w_g) in enumerate(zip(xi, w)):
+                _, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                B = self.warping_strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)[0]
+                detJ = self.jacobian_determinant
+                Ke += B.T @ D @ B * w_g * detJ
+                gauss_cache.append(StiffnessGaussPointData(
+                    xi=float(xi_g),
+                    weight=float(w_g),
+                    B_matrix=B.copy(),
+                    D_matrix=D.copy(),
+                    jacobian=float(detJ),
+                    shape_functions=None,
+                    shape_derivatives=None,
+                ))
+            if self.logger_operator:
+                self.logger_operator.log_text(
+                    "stiffness",
+                    f"\n=== Element {self.element_id} EB (+warp) K_e (14,14) ===",
+                )
+                self.logger_operator.log_matrix("stiffness", Ke, {"name": "Element Stiffness Matrix"})
+                self.logger_operator.flush("stiffness")
+            op = self.shape_function_operator
+            evaluate_shape_functions = lambda xi: op.natural_coordinate_form(np.asarray(xi))
+            N_coeffs, dN_coeffs, d2N_coeffs = op.build_shape_function_coefficients_b2()
+            return ElementObject(
+                element_id=self.element_id,
+                element_type=self.element_type_name,
+                K_e=Ke,
+                gauss_data=gauss_cache,
+                integration_scheme="Gauss-Legendre",
+                evaluate_shape_functions=evaluate_shape_functions,
+                shape_function_N_coefficients=N_coeffs,
+                shape_function_dN_dxi_coefficients=dN_coeffs,
+                shape_function_d2N_dxi2_coefficients=d2N_coeffs,
+            )
 
         Ke = np.zeros((12, 12), dtype=np.float64)
         L = np.array([[self.L]], dtype=np.float64)
@@ -312,7 +439,7 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
         
         self._assert_logging_ready()
 
-        Fe = np.zeros(12, dtype=np.float64)
+        Fe = np.zeros(self._n_dof, dtype=np.float64)
         gauss_cache = []
         
         if self.logger_operator:  # Modified logging call
@@ -323,13 +450,13 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
         # Process distributed loads
         if self.distributed_load_array.size > 0:
             Fe_dist, dist_gauss_cache = self._compute_distributed_load_contribution()
-            Fe += Fe_dist
+            Fe[:_EB_WARP_N_STANDARD_DOF] += Fe_dist
             gauss_cache = dist_gauss_cache
 
         # Process point loads
         point_loads_cache = None
         if self.point_load_array.size > 0:
-            Fe += self._compute_point_load_contribution()
+            Fe[:_EB_WARP_N_STANDARD_DOF] += self._compute_point_load_contribution()
             point_loads_cache = self.point_load_array.copy()
 
         if self.logger_operator:  # Modified logging block
@@ -344,11 +471,106 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
             point_loads=point_loads_cache
         )
 
+    def linear_geometric_stiffness_matrix(self, U_e: np.ndarray) -> np.ndarray:
+        """
+        Geometric stiffness :math:`\\mathbf{K}_\\sigma` from linear strains
+        :math:`\\boldsymbol{\\varepsilon}=\\mathbf{B}\\mathbf{U}_e` and :math:`\\mathbf{S}=\\mathbf{D}\\boldsymbol{\\varepsilon}`
+        (reference prestress for linear buckling). **12-DOF** EB; **14-DOF** warping embeds **12×12** ``K_σ``
+        on standard beam DOFs (χ unstressed in ``K_σ``), matching the nonlinear EB+warping tangent layout.
+        """
+        U_e = np.asarray(U_e, dtype=np.float64).ravel()
+        from pre_processing.element_library.nonlinear.euler_bernoulli.utilities.geometric_stiffness import (
+            GeometricStiffnessOperator,
+        )
+        from pre_processing.element_library.nonlinear.euler_bernoulli.utilities.stress_resultant import (
+            StressResultantOperator,
+        )
+
+        stress_op = StressResultantOperator()
+        geo = GeometricStiffnessOperator(element_length=self.L)
+        D6 = self.material_stiffness_operator.assembly_form()
+        xi, w = self.integration_points
+        detJ = self.jacobian_determinant
+        dξ_dx = 2.0 / self.L
+        n_g = len(xi)
+        N_gp = np.zeros(n_g, dtype=np.float64)
+        M_y_gp = np.zeros(n_g, dtype=np.float64)
+        M_z_gp = np.zeros(n_g, dtype=np.float64)
+        dN_dx_list = []
+
+        if U_e.size == 12:
+            for k, (xi_g, w_g) in enumerate(zip(xi, w)):
+                _, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)[0]
+                eps = B @ U_e - self._E_0_voigt
+                Ni, Myi, Mzi = stress_op.section_forces_from_strain(eps, D6)
+                N_gp[k] = Ni
+                M_y_gp[k] = Myi
+                M_z_gp[k] = Mzi
+                dN_dx = dN_dξ.copy() * dξ_dx
+                dN_dx[:, 3] = dN_dξ[:, 3] * dξ_dx
+                dN_dx_list.append(dN_dx[0])
+        elif U_e.size == 14 and self._n_dof == 14:
+            E0 = np.concatenate([self._E_0_voigt, np.zeros(1, dtype=np.float64)])
+            for k, (xi_g, w_g) in enumerate(zip(xi, w)):
+                _, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                B = self.warping_strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)[0]
+                eps = B @ U_e - E0
+                Ni, Myi, Mzi = stress_op.section_forces_from_strain(eps[:6], D6)
+                N_gp[k] = Ni
+                M_y_gp[k] = Myi
+                M_z_gp[k] = Mzi
+                dN_dx = dN_dξ.copy() * dξ_dx
+                dN_dx[:, 3] = dN_dξ[:, 3] * dξ_dx
+                dN_dx_list.append(dN_dx[0])
+        else:
+            raise ValueError(
+                f"linear_geometric_stiffness_matrix: expected 12 or (14 with warping element) DOFs, got {U_e.size}"
+            )
+
+        dN_dx_arr = np.stack(dN_dx_list, axis=0)
+        K12 = geo.assemble_K_sigma(N_gp, M_y_gp, M_z_gp, w, dN_dx_arr, detJ)
+        if U_e.size == 12:
+            return K12
+        K_sigma = np.zeros((14, 14), dtype=np.float64)
+        K_sigma[:12, :12] = K12
+        return K_sigma
+
     def element_mass_matrix(self):
         """Consistent mass: translations rho*A; torsion rho*J_t; bending rotations rho*Iy / rho*Iz."""
         from pre_processing.element_library.gauss_point_data import MassObject
 
         self._assert_logging_ready()
+        if self._n_dof == 14:
+            rho = float(self.material_array[3])
+            mu = np.zeros(14, dtype=np.float64)
+            for i in (0, 1, 2, 6, 7, 8):
+                mu[i] = rho * self.A
+            for i in (3, 9):
+                mu[i] = rho * self.J_t
+            for i in (4, 10):
+                mu[i] = rho * self.I_y
+            for i in (5, 11):
+                mu[i] = rho * self.I_z
+            g_m = self._warp_policy.gamma_effective
+            mu[12] = rho * g_m
+            mu[13] = rho * g_m
+            M_e = np.zeros((14, 14), dtype=np.float64)
+            xi, w = self.integration_points
+            detJ = self.jacobian_determinant
+            for xi_g, w_g in zip(xi, w):
+                N12, _, _ = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                Ng = extend_natural_shape_to_warping(N12[0], xi_g)
+                for i in range(14):
+                    for j in range(14):
+                        mij = 0.5 * (mu[i] + mu[j])
+                        M_e[i, j] += mij * float(np.dot(Ng[i, :], Ng[j, :])) * w_g * detJ
+            return MassObject(
+                element_id=self.element_id,
+                element_type=self.element_type_name,
+                M_e=M_e,
+            )
+
         rho = float(self.material_array[3])
         mu = np.zeros(12, dtype=np.float64)
         for i in (0, 1, 2, 6, 7, 8):
@@ -472,10 +694,12 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
             raise ValueError(f"dN_dξ shape mismatch: {dN_dξ.shape} ≠ (12, 6)")
         if d2N_dξ2.shape[-2:] != (12, 6):
             raise ValueError(f"d2N_dξ2 shape mismatch: {d2N_dξ2.shape} ≠ (12, 6)")
-        if B.shape[-2:] != (6, 12):                     # ← updated (was 4 × 12)
-            raise ValueError(f"B-matrix shape mismatch: {B.shape} ≠ (*, 6, 12)")
-        if contribution.shape != (12, 12):
-            raise ValueError(f"Contribution shape mismatch: {contribution.shape} ≠ (12, 12)")
+        if B.shape[-2:] not in ((6, 12), (7, 14)):
+            raise ValueError(f"B-matrix shape mismatch: {B.shape} not (6,12) or (7,14)")
+        if contribution.shape not in ((12, 12), (14, 14)):
+            raise ValueError(
+                f"Contribution shape mismatch: {contribution.shape} not (12,12) or (14,14)"
+            )
 
         # --- metadata for pretty print ------------------------------------------
         metadata = {

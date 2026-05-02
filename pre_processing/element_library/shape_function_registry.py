@@ -60,12 +60,12 @@ def _truss_operator(L: float) -> Any:
 # Classical GEBT stub uses Timoshenko 12-DOF shapes as a placeholder until native shapes exist.
 SHAPE_FUNCTION_REGISTRY: dict[str, ShapeFunctionOperatorFactory] = {
     "LinearEulerBernoulliBeamElement3D": _eb_operator,
-    "LinearWarpingEulerBernoulliBeamElement3D": _eb_operator,
     "NonlinearEulerBernoulliBeamElement3D": _eb_operator,
     "LinearTimoshenkoBeamElement3D": _timoshenko_operator,
-    "LinearWarpingTimoshenkoBeamElement3D": _timoshenko_operator,
     "NonlinearTimoshenkoBeamElement3D": _timoshenko_operator,
     "GeometricallyExactShearDeformableBeam3D": _timoshenko_operator,
+    "CorotationalBeamElement3D": _timoshenko_operator,
+    "GEBTUnshearableBeamElement3D": _eb_operator,
     "LinearLevinsonBeamElement3D": _levinson_operator,
     "LinearReddyBeamElement3D": _reddy_operator,
     "LinearBarElement3D": _bar_operator,

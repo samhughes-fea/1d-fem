@@ -24,6 +24,13 @@ from typing import Tuple
 
 # Import Element1DBase class
 from pre_processing.element_library.element_1D_base import Element1DBase
+from pre_processing.element_library.beam_warping import (
+    effective_warping_gamma,
+    element_warping_stiffness_on,
+    enforce_strict_section_gamma,
+    mesh_uses_warping_dof,
+    warn_if_degenerate_warping_stiffness,
+)
 
 # Import MaterialStiffnessOperator, ShapeFunctionOperator and StrainDisplacementOperator classes
 from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.utilities.D_matrix import MaterialStiffnessOperator
@@ -39,6 +46,11 @@ import logging
 logger = logging.getLogger(__name__)
 # --- element-level logger ----------------------------------
 from pre_processing.element_library.base_logger_operator import BaseLoggerOperator
+
+_LEV_W_N_STD = 12
+_LEV_W_N_STRAIN = 7
+_LEV_W_N_DOF = 14
+
 
 class LinearLevinsonBeamElement3D(Element1DBase):
     """
@@ -83,6 +95,14 @@ class LinearLevinsonBeamElement3D(Element1DBase):
             Default ``3``: derive from ``element_array`` (shear columns forced to at least 3 when zero,
             then ``max`` of axial/bending/shear/torsion, minimum 3). Any other integer sets ``self.quadrature_order`` directly.
         """
+        idx = int(np.where(element_dictionary["ids"] == element_id)[0][0])
+        etype_str = str(element_dictionary["types"][idx])
+        warp_mesh = mesh_uses_warping_dof(element_dictionary)
+        warp_stiff = element_warping_stiffness_on(element_dictionary, idx, etype_str)
+        dof_pn = 7 if warp_mesh else 6
+        self._n_dof = dof_pn * 2
+        self._warp_mesh = warp_mesh
+        self._warp_stiff = warp_stiff
 
         super().__init__(
             element_id=element_id,
@@ -93,7 +113,7 @@ class LinearLevinsonBeamElement3D(Element1DBase):
             point_load_array=point_load_array,
             distributed_load_array=distributed_load_array,
             job_results_dir=job_results_dir,
-            dof_per_node=6,
+            dof_per_node=dof_pn,
         )
 
         # Determine quadrature order from element_array integration orders
@@ -141,7 +161,7 @@ class LinearLevinsonBeamElement3D(Element1DBase):
         )
 
         # Initialize operator classes
-        self.shape_function_operator = get_shape_function_operator(self.__class__.__name__, self.L)
+        self.shape_function_operator = get_shape_function_operator("LinearLevinsonBeamElement3D", self.L)
         self.strain_displacement_operator = StrainDisplacementOperator(
             element_length=self.L,
             alpha_coefficient=alpha_coeff
@@ -155,12 +175,29 @@ class LinearLevinsonBeamElement3D(Element1DBase):
             moment_inertia_z=self.I_z,
             torsion_constant=self.J_t,
         )
+        if self._n_dof == 14:
+            enforce_strict_section_gamma(
+                element_dictionary=element_dictionary,
+                element_id=element_id,
+                stiffness_on=self._warp_stiff,
+                section_gamma=self.Gamma,
+            )
+            warn_if_degenerate_warping_stiffness(
+                stiffness_on=self._warp_stiff,
+                section_gamma=self.Gamma,
+                element_id=element_id,
+            )
 
     def _validate_element_properties(self) -> None:
         """Validate critical element properties"""
         if self.L <= 0:
             raise ValueError(f"Invalid element length {self.L:.2e} for element {self.element_id}")
-        if self.material_array.size != 4 or self.section_array.size not in (5, 7):
+        if self.material_array.size != 4:
+            raise ValueError("Material array not properly initialised")
+        if self._warp_mesh:
+            if self.section_array.size not in (5, 7, 9, 10):
+                raise ValueError("Section array must have 5, 7, 9 or 10 entries when warping DOFs are used")
+        elif self.section_array.size not in (5, 7):
             raise ValueError("Material/section arrays not properly initialised")
     
         # quick access to node-id pair (n1, n2) from the slice array
@@ -193,7 +230,14 @@ class LinearLevinsonBeamElement3D(Element1DBase):
     def J_t(self) -> float:
         """Torsional constant (m⁴)"""
         return self.section_array[4]
-    
+
+    @property
+    def Gamma(self) -> float:
+        """Warping constant Γ [m⁶] when present (index 9)."""
+        if self.section_array.size >= 10:
+            return float(self.section_array[9])
+        return 0.0
+
     @property
     def E(self) -> float:
         """Young's modulus (Pa)"""
@@ -227,29 +271,75 @@ class LinearLevinsonBeamElement3D(Element1DBase):
         """D-matrix for stiffness assembly (6×6)."""
         return self.material_stiffness_operator.assembly_form()
 
+    def _B_warping_row_lev(self) -> np.ndarray:
+        """Row 6 of B: Vlasov warping rate (same linear slopes as Timoshenko warping)."""
+        row = np.zeros(_LEV_W_N_DOF, dtype=np.float64)
+        row[3] = -1.0 / self.L
+        row[9] = 1.0 / self.L
+        row[12] = -1.0 / self.L
+        row[13] = 1.0 / self.L
+        return row
+
+    def _B_matrix_7x14(self, dN_dξ: np.ndarray, d2N_dξ2: np.ndarray, N: np.ndarray) -> np.ndarray:
+        n_gauss = dN_dξ.shape[0]
+        B_6x12 = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)
+        B = np.zeros((n_gauss, _LEV_W_N_STRAIN, _LEV_W_N_DOF), dtype=np.float64)
+        B[:, :6, :_LEV_W_N_STD] = B_6x12
+        wr = self._B_warping_row_lev()
+        for g in range(n_gauss):
+            B[g, 6, :] = wr
+        return B
+
+    def _D_matrix_7x7(self) -> np.ndarray:
+        D6 = self.material_stiffness_operator.assembly_form()
+        D = np.zeros((_LEV_W_N_STRAIN, _LEV_W_N_STRAIN), dtype=np.float64)
+        D[:6, :6] = D6
+        g_eff = effective_warping_gamma(self.Gamma, self._warp_stiff)
+        D[6, 6] = self.E * g_eff
+        return D
+
+    def _N_14x6_at_xi(self, xi_g: float, N12: np.ndarray) -> np.ndarray:
+        Nf = np.zeros((_LEV_W_N_DOF, 6), dtype=np.float64)
+        Nf[:_LEV_W_N_STD, :] = N12
+        xi = float(xi_g)
+        Nf[12, 3] = 0.5 * (1.0 - xi)
+        Nf[13, 3] = 0.5 * (1.0 + xi)
+        return Nf
+
     def _precurvature_equivalent_load(self) -> np.ndarray:
         """``sum_g B.T @ D @ E_0 * w_g * detJ`` with Levinson Voigt order for ``E_0``."""
+        nd = self._n_dof
         E0 = voigt_standard_beam_to_third_order_beam(self._E_0_voigt)
         if not np.any(E0):
-            return np.zeros(12, dtype=np.float64)
-        D = self.material_stiffness_operator.assembly_form()
+            return np.zeros(nd, dtype=np.float64)
         detJ = self.jacobian_determinant
-        axial_order = max(self.element_array[3], 1)
-        bending_y_order = max(self.element_array[4], 2)
-        bending_z_order = max(self.element_array[5], 2)
-        shear_y_order = max(self.element_array[6], 3) if self.element_array[6] > 0 else 3
-        shear_z_order = max(self.element_array[7], 3) if self.element_array[7] > 0 else 3
-        torsion_order = max(self.element_array[8], 1)
-        max_order = max(
-            axial_order, bending_y_order, bending_z_order,
-            shear_y_order, shear_z_order, torsion_order,
-        )
-        xi_full, w_full = np.polynomial.legendre.leggauss(max_order)
-        f_e = np.zeros(12, dtype=np.float64)
+        if nd == 12:
+            D = self.material_stiffness_operator.assembly_form()
+            axial_order = max(self.element_array[3], 1)
+            bending_y_order = max(self.element_array[4], 2)
+            bending_z_order = max(self.element_array[5], 2)
+            shear_y_order = max(self.element_array[6], 3) if self.element_array[6] > 0 else 3
+            shear_z_order = max(self.element_array[7], 3) if self.element_array[7] > 0 else 3
+            torsion_order = max(self.element_array[8], 1)
+            max_order = max(
+                axial_order, bending_y_order, bending_z_order,
+                shear_y_order, shear_z_order, torsion_order,
+            )
+            xi_full, w_full = np.polynomial.legendre.leggauss(max_order)
+            f_e = np.zeros(12, dtype=np.float64)
+            for xi_g, w_g in zip(xi_full, w_full):
+                N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
+                f_e += (B.T @ D @ E0) * w_g * detJ
+            return f_e
+        E0w = np.concatenate([E0, np.zeros(1, dtype=np.float64)])
+        D = self._D_matrix_7x7()
+        xi_full, w_full = np.polynomial.legendre.leggauss(self.quadrature_order)
+        f_e = np.zeros(_LEV_W_N_DOF, dtype=np.float64)
         for xi_g, w_g in zip(xi_full, w_full):
             N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
-            f_e += (B.T @ D @ E0) * w_g * detJ
+            B = self._B_matrix_7x14(dN_dξ, d2N_dξ2, N)[0]
+            f_e += (B.T @ D @ E0w) * w_g * detJ
         return f_e
 
     # Ke tensor computations ---------------------------------------------------------
@@ -266,6 +356,40 @@ class LinearLevinsonBeamElement3D(Element1DBase):
         from pre_processing.element_library.gauss_point_data import ElementObject, StiffnessGaussPointData
         
         self._assert_logging_ready()
+
+        if self._n_dof == 14:
+            Ke = np.zeros((_LEV_W_N_DOF, _LEV_W_N_DOF), dtype=np.float64)
+            D = self._D_matrix_7x7()
+            xi_full, w_full = np.polynomial.legendre.leggauss(self.quadrature_order)
+            gauss_cache = []
+            for g, (xi_g, w_g) in enumerate(zip(xi_full, w_full)):
+                N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                B = self._B_matrix_7x14(dN_dξ, d2N_dξ2, N)[0]
+                detJ = self.jacobian_determinant
+                Ke += B.T @ D @ B * w_g * detJ
+                gauss_cache.append(StiffnessGaussPointData(
+                    xi=float(xi_g),
+                    weight=float(w_g),
+                    B_matrix=B.copy(),
+                    D_matrix=D.copy(),
+                    jacobian=float(detJ),
+                    shape_functions=None,
+                    shape_derivatives=None,
+                ))
+            if self.logger_operator:
+                self.logger_operator.log_text(
+                    "stiffness",
+                    f"\n=== Element {self.element_id} Levinson (+warp) K_e (14,14) ===",
+                )
+                self.logger_operator.log_matrix("stiffness", Ke, {"name": "Element Stiffness Matrix"})
+                self.logger_operator.flush("stiffness")
+            return ElementObject(
+                element_id=self.element_id,
+                element_type=self.element_type_name,
+                K_e=Ke,
+                gauss_data=gauss_cache,
+                integration_scheme="Gauss-Legendre",
+            )
 
         Ke = np.zeros((12, 12), dtype=np.float64)
         L = np.array([[self.L]], dtype=np.float64)
@@ -414,25 +538,25 @@ class LinearLevinsonBeamElement3D(Element1DBase):
         
         self._assert_logging_ready()
 
-        Fe = np.zeros(12, dtype=np.float64)
+        Fe = np.zeros(self._n_dof, dtype=np.float64)
         gauss_cache = []
         
         if self.logger_operator:  # Modified logging call
             self.logger_operator.log_text("force", f"\n=== Element {self.element_id} Force Vector Computation ===")
 
+        Fe += self._precurvature_equivalent_load()
+
         # Process distributed loads
         if self.distributed_load_array.size > 0:
             Fe_dist, dist_gauss_cache = self._compute_distributed_load_contribution()
-            Fe += Fe_dist
+            Fe[:_LEV_W_N_STD] += Fe_dist
             gauss_cache = dist_gauss_cache
 
         # Process point loads
         point_loads_cache = None
         if self.point_load_array.size > 0:
-            Fe += self._compute_point_load_contribution()
+            Fe[:_LEV_W_N_STD] += self._compute_point_load_contribution()
             point_loads_cache = self.point_load_array.copy()
-
-        Fe += self._precurvature_equivalent_load()
 
         if self.logger_operator:  # Modified logging block
             self.logger_operator.log_matrix("force", Fe.reshape(1, -1), {"name": "Final Force Vector"})
@@ -451,6 +575,35 @@ class LinearLevinsonBeamElement3D(Element1DBase):
         from pre_processing.element_library.gauss_point_data import MassObject
 
         self._assert_logging_ready()
+        if self._n_dof == 14:
+            rho = float(self.material_array[3])
+            mu = np.zeros(_LEV_W_N_DOF, dtype=np.float64)
+            for i in (0, 1, 2, 6, 7, 8):
+                mu[i] = rho * self.A
+            for i in (3, 9):
+                mu[i] = rho * self.J_t
+            for i in (4, 10):
+                mu[i] = rho * self.I_y
+            for i in (5, 11):
+                mu[i] = rho * self.I_z
+            g_m = effective_warping_gamma(self.Gamma, self._warp_stiff)
+            mu[12] = rho * g_m
+            mu[13] = rho * g_m
+            M_e = np.zeros((_LEV_W_N_DOF, _LEV_W_N_DOF), dtype=np.float64)
+            xi, w = self.integration_points
+            detJ = self.jacobian_determinant
+            for xi_g, w_g in zip(xi, w):
+                N12, _, _ = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                Ng = self._N_14x6_at_xi(xi_g, N12[0])
+                for i in range(_LEV_W_N_DOF):
+                    for j in range(_LEV_W_N_DOF):
+                        mij = 0.5 * (mu[i] + mu[j])
+                        M_e[i, j] += mij * float(np.dot(Ng[i, :], Ng[j, :])) * w_g * detJ
+            return MassObject(
+                element_id=self.element_id,
+                element_type=self.element_type_name,
+                M_e=M_e,
+            )
         rho = float(self.material_array[3])
         mu = np.zeros(12, dtype=np.float64)
         for i in (0, 1, 2, 6, 7, 8):

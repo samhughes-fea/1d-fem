@@ -1,9 +1,10 @@
 # pre_processing/element_library/nonlinear/timoshenko/utilities/geometric_stiffness.py
 """
-Re-export ``GeometricStiffnessOperator`` for nonlinear Timoshenko.
+\\(\\mathbf{K}_\\sigma\\) for nonlinear Timoshenko — same weak-form implementation as EB (**re-export**).
 
-``K_sigma`` is built as a Gauss sum ``+= ... * w_g * detJ``; pass ``dN_dx`` from **Timoshenko** shape functions (linear Lagrange on ``u`` and ``theta``).
-Definitions: ``nonlinear/euler_bernoulli/utilities/geometric_stiffness.py`` module docstring.
+**Tangent context:** Parent uses \\(\\mathbf{K}_T = \\mathbf{K}_0 + \\mathbf{K}_\\delta + \\mathbf{K}_\\sigma\\); ``GeometricStiffnessOperator`` supplies **only** \\(\\mathbf{K}_\\sigma\\).
+Pass ``dN_dx`` from **Timoshenko** shape functions (linear Lagrange on displacements and rotations). Definitions and Gauss terms:
+``nonlinear/euler_bernoulli/utilities/geometric_stiffness.py``.
 """
 from pre_processing.element_library.nonlinear.euler_bernoulli.utilities.geometric_stiffness import (
     GeometricStiffnessOperator,

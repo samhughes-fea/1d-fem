@@ -1,8 +1,11 @@
 # pre_processing/element_library/nonlinear/euler_bernoulli/utilities/stress_resultant.py
 """
-Stress resultant helper for 2-node 3D Euler-Bernoulli TL beam.
+Stress resultants — **Total Lagrangian** 2-node 3D Euler–Bernoulli beam (**St. Venant–Kirchhoff-style** beam reduction).
 
-``S = D @ E``; extracts ``N``, ``M_y``, ``M_z`` for geometric stiffness. Full ``S`` (6,) follows linear ``D`` / Voigt order.
+**Governing constitutive (Voigt):** \\(\\mathbf{S} = \\mathbf{D}\\,\\mathbf{E}\\) where \\(\\mathbf{S}\\) are **2nd Piola–Kirchhoff–type** section resultants
+conjugate to the Green–Lagrange strain vector \\(\\mathbf{E}\\) from ``green_lagrange_strain`` (same \\(\\mathbf{D}\\) structure as linear EB, evaluated on \\(\\mathbf{E}\\)).
+
+``section_forces_from_strain`` returns ``N``, ``M_y``, ``M_z`` for ``GeometricStiffnessOperator`` (\\(\\mathbf{K}_\\sigma\\)); full ``S`` (6,) follows Voigt order.
 """
 
 from dataclasses import dataclass
@@ -14,7 +17,9 @@ import numpy as np
 @dataclass(frozen=True)
 class StressResultantOperator:
     """
-    Section forces (stress resultants) from 2nd Piola–Kirchhoff stress in reference configuration.
+    Section forces (**2PK-type resultants**) from Green–Lagrange strain \\(\\mathbf{E}\\) in the **reference** configuration.
+
+    **Governing relation:** \\(\\mathbf{S} = \\mathbf{D}\\,\\mathbf{E}\\) at each Gauss point (StVK beam reduction; not Cauchy \\(\\boldsymbol{\\sigma}\\) on infinitesimal \\(\\boldsymbol{\\varepsilon}\\)).
 
     S = D @ E  at each Gauss point. Full 6-component view: [N, M_y, M_z, V_y, V_z, T].
     For Euler–Bernoulli, D has rows 4–5 zero so V_y = V_z = 0 from constitutive; shear from
@@ -50,7 +55,7 @@ class StressResultantOperator:
         Parameters
         ----------
         E : np.ndarray, shape (6,)
-            Strain vector [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x].
+            Green–Lagrange-type strain vector **E** (Voigt; same row labels as infinitesimal ε but finite-strain values).
         D : np.ndarray, shape (6, 6)
             Material stiffness (same as linear D matrix).
 

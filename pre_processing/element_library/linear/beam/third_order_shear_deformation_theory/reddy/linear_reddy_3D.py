@@ -21,6 +21,13 @@ import numpy as np
 from typing import Tuple
 
 from pre_processing.element_library.element_1D_base import Element1DBase
+from pre_processing.element_library.beam_warping import (
+    effective_warping_gamma,
+    element_warping_stiffness_on,
+    enforce_strict_section_gamma,
+    mesh_uses_warping_dof,
+    warn_if_degenerate_warping_stiffness,
+)
 from pre_processing.element_library.shape_function_registry import get_shape_function_operator
 from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.utilities.B_matrix import StrainDisplacementOperator
 from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.utilities.D_matrix import MaterialStiffnessOperator
@@ -30,6 +37,10 @@ from pre_processing.parsing.precurvature_parser import voigt_standard_beam_to_th
 import logging
 
 logger = logging.getLogger(__name__)
+
+_RED_W_N_STD = 12
+_RED_W_N_STRAIN = 7
+_RED_W_N_DOF = 14
 
 
 class LinearReddyBeamElement3D(Element1DBase):
@@ -56,6 +67,15 @@ class LinearReddyBeamElement3D(Element1DBase):
         job_results_dir: str,
         quadrature_order: int = 3,
     ):
+        idx = int(np.where(element_dictionary["ids"] == element_id)[0][0])
+        etype_str = str(element_dictionary["types"][idx])
+        warp_mesh = mesh_uses_warping_dof(element_dictionary)
+        warp_stiff = element_warping_stiffness_on(element_dictionary, idx, etype_str)
+        dof_pn = 7 if warp_mesh else 6
+        self._n_dof = dof_pn * 2
+        self._warp_mesh = warp_mesh
+        self._warp_stiff = warp_stiff
+
         super().__init__(
             element_id=element_id,
             element_dictionary=element_dictionary,
@@ -65,7 +85,7 @@ class LinearReddyBeamElement3D(Element1DBase):
             point_load_array=point_load_array,
             distributed_load_array=distributed_load_array,
             job_results_dir=job_results_dir,
-            dof_per_node=6,
+            dof_per_node=dof_pn,
         )
 
         if quadrature_order is None or quadrature_order == 3:
@@ -100,7 +120,7 @@ class LinearReddyBeamElement3D(Element1DBase):
             self.I_z / self.A if self.A > 0 else 0.0
         )
 
-        self.shape_function_operator = get_shape_function_operator(self.__class__.__name__, self.L)
+        self.shape_function_operator = get_shape_function_operator("LinearReddyBeamElement3D", self.L)
         self.strain_displacement_operator = StrainDisplacementOperator(
             element_length=self.L,
             alpha_coefficient=alpha_coeff,
@@ -113,11 +133,28 @@ class LinearReddyBeamElement3D(Element1DBase):
             moment_inertia_z=self.I_z,
             torsion_constant=self.J_t,
         )
+        if self._n_dof == 14:
+            enforce_strict_section_gamma(
+                element_dictionary=element_dictionary,
+                element_id=element_id,
+                stiffness_on=self._warp_stiff,
+                section_gamma=self.Gamma,
+            )
+            warn_if_degenerate_warping_stiffness(
+                stiffness_on=self._warp_stiff,
+                section_gamma=self.Gamma,
+                element_id=element_id,
+            )
 
     def _validate_element_properties(self) -> None:
         if self.L <= 0:
             raise ValueError(f"Invalid element length {self.L:.2e} for element {self.element_id}")
-        if self.material_array.size != 4 or self.section_array.size not in (5, 7):
+        if self.material_array.size != 4:
+            raise ValueError("Material array not properly initialised")
+        if self._warp_mesh:
+            if self.section_array.size not in (5, 7, 9, 10):
+                raise ValueError("Section array must have 5, 7, 9 or 10 entries when warping DOFs are used")
+        elif self.section_array.size not in (5, 7):
             raise ValueError("Material/section arrays not properly initialised")
 
     @property
@@ -137,6 +174,12 @@ class LinearReddyBeamElement3D(Element1DBase):
         return self.section_array[4]
 
     @property
+    def Gamma(self) -> float:
+        if self.section_array.size >= 10:
+            return float(self.section_array[9])
+        return 0.0
+
+    @property
     def E(self) -> float:
         return self.material_array[0]
 
@@ -152,35 +195,107 @@ class LinearReddyBeamElement3D(Element1DBase):
     def integration_points(self) -> Tuple[np.ndarray, np.ndarray]:
         return np.polynomial.legendre.leggauss(self.quadrature_order)
 
+    def _B_warping_row_reddy(self) -> np.ndarray:
+        row = np.zeros(_RED_W_N_DOF, dtype=np.float64)
+        row[3] = -1.0 / self.L
+        row[9] = 1.0 / self.L
+        row[12] = -1.0 / self.L
+        row[13] = 1.0 / self.L
+        return row
+
+    def _B_matrix_7x14(self, dN_dξ: np.ndarray, d2N_dξ2: np.ndarray, N: np.ndarray) -> np.ndarray:
+        n_gauss = dN_dξ.shape[0]
+        B_6x12 = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)
+        B = np.zeros((n_gauss, _RED_W_N_STRAIN, _RED_W_N_DOF), dtype=np.float64)
+        B[:, :6, :_RED_W_N_STD] = B_6x12
+        wr = self._B_warping_row_reddy()
+        for g in range(n_gauss):
+            B[g, 6, :] = wr
+        return B
+
+    def _D_matrix_7x7(self) -> np.ndarray:
+        D6 = self.material_stiffness_operator.assembly_form()
+        D = np.zeros((_RED_W_N_STRAIN, _RED_W_N_STRAIN), dtype=np.float64)
+        D[:6, :6] = D6
+        g_eff = effective_warping_gamma(self.Gamma, self._warp_stiff)
+        D[6, 6] = self.E * g_eff
+        return D
+
+    def _N_14x6_at_xi(self, xi_g: float, N12: np.ndarray) -> np.ndarray:
+        Nf = np.zeros((_RED_W_N_DOF, 6), dtype=np.float64)
+        Nf[:_RED_W_N_STD, :] = N12
+        xi = float(xi_g)
+        Nf[12, 3] = 0.5 * (1.0 - xi)
+        Nf[13, 3] = 0.5 * (1.0 + xi)
+        return Nf
+
     def _precurvature_equivalent_load(self) -> np.ndarray:
         """``sum_g B.T @ D @ E_0 * w_g * detJ`` with Reddy/Levinson Voigt order for ``E_0``."""
+        nd = self._n_dof
         E0 = voigt_standard_beam_to_third_order_beam(self._E_0_voigt)
         if not np.any(E0):
-            return np.zeros(12, dtype=np.float64)
-        D = self.material_stiffness_operator.assembly_form()
+            return np.zeros(nd, dtype=np.float64)
         detJ = self.jacobian_determinant
-        axial_order = max(self.element_array[3], 1)
-        bending_y_order = max(self.element_array[4], 2)
-        bending_z_order = max(self.element_array[5], 2)
-        shear_y_order = max(self.element_array[6], 3) if self.element_array[6] > 0 else 3
-        shear_z_order = max(self.element_array[7], 3) if self.element_array[7] > 0 else 3
-        torsion_order = max(self.element_array[8], 1)
-        max_order = max(
-            axial_order, bending_y_order, bending_z_order,
-            shear_y_order, shear_z_order, torsion_order,
-        )
-        xi_full, w_full = np.polynomial.legendre.leggauss(max_order)
-        f_e = np.zeros(12, dtype=np.float64)
+        if nd == 12:
+            D = self.material_stiffness_operator.assembly_form()
+            axial_order = max(self.element_array[3], 1)
+            bending_y_order = max(self.element_array[4], 2)
+            bending_z_order = max(self.element_array[5], 2)
+            shear_y_order = max(self.element_array[6], 3) if self.element_array[6] > 0 else 3
+            shear_z_order = max(self.element_array[7], 3) if self.element_array[7] > 0 else 3
+            torsion_order = max(self.element_array[8], 1)
+            max_order = max(
+                axial_order, bending_y_order, bending_z_order,
+                shear_y_order, shear_z_order, torsion_order,
+            )
+            xi_full, w_full = np.polynomial.legendre.leggauss(max_order)
+            f_e = np.zeros(12, dtype=np.float64)
+            for xi_g, w_g in zip(xi_full, w_full):
+                N, dN_dxi, d2N_dxi2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                B = self.strain_displacement_operator.physical_coordinate_form(dN_dxi, d2N_dxi2, N)[0]
+                f_e += (B.T @ D @ E0) * w_g * detJ
+            return f_e
+        E0w = np.concatenate([E0, np.zeros(1, dtype=np.float64)])
+        D = self._D_matrix_7x7()
+        xi_full, w_full = np.polynomial.legendre.leggauss(self.quadrature_order)
+        f_e = np.zeros(_RED_W_N_DOF, dtype=np.float64)
         for xi_g, w_g in zip(xi_full, w_full):
             N, dN_dxi, d2N_dxi2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-            B = self.strain_displacement_operator.physical_coordinate_form(dN_dxi, d2N_dxi2, N)[0]
-            f_e += (B.T @ D @ E0) * w_g * detJ
+            B = self._B_matrix_7x14(dN_dxi, d2N_dxi2, N)[0]
+            f_e += (B.T @ D @ E0w) * w_g * detJ
         return f_e
 
     def element_stiffness_matrix(self):
         from pre_processing.element_library.gauss_point_data import ElementObject, StiffnessGaussPointData
 
         self._assert_logging_ready()
+        if self._n_dof == 14:
+            Ke = np.zeros((_RED_W_N_DOF, _RED_W_N_DOF), dtype=np.float64)
+            D = self._D_matrix_7x7()
+            xi_full, w_full = np.polynomial.legendre.leggauss(self.quadrature_order)
+            gauss_cache = []
+            for g, (xi_g, w_g) in enumerate(zip(xi_full, w_full)):
+                N, dN_dxi, d2N_dxi2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                B = self._B_matrix_7x14(dN_dxi, d2N_dxi2, N)[0]
+                detJ = self.jacobian_determinant
+                Ke += B.T @ D @ B * w_g * detJ
+                gauss_cache.append(StiffnessGaussPointData(
+                    xi=float(xi_g),
+                    weight=float(w_g),
+                    B_matrix=B.copy(),
+                    D_matrix=D.copy(),
+                    jacobian=float(detJ),
+                    shape_functions=None,
+                    shape_derivatives=None,
+                ))
+            return ElementObject(
+                element_id=self.element_id,
+                element_type=self.element_type_name,
+                K_e=Ke,
+                gauss_data=gauss_cache,
+                integration_scheme="Gauss-Legendre",
+            )
+
         D = self.material_stiffness_operator.assembly_form()
         axial_order = max(self.element_array[3], 1)
         bending_y_order = max(self.element_array[4], 2)
@@ -255,9 +370,11 @@ class LinearReddyBeamElement3D(Element1DBase):
         from pre_processing.element_library.gauss_point_data import ForceObject, ForceGaussPointData
 
         self._assert_logging_ready()
-        Fe = np.zeros(12, dtype=np.float64)
+        Fe = np.zeros(self._n_dof, dtype=np.float64)
         gauss_cache = []
         detJ = self.jacobian_determinant
+
+        Fe += self._precurvature_equivalent_load()
 
         if self.distributed_load_array.size > 0:
             xi_gauss, weights = self.integration_points
@@ -273,7 +390,7 @@ class LinearReddyBeamElement3D(Element1DBase):
                 self.shape_function_operator.natural_coordinate_form(np.array([xi]))[0][0]
                 for xi in xi_gauss
             ])
-            Fe = np.einsum("gij,gj,g->i", N, q_gauss, weights) * (self.L / 2)
+            Fe[:_RED_W_N_STD] += np.einsum("gij,gj,g->i", N, q_gauss, weights) * (self.L / 2)
             for g, (xi_g, w_g) in enumerate(zip(xi_gauss, weights)):
                 gauss_cache.append(ForceGaussPointData(
                     xi=float(xi_g),
@@ -293,8 +410,6 @@ class LinearReddyBeamElement3D(Element1DBase):
                 N_p = self.shape_function_operator.natural_coordinate_form(np.array([xi_p]))[0][0]
                 Fe[[0, 1, 2, 6, 7, 8]] += np.einsum("ij,j->i", N_p[[0, 1, 2, 6, 7, 8], :3], F_p[:3])
                 Fe[[3, 4, 5, 9, 10, 11]] += np.einsum("ij,j->i", N_p[[3, 4, 5, 9, 10, 11], 3:], F_p[3:])
-
-        Fe += self._precurvature_equivalent_load()
 
         return ForceObject(
             element_id=self.element_id,
@@ -318,6 +433,35 @@ class LinearReddyBeamElement3D(Element1DBase):
         from pre_processing.element_library.gauss_point_data import MassObject
 
         self._assert_logging_ready()
+        if self._n_dof == 14:
+            rho = float(self.material_array[3])
+            mu = np.zeros(_RED_W_N_DOF, dtype=np.float64)
+            for i in (0, 1, 2, 6, 7, 8):
+                mu[i] = rho * self.A
+            for i in (3, 9):
+                mu[i] = rho * self.J_t
+            for i in (4, 10):
+                mu[i] = rho * self.I_y
+            for i in (5, 11):
+                mu[i] = rho * self.I_z
+            g_m = effective_warping_gamma(self.Gamma, self._warp_stiff)
+            mu[12] = rho * g_m
+            mu[13] = rho * g_m
+            M_e = np.zeros((_RED_W_N_DOF, _RED_W_N_DOF), dtype=np.float64)
+            xi, w = self.integration_points
+            detJ = self.jacobian_determinant
+            for xi_g, w_g in zip(xi, w):
+                N12, _, _ = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                Ng = self._N_14x6_at_xi(xi_g, N12[0])
+                for i in range(_RED_W_N_DOF):
+                    for j in range(_RED_W_N_DOF):
+                        mij = 0.5 * (mu[i] + mu[j])
+                        M_e[i, j] += mij * float(np.dot(Ng[i, :], Ng[j, :])) * w_g * detJ
+            return MassObject(
+                element_id=self.element_id,
+                element_type=self.element_type_name,
+                M_e=M_e,
+            )
         rho = float(self.material_array[3])
         mu = np.zeros(12, dtype=np.float64)
         for i in (0, 1, 2, 6, 7, 8):

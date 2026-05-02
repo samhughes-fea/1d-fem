@@ -43,6 +43,7 @@ from pre_processing.parsing.simulation_settings_parser import parse_simulation_s
 from pre_processing.parsing.point_load_parser import parse_point_load
 from pre_processing.parsing.distributed_load_parser import parse_distributed_load
 from pre_processing.parsing.prescribed_displacement_parser import parse_prescribed_displacement
+from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
 from pre_processing.parsing.precurvature_parser import parse_precurvature
 
 #from pre_processing.element_library.element_factory import ElementFactory # lazy import in process job
@@ -254,6 +255,13 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
         ).parse()["section_dictionary"]
 
         simulation_settings = parse_simulation_settings(os.path.join(job_dir, "simulation_settings.txt"))
+        warping_cfg = simulation_settings.get("warping", {})
+        element_dictionary = {
+            **element_dictionary,
+            "_warping_config": {
+                "strict_gamma": bool(warping_cfg.get("strict_gamma", False)),
+            },
+        }
         if force_serial:
             if "parallel" not in simulation_settings:
                 simulation_settings["parallel"] = {}
@@ -274,7 +282,11 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
 
         prescribed_displacement_path = os.path.join(job_dir, "prescribed_displacement.txt")
         if os.path.exists(prescribed_displacement_path):
-            prescribed_displacement_dict = parse_prescribed_displacement(prescribed_displacement_path)
+            _dpn_mesh = 7 if mesh_uses_warping_dof(element_dictionary) else 6
+            prescribed_displacement_dict = parse_prescribed_displacement(
+                prescribed_displacement_path,
+                dof_per_node=_dpn_mesh,
+            )
             # Convert to format expected by ModifyGlobalSystem
             if len(prescribed_displacement_dict['global_dof']) > 0:
                 prescribed_displacement_dict = {
@@ -322,6 +334,7 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
             point_load_array       = point_load_array,
             distributed_load_array = distributed_load_array,
             precurvature_per_element = precurvature_per_element,
+            simulation_settings    = simulation_settings,
             enable_parallel        = enable_parallel_instantiation,
             num_processes          = num_processes_instantiation,
         )
@@ -510,6 +523,9 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
                 "distributed_load_array": distributed_load_array,
                 "job_results_dir": job_results_dir,
                 "simulation_settings": simulation_settings,
+                "element_objects": element_objects,
+                "force_objects": force_objects,
+                "prescribed_displacement_dict": prescribed_displacement_dict,
             }
             runner = ModalSimulationRunner(
                 settings=modal_settings,
@@ -525,6 +541,7 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
                     "node_ids": grid_dictionary.get("ids", []),
                     "coordinates": grid_dictionary.get("coordinates", []),
                 },
+                "element_dictionary": element_dictionary,
                 "element_stiffness_matrices": element_stiffness_matrices_dyn,
                 "element_mass_matrices": element_mass_matrices,
                 "job_results_dir": job_results_dir,

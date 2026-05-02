@@ -1,0 +1,10 @@
+[Prescribed Displacement]
+[id]     [node_id]  [dof]   [value]     [type]          [comment]
+0        0          UX      0.0         displacement     # Fixed
+1        0          UY      0.0         displacement
+2        0          UZ      0.0         displacement
+3        0          RX      0.0         displacement
+4        0          RY      0.0         displacement
+5        0          RZ      0.0         displacement
+6        0          CHI     0.0         displacement     # warping DOF at root (7 DOF/node mesh)
+7        25         CHI     0.0         displacement     # tip χ — removes warping null mode (cf. warping integration benchmark)

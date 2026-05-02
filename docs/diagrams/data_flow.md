@@ -69,11 +69,13 @@ flowchart LR
 | grid.txt | Yes | GridParser — node IDs, coordinates |
 | material.txt | Yes | MaterialParser — E, nu, rho, etc. |
 | section.txt | Yes | SectionParser — section properties |
-| simulation_settings.txt | Yes | parse_simulation_settings — solver type (static/modal), solver config, parallel options |
+| simulation_settings.txt | Yes | parse_simulation_settings — solver type (static/modal/dynamic), solver config, parallel options; **[Modal]** section keys include `analysis` (`vibration` \| `buckling`), `buckling_prestress` (`linear_static`; `none` is rejected), `buckling_load_factor` (scales reference loads for prestress used to build geometric stiffness) |
 | point_load.txt | No | parse_point_load — concentrated loads |
 | distributed_load.txt | No | parse_distributed_load — line loads |
 | prescribed_displacement.txt | No | parse_prescribed_displacement — fixed/prescribed DOFs |
 | precurvature.txt | No | parse_precurvature — per-element reference ``(k_x0, k_y0, k_z0)`` (1/m) for straight EB/Timoshenko; omitted or all-zero preserves prior behaviour |
+
+**Beam warping and section tiers:** optional `[warping]` / `[curvature]` columns in `element.txt` and 6/8/10/11-column layouts for `section.txt` (including `Gamma` and shear centre) are summarized in [`docs/conventions/JOB_INPUT_BEAM_WARPING.md`](../conventions/JOB_INPUT_BEAM_WARPING.md).
 
 ## Output directory layout
 

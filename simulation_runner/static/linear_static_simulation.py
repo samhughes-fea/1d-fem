@@ -143,8 +143,20 @@ class LinearStaticSimulationRunner:
         else:
             raise KeyError("grid_dictionary must contain an 'ids' array of node IDs")
 
-        # Support 6- or 7-DOF per node (e.g. warping elements): infer from element types
-        dof_per_node = max(obj.dof_per_node for obj in element_objects) if element_objects else 6
+        # Support 6- or 7-DOF per node (e.g. warping elements): infer from instances or K_e size.
+        _el_objs = list(np.asarray(element_objects, dtype=object).ravel())
+
+        def _infer_dof_per_node(obj):
+            if hasattr(obj, "dof_per_node"):
+                return int(obj.dof_per_node)
+            ke = getattr(obj, "K_e", None)
+            if ke is not None:
+                n = int(np.asarray(ke).shape[0])
+                if n > 0 and n % 2 == 0:
+                    return n // 2
+            return 6
+
+        dof_per_node = max(_infer_dof_per_node(obj) for obj in _el_objs) if len(_el_objs) > 0 else 6
         self.total_dof = len(self.node_ids) * dof_per_node
         logger.debug("Total DOFs initialised: %d (nodes %d × %d)", self.total_dof, len(self.node_ids), dof_per_node)
 # -----------------------------------------------------------------------
@@ -750,116 +762,130 @@ class LinearStaticSimulationRunner:
     # -------------------------------------------------------------------------
     # TOP-LEVEL SIMULATION FLOW
     # -------------------------------------------------------------------------
+    def solve_linear_system_only(self, force_scale: float = 1.0) -> np.ndarray:
+        """
+        Prepare → assemble → BC → condense → solve → reconstruct; set ``U_global``.
+
+        Used by linear buckling prestress. ``force_scale`` scales the assembled ``F_global``
+        after assembly (reference load case for critical load factor interpretation).
+
+        Returns
+        -------
+        np.ndarray
+            Full global displacement vector ``U_global``.
+        """
+        self.monitor = RuntimeMonitorTelemetry(job_results_dir=self.diagnostics_dir)
+
+        self.setup_simulation()
+        self.start_time = datetime.datetime.now()
+
+        with self.monitor.stage("PrepareLocalSystem"):
+            self.prepare_local_system(job_results_dir=self.primary_results_dir)
+
+        with self.monitor.stage("AssembleGlobalSystem"):
+            (
+                self.K_global,
+                self.F_global,
+                self.local_global_dof_map,
+            ) = self.assemble_global_system(self.primary_results_dir)
+
+        if force_scale != 1.0:
+            self.F_global = self.F_global * float(force_scale)
+
+        DiagnoseLinearStaticSystem(
+            stage="Global System",
+            A_current=self.K_global,
+            b_current=self.F_global,
+            A_full=self.K_global,
+            b_full=self.F_global,
+            fixed_dofs=[],
+            condensed_dofs=[],
+            job_results_dir=self.primary_results_dir,
+        )
+
+        with self.monitor.stage("ModifyGlobalSystem"):
+            (
+                self.K_mod,
+                self.F_mod,
+                self.fixed_dofs,
+            ) = self.modify_global_system(
+                self.K_global,
+                self.F_global,
+                self.local_global_dof_map,
+                self.primary_results_dir,
+                prescribed_displacements=getattr(self, "prescribed_displacements", None),
+            )
+
+        DiagnoseLinearStaticSystem(
+            stage="Modified System",
+            A_current=self.K_mod,
+            b_current=self.F_mod,
+            A_full=self.K_global,
+            b_full=self.F_global,
+            fixed_dofs=self.fixed_dofs,
+            condensed_dofs=[],
+            job_results_dir=self.primary_results_dir,
+        )
+
+        with self.monitor.stage("CondenseModifiedSystem"):
+            (
+                self.condensed_dofs,
+                self.inactive_dofs,
+                self.K_cond,
+                self.F_cond,
+            ) = self.condense_modified_system(
+                self.K_mod,
+                self.F_mod,
+                self.fixed_dofs,
+                self.local_global_dof_map,
+                self.primary_results_dir,
+                base_tol=self.condensation_config.get("base_tol", 1e-12),
+            )
+
+        DiagnoseLinearStaticSystem(
+            stage="Condensed System",
+            A_current=self.K_cond,
+            b_current=self.F_cond,
+            A_full=self.K_global,
+            b_full=self.F_global,
+            fixed_dofs=self.fixed_dofs,
+            condensed_dofs=self.condensed_dofs,
+            job_results_dir=self.primary_results_dir,
+        )
+
+        with self.monitor.stage("SolveCondensedSystem"):
+            self.U_cond = self.solve_condensed_system(
+                self.K_cond,
+                self.F_cond,
+                self.primary_results_dir,
+                solver_name=self.solver_config.get("type", "cg"),
+                preconditioner="auto",
+                tolerance=self.solver_config.get("tolerance", 1e-6),
+                max_iterations=self.solver_config.get("max_iterations", 1000),
+                restart=self.solver_config.get("restart", 20),
+                ilu_drop_tol=self.solver_config.get("ilu_drop_tol", 1e-6),
+                ilu_fill_factor=self.solver_config.get("ilu_fill_factor", 1.0),
+                disable_scaling=self.solver_config.get("disable_scaling", False),
+            )
+
+        with self.monitor.stage("ReconstructGlobalSystem"):
+            total_dofs = self.total_dof
+            self.U_global = self.reconstruct_global_system(
+                self.condensed_dofs,
+                self.U_cond,
+                total_dofs,
+                self.primary_results_dir,
+                fixed_dofs=self.fixed_dofs,
+                inactive_dofs=self.inactive_dofs,
+                local_global_dof_map=self.local_global_dof_map,
+            )
+
+        return self.U_global
+
     def run(self) -> None:
         """Execute the complete linear-static workflow."""
         try:
-            # initialise once – writes machine header
-            self.monitor = RuntimeMonitorTelemetry(job_results_dir=self.diagnostics_dir)
-
-            # 0) housekeeping & local systems
-            self.setup_simulation()                       # create folders
-            self.start_time = datetime.datetime.now()
-
-            # -----------------------------------------------------------------
-            # 0  Prepare local element data
-            # -----------------------------------------------------------------
-            with self.monitor.stage("PrepareLocalSystem"):
-                self.prepare_local_system(job_results_dir=self.primary_results_dir)
-
-            # -----------------------------------------------------------------
-            # 1  Global assembly
-            # -----------------------------------------------------------------
-            with self.monitor.stage("AssembleGlobalSystem"):
-                (self.K_global,
-                 self.F_global,
-                 self.local_global_dof_map) = self.assemble_global_system(self.primary_results_dir)
-
-            DiagnoseLinearStaticSystem(stage="Global System",
-                                       A_current       = self.K_global,  
-                                       b_current       = self.F_global,
-                                       A_full          = self.K_global,  
-                                       b_full          = self.F_global,
-                                       fixed_dofs      = [], 
-                                       condensed_dofs  = [],
-                                       job_results_dir = self.primary_results_dir,)
-
-            # -----------------------------------------------------------------
-            # 2  Boundary conditions
-            # -----------------------------------------------------------------
-            with self.monitor.stage("ModifyGlobalSystem"):
-                (self.K_mod,
-                 self.F_mod,
-                 self.fixed_dofs) = self.modify_global_system(
-                    self.K_global,
-                    self.F_global,
-                    self.local_global_dof_map,
-                    self.primary_results_dir,
-                    prescribed_displacements=getattr(self, 'prescribed_displacements', None)
-                )
-
-            DiagnoseLinearStaticSystem(stage="Modified System",
-                                       A_current       = self.K_mod,
-                                       b_current       = self.F_mod,
-                                       A_full          = self.K_global,
-                                       b_full          = self.F_global,
-                                       fixed_dofs      = self.fixed_dofs,
-                                       condensed_dofs  = [],
-                                       job_results_dir = self.primary_results_dir,)
-
-            # -----------------------------------------------------------------
-            # 3  Static condensation
-            # -----------------------------------------------------------------
-            with self.monitor.stage("CondenseModifiedSystem"):
-                (self.condensed_dofs,
-                 self.inactive_dofs,
-                 self.K_cond,
-                 self.F_cond) = self.condense_modified_system(
-                    self.K_mod, 
-                    self.F_mod,
-                    self.fixed_dofs,
-                    self.local_global_dof_map,
-                    self.primary_results_dir,
-                    base_tol=self.condensation_config.get("base_tol", 1e-12)
-                )
-
-            DiagnoseLinearStaticSystem(stage="Condensed System",
-                                       A_current       = self.K_cond,
-                                       b_current       = self.F_cond,
-                                       A_full          = self.K_global,
-                                       b_full          = self.F_global,
-                                       fixed_dofs      = self.fixed_dofs,
-                                       condensed_dofs  = self.condensed_dofs,
-                                       job_results_dir = self.primary_results_dir,)
-
-            # -----------------------------------------------------------------
-            # 4  Solve condensed system
-            # -----------------------------------------------------------------
-            with self.monitor.stage("SolveCondensedSystem"):
-                self.U_cond = self.solve_condensed_system(
-                    self.K_cond, 
-                    self.F_cond,
-                    self.primary_results_dir,
-                    solver_name=self.solver_config.get("type", "cg"),
-                    preconditioner="auto",
-                    tolerance=self.solver_config.get("tolerance", 1e-6),
-                    max_iterations=self.solver_config.get("max_iterations", 1000),
-                    restart=self.solver_config.get("restart", 20),
-                    ilu_drop_tol=self.solver_config.get("ilu_drop_tol", 1e-6),
-                    ilu_fill_factor=self.solver_config.get("ilu_fill_factor", 1.0),
-                    disable_scaling=self.solver_config.get("disable_scaling", False)
-                )
-
-            # -----------------------------------------------------------------
-            # 5  Reconstruct full-length displacement vector
-            # -----------------------------------------------------------------
-            with self.monitor.stage("ReconstructGlobalSystem"):
-                total_dofs = self.total_dof
-                self.U_global = self.reconstruct_global_system(self.condensed_dofs,
-                                                               self.U_cond,total_dofs,
-                                                               self.primary_results_dir,
-                                                               fixed_dofs=self.fixed_dofs,
-                                                               inactive_dofs=self.inactive_dofs,
-                                                               local_global_dof_map=self.local_global_dof_map)
+            self.solve_linear_system_only(force_scale=1.0)
 
             # -----------------------------------------------------------------
             # 6  Primary results (includes disassembly & CSV export)
