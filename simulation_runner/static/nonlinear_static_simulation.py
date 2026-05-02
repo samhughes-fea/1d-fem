@@ -197,7 +197,19 @@ class NonlinearStaticSimulationRunner:
             )
         self.newton_relative_reference = ref_mode
 
+        nl = simulation_settings.get("nonlinear", {})
+        self.nonlinear_num_increments = int(nl.get("num_increments", 1))
+        lf = nl.get("load_factors", None)
+        self.nonlinear_load_factors = lf if lf is None else list(lf)
+        self.nonlinear_line_search = bool(nl.get("line_search", False))
+        self.nonlinear_line_search_max_backtracks = int(nl.get("line_search_max_backtracks", 6))
+        self.nonlinear_line_search_shrink = float(nl.get("line_search_shrink", 0.5))
+
         self.prescribed_displacements = None
+        self.newton_converged = False
+        self.load_increment_index = 0
+        self.last_load_factor = 1.0
+        self.last_norm_F_cond = None
 
         # Intermediate system storage
         self.K_global = None
@@ -756,6 +768,193 @@ class NonlinearStaticSimulationRunner:
                 F_int_list.append(Ke_dense @ U_e)
         return K_T_list, F_int_list
 
+    def _compute_load_factors(self) -> np.ndarray:
+        """Return monotonic λ schedule for incremental loading (0 < λ ≤ 1)."""
+        if self.nonlinear_load_factors is not None:
+            arr = np.asarray(self.nonlinear_load_factors, dtype=np.float64).ravel()
+            if arr.size == 0:
+                raise ValueError("nonlinear.load_factors must be non-empty when set")
+            return arr
+        n = max(1, self.nonlinear_num_increments)
+        return np.linspace(1.0 / n, 1.0, n)
+
+    def _condensed_residual_norm(self, U_global: np.ndarray, F_ext_global: np.ndarray) -> float:
+        """‖F_cond‖ for residual R = F_ext - F_int(U) after BC and condensation."""
+        K_T_list, F_int_list = self._build_K_T_and_F_int(U_global)
+        self.assemble_global_system(
+            self.primary_results_dir,
+            element_stiffness_matrices=K_T_list,
+            element_force_vectors=F_int_list,
+        )
+        F_int_global = np.asarray(self.F_global, dtype=np.float64).ravel()
+        R_global = F_ext_global - F_int_global
+        self.modify_global_system(
+            self.K_global,
+            R_global,
+            self.local_global_dof_map,
+            self.primary_results_dir,
+            prescribed_displacements=getattr(self, "prescribed_displacements", None),
+        )
+        R_mod = self.F_mod
+        self.condense_modified_system(
+            self.K_mod,
+            np.asarray(R_mod).ravel(),
+            self.fixed_dofs,
+            self.local_global_dof_map,
+            self.primary_results_dir,
+            base_tol=self.condensation_config.get("base_tol", 1e-12),
+        )
+        return float(np.linalg.norm(np.asarray(self.F_cond, dtype=np.float64).ravel()))
+
+    def _newton_raphson_solve(
+        self,
+        F_ext_global: np.ndarray,
+        U_global: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray | None, bool]:
+        """
+        Newton–Raphson for fixed external load F_ext_global and starting displacement U_global.
+
+        Returns
+        -------
+        U_global, delta_U_cond, converged
+        """
+        newton_tol = self.newton_tol
+        newton_max = self.newton_max_iter
+        tol_du = self.newton_tol_delta_u
+        delta_U_cond = None
+        newton_ref_residual = None
+        newton_ref_external = None
+        converged = False
+
+        for iteration in range(newton_max):
+            with self.monitor.stage("NewtonBuildKT_Fint"):
+                K_T_list, F_int_list = self._build_K_T_and_F_int(U_global)
+
+            with self.monitor.stage("NewtonAssemble"):
+                self.assemble_global_system(
+                    self.primary_results_dir,
+                    element_stiffness_matrices=K_T_list,
+                    element_force_vectors=F_int_list,
+                )
+                F_int_global = np.asarray(self.F_global, dtype=np.float64).ravel()
+
+            R_global = F_ext_global - F_int_global
+
+            with self.monitor.stage("NewtonModify"):
+                self.modify_global_system(
+                    self.K_global,
+                    R_global,
+                    self.local_global_dof_map,
+                    self.primary_results_dir,
+                    prescribed_displacements=getattr(self, "prescribed_displacements", None),
+                )
+                R_mod = self.F_mod
+
+            with self.monitor.stage("NewtonCondense"):
+                self.condense_modified_system(
+                    self.K_mod,
+                    np.asarray(R_mod).ravel(),
+                    self.fixed_dofs,
+                    self.local_global_dof_map,
+                    self.primary_results_dir,
+                    base_tol=self.condensation_config.get("base_tol", 1e-12),
+                )
+
+            F_cond_arr = np.asarray(self.F_cond, dtype=np.float64).ravel()
+            norm_R_conv = float(np.linalg.norm(F_cond_arr))
+            norm_R_full = float(np.linalg.norm(R_global))
+            self.last_norm_F_cond = norm_R_conv
+            if iteration == 0:
+                newton_ref_residual = norm_R_conv
+                cd0 = np.asarray(self.condensed_dofs, dtype=np.intp)
+                newton_ref_external = float(np.linalg.norm(F_ext_global[cd0]))
+
+            if self.newton_relative_reference == "external_force":
+                ref_scale = newton_ref_external
+            else:
+                ref_scale = newton_ref_residual
+            residual_ok = newton_condensed_residual_converged(
+                norm_R_conv,
+                newton_tol,
+                self.newton_relative_tol,
+                ref_scale,
+            )
+
+            with self.monitor.stage("NewtonSolve"):
+                delta_U_cond = self.solve_condensed_system(
+                    self.K_cond,
+                    self.F_cond,
+                    self.primary_results_dir,
+                    solver_name=self.solver_config.get("type", "cg"),
+                    preconditioner="auto",
+                    tolerance=self.solver_config.get("tolerance", 1e-6),
+                    max_iterations=self.solver_config.get("max_iterations", 1000),
+                    restart=self.solver_config.get("restart", 20),
+                    ilu_drop_tol=self.solver_config.get("ilu_drop_tol", 1e-6),
+                    ilu_fill_factor=self.solver_config.get("ilu_fill_factor", 1.0),
+                    disable_scaling=self.solver_config.get("disable_scaling", False),
+                )
+                if delta_U_cond is None:
+                    raise RuntimeError("Newton step solve failed")
+
+            with self.monitor.stage("NewtonReconstruct"):
+                delta_U_global = self.reconstruct_global_system(
+                    self.condensed_dofs,
+                    delta_U_cond,
+                    self.total_dof,
+                    self.primary_results_dir,
+                    fixed_dofs=self.fixed_dofs,
+                    inactive_dofs=self.inactive_dofs,
+                    local_global_dof_map=self.local_global_dof_map,
+                )
+
+            alpha = 1.0
+            if self.nonlinear_line_search:
+                shrink = self.nonlinear_line_search_shrink
+                max_bt = self.nonlinear_line_search_max_backtracks
+                best_norm = float("inf")
+                best_alpha = 1.0
+                for k in range(max_bt + 1):
+                    a = float(shrink ** k)
+                    if a < 1e-14:
+                        break
+                    U_try = U_global + a * delta_U_global
+                    n_try = self._condensed_residual_norm(U_try, F_ext_global)
+                    if n_try < best_norm:
+                        best_norm = n_try
+                        best_alpha = a
+                alpha = best_alpha
+                logger.debug(
+                    "Newton line search: chose alpha=%.4e (best ||F_cond||=%.4e)",
+                    alpha,
+                    best_norm,
+                )
+
+            U_global = U_global + alpha * delta_U_global
+
+            norm_du = float(np.linalg.norm(alpha * delta_U_global))
+            thr = newton_tol
+            if self.newton_relative_tol is not None:
+                rs = max(float(ref_scale), np.finfo(float).eps)
+                thr = newton_tol + self.newton_relative_tol * rs
+            logger.info(
+                "Newton iter %d: ||R||_full=%.4e ||F_cond||=%.4e (vs thr=%.4e) ||delta_U||=%.4e alpha=%.4e",
+                iteration + 1,
+                norm_R_full,
+                norm_R_conv,
+                thr,
+                norm_du,
+                alpha,
+            )
+            if residual_ok and norm_du < tol_du:
+                logger.info("Newton converged at iteration %d", iteration + 1)
+                converged = True
+                break
+        else:
+            logger.warning("Newton did not converge within %d iterations", newton_max)
+
+        return U_global, delta_U_cond, converged
+
     # -------------------------------------------------------------------------
     # TOP-LEVEL SIMULATION FLOW
     # -------------------------------------------------------------------------
@@ -779,10 +978,10 @@ class NonlinearStaticSimulationRunner:
             # -----------------------------------------------------------------
             with self.monitor.stage("AssembleInitial"):
                 self.assemble_global_system(self.primary_results_dir)
-                F_ext_global = np.asarray(self.F_global, dtype=np.float64).ravel()
+                F_ext_full = np.asarray(self.F_global, dtype=np.float64).ravel()
 
             # -----------------------------------------------------------------
-            # Newton–Raphson loop
+            # Load increments + Newton–Raphson per level
             # -----------------------------------------------------------------
             U_global = np.zeros(self.total_dof, dtype=np.float64)
             if self.prescribed_displacements is not None:
@@ -790,116 +989,34 @@ class NonlinearStaticSimulationRunner:
                 val = np.asarray(self.prescribed_displacements["value"], dtype=np.float64)
                 U_global[gd] = val
 
-            newton_tol = self.newton_tol
-            newton_max = self.newton_max_iter
-            tol_du = self.newton_tol_delta_u
+            load_factors = self._compute_load_factors()
             delta_U_cond = None
-            newton_ref_residual = None
-            newton_ref_external = None
-
-            for iteration in range(newton_max):
-                with self.monitor.stage("NewtonBuildKT_Fint"):
-                    K_T_list, F_int_list = self._build_K_T_and_F_int(U_global)
-
-                with self.monitor.stage("NewtonAssemble"):
-                    self.assemble_global_system(
-                        self.primary_results_dir,
-                        element_stiffness_matrices=K_T_list,
-                        element_force_vectors=F_int_list,
-                    )
-                    F_int_global = np.asarray(self.F_global, dtype=np.float64).ravel()
-
-                R_global = F_ext_global - F_int_global
-
-                with self.monitor.stage("NewtonModify"):
-                    self.modify_global_system(
-                        self.K_global,
-                        R_global,
-                        self.local_global_dof_map,
-                        self.primary_results_dir,
-                        prescribed_displacements=getattr(self, "prescribed_displacements", None),
-                    )
-                    R_mod = self.F_mod
-
-                with self.monitor.stage("NewtonCondense"):
-                    self.condense_modified_system(
-                        self.K_mod,
-                        np.asarray(R_mod).ravel(),
-                        self.fixed_dofs,
-                        self.local_global_dof_map,
-                        self.primary_results_dir,
-                        base_tol=self.condensation_config.get("base_tol", 1e-12),
-                    )
-
-                F_cond_arr = np.asarray(self.F_cond, dtype=np.float64).ravel()
-                norm_R_conv = float(np.linalg.norm(F_cond_arr))
-                norm_R_full = float(np.linalg.norm(R_global))
-                if iteration == 0:
-                    newton_ref_residual = norm_R_conv
-                    cd0 = np.asarray(self.condensed_dofs, dtype=np.intp)
-                    newton_ref_external = float(np.linalg.norm(F_ext_global[cd0]))
-
-                if self.newton_relative_reference == "external_force":
-                    ref_scale = newton_ref_external
-                else:
-                    ref_scale = newton_ref_residual
-                residual_ok = newton_condensed_residual_converged(
-                    norm_R_conv,
-                    newton_tol,
-                    self.newton_relative_tol,
-                    ref_scale,
-                )
-
-                with self.monitor.stage("NewtonSolve"):
-                    delta_U_cond = self.solve_condensed_system(
-                        self.K_cond,
-                        self.F_cond,
-                        self.primary_results_dir,
-                        solver_name=self.solver_config.get("type", "cg"),
-                        preconditioner="auto",
-                        tolerance=self.solver_config.get("tolerance", 1e-6),
-                        max_iterations=self.solver_config.get("max_iterations", 1000),
-                        restart=self.solver_config.get("restart", 20),
-                        ilu_drop_tol=self.solver_config.get("ilu_drop_tol", 1e-6),
-                        ilu_fill_factor=self.solver_config.get("ilu_fill_factor", 1.0),
-                        disable_scaling=self.solver_config.get("disable_scaling", False),
-                    )
-                    if delta_U_cond is None:
-                        raise RuntimeError("Newton step solve failed")
-
-                with self.monitor.stage("NewtonReconstruct"):
-                    delta_U_global = self.reconstruct_global_system(
-                        self.condensed_dofs,
-                        delta_U_cond,
-                        self.total_dof,
-                        self.primary_results_dir,
-                        fixed_dofs=self.fixed_dofs,
-                        inactive_dofs=self.inactive_dofs,
-                        local_global_dof_map=self.local_global_dof_map,
-                    )
-                U_global += delta_U_global
-
-                norm_du = float(np.linalg.norm(delta_U_global))
-                thr = newton_tol
-                if self.newton_relative_tol is not None:
-                    rs = max(float(ref_scale), np.finfo(float).eps)
-                    thr = newton_tol + self.newton_relative_tol * rs
+            self.newton_converged = False
+            for inc_i, lam in enumerate(load_factors):
+                self.load_increment_index = inc_i + 1
+                self.last_load_factor = float(lam)
+                F_ext_global = lam * F_ext_full
                 logger.info(
-                    "Newton iter %d: ||R||_full=%.4e ||F_cond||=%.4e (vs thr=%.4e) ||delta_U||=%.4e",
-                    iteration + 1,
-                    norm_R_full,
-                    norm_R_conv,
-                    thr,
-                    norm_du,
+                    "Load increment %d / %d: lambda=%.6f",
+                    inc_i + 1,
+                    len(load_factors),
+                    lam,
                 )
-                if residual_ok and norm_du < tol_du:
-                    logger.info("Newton converged at iteration %d", iteration + 1)
+                U_global, delta_U_cond, converged = self._newton_raphson_solve(
+                    F_ext_global,
+                    U_global,
+                )
+                self.newton_converged = converged
+                if not converged:
+                    logger.warning(
+                        "Stopping after failed Newton at load increment %d (lambda=%.6f)",
+                        inc_i + 1,
+                        lam,
+                    )
                     break
-            else:
-                logger.warning("Newton did not converge within %d iterations", newton_max)
 
             self.U_global = U_global
-            self.F_global = F_ext_global
+            self.F_global = F_ext_full
             self.primary_results_set.global_results.U_global = self.U_global
             self.primary_results_set.global_results.K_global = self.K_global
             self.primary_results_set.global_results.F_global = self.F_global

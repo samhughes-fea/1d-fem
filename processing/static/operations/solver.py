@@ -11,6 +11,10 @@ Robust solution of the condensed FEM system
 with optional symmetric scaling, adaptive pre-conditioning, iterative /
 direct fall-backs, detailed diagnostics and CSV exports.
 
+For nested Newton–Raphson (nonlinear static), the condensed solve tolerance should be
+sufficiently tight (typically well below the Newton force tolerance on ``F_cond``) so
+that an inaccurate ``δu`` does not mask as poor Newton convergence.
+
 Environment “knobs”
 -------------------
 FEM_DISABLE_SCALING      – any value → skip Jacobi row/col scaling

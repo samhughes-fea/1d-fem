@@ -42,6 +42,13 @@ def _get_defaults():
             "relative_tolerance": None,
             "relative_reference": "first_residual",
         },
+        "nonlinear": {
+            "num_increments": 1,
+            "load_factors": None,
+            "line_search": False,
+            "line_search_max_backtracks": 6,
+            "line_search_shrink": 0.5,
+        },
     }
 
 def _validate_parallel_config(parallel_config):
@@ -148,6 +155,7 @@ def parse_simulation_settings(file_path):
         "modal": defaults["modal"].copy(),
         "dynamic": defaults["dynamic"].copy(),
         "newton": defaults["newton"].copy(),
+        "nonlinear": defaults["nonlinear"].copy(),
     }
 
     current_section = None
@@ -184,6 +192,8 @@ def parse_simulation_settings(file_path):
                     current_section = "dynamic"
                 elif section_name == "newton":
                     current_section = "newton"
+                elif section_name == "nonlinear":
+                    current_section = "nonlinear"
                 else:
                     current_section = None
                 continue
@@ -262,6 +272,25 @@ def parse_simulation_settings(file_path):
                         simulation_settings["newton"]["relative_tolerance"] = _convert_value(value, float)
                     elif key == "relative_reference":
                         simulation_settings["newton"]["relative_reference"] = value.strip().lower()
+
+            elif current_section == "nonlinear":
+                key, value = _parse_key_value(line)
+                if key and value:
+                    if key == "num_increments":
+                        simulation_settings["nonlinear"]["num_increments"] = _convert_value(value, int)
+                    elif key == "load_factors":
+                        parts = [p.strip() for p in value.split(",") if p.strip()]
+                        simulation_settings["nonlinear"]["load_factors"] = [
+                            float(p) for p in parts
+                        ]
+                    elif key == "line_search":
+                        simulation_settings["nonlinear"]["line_search"] = _convert_value(value, bool)
+                    elif key == "line_search_max_backtracks":
+                        simulation_settings["nonlinear"]["line_search_max_backtracks"] = _convert_value(
+                            value, int
+                        )
+                    elif key == "line_search_shrink":
+                        simulation_settings["nonlinear"]["line_search_shrink"] = _convert_value(value, float)
 
     # Validate simulation type was found (backward compatibility: allow missing if defaults are acceptable)
     if not type_found and simulation_settings["type"] == defaults["type"]:

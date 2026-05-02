@@ -95,7 +95,17 @@ def _write_sim_settings(job_dir: str, *, nonlinear: bool) -> None:
     else:
         text = (
             "[Simulation]\n[Type]\nstatic_nonlinear\n\n[Newton]\n"
-            "tolerance = 1e-6\nmax_iterations = 40\ntolerance_delta_u = 1e-9\n"
+            "tolerance = 1e-4\n"
+            "relative_tolerance = 1e-6\n"
+            "relative_reference = first_residual\n"
+            "max_iterations = 40\n"
+            "tolerance_delta_u = 1e-9\n\n"
+            "[Solver]\n"
+            "tolerance = 1e-10\n"
+            "max_iterations = 2000\n\n"
+            "[Nonlinear]\n"
+            "num_increments = 1\n"
+            "line_search = false\n"
         )
     with open(os.path.join(job_dir, "simulation_settings.txt"), "w", encoding="utf-8") as f:
         f.write(text)

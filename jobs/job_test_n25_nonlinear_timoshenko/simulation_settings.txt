@@ -3,6 +3,16 @@
 static_nonlinear
 
 [Newton]
-tolerance = 1e-6
+tolerance = 1e-4
+relative_tolerance = 1e-6
+relative_reference = first_residual
 max_iterations = 40
 tolerance_delta_u = 1e-9
+
+[Solver]
+tolerance = 1e-10
+max_iterations = 2000
+
+[Nonlinear]
+num_increments = 1
+line_search = false

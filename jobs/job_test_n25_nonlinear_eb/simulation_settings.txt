@@ -2,7 +2,20 @@
 [Type]
 static_nonlinear
 
+# Condensed residual ‖F_cond‖ vs tolerance + relative_tolerance * ‖F_cond‖@iter0 (per increment)
 [Newton]
-tolerance = 1e-6
+tolerance = 1e-4
+relative_tolerance = 1e-6
+relative_reference = first_residual
 max_iterations = 40
 tolerance_delta_u = 1e-9
+
+# Inner linear solve for each Newton step: tight enough that δu does not stall NR
+[Solver]
+tolerance = 1e-10
+max_iterations = 2000
+
+# num_increments > 1 scales total assembled external load in equal λ steps (continuation)
+[Nonlinear]
+num_increments = 1
+line_search = false

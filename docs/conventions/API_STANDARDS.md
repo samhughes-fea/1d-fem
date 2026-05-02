@@ -66,7 +66,7 @@ Other families (e.g. GEBT) may use a **different** utility set; document per fam
 
 - **Entry point:** [`run_job.py`](../../workflow_orchestrator/run_job.py) builds elements and dispatches by `simulation_settings["type"]` (e.g. `static`, `static_nonlinear`, `modal`, `dynamic`).
 - **Runners** use **`run()`** as the main public step (not a generic `execute()` facade).
-- **Settings:** [`simulation_settings_parser.py`](../../pre_processing/parsing/simulation_settings_parser.py); optional `[Newton]` for nonlinear static (`tolerance`, `max_iterations`, `tolerance_delta_u`, optional `relative_tolerance`, `relative_reference` = `first_residual` or `external_force`). Newton convergence uses the condensed RHS norm `‖F_cond‖` versus `tolerance + relative_tolerance × reference_scale`, not the full-vector `‖F_ext−F_int‖`.
+- **Settings:** [`simulation_settings_parser.py`](../../pre_processing/parsing/simulation_settings_parser.py); optional `[Newton]` for nonlinear static (`tolerance`, `max_iterations`, `tolerance_delta_u`, optional `relative_tolerance`, `relative_reference` = `first_residual` or `external_force`). Newton convergence uses the condensed RHS norm `‖F_cond‖` versus `tolerance + relative_tolerance × reference_scale`, not the full-vector `‖F_ext−F_int‖`. Optional `[Nonlinear]`: `num_increments` (uniform load factors `λ = 1/n … 1`), optional comma-separated `load_factors`, optional `line_search`, `line_search_max_backtracks`, `line_search_shrink` for discrete residual minimization along the Newton direction.
 
 ---
 
