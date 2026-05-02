@@ -6,6 +6,7 @@ from typing import Optional, Dict, Any
 from abc import ABC, abstractmethod
 import os
 from pre_processing.element_library.base_logger_operator import BaseLoggerOperator
+from pre_processing.parsing.precurvature_parser import element_reference_strain_voigt
 
 # Configure module-level logger
 logger = logging.getLogger(__name__)
@@ -37,6 +38,11 @@ class Element1DBase(ABC):
         ``element_force_vectors`` sub-folders.
     dof_per_node
         Number of degrees of freedom per node (default 6).
+
+    Notes
+    -----
+    ``self._E_0_voigt`` is always set to the six-component beam reference strain from optional
+    ``precurvature_per_element`` (zeros if absent); subclasses map it to their ``B``/``D`` shapes.
     """
 
     # ------------------------------------------------------------------ #
@@ -133,6 +139,9 @@ class Element1DBase(ABC):
         self.job_results_dir        = job_results_dir
         self.element_id             = element_id
         self.dof_per_node           = dof_per_node
+
+        # Reference strain ``E_0`` (6,) from optional ``precurvature_per_element``; Voigt order ``FORMULATION_DOCSTRING_STANDARDS``.
+        self._E_0_voigt = element_reference_strain_voigt(element_dictionary, element_id)
 
         # optional placeholders for cached results
         self.Ke: Optional[np.ndarray] = None   # stiffness matrix cache

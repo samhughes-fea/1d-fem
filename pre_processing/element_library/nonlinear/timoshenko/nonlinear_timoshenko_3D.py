@@ -41,7 +41,6 @@ from pre_processing.element_library.nonlinear.timoshenko.utilities.geometric_sti
 from pre_processing.element_library.nonlinear.timoshenko.utilities.green_lagrange_strain import GreenLagrangeStrainOperator
 from pre_processing.element_library.nonlinear.timoshenko.utilities.stress_resultant import StressResultantOperator
 from pre_processing.element_library.shape_function_registry import get_shape_function_operator
-from pre_processing.parsing.precurvature_parser import element_reference_strain_voigt
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +143,6 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         )
         self.stress_resultant_operator = StressResultantOperator()
         self.geometric_stiffness_operator = GeometricStiffnessOperator(element_length=self.L)
-        self._E_0_voigt = element_reference_strain_voigt(element_dictionary, element_id)
 
         self._K_0: np.ndarray | None = None
 

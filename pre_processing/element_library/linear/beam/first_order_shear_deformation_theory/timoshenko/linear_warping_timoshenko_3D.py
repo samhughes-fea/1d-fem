@@ -212,6 +212,21 @@ class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
         D[6, 6] = self.E * self.Gamma
         return D
 
+    def _precurvature_equivalent_load(self) -> np.ndarray:
+        """``sum_g B.T @ D @ E_0 * w_g * detJ`` for ``σ = D(ε - E_0)``; ``E_0`` extended to 7 rows."""
+        if not np.any(self._E_0_voigt):
+            return np.zeros(N_DOF, dtype=np.float64)
+        E0 = np.concatenate([self._E_0_voigt, np.zeros(1, dtype=np.float64)])
+        D = self._D_matrix_7x7()
+        detJ = self.jacobian_determinant
+        xi_full, w_full = np.polynomial.legendre.leggauss(self.quadrature_order)
+        f_e = np.zeros(N_DOF, dtype=np.float64)
+        for xi_g, w_g in zip(xi_full, w_full):
+            N_12, dN_dξ_12, d2N_dξ2_12 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self._B_matrix_7x14(dN_dξ_12, d2N_dξ2_12, N_12)[0]
+            f_e += (B.T @ D @ E0) * w_g * detJ
+        return f_e
+
     def element_stiffness_matrix(self):
         from pre_processing.element_library.gauss_point_data import ElementObject, StiffnessGaussPointData
 
@@ -264,6 +279,8 @@ class LinearWarpingTimoshenkoBeamElement3D(Element1DBase):
 
         if self.point_load_array.size > 0:
             Fe[:N_STANDARD_DOF] += self._compute_point_load_contribution()
+
+        Fe += self._precurvature_equivalent_load()
 
         if self.logger_operator:
             self.logger_operator.log_text("force", f"\n=== Element {self.element_id} Force Vector (14,) ===")

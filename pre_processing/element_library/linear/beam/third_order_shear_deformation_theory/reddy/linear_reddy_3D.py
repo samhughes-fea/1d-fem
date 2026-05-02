@@ -25,6 +25,7 @@ from pre_processing.element_library.shape_function_registry import get_shape_fun
 from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.utilities.B_matrix import StrainDisplacementOperator
 from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.utilities.D_matrix import MaterialStiffnessOperator
 from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.utilities.interpolate_loads import LoadInterpolationOperator
+from pre_processing.parsing.precurvature_parser import voigt_standard_beam_to_third_order_beam
 
 import logging
 
@@ -151,6 +152,31 @@ class LinearReddyBeamElement3D(Element1DBase):
     def integration_points(self) -> Tuple[np.ndarray, np.ndarray]:
         return np.polynomial.legendre.leggauss(self.quadrature_order)
 
+    def _precurvature_equivalent_load(self) -> np.ndarray:
+        """``sum_g B.T @ D @ E_0 * w_g * detJ`` with Reddy/Levinson Voigt order for ``E_0``."""
+        E0 = voigt_standard_beam_to_third_order_beam(self._E_0_voigt)
+        if not np.any(E0):
+            return np.zeros(12, dtype=np.float64)
+        D = self.material_stiffness_operator.assembly_form()
+        detJ = self.jacobian_determinant
+        axial_order = max(self.element_array[3], 1)
+        bending_y_order = max(self.element_array[4], 2)
+        bending_z_order = max(self.element_array[5], 2)
+        shear_y_order = max(self.element_array[6], 3) if self.element_array[6] > 0 else 3
+        shear_z_order = max(self.element_array[7], 3) if self.element_array[7] > 0 else 3
+        torsion_order = max(self.element_array[8], 1)
+        max_order = max(
+            axial_order, bending_y_order, bending_z_order,
+            shear_y_order, shear_z_order, torsion_order,
+        )
+        xi_full, w_full = np.polynomial.legendre.leggauss(max_order)
+        f_e = np.zeros(12, dtype=np.float64)
+        for xi_g, w_g in zip(xi_full, w_full):
+            N, dN_dxi, d2N_dxi2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN_dxi, d2N_dxi2, N)[0]
+            f_e += (B.T @ D @ E0) * w_g * detJ
+        return f_e
+
     def element_stiffness_matrix(self):
         from pre_processing.element_library.gauss_point_data import ElementObject, StiffnessGaussPointData
 
@@ -267,6 +293,8 @@ class LinearReddyBeamElement3D(Element1DBase):
                 N_p = self.shape_function_operator.natural_coordinate_form(np.array([xi_p]))[0][0]
                 Fe[[0, 1, 2, 6, 7, 8]] += np.einsum("ij,j->i", N_p[[0, 1, 2, 6, 7, 8], :3], F_p[:3])
                 Fe[[3, 4, 5, 9, 10, 11]] += np.einsum("ij,j->i", N_p[[3, 4, 5, 9, 10, 11], 3:], F_p[3:])
+
+        Fe += self._precurvature_equivalent_load()
 
         return ForceObject(
             element_id=self.element_id,

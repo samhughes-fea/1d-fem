@@ -153,6 +153,22 @@ class LinearTrussElement3D(Element1DBase):
     def jacobian_determinant(self) -> float:
         return self.L / 2
 
+    def _precurvature_equivalent_load(self) -> np.ndarray:
+        """Initial twist rate ``k_x0`` only: ``ε_0 = [0, 0, k_x0]`` in truss strain layout."""
+        kx0 = float(self._E_0_voigt[5])
+        if kx0 == 0.0:
+            return np.zeros(12, dtype=np.float64)
+        eps0 = np.array([0.0, 0.0, kx0], dtype=np.float64)
+        D = self.material_stiffness_operator.assembly_form()
+        detJ = self.jacobian_determinant
+        xi, w = self.integration_points
+        f_e = np.zeros(12, dtype=np.float64)
+        for xi_g, w_g in zip(xi, w):
+            N, dN_dξ, _ = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ)[0]
+            f_e += (B.T @ D @ eps0) * w_g * detJ
+        return f_e
+
     def _build_shape_function_coefficients_b2(
         self,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -291,6 +307,7 @@ class LinearTrussElement3D(Element1DBase):
 
         if self.point_load_array.size > 0:
             F_e += self._compute_point_load_contribution()
+        F_e += self._precurvature_equivalent_load()
         point_loads_cache = self.point_load_array.copy() if self.point_load_array.size > 0 else None
 
         if self.logger_operator:

@@ -33,7 +33,6 @@ from pre_processing.element_library.shape_function_registry import get_shape_fun
 
 # Import LoadInterpolationOperator class
 from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.interpolate_loads import LoadInterpolationOperator
-from pre_processing.parsing.precurvature_parser import element_reference_strain_voigt
 
 # --- logging ----------------------------------------------
 import logging
@@ -138,7 +137,6 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
             moment_inertia_z=self.I_z,
             torsion_constant=self.J_t,
         )
-        self._E_0_voigt = element_reference_strain_voigt(element_dictionary, element_id)
 
     def _validate_element_properties(self) -> None:
         """Validate critical element properties"""

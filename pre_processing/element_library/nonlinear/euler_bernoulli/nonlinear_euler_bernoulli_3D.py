@@ -28,7 +28,6 @@ from pre_processing.element_library.element_1D_base import Element1DBase
 from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.D_matrix import MaterialStiffnessOperator
 from pre_processing.element_library.shape_function_registry import get_shape_function_operator
 from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.B_matrix import StrainDisplacementOperator
-from pre_processing.parsing.precurvature_parser import element_reference_strain_voigt
 from pre_processing.element_library.nonlinear.euler_bernoulli.utilities import (
     GreenLagrangeStrainOperator,
     StressResultantOperator,
@@ -140,7 +139,6 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
         self.green_lagrange_strain_operator = GreenLagrangeStrainOperator(element_length=self.L)
         self.stress_resultant_operator = StressResultantOperator()
         self.geometric_stiffness_operator = GeometricStiffnessOperator(element_length=self.L)
-        self._E_0_voigt = element_reference_strain_voigt(element_dictionary, element_id)
 
         # Cache K_0 (material stiffness, same as linear K_e)
         self._K_0: np.ndarray | None = None

@@ -32,6 +32,7 @@ from pre_processing.element_library.linear.beam.third_order_shear_deformation_th
 
 # Import LoadInterpolationOperator class
 from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.utilities.interpolate_loads import LoadInterpolationOperator
+from pre_processing.parsing.precurvature_parser import voigt_standard_beam_to_third_order_beam
 
 # --- logging ----------------------------------------------
 import logging
@@ -225,7 +226,32 @@ class LinearLevinsonBeamElement3D(Element1DBase):
     def D_matrix(self) -> np.ndarray:
         """D-matrix for stiffness assembly (6×6)."""
         return self.material_stiffness_operator.assembly_form()
-    
+
+    def _precurvature_equivalent_load(self) -> np.ndarray:
+        """``sum_g B.T @ D @ E_0 * w_g * detJ`` with Levinson Voigt order for ``E_0``."""
+        E0 = voigt_standard_beam_to_third_order_beam(self._E_0_voigt)
+        if not np.any(E0):
+            return np.zeros(12, dtype=np.float64)
+        D = self.material_stiffness_operator.assembly_form()
+        detJ = self.jacobian_determinant
+        axial_order = max(self.element_array[3], 1)
+        bending_y_order = max(self.element_array[4], 2)
+        bending_z_order = max(self.element_array[5], 2)
+        shear_y_order = max(self.element_array[6], 3) if self.element_array[6] > 0 else 3
+        shear_z_order = max(self.element_array[7], 3) if self.element_array[7] > 0 else 3
+        torsion_order = max(self.element_array[8], 1)
+        max_order = max(
+            axial_order, bending_y_order, bending_z_order,
+            shear_y_order, shear_z_order, torsion_order,
+        )
+        xi_full, w_full = np.polynomial.legendre.leggauss(max_order)
+        f_e = np.zeros(12, dtype=np.float64)
+        for xi_g, w_g in zip(xi_full, w_full):
+            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
+            f_e += (B.T @ D @ E0) * w_g * detJ
+        return f_e
+
     # Ke tensor computations ---------------------------------------------------------
     def element_stiffness_matrix(self):
         """
@@ -405,6 +431,8 @@ class LinearLevinsonBeamElement3D(Element1DBase):
         if self.point_load_array.size > 0:
             Fe += self._compute_point_load_contribution()
             point_loads_cache = self.point_load_array.copy()
+
+        Fe += self._precurvature_equivalent_load()
 
         if self.logger_operator:  # Modified logging block
             self.logger_operator.log_matrix("force", Fe.reshape(1, -1), {"name": "Final Force Vector"})

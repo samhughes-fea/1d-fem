@@ -41,7 +41,6 @@ from pre_processing.element_library.linear.beam.first_order_shear_deformation_th
     assemble_timoshenko_K0,
     timoshenko_quadrature_orders_from_element_array,
 )
-from pre_processing.parsing.precurvature_parser import element_reference_strain_voigt
 
 # --- logging ----------------------------------------------
 import logging
@@ -141,7 +140,6 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
             y_sc=self.y_sc,
             z_sc=self.z_sc,
         )
-        self._E_0_voigt = element_reference_strain_voigt(element_dictionary, element_id)
 
     def _validate_element_properties(self) -> None:
         """Validate critical element properties"""

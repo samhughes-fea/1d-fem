@@ -26,7 +26,9 @@ class ElementFactory:
     * Per-element logs are written to ``<job_results_dir>/logs``.
     * Optional ``precurvature_per_element`` (shape ``(N_e, 3)``) is merged into
       a copy of ``element_dictionary`` as key ``"precurvature_per_element"`` (rows
-      ``[k_x0, k_y0, k_z0]`` in element-id order) for straight beam elements.
+      ``[k_x0, k_y0, k_z0]`` in element-id order). Each :class:`Element1DBase` stores
+      ``_E_0_voigt``; beam theories add ``B.T @ D @ E_0`` to ``F_e`` (and use ``E - E_0``
+      in nonlinear internal force / ``K_sigma``) where the formulation uses that tensor layout.
     """
 
     LINEAR_ELEMENT_CLASS_MAP = {

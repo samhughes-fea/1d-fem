@@ -10,6 +10,7 @@ from pre_processing.parsing.precurvature_parser import (
     element_reference_strain_voigt,
     parse_precurvature,
     reference_strain_voigt,
+    voigt_standard_beam_to_third_order_beam,
 )
 
 
@@ -52,6 +53,15 @@ def test_reference_strain_voigt_ordering():
     assert e0[3] == 0.0
     assert e0[4] == 0.0
     assert e0[5] == pytest.approx(0.1)
+
+
+def test_voigt_standard_beam_to_third_order_beam_swaps_curvatures():
+    e = reference_strain_voigt(np.array([0.1, 0.2, 0.3]))
+    t = voigt_standard_beam_to_third_order_beam(e)
+    assert t[1] == pytest.approx(e[2])
+    assert t[2] == pytest.approx(e[1])
+    assert t[0] == pytest.approx(e[0])
+    assert t[5] == pytest.approx(e[5])
 
 
 def test_element_reference_strain_voigt_from_dictionary():

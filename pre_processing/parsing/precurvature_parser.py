@@ -129,3 +129,16 @@ def reference_strain_voigt(k_xyz: npt.NDArray[np.float64]) -> npt.NDArray[np.flo
     k = np.asarray(k_xyz, dtype=np.float64).reshape(3)
     kx0, ky0, kz0 = float(k[0]), float(k[1]), float(k[2])
     return np.array([0.0, ky0, kz0, 0.0, 0.0, kx0], dtype=np.float64)
+
+
+def voigt_standard_beam_to_third_order_beam(
+    E_standard: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """
+    Map standard beam Voigt ``[ε_x, κ_y, κ_z, …]`` to Levinson/Reddy row order ``[ε_x, κ_z, κ_y, …]``.
+
+    Third-order implementations swap curvature rows 1 and 2 relative to EB/Timoshenko; shear and torsion rows are unchanged.
+    """
+    e = np.asarray(E_standard, dtype=np.float64).reshape(6).copy()
+    e[1], e[2] = e[2], e[1]
+    return e
