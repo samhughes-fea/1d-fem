@@ -41,6 +41,7 @@ from pre_processing.parsing.simulation_settings_parser import parse_simulation_s
 from pre_processing.parsing.point_load_parser import parse_point_load
 from pre_processing.parsing.distributed_load_parser import parse_distributed_load
 from pre_processing.parsing.prescribed_displacement_parser import parse_prescribed_displacement
+from pre_processing.parsing.precurvature_parser import parse_precurvature
 
 #from pre_processing.element_library.element_factory import ElementFactory # lazy import in process job
 
@@ -208,6 +209,11 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
             job_results_dir=job_results_dir
         ).parse()["element_dictionary"]
 
+        precurvature_per_element = parse_precurvature(
+            os.path.join(job_dir, "precurvature.txt"),
+            element_dictionary["ids"],
+        )
+
         grid_dictionary = GridParser(
             filepath=os.path.join(job_dir, "grid.txt"),
             job_results_dir=job_results_dir
@@ -291,6 +297,7 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
             section_dictionary     = section_dictionary,
             point_load_array       = point_load_array,
             distributed_load_array = distributed_load_array,
+            precurvature_per_element = precurvature_per_element,
             enable_parallel        = enable_parallel_instantiation,
             num_processes          = num_processes_instantiation,
         )

@@ -66,6 +66,7 @@ pre_processing/element_library/nonlinear/timoshenko/nonlinear_timoshenko_3D.py
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import Tuple
 
 import numpy as np
@@ -139,6 +140,12 @@ class NonlinearCurvedTimoshenkoBeamElement3D(Element1DBase):
             distributed_load_array=distributed_load_array,
             job_results_dir=job_results_dir,
             dof_per_node=6,
+        )
+        warnings.warn(
+            "NonlinearCurvedTimoshenkoBeamElement3D is deprecated; use "
+            "NonlinearTimoshenkoBeamElement3D with precurvature.txt (reference k_x0, k_y0, k_z0).",
+            DeprecationWarning,
+            stacklevel=2,
         )
 
         idx = int(np.where(element_dictionary["ids"] == element_id)[0][0])

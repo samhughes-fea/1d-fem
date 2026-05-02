@@ -29,6 +29,7 @@ from pre_processing.element_library.linear.beam.first_order_shear_deformation_th
 from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.curved_beam.utilities.interpolate_loads import LoadInterpolationOperator
 from pre_processing.element_library.shape_function_registry import get_shape_function_operator
 import logging
+import warnings
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,12 @@ class LinearCurvedTimoshenkoBeamElement3D(Element1DBase):
             distributed_load_array=distributed_load_array,
             job_results_dir=job_results_dir,
             dof_per_node=6,
+        )
+        warnings.warn(
+            "LinearCurvedTimoshenkoBeamElement3D is deprecated; use "
+            "LinearTimoshenkoBeamElement3D with precurvature.txt (reference k_x0, k_y0, k_z0).",
+            DeprecationWarning,
+            stacklevel=2,
         )
         idx = int(np.where(element_dictionary["ids"] == element_id)[0][0])
         self.curvature = float(

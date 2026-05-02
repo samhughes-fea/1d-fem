@@ -41,6 +41,7 @@ from pre_processing.element_library.nonlinear.timoshenko.utilities.geometric_sti
 from pre_processing.element_library.nonlinear.timoshenko.utilities.green_lagrange_strain import GreenLagrangeStrainOperator
 from pre_processing.element_library.nonlinear.timoshenko.utilities.stress_resultant import StressResultantOperator
 from pre_processing.element_library.shape_function_registry import get_shape_function_operator
+from pre_processing.parsing.precurvature_parser import element_reference_strain_voigt
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +144,7 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         )
         self.stress_resultant_operator = StressResultantOperator()
         self.geometric_stiffness_operator = GeometricStiffnessOperator(element_length=self.L)
+        self._E_0_voigt = element_reference_strain_voigt(element_dictionary, element_id)
 
         self._K_0: np.ndarray | None = None
 
@@ -303,7 +305,9 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         dN_dx_list = []
         for k, (xi_g, w_g) in enumerate(zip(xi, w)):
             _, _, _, _, E, dN_dx_row = self._gp_tl_kinematics(U_e, xi_g)
-            N_i, M_y_i, M_z_i = self.stress_resultant_operator.section_forces_from_strain(E, D)
+            N_i, M_y_i, M_z_i = self.stress_resultant_operator.section_forces_from_strain(
+                E - self._E_0_voigt, D
+            )
             N_gp[k] = N_i
             M_y_gp[k] = M_y_i
             M_z_gp[k] = M_z_i
@@ -343,7 +347,7 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
                 dN_dx, d2N_dx2, U_e, N[0]
             )
             B_tot = B_lin + B_nl
-            S = D @ E
+            S = D @ (E - self._E_0_voigt)
             F_int += (B_tot.T @ S) * w_g * detJ
         return F_int
 

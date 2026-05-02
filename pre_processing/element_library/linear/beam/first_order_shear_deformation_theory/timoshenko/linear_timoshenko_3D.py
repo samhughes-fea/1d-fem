@@ -41,6 +41,7 @@ from pre_processing.element_library.linear.beam.first_order_shear_deformation_th
     assemble_timoshenko_K0,
     timoshenko_quadrature_orders_from_element_array,
 )
+from pre_processing.parsing.precurvature_parser import element_reference_strain_voigt
 
 # --- logging ----------------------------------------------
 import logging
@@ -140,6 +141,7 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
             y_sc=self.y_sc,
             z_sc=self.z_sc,
         )
+        self._E_0_voigt = element_reference_strain_voigt(element_dictionary, element_id)
 
     def _validate_element_properties(self) -> None:
         """Validate critical element properties"""
@@ -219,6 +221,21 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
     def integration_points(self) -> Tuple[np.ndarray, np.ndarray]:
         """Gauss quadrature points/weights"""
         return np.polynomial.legendre.leggauss(self.quadrature_order)
+
+    def _precurvature_equivalent_load(self) -> np.ndarray:
+        """``sum_g B.T @ D @ E_0 * w_g * detJ`` on the full-rule Gauss loop (matches stiffness cache)."""
+        if not np.any(self._E_0_voigt):
+            return np.zeros(12, dtype=np.float64)
+        D = self.material_stiffness_operator.assembly_form()
+        detJ = self.jacobian_determinant
+        max_order = self._timoshenko_orders.max_full_order
+        xi, w = np.polynomial.legendre.leggauss(max_order)
+        f_e = np.zeros(12, dtype=np.float64)
+        for xi_g, w_g in zip(xi, w):
+            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
+            f_e += (B.T @ D @ self._E_0_voigt) * w_g * detJ
+        return f_e
 
     # Operator-compatible formulation methods ----------------------------------
     def shape_functions(self, xi: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -357,6 +374,8 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
         
         if self.logger_operator:  # Modified logging call
             self.logger_operator.log_text("force", f"\n=== Element {self.element_id} Force Vector Computation ===")
+
+        Fe += self._precurvature_equivalent_load()
 
         # Process distributed loads
         if self.distributed_load_array.size > 0:

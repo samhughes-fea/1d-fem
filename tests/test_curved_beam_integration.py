@@ -19,6 +19,7 @@ from pre_processing.element_library.linear.beam.first_order_shear_deformation_th
 )
 
 
+@pytest.mark.filterwarnings("ignore:.*LinearCurvedTimoshenkoBeamElement3D is deprecated:DeprecationWarning")
 def test_curved_beam_integration_solve():
     """One curved element (κ0 > 0), fixed at node 0; assemble and solve; assert U shape and fixed DOFs zero."""
     L = 2.0

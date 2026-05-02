@@ -14,7 +14,7 @@ flowchart TB
     end
 
     subgraph parsing [Parsing]
-        Parse["Parse input files\n(element, grid, material, section,\nsimulation_settings, loads, prescribed_disp)"]
+        Parse["Parse input files\n(element, grid, material, section,\nsimulation_settings, loads, prescribed_disp,\noptional precurvature.txt)"]
     end
 
     subgraph elements [Element phase]

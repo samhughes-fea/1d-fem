@@ -33,6 +33,7 @@ from pre_processing.element_library.shape_function_registry import get_shape_fun
 
 # Import LoadInterpolationOperator class
 from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.interpolate_loads import LoadInterpolationOperator
+from pre_processing.parsing.precurvature_parser import element_reference_strain_voigt
 
 # --- logging ----------------------------------------------
 import logging
@@ -137,6 +138,7 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
             moment_inertia_z=self.I_z,
             torsion_constant=self.J_t,
         )
+        self._E_0_voigt = element_reference_strain_voigt(element_dictionary, element_id)
 
     def _validate_element_properties(self) -> None:
         """Validate critical element properties"""
@@ -195,6 +197,20 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
     def integration_points(self) -> Tuple[np.ndarray, np.ndarray]:
         """Gauss quadrature points/weights"""
         return np.polynomial.legendre.leggauss(self.quadrature_order)
+
+    def _precurvature_equivalent_load(self) -> np.ndarray:
+        """``sum_g B.T @ D @ E_0 * w_g * detJ`` for ``σ = D(ε - E_0)`` (initial reference curvature)."""
+        if not np.any(self._E_0_voigt):
+            return np.zeros(12, dtype=np.float64)
+        D = self.material_stiffness_operator.assembly_form()
+        detJ = self.jacobian_determinant
+        xi, w = self.integration_points
+        f_e = np.zeros(12, dtype=np.float64)
+        for xi_g, w_g in zip(xi, w):
+            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)[0]
+            f_e += (B.T @ D @ self._E_0_voigt) * w_g * detJ
+        return f_e
 
     # Operator-compatible formulation methods ----------------------------------
     def shape_functions(self, xi: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -303,6 +319,8 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
         
         if self.logger_operator:  # Modified logging call
             self.logger_operator.log_text("force", f"\n=== Element {self.element_id} Force Vector Computation ===")
+
+        Fe += self._precurvature_equivalent_load()
 
         # Process distributed loads
         if self.distributed_load_array.size > 0:

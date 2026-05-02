@@ -13,6 +13,7 @@ flowchart LR
         PointLoad["point_load.txt\n(optional)"]
         DistLoad["distributed_load.txt\n(optional)"]
         PrescribedDisp["prescribed_displacement.txt\n(optional)"]
+        PrecurvatureTxt["precurvature.txt\n(optional)"]
     end
 
     subgraph pipeline [Pipeline]
@@ -44,6 +45,7 @@ flowchart LR
     PointLoad --> ProcessJob
     DistLoad --> ProcessJob
     PrescribedDisp --> ProcessJob
+    PrecurvatureTxt --> ProcessJob
 
     ProcessJob --> PrimaryDir
     ProcessJob --> SecondaryDir
@@ -71,6 +73,7 @@ flowchart LR
 | point_load.txt | No | parse_point_load — concentrated loads |
 | distributed_load.txt | No | parse_distributed_load — line loads |
 | prescribed_displacement.txt | No | parse_prescribed_displacement — fixed/prescribed DOFs |
+| precurvature.txt | No | parse_precurvature — per-element reference ``(k_x0, k_y0, k_z0)`` (1/m) for straight EB/Timoshenko; omitted or all-zero preserves prior behaviour |
 
 ## Output directory layout
 

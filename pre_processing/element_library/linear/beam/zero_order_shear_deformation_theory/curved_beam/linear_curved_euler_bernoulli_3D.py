@@ -67,6 +67,7 @@ pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/e
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import Tuple
 
 import numpy as np
@@ -133,6 +134,12 @@ class LinearCurvedEulerBernoulliBeamElement3D(Element1DBase):
             distributed_load_array=distributed_load_array,
             job_results_dir=job_results_dir,
             dof_per_node=6,
+        )
+        warnings.warn(
+            "LinearCurvedEulerBernoulliBeamElement3D is deprecated; use "
+            "LinearEulerBernoulliBeamElement3D with precurvature.txt (reference k_x0, k_y0, k_z0).",
+            DeprecationWarning,
+            stacklevel=2,
         )
 
         idx = int(np.where(element_dictionary["ids"] == element_id)[0][0])

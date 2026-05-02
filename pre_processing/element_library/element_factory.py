@@ -24,6 +24,9 @@ class ElementFactory:
     * Classes are discovered via :pyattr:`ELEMENT_CLASS_MAP` (combined from
       :pyattr:`LINEAR_ELEMENT_CLASS_MAP` and :pyattr:`NONLINEAR_ELEMENT_CLASS_MAP`).
     * Per-element logs are written to ``<job_results_dir>/logs``.
+    * Optional ``precurvature_per_element`` (shape ``(N_e, 3)``) is merged into
+      a copy of ``element_dictionary`` as key ``"precurvature_per_element"`` (rows
+      ``[k_x0, k_y0, k_z0]`` in element-id order) for straight beam elements.
     """
 
     LINEAR_ELEMENT_CLASS_MAP = {
@@ -114,6 +117,7 @@ class ElementFactory:
         section_dictionary: Dict[str, Any],
         point_load_array: np.ndarray,
         distributed_load_array: np.ndarray,
+        precurvature_per_element: Optional[np.ndarray] = None,
         enable_parallel: bool = False,
         num_processes: Optional[int] = None,
     ) -> List["Element1DBase"]:
@@ -138,6 +142,10 @@ class ElementFactory:
             ``(N, 4)`` array or empty array of point-load data.
         distributed_load_array
             ``(N, 5)`` array or empty array of distributed-load data.
+        precurvature_per_element
+            Optional ``(N_e, 3)`` array of ``[k_x0, k_y0, k_z0]`` (1/m) per row,
+            aligned with *element_ids*. Omitted or ``None``: straight beams behave
+            as zero reference curvature.
         enable_parallel : bool, optional
             Enable parallel instantiation (default False).
         num_processes : int, optional
@@ -162,6 +170,10 @@ class ElementFactory:
             )
             raise ValueError("Mismatch between element IDs and types.")
 
+        element_dictionary_use = self._merge_precurvature_dictionary(
+            element_dictionary, precurvature_per_element
+        )
+
         # Determine if we should use parallel processing
         num_elements = len(element_ids_array)
         threshold = 50  # Minimum elements for parallel
@@ -181,7 +193,7 @@ class ElementFactory:
                 elements = self._instantiate_elements_parallel(
                     element_ids_array,
                     element_types_array,
-                    element_dictionary,
+                    element_dictionary_use,
                     grid_dictionary,
                     material_dictionary,
                     section_dictionary,
@@ -197,7 +209,7 @@ class ElementFactory:
                 elements = self._instantiate_elements_sequential(
                     element_ids_array,
                     element_types_array,
-                    element_dictionary,
+                    element_dictionary_use,
                     grid_dictionary,
                     material_dictionary,
                     section_dictionary,
@@ -208,7 +220,7 @@ class ElementFactory:
             elements = self._instantiate_elements_sequential(
                 element_ids_array,
                 element_types_array,
-                element_dictionary,
+                element_dictionary_use,
                 grid_dictionary,
                 material_dictionary,
                 section_dictionary,
@@ -246,6 +258,23 @@ class ElementFactory:
 
         logger.debug("🟢 ElementFactory logger initialised.")
         return logger
+
+    # .................................................................. #
+    @staticmethod
+    def _merge_precurvature_dictionary(
+        element_dictionary: Dict[str, Any],
+        precurvature_per_element: Optional[np.ndarray],
+    ) -> Dict[str, Any]:
+        """Return *element_dictionary* or a shallow copy with ``precurvature_per_element`` set."""
+        if precurvature_per_element is None:
+            return element_dictionary
+        n_e = len(element_dictionary["ids"])
+        arr = np.asarray(precurvature_per_element, dtype=np.float64).reshape(n_e, 3)
+        if arr.shape != (n_e, 3):
+            raise ValueError(
+                f"precurvature_per_element must have shape ({n_e}, 3), got {arr.shape}"
+            )
+        return {**element_dictionary, "precurvature_per_element": arr}
 
     # .................................................................. #
     def _sanitize_element_ids(self, raw_ids) -> np.ndarray:
