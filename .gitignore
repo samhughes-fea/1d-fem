@@ -5,8 +5,14 @@ __pycache__/
 *.so
 .Python
 
-# Results directories - do not ignore; allow tracking job results and outputs
-#post_processing/results/*/
+# Results: many reference trees under post_processing/results/ are tracked; do not use a blanket ignore.
+# Ephemeral local pytest/run_job outputs (timestamp+pid); use `git add -f` if one must be committed.
+post_processing/results/test_*/
+post_processing/results/pytest_*/
+post_processing/results/job_smoke_*_20*/
+post_processing/results/job_test_*/
+post_processing/results/_dbg/
+post_processing/results/dbg_*/
 
 # Validation: do not ignore; allow tracking Abaqus generated scripts and result CSVs
 #post_processing/validation_visualisers/abaqus/generated/
