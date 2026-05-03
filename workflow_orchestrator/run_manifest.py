@@ -93,6 +93,7 @@ def write_run_manifest(
     nh = root / "logs" / "newton_history.csv"
     ish = root / "logs" / "inner_solve_history.csv"
     ps = root / "primary_results" / "primary_summary.csv"
+    pap = root / "logs" / "primary_artifacts.json"
 
     manifest: dict[str, Any] = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -113,6 +114,7 @@ def write_run_manifest(
             "newton_history_csv": str(nh.resolve()) if nh.is_file() else None,
             "inner_solve_history_csv": str(ish.resolve()) if ish.is_file() else None,
             "primary_summary_csv": str(ps.resolve()) if ps.is_file() else None,
+            "primary_artifacts_json": str(pap.resolve()) if pap.is_file() else None,
             "process_job_log": str((root / "logs" / "process_job.log").resolve())
             if (root / "logs" / "process_job.log").is_file()
             else None,

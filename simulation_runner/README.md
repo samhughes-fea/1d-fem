@@ -42,6 +42,35 @@ Set **`FEM_LEGACY_MODAL_ERROR=1`** to **raise** on legacy **`[Modal]`** / **`[Ty
 
 **Transient:** import **`DynamicSimulationRunner`** from **`simulation_runner.transient.dynamic_simulation`** (the old **`simulation_runner.dynamic`** shim was removed).
 
+## Runtime telemetry and per-stage logs
+
+[`RuntimeMonitorTelemetry`](../processing/static/diagnostics/runtime_monitor_telemetry.py) always writes **`{job_results_root}/diagnostics/RuntimeMonitorTelemetry.log`**: the constructor takes any **descendant** path of the job root (for example `primary_results/` or `diagnostics/`) and normalizes to the parent job folder, then appends `diagnostics/`.
+
+| Runner | Typical `RuntimeMonitorTelemetry(...)` argument |
+|--------|-----------------------------------------------|
+| §2 eigen / §5 buckling (spectral) | `diagnostics_dir` under job root |
+| §3 transient (`DynamicSimulationRunner`) | `diagnostics_dir` |
+| §4 harmonic | `diagnostics_dir` |
+| §1 linear static | `primary_results_dir` in `__init__`, then `diagnostics_dir` in `solve_linear_system_only` / `run()` — effective log path is still **job** `diagnostics/` |
+| §1 nonlinear static | `primary_results_dir` on the long-lived monitor, `diagnostics_dir` on the top-level `run()` monitor |
+
+Per-class **`logs/<StageClassName>.log`** files come from [`init_stage_logger`](../processing/common/stage_logging.py) and use **`parent(job_results_dir) / "logs"`** where `job_results_dir` is usually **`primary_results/...`** for that stage — so operators look under **`{job_results_root}/logs/`** for `AssembleGlobalSystem.log`, `PrepareLocalSystem.log`, etc.
+
+## Primary outputs and `job_results_dir` layout (Sections 2–5)
+
+Canonical job root is **`job_results_dir`** (same tree for all types). Below: **primary** paths only; optional formulation-cache post writes **`secondary_results/`** and **`tertiary_results/`** when **`[PostProcessing]`** flags are set (see [RESULTS_DESIGN.md](../processing/static/results/RESULTS_DESIGN.md)).
+
+| `type` | Primary folders / files | Post keys (see [SIMULATION_SETTINGS_TAXONOMY.md](../docs/conventions/SIMULATION_SETTINGS_TAXONOMY.md)) |
+|--------|-------------------------|-----------------------------------------------------------------------------------------------------|
+| `eigen` | `primary_results/modal_results/{job}_frequencies.txt`, `{job}_mode_shapes.txt`; optional secondary `.txt` in same folder | `run_secondary_tertiary_eigen` / `run_secondary_tertiary_modal`, `modal_mode_index`, `modal_amplitude` |
+| `buckling` | `primary_results/modal_results/{job}_buckling_load_factors.txt`, `{job}_buckling_mode_shapes.txt` | Same modal flag family + `buckling_displacement`, `buckling_mode_index` |
+| `transient` | `primary_results/dynamic_results/{job}_time.txt`, `_displacements.txt`, `_velocities.txt`, `_accelerations.txt` | `run_secondary_tertiary_dynamic`, `dynamic_time_index`, **`dynamic_time_indices`** (comma-separated list; multiple snapshots use `secondary_results/dynamic_post/t_*`) |
+| `harmonic` | `primary_results/harmonic_results/` — frequencies, displacement real/imag/abs/phase matrices | `run_secondary_tertiary_harmonic`, `harmonic_frequency_index`, multi-frequency keys |
+
+**Machine-readable index:** successful runs may write **`logs/primary_artifacts.json`** (schema in [workflow_orchestrator/run_manifest.py](../workflow_orchestrator/run_manifest.py) companion field **`paths.primary_artifacts_json`** inside **`logs/run_manifest.json`** when that file exists).
+
+Family READMEs: [eigen/README.md](eigen/README.md), [buckling/README.md](buckling/README.md), [spectral/README.md](spectral/README.md), [harmonic/README.md](harmonic/README.md), [transient/README.md](transient/README.md).
+
 ## Usage
 
 From the project root, jobs are run via the workflow orchestrator:
@@ -61,4 +90,4 @@ Mirror the static stack when adding a new primary analysis type:
 
 ## Deferred refactor (assembly sharing)
 
-Extracting shared scatter/assembly utilities between [processing/eigen/assembly.py](../processing/eigen/assembly.py) and [processing/static/operations/assembly.py](../processing/static/operations/assembly.py) is intentionally deferred until static dispatch and job regressions are stable; track as a separate change-set with eigen/static end-to-end checks.
+Nodal **force** scatter is shared via [`assemble_global_force_vector`](../processing/dynamic/assembly.py) (used by static `AssembleGlobalSystem`, transient, and eigen participation). **Stiffness** scatter between [processing/eigen/assembly.py](../processing/eigen/assembly.py) and static assembly remains intentionally separate until dispatch and regressions are stable.

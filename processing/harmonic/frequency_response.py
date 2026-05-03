@@ -1,10 +1,11 @@
 # processing/harmonic/frequency_response.py
-"""Frequency-domain kernels for §4 harmonic / steady-state response."""
+"""Frequency-domain kernels for Section 4 harmonic / steady-state response."""
 
 from __future__ import annotations
 
 import os
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
 import numpy as np
@@ -383,8 +384,31 @@ def sweep_displacements(
         return out
 
     workers = max_workers if max_workers is not None else min(32, max(1, n))
+    cols: list[Optional[np.ndarray]] = [None] * n
+    errors: list[tuple[int, BaseException]] = []
+    lock = threading.Lock()
+
+    def _run_column(k: int) -> None:
+        try:
+            c = column(k)
+            with lock:
+                cols[k] = c
+        except BaseException as exc:
+            with lock:
+                errors.append((k, exc))
+
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        cols = list(pool.map(column, range(n)))
+        futs = [pool.submit(_run_column, k) for k in range(n)]
+        for fut in as_completed(futs):
+            fut.result()
+
+    if errors:
+        errors.sort(key=lambda t: t[0])
+        parts = "; ".join(f"col={k} f_hz={float(f[k]):.6g}: {type(exc).__name__}: {exc}" for k, exc in errors)
+        raise RuntimeError(
+            f"Harmonic frequency sweep failed for {len(errors)} of {n} sample(s): {parts}"
+        ) from errors[0][1]
     for k in range(n):
-        out[:, k] = cols[k]
+        assert cols[k] is not None
+        out[:, k] = cols[k]  # type: ignore[index]
     return out

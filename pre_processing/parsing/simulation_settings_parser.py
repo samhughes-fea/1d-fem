@@ -64,6 +64,8 @@ def _get_defaults():
             "buckling_mode_index": 0,
             # Row index into U(t) from Newmark; negative counts from end (-1 = last step).
             "dynamic_time_index": -1,
+            # Optional comma-separated list of row indices (overrides single index when set).
+            "dynamic_time_indices": None,
         },
         "newton": {
             "tolerance": 1e-8,
@@ -92,12 +94,26 @@ def _get_defaults():
         "eigen": {
             "enabled": False,
             "num_modes": 10,
+            "fixed_node_id": None,
+            "dense_threshold": 512,
         },
         "transient": {
             "enabled": False,
             "time_step": 0.001,
             "end_time": 1.0,
             "scheme": "newmark",
+            "load_scale": 1.0,
+            "load_ramp": False,
+            "fixed_node_id": None,
+            "force_time_series_file": None,
+            "force_analytic": None,
+            "force_analytic_amplitude": None,
+            "force_analytic_frequency_hz": None,
+            "force_analytic_phase_rad": 0.0,
+            "force_analytic_t_start": None,
+            "force_analytic_t_end": None,
+            "rayleigh_alpha": None,
+            "rayleigh_beta": None,
         },
         "harmonic": {
             "enabled": False,
@@ -118,6 +134,7 @@ def _get_defaults():
             "damping_zeta_table_file": None,
             "harmonic_modal_basis_dir": None,
             "harmonic_modal_basis_job_name": None,
+            "fixed_node_id": None,
         },
         "buckling": {
             "enabled": False,
@@ -349,6 +366,8 @@ def parse_simulation_settings(file_path):
                 if key and value:
                     if key == "num_modes":
                         simulation_settings["modal"]["num_modes"] = _convert_value(value, int)
+                    elif key == "dense_threshold":
+                        simulation_settings["modal"]["dense_threshold"] = _convert_value(value, int)
                     elif key == "analysis":
                         av = value.strip().lower()
                         if av not in ("vibration", "buckling"):
@@ -378,6 +397,40 @@ def parse_simulation_settings(file_path):
                         simulation_settings["dynamic"]["end_time"] = _convert_value(value, float)
                     elif key == "scheme":
                         simulation_settings["dynamic"]["scheme"] = value.lower()
+                    elif key == "load_scale":
+                        simulation_settings["dynamic"]["load_scale"] = _convert_value(value, float)
+                    elif key == "load_ramp":
+                        simulation_settings["dynamic"]["load_ramp"] = _convert_value(value, bool)
+                    elif key == "fixed_node_id":
+                        simulation_settings["dynamic"]["fixed_node_id"] = _convert_value(value, int)
+                    elif key == "force_time_series_file":
+                        simulation_settings["dynamic"]["force_time_series_file"] = value.strip()
+                    elif key == "force_analytic":
+                        simulation_settings["dynamic"]["force_analytic"] = value.strip().lower()
+                    elif key == "force_analytic_amplitude":
+                        simulation_settings["dynamic"]["force_analytic_amplitude"] = _convert_value(
+                            value, float
+                        )
+                    elif key == "force_analytic_frequency_hz":
+                        simulation_settings["dynamic"]["force_analytic_frequency_hz"] = _convert_value(
+                            value, float
+                        )
+                    elif key == "force_analytic_phase_rad":
+                        simulation_settings["dynamic"]["force_analytic_phase_rad"] = _convert_value(
+                            value, float
+                        )
+                    elif key == "force_analytic_t_start":
+                        simulation_settings["dynamic"]["force_analytic_t_start"] = _convert_value(
+                            value, float
+                        )
+                    elif key == "force_analytic_t_end":
+                        simulation_settings["dynamic"]["force_analytic_t_end"] = _convert_value(
+                            value, float
+                        )
+                    elif key in ("rayleigh_alpha", "rayleigh_m"):
+                        simulation_settings["dynamic"]["rayleigh_alpha"] = _convert_value(value, float)
+                    elif key in ("rayleigh_beta", "rayleigh_k"):
+                        simulation_settings["dynamic"]["rayleigh_beta"] = _convert_value(value, float)
 
             elif current_section == "post_processing":
                 key, value = _parse_key_value(line)
@@ -426,6 +479,9 @@ def parse_simulation_settings(file_path):
                         pp["buckling_mode_index"] = _convert_value(value, int)
                     elif key == "dynamic_time_index":
                         pp["dynamic_time_index"] = _convert_value(value, int)
+                    elif key == "dynamic_time_indices":
+                        parts = [p.strip() for p in value.split(",") if p.strip()]
+                        pp["dynamic_time_indices"] = [_convert_value(p, int) for p in parts]
 
             elif current_section == "newton":
                 key, value = _parse_key_value(line)
@@ -493,18 +549,47 @@ def parse_simulation_settings(file_path):
                         simulation_settings["eigen"]["enabled"] = _convert_value(value, bool)
                     elif key == "num_modes":
                         simulation_settings["eigen"]["num_modes"] = _convert_value(value, int)
+                    elif key == "fixed_node_id":
+                        simulation_settings["eigen"]["fixed_node_id"] = _convert_value(value, int)
+                    elif key == "dense_threshold":
+                        simulation_settings["eigen"]["dense_threshold"] = _convert_value(value, int)
 
             elif current_section == "transient":
                 key, value = _parse_key_value(line)
                 if key and value:
+                    tr = simulation_settings["transient"]
                     if key == "enabled":
-                        simulation_settings["transient"]["enabled"] = _convert_value(value, bool)
+                        tr["enabled"] = _convert_value(value, bool)
                     elif key == "time_step":
-                        simulation_settings["transient"]["time_step"] = _convert_value(value, float)
+                        tr["time_step"] = _convert_value(value, float)
                     elif key == "end_time":
-                        simulation_settings["transient"]["end_time"] = _convert_value(value, float)
+                        tr["end_time"] = _convert_value(value, float)
                     elif key == "scheme":
-                        simulation_settings["transient"]["scheme"] = value.lower()
+                        tr["scheme"] = value.lower()
+                    elif key == "load_scale":
+                        tr["load_scale"] = _convert_value(value, float)
+                    elif key == "load_ramp":
+                        tr["load_ramp"] = _convert_value(value, bool)
+                    elif key == "fixed_node_id":
+                        tr["fixed_node_id"] = _convert_value(value, int)
+                    elif key == "force_time_series_file":
+                        tr["force_time_series_file"] = value.strip()
+                    elif key == "force_analytic":
+                        tr["force_analytic"] = value.strip().lower()
+                    elif key == "force_analytic_amplitude":
+                        tr["force_analytic_amplitude"] = _convert_value(value, float)
+                    elif key == "force_analytic_frequency_hz":
+                        tr["force_analytic_frequency_hz"] = _convert_value(value, float)
+                    elif key == "force_analytic_phase_rad":
+                        tr["force_analytic_phase_rad"] = _convert_value(value, float)
+                    elif key == "force_analytic_t_start":
+                        tr["force_analytic_t_start"] = _convert_value(value, float)
+                    elif key == "force_analytic_t_end":
+                        tr["force_analytic_t_end"] = _convert_value(value, float)
+                    elif key in ("rayleigh_alpha", "rayleigh_m"):
+                        tr["rayleigh_alpha"] = _convert_value(value, float)
+                    elif key in ("rayleigh_beta", "rayleigh_k"):
+                        tr["rayleigh_beta"] = _convert_value(value, float)
 
             elif current_section == "harmonic":
                 key, value = _parse_key_value(line)
@@ -544,6 +629,8 @@ def parse_simulation_settings(file_path):
                         hm["harmonic_modal_basis_dir"] = value.strip()
                     elif key in ("harmonic_modal_basis_job_name", "modal_basis_job_name"):
                         hm["harmonic_modal_basis_job_name"] = value.strip()
+                    elif key == "fixed_node_id":
+                        hm["fixed_node_id"] = _convert_value(value, int)
 
             elif current_section == "buckling_taxonomy":
                 key, value = _parse_key_value(line)

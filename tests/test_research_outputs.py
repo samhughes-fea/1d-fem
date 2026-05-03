@@ -11,6 +11,7 @@ import pytest
 import scipy.sparse as sp
 
 from processing.static.operations.solver import SolveCondensedSystem
+from processing.common.primary_artifact_manifest import write_primary_artifact_manifest
 from workflow_orchestrator.run_manifest import write_run_manifest
 
 
@@ -42,6 +43,31 @@ def test_write_run_manifest_schema(tmp_path: Path):
     assert m["simulation_settings_resolved"]["type"] == "static"
     assert m["simulation_settings_resolved"]["_resolved_static_kind"] == "nonlinear"
     assert m["paths"]["newton_history_csv"] is not None
+
+
+def test_write_run_manifest_includes_primary_artifacts_json(tmp_path: Path):
+    job_dir = tmp_path / "job1"
+    job_dir.mkdir()
+    (job_dir / "simulation_settings.txt").write_text("[Simulation]\n[Type]\neigen\n", encoding="utf-8")
+    results = tmp_path / "out_e"
+    results.mkdir()
+    write_primary_artifact_manifest(
+        results,
+        family="eigen_vibration",
+        job_name="job1",
+        artifacts={"frequencies_hz": "primary_results/modal_results/job1_frequencies.txt"},
+    )
+    p = write_run_manifest(
+        job_results_dir=results,
+        job_name="job1",
+        job_dir=job_dir,
+        wall_time_sec=1.0,
+        simulation_settings={"type": "eigen"},
+    )
+    assert p is not None
+    with open(p, encoding="utf-8") as f:
+        m = json.load(f)
+    assert m["paths"]["primary_artifacts_json"] is not None
 
 
 def test_inner_solve_history_join_keys(tmp_path: Path):

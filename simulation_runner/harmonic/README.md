@@ -22,6 +22,7 @@ Parser accepts optional **`[Harmonic]`** keys alongside **`[Type] harmonic`**:
 | `modal_superposition_num_modes` | Number of modes for the modal path. |
 | `prescribed_motion_phase_rad` | Phase (rad) on prescribed-motion DOFs (alias `prescribed_motion_phase`). |
 | `harmonic_linear_solver` | `spsolve` (default) or `splu`. |
+| `fixed_node_id` | Optional int: clamp all global DOFs at that node for penalty BCs (same [`resolve_penalty_fixed_dofs`](../../processing/boundary_supports/__init__.py) convention as §2/§3). |
 
 If omitted, defaults are applied at runtime (see `effective_harmonic_config` in [`harmonic_simulation.py`](harmonic_simulation.py)).
 
@@ -29,8 +30,20 @@ If omitted, defaults are applied at runtime (see `effective_harmonic_config` in 
 
 These populate **`simulation_settings["harmonic"]`** after [`parse_simulation_settings`](../../pre_processing/parsing/simulation_settings_parser.py). See also [SIMULATION_SETTINGS_TAXONOMY.md](../../docs/conventions/SIMULATION_SETTINGS_TAXONOMY.md).
 
-### Outputs
+### Telemetry and per-stage logs
 
-Primary results under **`primary_results/harmonic_results/`**: **`{job_name}_frequencies_hz.txt`**, **`{job_name}_displacement_real.txt`**, **`{job_name}_displacement_imag.txt`**, **`{job_name}_displacement_abs.txt`**, **`{job_name}_displacement_phase_rad.txt`** (global DOFs \(\times\) frequency index).
+When `job_results_dir` is set, [`RuntimeMonitorTelemetry`](../../processing/static/diagnostics/runtime_monitor_telemetry.py) writes stage boundaries to **`diagnostics/RuntimeMonitorTelemetry.log`**. Fine-grained logs for harmonic processing stages live under **`logs/`** next to the job tree (same pattern as §3 transient — see [`processing/common/stage_logging`](../../processing/common/stage_logging.py)).
 
-Roadmap for §4 extensions: [`HARMONIC_FREQUENCY_DOMAIN.md`](../../docs/conventions/HARMONIC_FREQUENCY_DOMAIN.md) (*Roadmap (next)*).
+### Outputs and `job_results_dir` tree
+
+| Location | Role |
+|----------|------|
+| `diagnostics/RuntimeMonitorTelemetry.log` | High-level stage boundaries (assemble → modify → damping → sweep). |
+| `logs/*.log` | Per-stage class logs (`ModifyHarmonicStructuralMatrices`, `SolveHarmonicFrequencySweep`, …). |
+| `logs/primary_artifacts.json` | Optional JSON index of primary text outputs (schema `schema_version` **1.0**). |
+| `primary_results/assembly_modal/`, `assembly_force/` | Intermediate assembly dumps when stages log there. |
+| `primary_results/harmonic_results/` | **Primary sweep outputs** (see below). |
+
+Primary matrices under **`primary_results/harmonic_results/`**: **`{job_name}_frequencies_hz.txt`**, **`{job_name}_displacement_real.txt`**, **`{job_name}_displacement_imag.txt`**, **`{job_name}_displacement_abs.txt`**, **`{job_name}_displacement_phase_rad.txt`** — each displacement file is **global DOFs × frequency index** (column `k` is sample `f_k`). Schema and units: [`HARMONIC_FREQUENCY_DOMAIN.md`](../../docs/conventions/HARMONIC_FREQUENCY_DOMAIN.md).
+
+Roadmap for Section 4 extensions: same doc (*Primary output schema* and tertiary backlog).

@@ -104,18 +104,32 @@ def _emit_legacy_input_warnings(
             )
 
 def effective_transient_config(settings: Dict[str, Any]) -> Dict[str, Any]:
-    """Merge [Transient] over [Dynamic]; transient keys win."""
+    """
+    Merge ``[Transient]`` over legacy ``[Dynamic]``; transient keys win.
+
+    Supported keys include time integration (``time_step``, ``end_time``, ``scheme``),
+    load shaping (``load_scale``, ``load_ramp``), penalty BC helper ``fixed_node_id``,
+    time-varying force (``force_time_series_file``, ``force_analytic`` and related),
+    and Rayleigh damping (``rayleigh_alpha`` / ``rayleigh_beta``) used when element
+    damping matrices are absent.
+    """
     d = dict(settings.get("dynamic") or {})
     t = dict(settings.get("transient") or {})
-    out = {**d, **t}
-    return out
+    return {**d, **t}
 
 
 def effective_eigen_config(settings: Dict[str, Any]) -> Dict[str, Any]:
     """Vibration eigenproblem settings (legacy ``modal`` + ``eigen`` section)."""
     m = settings.get("modal") or {}
     e = settings.get("eigen") or {}
-    return {"num_modes": int(e.get("num_modes", m.get("num_modes", 10)))}
+    out: Dict[str, Any] = {
+        "num_modes": int(e.get("num_modes", m.get("num_modes", 10))),
+        "dense_threshold": int(e.get("dense_threshold", m.get("dense_threshold", 512))),
+    }
+    fn = e.get("fixed_node_id")
+    if fn is not None:
+        out["fixed_node_id"] = int(fn)
+    return out
 
 
 def effective_buckling_config(settings: Dict[str, Any]) -> Dict[str, Any]:
@@ -165,6 +179,9 @@ def _hydrate_taxonomy_from_legacy_sections(settings: Dict[str, Any]) -> None:
         nm = m.get("num_modes")
         if nm is not None:
             eg["num_modes"] = int(nm)
+        dth = m.get("dense_threshold")
+        if dth is not None:
+            eg["dense_threshold"] = int(dth)
 
     d = settings.get("dynamic") or {}
     if not settings.get("_dynamic_section_in_input"):

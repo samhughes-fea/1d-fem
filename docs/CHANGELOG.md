@@ -14,6 +14,9 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- **Runner parity:** Section 2–5 runner README tables, spectral pipeline README, **`logs/primary_artifacts.json`** primary index, **`[Eigen] dense_threshold`**, **`[PostProcessing] dynamic_time_indices`**, native **`modal_effective_mass_fraction_z`** (six DOF/node meshes), harmonic parallel sweep **aggregated** per-frequency errors, transient **stability snapshot** log line, family **diagnostic** logs (`transient_run_diagnostic`, `harmonic_run_diagnostic`, `spectral_bc_diagnostic`), and **`run_manifest.paths.primary_artifacts_json`** when present.
+- **Simulation settings (taxonomy):** documented **`[Eigen]`** / **`[Transient]`** / **`[Harmonic]`** optional **`fixed_node_id`**; transient **`force_time_series_file`**, **`force_analytic`*** keys, and Rayleigh aliases for assembled **`C`** when element damping is absent. Harmonic structural BCs now honor the same penalty **`fixed_dofs`** resolution as spectral/transient.
+- **Eigen secondary:** **`{job_name}_modal_load_participation.txt`** — per-mode scalar \(|\hat{\phi}_j^{\mathsf T} F|\) with mass-normalized \(\hat{\phi}_j\) and \(F\) from element nodal loads (`processing.dynamic.assembly.assemble_global_force_vector`), alongside existing **`modal_generalized_mass`** output.
 - [docs/conventions/JOB_INPUT_BEAM_WARPING.md](conventions/JOB_INPUT_BEAM_WARPING.md) — subsection on `prescribed_displacement.txt` with **`CHI`** / **`W`** (7 DOF/node) and global indexing.
 - `tests/test_prescribed_displacement_warping.py`, `tests/test_process_job_nl_eb_warp_minimal.py` — parser and minimal end-to-end **`process_job`** coverage for NL EB + `[warping]`.
 - [docs/conventions/DEPRECATED_ELEMENT_TYPES.md](conventions/DEPRECATED_ELEMENT_TYPES.md) — manifest of removed/deregistered types and replacements.
@@ -21,5 +24,6 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- **Static global `F` assembly** delegates to **`processing.dynamic.assembly.assemble_global_force_vector`** (supports **`complex128`** when any element `F_e` is complex; optional **`local_global_dof_map`**). Transient and eigen participation reuse the same scatter implementation.
 - Modal and dynamic simulation runners set **global** `total_dof` from **`mesh_uses_warping_dof`** (7 vs 6 DOF per node), matching static assembly; dynamic **`process_job`** passes **`element_dictionary`** into **`DynamicSimulationRunner`**.
 - **`job_to_abaqus_script`** parses **`prescribed_displacement.txt`** with **`dof_per_node`** aligned to the warping mesh when present.

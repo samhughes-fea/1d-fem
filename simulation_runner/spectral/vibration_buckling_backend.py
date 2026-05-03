@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from contextlib import nullcontext
 import logging
 import numpy as np
 import os
@@ -8,19 +9,25 @@ import datetime
 from scipy.sparse import coo_matrix
 from scipy.sparse import spmatrix
 
-from processing.eigen.assembly import assemble_global_matrices
-from processing.eigen.smallest_generalized_eigenpairs import smallest_generalized_eigenpairs
-from processing.eigen.boundary_conditions import apply_boundary_conditions
-from processing.buckling import (
-    apply_buckling_boundary_conditions,
-    assemble_global_geometric_stiffness,
-    solve_linear_buckling_eigenpairs,
+from processing.static.diagnostics.runtime_monitor_telemetry import RuntimeMonitorTelemetry
+from processing.spectral.operations import (
+    AssembleBucklingGeometricStiffness,
+    AssembleSpectralGlobalSystem,
+    ModifyBucklingGlobalMatrices,
+    ModifySpectralGlobalSystem,
+    PrepareSpectralLocalMatrices,
+    SolveGeneralizedEigenproblem,
+    SolveLinearBucklingEigenpairs,
 )
-from simulation_runner.spectral.spectral_diagnostics import log_spectral_diagnostics
 from pre_processing.parsing.simulation_settings_resolution import (
     effective_buckling_config,
     effective_eigen_config,
 )
+from processing.boundary_supports import resolve_penalty_fixed_dofs
+from processing.common.primary_artifact_manifest import write_primary_artifact_manifest
+from processing.dynamic.assembly import assemble_global_force_vector
+from processing.eigen.metrics.directional_effective_mass import modal_effective_mass_fraction_z
+from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
 
 logger = logging.getLogger(__name__)
 
@@ -129,29 +136,41 @@ class VibrationBucklingBackend:
     # 1) ASSEMBLE GLOBAL MATRICES
     # -------------------------------------------------------------------------
 
+    def _dof_per_node(self) -> int:
+        ed = self.settings.get("element_dictionary")
+        return 7 if ed is not None and mesh_uses_warping_dof(ed) else 6
+
     def _total_dof(self) -> int:
         num_nodes = len(self.mesh_dictionary["node_ids"])
-        from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
+        return int(num_nodes * self._dof_per_node())
 
-        ed = self.settings.get("element_dictionary")
-        dpn = 7 if ed is not None and mesh_uses_warping_dof(ed) else 6
-        return int(num_nodes * dpn)
+    def _resolved_penalty_fixed_dofs(self) -> np.ndarray | None:
+        """Penalty BC ``fixed_dofs`` from prescribed zeros + optional ``[Eigen] fixed_node_id``."""
+        return resolve_penalty_fixed_dofs(
+            total_dof=self._total_dof(),
+            dof_per_node=self._dof_per_node(),
+            prescribed_displacement_dict=self.settings.get("prescribed_displacement_dict"),
+            section_settings=self.simulation_settings.get("eigen") or {},
+            grid_node_ids=self.mesh_dictionary.get("node_ids"),
+        )
 
-    def _assemble_global_matrices(self, job_results_dir):
-        """Assemble global stiffness and mass matrices."""
+    def _assemble_global_matrices(self, job_results_dir, ke_list=None, me_list=None):
+        """Assemble global K and M via :class:`AssembleSpectralGlobalSystem` (optional pre-prepared lists)."""
         logger.info("Assembling global stiffness and mass matrices...")
         total_dof = self._total_dof()
-
-        K_global, M_global, _ = assemble_global_matrices(
+        if ke_list is None or me_list is None:
+            ke_list, me_list = PrepareSpectralLocalMatrices(
+                element_stiffness_matrices=self.element_stiffness_matrices,
+                element_mass_matrices=self.element_mass_matrices,
+                job_results_dir=job_results_dir,
+            ).run()
+        K_global, M_global, _ = AssembleSpectralGlobalSystem(
             elements=list(self.elements),
-            element_stiffness_matrices=self.element_stiffness_matrices,
-            element_mass_matrices=self.element_mass_matrices,
+            element_stiffness_matrices=ke_list,
+            element_mass_matrices=me_list,
             total_dof=total_dof,
             job_results_dir=job_results_dir,
-        )
-        if K_global is None or M_global is None:
-            raise ValueError("Global matrices could not be assembled")
-        log_spectral_diagnostics(K_global, M_global, job_results_dir)
+        ).run()
         logger.info("Global stiffness and mass matrices assembled.")
         return K_global, M_global
 
@@ -160,10 +179,15 @@ class VibrationBucklingBackend:
     # -------------------------------------------------------------------------
 
     def _modify_global_matrices(self, K_global, M_global, job_results_dir):
-        """Apply boundary conditions to the modal system."""
+        """Apply boundary conditions via :class:`ModifySpectralGlobalSystem`."""
         logger.info("Applying boundary conditions to global matrices...")
-        K_mod, M_mod, bc_dofs = apply_boundary_conditions(K_global, M_global)
-        log_spectral_diagnostics(K_mod, M_mod, job_results_dir)
+        prescribed = self.settings.get("prescribed_displacement_dict")
+        fixed_dofs = self._resolved_penalty_fixed_dofs()
+        K_mod, M_mod, bc_dofs = ModifySpectralGlobalSystem(
+            job_results_dir=job_results_dir,
+            fixed_dofs=fixed_dofs,
+            prescribed_displacements=prescribed,
+        ).run(K_global, M_global)
         logger.info("Boundary conditions applied.")
         return K_mod, M_mod, bc_dofs
 
@@ -171,7 +195,7 @@ class VibrationBucklingBackend:
     # 3) SOLVE MODAL SYSTEM
     # -------------------------------------------------------------------------
 
-    def solve_modal_vibration(self, K_mod, M_mod, num_modes, job_results_dir):
+    def solve_modal_vibration(self, K_mod, M_mod, num_modes, job_results_dir, *, dense_threshold=512):
         """
         Solves the modal system for natural frequencies and mode shapes.
 
@@ -185,25 +209,18 @@ class VibrationBucklingBackend:
             frequencies (np.ndarray): Natural frequencies (Hz).
             mode_shapes (np.ndarray): Mode shape vectors.
         """
-        logger.info(f"🔹 Solving for {num_modes} natural frequencies and mode shapes...")
-
+        logger.info("Solving for %s natural frequencies and mode shapes...", num_modes)
         try:
-            eigenvalues, eigenvectors = smallest_generalized_eigenpairs(
-                K_mod,
-                M_mod,
-                num_modes,
-                dense_threshold=512,
+            _ev, mode_shapes, frequencies = SolveGeneralizedEigenproblem(
+                num_modes=num_modes,
                 context="eigen vibration",
-            )
-
-            frequencies = np.sqrt(np.abs(eigenvalues)) / (2 * np.pi)
-            mode_shapes = eigenvectors
-
-            logger.info(f"✅ Computed {num_modes} natural frequencies.")
-
+                dense_threshold=int(dense_threshold),
+                job_results_dir=job_results_dir,
+            ).run(K_mod, M_mod)
+            logger.info("Computed %s natural frequencies.", num_modes)
             return frequencies, mode_shapes
         except Exception as e:
-            logger.error(f"❌ Modal solver failure: {e}")
+            logger.error("Modal solver failure: %s", e)
             raise
 
     # -------------------------------------------------------------------------
@@ -217,6 +234,16 @@ class VibrationBucklingBackend:
         np.savetxt(os.path.join(results_dir, f"{self.job_name}_frequencies.txt"), frequencies, fmt="%.6f")
         np.savetxt(os.path.join(results_dir, f"{self.job_name}_mode_shapes.txt"), mode_shapes, fmt="%.6f")
         logger.info("Saved modal results.")
+        mr = "primary_results/modal_results"
+        write_primary_artifact_manifest(
+            self.results_root,
+            family="eigen_vibration",
+            job_name=self.job_name,
+            artifacts={
+                "frequencies_hz": f"{mr}/{self.job_name}_frequencies.txt",
+                "mode_shapes": f"{mr}/{self.job_name}_mode_shapes.txt",
+            },
+        )
 
     def _save_buckling_results(self, load_factors: np.ndarray, mode_shapes: np.ndarray) -> None:
         results_dir = os.path.join(self.primary_results_dir, "modal_results")
@@ -232,6 +259,16 @@ class VibrationBucklingBackend:
             fmt="%.8e",
         )
         logger.info("Saved linear buckling results (load factors and modes).")
+        mr = "primary_results/modal_results"
+        write_primary_artifact_manifest(
+            self.results_root,
+            family="buckling",
+            job_name=self.job_name,
+            artifacts={
+                "buckling_load_factors": f"{mr}/{self.job_name}_buckling_load_factors.txt",
+                "buckling_mode_shapes": f"{mr}/{self.job_name}_buckling_mode_shapes.txt",
+            },
+        )
 
     def _instantiate_nonlinear_prestress_twins(self, twin_root_dir: str):
         """
@@ -269,6 +306,7 @@ class VibrationBucklingBackend:
         job_results_dir: str,
         num_modes: int,
         buck_cfg: dict,
+        monitor: RuntimeMonitorTelemetry | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Prestress via linear static solve, assemble :math:`\\mathbf{K}_g`, solve buckling eigenpairs."""
         prestress = str(buck_cfg.get("buckling_prestress", "linear_static")).lower()
@@ -282,6 +320,10 @@ class VibrationBucklingBackend:
                 "modal.buckling_prestress must be 'linear_static' or 'nonlinear_static' "
                 "(reference prestress for K_sigma)."
             )
+
+        def _stage(name: str):
+            return monitor.stage(name) if monitor is not None else nullcontext()
+
         eo = self.settings.get("element_objects")
         fo = self.settings.get("force_objects")
         if eo is None or fo is None:
@@ -313,8 +355,9 @@ class VibrationBucklingBackend:
             if pd is not None:
                 static_runner.prescribed_displacements = pd
 
-            static_runner.solve_linear_system_only(force_scale=load_scale)
-            U_global = static_runner.U_global
+            with _stage("LinearStaticPrestress"):
+                static_runner.solve_linear_system_only(force_scale=load_scale)
+                U_global = static_runner.U_global
         else:
             use_twins = bool(buck_cfg.get("buckling_nonlinear_prestress_twins", False))
             nl_elements_run = list(self.elements)
@@ -363,26 +406,37 @@ class VibrationBucklingBackend:
             if pd is not None:
                 nl_runner.prescribed_displacements = pd
 
-            nl_runner.run()
-            if not getattr(nl_runner, "newton_converged", False):
-                raise RuntimeError(
-                    "Nonlinear prestress for buckling did not converge (Newton). "
-                    "Adjust [Newton] / [Nonlinear] settings, loads, or boundary conditions."
-                )
-            U_global = nl_runner.U_global
+            with _stage("NonlinearStaticPrestress"):
+                nl_runner.run()
+                if not getattr(nl_runner, "newton_converged", False):
+                    raise RuntimeError(
+                        "Nonlinear prestress for buckling did not converge (Newton). "
+                        "Adjust [Newton] / [Nonlinear] settings, loads, or boundary conditions."
+                    )
+                U_global = nl_runner.U_global
         self._buckling_prestress_u = np.asarray(U_global, dtype=np.float64).copy()
         total_dof = self._total_dof()
-        Kg_global = assemble_global_geometric_stiffness(
-            list(self.elements), U_global, total_dof
-        )
+
+        with _stage("AssembleBucklingGeometricStiffness"):
+            Kg_global = AssembleBucklingGeometricStiffness(
+                elements=list(self.elements),
+                U_global=U_global,
+                total_dof=total_dof,
+                job_results_dir=job_results_dir,
+            ).run()
         prescribed = self.settings.get("prescribed_displacement_dict")
-        K_mod, Kg_mod, bc_dofs = apply_buckling_boundary_conditions(
-            K_global, Kg_global, prescribed_displacements=prescribed, fixed_dofs=None
-        )
-        log_spectral_diagnostics(K_mod, Kg_mod, job_results_dir)
-        lambdas, modes = solve_linear_buckling_eigenpairs(
-            K_mod, Kg_mod, num_modes, constrained_dofs=bc_dofs
-        )
+        buck_fixed = self._resolved_penalty_fixed_dofs()
+        with _stage("ModifyBucklingGlobalMatrices"):
+            K_mod, Kg_mod, bc_dofs = ModifyBucklingGlobalMatrices(
+                job_results_dir=job_results_dir,
+                prescribed_displacements=prescribed,
+                fixed_dofs=buck_fixed,
+            ).run(K_global, Kg_global)
+        with _stage("SolveLinearBucklingEigenpairs"):
+            lambdas, modes = SolveLinearBucklingEigenpairs(
+                num_modes=num_modes,
+                job_results_dir=job_results_dir,
+            ).run(K_mod, Kg_mod, bc_dofs)
         return lambdas, modes
 
     # -------------------------------------------------------------------------
@@ -469,21 +523,91 @@ class VibrationBucklingBackend:
     # 6) COMPUTE SECONDARY RESULTS (PLACEHOLDERS)
     # -------------------------------------------------------------------------
 
-    def _compute_secondary_results(self, frequencies, mode_shapes):
-        """Compute secondary modal results (placeholder)."""
-        self.secondary_results["global"]["modal_participation"] = np.array([0.0])
-        logger.info("Computed secondary modal results.")
+    def _assemble_modal_reference_nodal_load(self) -> np.ndarray | None:
+        """Global reference load from element ``F_e`` (same scatter as transient); no static imports."""
+        fo = self.settings.get("force_objects")
+        if fo is None:
+            return None
+        el_list = list(np.asarray(self.elements, dtype=object).ravel())
+        fos = list(np.asarray(fo, dtype=object).ravel())
+        if len(fos) != len(el_list):
+            logger.warning("force_objects length does not match elements; skipping modal load assembly")
+            return None
+        total = self._total_dof()
+        Fe_list = [np.asarray(obj.F_e).ravel() for obj in fos]
+        jrd = os.path.join(self.primary_results_dir, "modal_force_assembly")
+        return assemble_global_force_vector(el_list, Fe_list, total, job_results_dir=jrd)
+
+    def _compute_secondary_results(self, frequencies, mode_shapes, M_mod=None):
+        """
+        Modal secondary metrics: generalized mass ``φ_jᵀ M_mod φ_j`` per mode.
+
+        These are not modal participation factors (which require a chosen static load
+        pattern); they quantify the norm of each mode in the constrained mass matrix.
+        """
+        del frequencies  # reserved for frequency-weighted extensions
+        phi = np.asarray(mode_shapes, dtype=np.float64)
+        if phi.ndim != 2 or M_mod is None:
+            self.secondary_results["global"]["modal_generalized_mass"] = np.array([0.0])
+            self.secondary_results["global"]["modal_load_participation"] = np.array([0.0])
+            logger.info("Secondary modal metrics skipped (missing M_mod or invalid mode_shapes).")
+            return
+        n_modes = phi.shape[1]
+        masses = np.empty(n_modes, dtype=np.float64)
+        for j in range(n_modes):
+            v = phi[:, j]
+            masses[j] = float(np.dot(v, M_mod @ v))
+
+        F_ref = self._assemble_modal_reference_nodal_load()
+        participation = np.zeros(n_modes, dtype=np.float64)
+        if F_ref is not None and np.max(np.abs(F_ref)) > 1e-18:
+            Fv = np.asarray(F_ref, dtype=np.float64).ravel()
+            for j in range(n_modes):
+                mjj = max(masses[j], 1e-30)
+                ph = phi[:, j] / np.sqrt(mjj)
+                participation[j] = abs(float(np.dot(ph, Fv)))
+
+        self.secondary_results["global"]["modal_generalized_mass"] = masses
+        self.secondary_results["global"]["modal_load_participation"] = participation
+        ed = self.settings.get("element_dictionary")
+        dof_pn = 7 if ed is not None and mesh_uses_warping_dof(ed) else 6
+        mez = modal_effective_mass_fraction_z(M_mod, phi, dof_per_node=dof_pn)
+        if mez is not None:
+            self.secondary_results["global"]["modal_effective_mass_fraction_z"] = mez
+        else:
+            self.secondary_results["global"].pop("modal_effective_mass_fraction_z", None)
+        logger.info(
+            "Computed modal generalized mass and load participation for %s mode(s).", n_modes
+        )
 
     def _save_secondary_results(self):
         """Save secondary modal results."""
         results_dir = os.path.join(self.primary_results_dir, "modal_results")
         os.makedirs(results_dir, exist_ok=True)
-        np.savetxt(
-            os.path.join(results_dir, f"{self.job_name}_modal_participation.txt"),
-            self.secondary_results["global"]["modal_participation"],
-            fmt="%.6f",
+        masses = self.secondary_results["global"].get(
+            "modal_generalized_mass", np.array([0.0])
         )
-        logger.info("Saved secondary modal results.")
+        np.savetxt(
+            os.path.join(results_dir, f"{self.job_name}_modal_generalized_mass.txt"),
+            masses,
+            fmt="%.6e",
+        )
+        part = self.secondary_results["global"].get(
+            "modal_load_participation", np.zeros_like(masses)
+        )
+        np.savetxt(
+            os.path.join(results_dir, f"{self.job_name}_modal_load_participation.txt"),
+            np.asarray(part, dtype=np.float64).ravel(),
+            fmt="%.6e",
+        )
+        mez = self.secondary_results["global"].get("modal_effective_mass_fraction_z")
+        if mez is not None:
+            np.savetxt(
+                os.path.join(results_dir, f"{self.job_name}_modal_effective_mass_fraction_z.txt"),
+                np.asarray(mez, dtype=np.float64).ravel(),
+                fmt="%.6e",
+            )
+        logger.info("Saved secondary modal results (generalized mass and load participation).")
 
     # -------------------------------------------------------------------------
     # Vibration / buckling analysis bodies (shared with Eigen/Buckling runners)
@@ -492,18 +616,31 @@ class VibrationBucklingBackend:
     def _run_vibration_analysis(self) -> None:
         eigen_cfg = effective_eigen_config(self.simulation_settings)
         num_modes = int(eigen_cfg["num_modes"])
+        dense_th = int(eigen_cfg.get("dense_threshold", 512))
         job_results_dir = self.primary_results_dir
-        K_global, M_global = self._assemble_global_matrices(job_results_dir)
-        K_mod, M_mod, _ = self._modify_global_matrices(K_global, M_global, job_results_dir)
-        frequencies, mode_shapes = self.solve_modal_vibration(
-            K_mod, M_mod, num_modes, job_results_dir
-        )
+        monitor = RuntimeMonitorTelemetry(job_results_dir=self.diagnostics_dir)
+        with monitor.stage("PrepareSpectralLocalMatrices"):
+            ke_list, me_list = PrepareSpectralLocalMatrices(
+                element_stiffness_matrices=self.element_stiffness_matrices,
+                element_mass_matrices=self.element_mass_matrices,
+                job_results_dir=job_results_dir,
+            ).run()
+        with monitor.stage("AssembleSpectralGlobalSystem"):
+            K_global, M_global = self._assemble_global_matrices(
+                job_results_dir, ke_list=ke_list, me_list=me_list
+            )
+        with monitor.stage("ModifySpectralGlobalSystem"):
+            K_mod, M_mod, _ = self._modify_global_matrices(K_global, M_global, job_results_dir)
+        with monitor.stage("SolveGeneralizedEigenproblem"):
+            frequencies, mode_shapes = self.solve_modal_vibration(
+                K_mod, M_mod, num_modes, job_results_dir, dense_threshold=dense_th
+            )
         self._save_primary_results(frequencies, mode_shapes)
         if self._modal_post_processing_enabled():
             U_snap = self._snapshot_u_vibration(mode_shapes)
             self._run_secondary_tertiary_from_formulation_cache(U_snap)
         else:
-            self._compute_secondary_results(frequencies, mode_shapes)
+            self._compute_secondary_results(frequencies, mode_shapes, M_mod=M_mod)
             self._save_secondary_results()
         logger.info("Modal simulation completed successfully -> %s", self.results_root)
 
@@ -511,10 +648,21 @@ class VibrationBucklingBackend:
         buck_cfg = effective_buckling_config(self.simulation_settings)
         num_modes = int(buck_cfg["num_modes"])
         job_results_dir = self.primary_results_dir
-        K_global, M_global = self._assemble_global_matrices(job_results_dir)
-        lambdas, mode_shapes = self._run_linear_buckling(
-            K_global, job_results_dir, num_modes, buck_cfg
-        )
+        monitor = RuntimeMonitorTelemetry(job_results_dir=self.diagnostics_dir)
+        with monitor.stage("PrepareSpectralLocalMatrices"):
+            b_ke, b_me = PrepareSpectralLocalMatrices(
+                element_stiffness_matrices=self.element_stiffness_matrices,
+                element_mass_matrices=self.element_mass_matrices,
+                job_results_dir=job_results_dir,
+            ).run()
+        with monitor.stage("AssembleSpectralGlobalSystem"):
+            K_global, M_global = self._assemble_global_matrices(
+                job_results_dir, ke_list=b_ke, me_list=b_me
+            )
+        with monitor.stage("BucklingPrestress"):
+            lambdas, mode_shapes = self._run_linear_buckling(
+                K_global, job_results_dir, num_modes, buck_cfg, monitor=monitor
+            )
         self._save_buckling_results(lambdas, mode_shapes)
         self.secondary_results["global"]["buckling_load_factors"] = lambdas
         if self._modal_post_processing_enabled():

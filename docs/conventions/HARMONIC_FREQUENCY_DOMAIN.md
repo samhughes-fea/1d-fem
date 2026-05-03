@@ -94,6 +94,11 @@ Under **`primary_results/harmonic_results/`**:
 
 Optional secondary/tertiary outputs follow modal/dynamic when **`run_secondary_tertiary_harmonic`** is enabled (snapshot driven by **`harmonic_secondary_tertiary_displacement_component`**; **`harmonic_secondary_tertiary_all_frequencies`** exports per column).
 
+### Primary output schema (v1)
+
+- **`logs/primary_artifacts.json`** (when the job completes) lists the five primary text files above under **`artifacts`** with paths **relative to** the job results root. Field **`schema_version`** is **`1.0`**; **`family`** is **`harmonic`**. Downstream tools should treat column order as identical to the frequency vector in **`frequencies_hz`**.
+- Helpers for a future **native complex stress** path live in [`processing/harmonic/complex_displacement_recovery.py`](../../processing/harmonic/complex_displacement_recovery.py) (`static_recovery_pair_from_complex_column`).
+
 ## Roadmap (next)
 
 Status of the follow-on track (after the ζ tables, mode reuse, phased loads/BCs, selective post indices, **`FEM_HARMONIC_VERIFY_A_PATTERN`**, and modal dense-fallback work already in tree):
@@ -104,9 +109,9 @@ Status of the follow-on track (after the ζ tables, mode reuse, phased loads/BCs
 | 2 | **Stress harmonics in post** | **Partial —** **`[PostProcessing] harmonic_secondary_tertiary_displacement_component`** = **`real`** (default) \| **`imag`** \| **`both`** drives secondary/tertiary snapshots from **`real(U)`** / **`imag(U)`** (see **`RESULTS_DESIGN.md`**). |
 | 3 | **Large-n modal eigen** | **Partial —** shared **`processing/eigen/smallest_generalized_eigenpairs.py`** (**SM** \(\rightarrow\) shift-invert \(\rightarrow\) dense fallback) powers harmonic **`undamped_natural_modes`** and **`VibrationBucklingBackend.solve_modal_vibration`**. |
 
-## Relation to §2 and §3
+## Relation to Section 2 and Section 3
 
-- **§2 eigen:** Undamped modes diagnose resonance; harmonic sweep gives forced response at arbitrary \(\omega\).
-- **§3 transient:** Time-domain Newmark; harmonic is **frequency-domain** steady-state sinusoidal response (different physics hook).
+- **Section 2 eigen:** Undamped modes diagnose resonance; harmonic sweep gives forced response at arbitrary \(\omega\).
+- **Section 3 transient:** Time-domain Newmark; harmonic is **frequency-domain** steady-state sinusoidal response (different physics hook).
 
-Use **direct frequency sweep** when full **M**, **C**, **K** matrices are required; use **`use_modal_superposition`** when a truncated modal basis is acceptable for performance (same BC metric as §2 assembly).
+Use **direct frequency sweep** when full **M**, **C**, **K** matrices are required; use **`use_modal_superposition`** when a truncated modal basis is acceptable for performance (same BC metric as Section 2 assembly).

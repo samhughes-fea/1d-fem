@@ -102,6 +102,51 @@ def test_dynamic_secondary_tertiary(strict_shape_env):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_dynamic_multi_snapshot_secondary_tertiary(strict_shape_env):
+    """Two time indices produce separate dynamic_post subtrees."""
+    from simulation_runner.transient.dynamic_simulation import DynamicSimulationRunner
+
+    settings, tmp, _ = _build_cantilever_modal_case(8, 2.5, 210e9, 1.0)
+    eos = list(np.asarray(settings["element_objects"], dtype=object).ravel())
+    elements = list(np.asarray(settings["elements"], dtype=object).ravel())
+    element_stiffness_matrices_dyn = np.asarray(
+        [_element_matrix_to_coo(o.K_e) for o in eos], dtype=object
+    )
+    mass_objs = [e.element_mass_matrix() for e in elements]
+    element_mass_matrices_dyn = np.asarray(
+        [_element_matrix_to_coo(mo.M_e) for mo in mass_objs], dtype=object
+    )
+    dyn_settings = {
+        "elements": settings["elements"],
+        "mesh_dictionary": settings["mesh_dictionary"],
+        "grid_dictionary": settings["grid_dictionary"],
+        "element_dictionary": settings["element_dictionary"],
+        "material_dictionary": settings["material_dictionary"],
+        "section_dictionary": settings["section_dictionary"],
+        "point_load_array": settings["point_load_array"],
+        "distributed_load_array": settings["distributed_load_array"],
+        "element_stiffness_matrices": element_stiffness_matrices_dyn,
+        "element_mass_matrices": element_mass_matrices_dyn,
+        "element_objects": settings["element_objects"],
+        "force_objects": settings["force_objects"],
+        "job_results_dir": settings["job_results_dir"],
+        "simulation_settings": {
+            "dynamic": {"time_step": 0.01, "end_time": 0.05},
+            "post_processing": {
+                "run_secondary_tertiary_dynamic": True,
+                "dynamic_time_indices": "0, -1",
+            },
+        },
+    }
+    try:
+        DynamicSimulationRunner(settings=dyn_settings, job_name="dyn_multi_pp").run()
+        root = Path(settings["job_results_dir"])
+        assert (root / "secondary_results" / "dynamic_post" / "t_000000" / "secondary_summary.csv").is_file()
+        assert (root / "secondary_results" / "dynamic_post" / "t_000005" / "secondary_summary.csv").is_file()
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def test_parse_post_processing_section(tmp_path):
     from pre_processing.parsing.simulation_settings_parser import parse_simulation_settings
 
@@ -117,6 +162,7 @@ def test_parse_post_processing_section(tmp_path):
                 "modal_mode_index = 1",
                 "buckling_displacement = prestress",
                 "dynamic_time_index = -2",
+                "dynamic_time_indices = 0, 1",
             ]
         ),
         encoding="utf-8",
@@ -128,3 +174,4 @@ def test_parse_post_processing_section(tmp_path):
     assert pp["modal_mode_index"] == 1
     assert pp["buckling_displacement"] == "prestress"
     assert pp["dynamic_time_index"] == -2
+    assert pp["dynamic_time_indices"] == [0, 1]
