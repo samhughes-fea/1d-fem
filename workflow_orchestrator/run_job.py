@@ -465,8 +465,8 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
         step_start = time.time()
 
         if solver_type == "static":
-            from simulation_runner.static.static_simulation import StaticSimulationRunner
-            runner = StaticSimulationRunner(
+            from simulation_runner.static.linear_static_simulation import LinearStaticSimulationRunner
+            runner = LinearStaticSimulationRunner(
                 elements                   = all_elements,
                 grid_dictionary            = grid_dictionary,
                 element_dictionary         = element_dictionary,

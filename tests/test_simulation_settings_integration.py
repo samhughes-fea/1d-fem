@@ -38,8 +38,8 @@ Static
             os.unlink(temp_path)
     
     def test_backward_compatibility_none(self):
-        """Test that None simulation_settings is handled (via defaults in StaticSimulationRunner)."""
-        # This is tested indirectly through StaticSimulationRunner
+        """Test that None simulation_settings is handled (via defaults in LinearStaticSimulationRunner)."""
+        # This is tested indirectly through LinearStaticSimulationRunner
         # The constructor should accept None and use defaults
         pass
     

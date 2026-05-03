@@ -117,11 +117,16 @@ class ComputeSectionForce:
 
 class ComputeNodalSectionForce:
     """
-    Projects Gaussian section forces to nodal values using shape function
-    extrapolation or averaging schemes.
+    Projects Gaussian section forces to nodal values using simple **averaging**
+    (``method='average'``) over Gauss points per element, then averaging across
+    elements at shared nodes.
 
-    This is useful for visualization and post-processing at nodes rather
-    than at integration points.
+    For **shape-function-consistent** projection (including boundary-aware nodal
+    values), use :class:`~processing.static.results.compute_tertiary.nodal_section_forces_projector.NodalSectionForcesProjector`
+    in the tertiary pipeline, which writes ``nodal_section_forces.csv``.
+
+    ``method='extrapolate'`` is not implemented here (legacy placeholder); use
+    the projector above.
     """
 
     def __init__(
@@ -193,10 +198,12 @@ class ComputeNodalSectionForce:
 
     def _extrapolate_projection(self) -> np.ndarray:
         """
-        Extrapolate from Gauss points to nodes using shape functions.
-        This is more accurate but requires knowing the shape functions.
+        **Intentionally not implemented.** Shape-function-consistent extrapolation belongs in
+        :class:`~processing.static.results.compute_tertiary.nodal_section_forces_projector.NodalSectionForcesProjector`
+        (formulation cache); this helper only supports ``method='average'``.
         """
-        # Placeholder for extrapolation method
-        # Would require access to element shape functions
-        raise NotImplementedError("Extrapolation method not yet implemented")
+        raise NotImplementedError(
+            "ComputeNodalSectionForce.extrapolate is not implemented. "
+            "Use NodalSectionForcesProjector (see nodal_section_forces_projector.py)."
+        )
 

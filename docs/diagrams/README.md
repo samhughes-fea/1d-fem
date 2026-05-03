@@ -14,8 +14,8 @@ Diagrams in this folder document the finite element model pipeline: job orchestr
 ## Main entry points
 
 - **Job orchestration:** `workflow_orchestrator/run_job.py` — `main()` discovers jobs under `jobs/`, creates result dirs, runs `process_job()` per job (optionally in parallel).
-- **Per-job pipeline:** `workflow_orchestrator/run_job.py` — `process_job()` does parsing → element instantiation → K_e/F_e computation → selects static or modal runner → `runner.run()`.
-- **Static simulation:** `simulation_runner/static/static_simulation.py` — `StaticSimulationRunner.run()` executes the full linear-static workflow (see [static_simulation_flow.md](static_simulation_flow.md)).
-- **Modal simulation:** `simulation_runner/modal/modal_simulation.py` — `ModalSimulationRunner.run()` assembles K/M, applies BCs, solves eigenvalue problem.
+- **Per-job pipeline:** `workflow_orchestrator/run_job.py` — `process_job()` does parsing → element instantiation → K_e/F_e computation → selects the runner for `simulation_settings.type` → `runner.run()`.
+- **Static simulation:** [`simulation_runner/static/linear_static_simulation.py`](../../simulation_runner/static/linear_static_simulation.py) — `LinearStaticSimulationRunner.run()` executes the full linear-static workflow (see [static_simulation_flow.md](static_simulation_flow.md)).
+- **Eigen / buckling:** `simulation_runner/eigen/eigen_simulation.py` and `simulation_runner/buckling/buckling_simulation.py` — shared `VibrationBucklingBackend` in `simulation_runner/spectral/vibration_buckling_backend.py`.
 
 Diagrams use [Mermaid](https://mermaid.js.org/) and render in GitHub and most Markdown viewers.

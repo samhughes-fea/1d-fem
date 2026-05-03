@@ -36,14 +36,15 @@ from processing.static.results.containers.container_hopper import PrimaryResultS
 # Results: compute (orchestrators + formulation)
 from processing.static.results.compute_primary.element_formulation_processor import ElementFormulationProcessor
 from processing.static.results.compute_primary.primary_results_orchestrator import PrimaryResultsOrchestrator
-from processing.static.results.compute_secondary.secondary_results_orchestrator import SecondaryResultsOrchestrator
-from processing.static.results.compute_tertiary.tertiary_results_orchestrator import TertiaryResultsOrchestrator
-
 # Results: save (persist to disk)
 from processing.static.results.save_primary_container import SavePrimaryResults, SavePrimaryResultsSummary
 from processing.static.results.save_index_map_container import SaveIndexMaps
-from processing.static.results.save_secondary_container import SaveSecondaryResults, SaveSecondaryResultsSummary
-from processing.static.results.save_tertiary_container import SaveTertiaryResults, SaveTertiaryResultsSummary
+from processing.static.results.postprocess_secondary_tertiary import (
+    compute_secondary_result_set,
+    compute_tertiary_result_set,
+    save_secondary_outputs,
+    save_tertiary_outputs,
+)
 
 # Configure module-level logger
 logger = logging.getLogger(__name__)
@@ -51,7 +52,9 @@ logger = logging.getLogger(__name__)
 
 class LinearStaticSimulationRunner:
     """
-    Handles linear static finite element analysis (one-shot solve K U = F).
+    Linear static finite element analysis (one-shot solve K u = f).
+
+    Full jobs call :meth:`run`. Buckling prestress calls :meth:`solve_linear_system_only`.
     """
 
     def __init__(
@@ -71,6 +74,7 @@ class LinearStaticSimulationRunner:
     ):
         from processing.static.results.containers import (
             FormulationResultSet,
+            strict_shape_functions_validation_from_env,
             validate_shape_functions_populated,
         )
 
@@ -91,7 +95,7 @@ class LinearStaticSimulationRunner:
         validate_shape_functions_populated(
             self.formulation_cache.element_objects,
             self.formulation_cache.force_objects,
-            strict=False,
+            strict=strict_shape_functions_validation_from_env(),
         )
 
         # Extract matrices/vectors for backward compatibility with assembly
@@ -143,22 +147,17 @@ class LinearStaticSimulationRunner:
         else:
             raise KeyError("grid_dictionary must contain an 'ids' array of node IDs")
 
-        # Support 6- or 7-DOF per node (e.g. warping elements): infer from instances or K_e size.
-        _el_objs = list(np.asarray(element_objects, dtype=object).ravel())
+        from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
 
-        def _infer_dof_per_node(obj):
-            if hasattr(obj, "dof_per_node"):
-                return int(obj.dof_per_node)
-            ke = getattr(obj, "K_e", None)
-            if ke is not None:
-                n = int(np.asarray(ke).shape[0])
-                if n > 0 and n % 2 == 0:
-                    return n // 2
-            return 6
-
-        dof_per_node = max(_infer_dof_per_node(obj) for obj in _el_objs) if len(_el_objs) > 0 else 6
-        self.total_dof = len(self.node_ids) * dof_per_node
-        logger.debug("Total DOFs initialised: %d (nodes %d × %d)", self.total_dof, len(self.node_ids), dof_per_node)
+        _dpn = 7 if mesh_uses_warping_dof(self.element_dictionary) else 6
+        self.dof_per_node = _dpn
+        self.total_dof = len(self.node_ids) * _dpn
+        logger.debug(
+            "Total DOFs initialised: %d (nodes %d × %d)",
+            self.total_dof,
+            len(self.node_ids),
+            _dpn,
+        )
 # -----------------------------------------------------------------------
 
         # Extract simulation settings with defaults
@@ -500,7 +499,7 @@ class LinearStaticSimulationRunner:
         disable_scaling : bool, optional
             Disable row/column scaling (default False).
         load_increment_index, newton_iter, load_factor : optional
-            For inner-solve trace; linear static typically omits (None).
+            Nonlinear runs pass these for inner-solve logs; linear static leaves them None.
 
         Returns
         -------
@@ -535,7 +534,7 @@ class LinearStaticSimulationRunner:
         # Cache into self
         self.U_cond = U_cond
 
-        # Cache map and results to simulation runner results container
+        # Cache map and results to simulation_runner results container
         self.primary_results_set.global_results.U_cond = U_cond
 
         logger.info("✅ Condensed system successfully solved")
@@ -702,31 +701,17 @@ class LinearStaticSimulationRunner:
         """Compute and save secondary results (stresses, strains, etc.)."""
         logger.info("📈 Computing secondary results using cached formulation data...")
 
-        # Compute secondary results using cached Gauss point data
-        orchestrator = SecondaryResultsOrchestrator(
+        self.secondary_results_set = compute_secondary_result_set(
             elements=self.elements,
             grid_dictionary=self.grid_dictionary,
             element_dictionary=self.element_dictionary,
             material_dictionary=self.material_dictionary,
             section_dictionary=self.section_dictionary,
-            global_displacement=self.U_global,
+            U_global=self.U_global,
             formulation_cache=self.formulation_cache,
-            job_results_dir=self.secondary_results_dir
+            job_results_dir=self.secondary_results_dir,
         )
-        
-        self.secondary_results_set = orchestrator.compute_all()
-        
-        # Save secondary results (all resolutions)
-        saver = SaveSecondaryResults(
-            secondary_results=self.secondary_results_set,
-            save_dir=self.secondary_results_dir,
-        )
-        saver.save_all()
-
-        SaveSecondaryResultsSummary(
-            secondary_results=self.secondary_results_set,
-            save_dir=self.secondary_results_dir,
-        ).save()
+        save_secondary_outputs(self.secondary_results_set, self.secondary_results_dir)
 
         logger.info("✅ Secondary results computed and saved")
 
@@ -737,25 +722,14 @@ class LinearStaticSimulationRunner:
         """Compute and save tertiary results (section forces, principal stresses, etc.)."""
         logger.info("📊 Computing tertiary results...")
 
-        orchestrator = TertiaryResultsOrchestrator(
-            secondary_results=self.secondary_results_set,
+        self.tertiary_results = compute_tertiary_result_set(
+            secondary_results_set=self.secondary_results_set,
             formulation_cache=self.formulation_cache,
             element_dictionary=self.element_dictionary,
             grid_dictionary=self.grid_dictionary,
-            job_results_dir=self.tertiary_results_dir,
+            tertiary_results_dir=self.tertiary_results_dir,
         )
-        self.tertiary_results = orchestrator.compute()
-
-        # Save tertiary results (all resolutions: gaussian + elemental)
-        SaveTertiaryResults(
-            tertiary_results=self.tertiary_results,
-            save_dir=self.results_root,
-        ).save_all()
-
-        SaveTertiaryResultsSummary(
-            tertiary_results=self.tertiary_results,
-            save_dir=self.results_root,
-        ).save()
+        save_tertiary_outputs(self.tertiary_results, self.results_root)
 
         logger.info("✅ Tertiary results computed and saved")
 
@@ -887,33 +861,22 @@ class LinearStaticSimulationRunner:
         try:
             self.solve_linear_system_only(force_scale=1.0)
 
-            # -----------------------------------------------------------------
-            # 6  Primary results (includes disassembly & CSV export)
-            # -----------------------------------------------------------------
             with self.monitor.stage("ComputePrimaryResults"):
                 self.compute_primary_results()
-            
-            # -----------------------------------------------------------------
-            # 6.5 Save formulation cache
-            # -----------------------------------------------------------------
+
             with self.monitor.stage("SaveFormulationCache"):
                 from processing.static.results.save_formulation_container import SaveFormulationData
+
                 saver = SaveFormulationData(
                     formulation_cache=self.formulation_cache,
                     save_dir=self.primary_results_dir,
-                    save_gauss_data=False  # Can be enabled for debugging
+                    save_gauss_data=False,
                 )
                 saver.save_all()
 
-            # -----------------------------------------------------------------
-            # 7  Secondary (derived) results
-            # -----------------------------------------------------------------
             with self.monitor.stage("ComputeSecondaryResults"):
                 self.compute_secondary_results()
 
-            # -----------------------------------------------------------------
-            # 8  Tertiary (design/verification) results
-            # -----------------------------------------------------------------
             with self.monitor.stage("ComputeTertiaryResults"):
                 self.compute_tertiary_results()
 
@@ -922,3 +885,17 @@ class LinearStaticSimulationRunner:
         except Exception as exc:
             logger.exception("💥 Simulation failed with critical error")
             raise RuntimeError("Simulation aborted") from exc
+
+
+def __getattr__(name: str):
+    """Backward compatibility: ``StaticSimulationRunner`` → :class:`LinearStaticSimulationRunner`."""
+    if name == "StaticSimulationRunner":
+        import warnings
+
+        warnings.warn(
+            "StaticSimulationRunner is deprecated; use LinearStaticSimulationRunner.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return LinearStaticSimulationRunner
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

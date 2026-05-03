@@ -1,6 +1,6 @@
 # Static simulation flow
 
-Stage-by-stage linear-static workflow executed by `StaticSimulationRunner.run()` in `simulation_runner/static/static_simulation.py`. Each stage maps to operations in `processing/static/operations/` and result computation in `processing/static/results/`.
+Stage-by-stage linear-static workflow executed by `LinearStaticSimulationRunner.run()` in [`simulation_runner/static/linear_static_simulation.py`](../../simulation_runner/static/linear_static_simulation.py). The solve path through reconstruction lives in `solve_linear_system_only()` (also used for linear buckling prestress); `run()` calls that method then primary / formulation cache / secondary / tertiary results. Each stage maps to operations in `processing/static/operations/` and result computation in `processing/static/results/`.
 
 ```mermaid
 flowchart TB

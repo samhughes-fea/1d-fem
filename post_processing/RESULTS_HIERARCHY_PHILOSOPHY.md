@@ -129,7 +129,7 @@ secondary_results/
 self.secondary_dir = self.save_dir / "secondary_results"
 ```
 
-**Problem**: `save_dir` is already `secondary_results_dir` (set in `static_simulation.py:83`), so this creates:
+**Problem**: `save_dir` is already `secondary_results_dir` (set in `linear_static_simulation.py` when constructing output paths), so this creates:
 - `secondary_results_dir` = `{job_results_dir}/secondary_results`
 - `self.secondary_dir` = `{job_results_dir}/secondary_results/secondary_results`
 

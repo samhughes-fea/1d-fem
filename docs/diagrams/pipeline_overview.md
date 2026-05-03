@@ -23,8 +23,8 @@ flowchart TB
     end
 
     subgraph runner [Simulation type]
-        Static["StaticSimulationRunner.run()"]
-        Modal["ModalSimulationRunner.run()"]
+        Static["LinearStaticSimulationRunner.run()"]
+        NonModal["EigenSimulationRunner / BucklingSimulationRunner /\nDynamicSimulationRunner / HarmonicSimulationRunner / …"]
     end
 
     subgraph results [Results]
@@ -43,14 +43,9 @@ flowchart TB
     Parse --> Factory
     Factory --> KFe
     KFe --> Static
-    KFe --> Modal
+    KFe --> NonModal
     Static --> ResultDir
-    Modal --> ResultDir
-```
-
-No change needed — both runners can produce results. Continuing with the static simulation flow.
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
-TodoWrite
+    NonModal --> ResultDir
     ResultDir --> Graphical
     ResultDir --> Verification
     ResultDir --> Tensor
@@ -59,6 +54,6 @@ TodoWrite
 - **Job discovery:** `main()` finds all `job_*` directories under `jobs/`, creates a result directory per job, and runs `process_job()` (optionally in parallel).
 - **Parsing:** Element, grid, material, section, simulation settings, and optional point/distributed loads and prescribed displacements are read from the job directory.
 - **Element phase:** `ElementFactory` builds elements; then element stiffness matrices and force vectors are computed (parallel or sequential per `simulation_settings.parallel`).
-- **Simulation:** Branch by `simulation_settings.type` — `"static"` runs `StaticSimulationRunner.run()`, `"modal"` runs `ModalSimulationRunner.run()`.
+- **Simulation:** Branch by `simulation_settings.type` (canonical: `static`, `eigen`, `transient`, `harmonic`, `buckling`; legacy `[Type] modal` / `dynamic` normalize in the parser). See [simulation_runner/README.md](../../simulation_runner/README.md).
 - **Results:** Written under `post_processing/results/{case}_{timestamp}_pid{pid}_{uid}/` (primary_results, secondary_results, tertiary_results, maps, logs, etc.).
 - **Post-processing:** Separate scripts under `post_processing/` read these results (graphical, verification, tensor visualisers).

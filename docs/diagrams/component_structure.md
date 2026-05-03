@@ -24,14 +24,14 @@ flowchart TB
         StaticOps["static/operations/\nPrepareLocalSystem, AssembleGlobalSystem,\nModifyGlobalSystem, CondenseModifiedSystem,\nSolveCondensedSystem, ReconstructGlobalSystem,\nDisassembleGlobalSystem"]
         StaticResults["static/results/\ncompute_primary, compute_secondary, compute_tertiary,\ncontainers, save_*_container"]
         StaticDiag["static/diagnostics/"]
-        ModalProc["modal/\nassembly, boundary_conditions"]
+        EigenProc["eigen/\nassembly, boundary_conditions"]
         DynamicProc["dynamic/\nassembly, boundary_conditions,\ntime_integration"]
     end
 
     subgraph runner [simulation_runner]
-        StaticRunner["static/StaticSimulationRunner"]
-        ModalRunner["modal/ModalSimulationRunner"]
-        DynamicRunner["dynamic/DynamicSimulationRunner"]
+        StaticRunner["static/LinearStaticSimulationRunner"]
+        EigenRunner["eigen/EigenSimulationRunner\nbuckling/BucklingSimulationRunner"]
+        TransientRunner["transient/DynamicSimulationRunner"]
     end
 
     subgraph post [post_processing]
@@ -43,8 +43,8 @@ flowchart TB
     RunJob --> Parsing
     RunJob --> ElementLib
     RunJob --> StaticRunner
-    RunJob --> ModalRunner
-    RunJob --> DynamicRunner
+    RunJob --> EigenRunner
+    RunJob --> TransientRunner
 
     ElementLib --> Bar
     ElementLib --> Truss
@@ -55,8 +55,8 @@ flowchart TB
     StaticRunner --> StaticOps
     StaticRunner --> StaticResults
     StaticRunner --> StaticDiag
-    ModalRunner --> ModalProc
-    DynamicRunner --> DynamicProc
+    EigenRunner --> EigenProc
+    TransientRunner --> DynamicProc
 
     StaticResults --> post
 ```
@@ -71,7 +71,8 @@ flowchart TB
 | **pre_processing/mesh_library** | Mesh generation variants (e.g. create_point_load_mesh_variants, create_distributed_mesh_variants). |
 | **pre_processing/load_library** | Load schemes (distributed loads, equivalent line loads, etc.). |
 | **processing/static** | Operations (prepare, assemble, modify, condense, solve, reconstruct, disassemble); results (primary, secondary, tertiary); containers; diagnostics. |
-| **processing/modal** | Global assembly and boundary conditions for modal analysis (no imports from processing/static). |
-| **processing/dynamic** | Global assembly, boundary conditions, and time integration for dynamic analysis (no imports from processing/static). |
-| **simulation_runner** | StaticSimulationRunner runs the full linear-static workflow; ModalSimulationRunner runs modal (K/M assembly, BCs, eigenvalue solve); DynamicSimulationRunner runs dynamic (K/M/C assembly, BCs, Newmark time integration). |
+| **processing/eigen** | Global **K** / **M** assembly and BCs for eigen, buckling, harmonic (and related). |
+| **processing/modal** | Placeholder package only; legacy shims removed — use **processing.eigen**. |
+| **processing/dynamic** | Global assembly, boundary conditions, and time integration for transient analysis. |
+| **simulation_runner** | **LinearStaticSimulationRunner** (linear static); **NonlinearStaticSimulationRunner** (nonlinear static); **EigenSimulationRunner** / **BucklingSimulationRunner** (eigen/buckling); **DynamicSimulationRunner** in **transient/**; **HarmonicSimulationRunner**; etc. |
 | **post_processing** | Scripts that read result directories: graphical (deformation, load, stress, strain, section forces, etc.), verification (Roark, deflection convergence, GCI), tensor visualisers. |
