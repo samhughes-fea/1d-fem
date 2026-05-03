@@ -23,6 +23,14 @@ python -m pytest tests -q
 
 CI: [.github/workflows/pytest.yml](.github/workflows/pytest.yml) (Python **3.10** and **3.11**).
 
+After features land on **`main`**, update other clones with:
+
+```bash
+git checkout main && git pull origin main
+```
+
+Re-install **`requirements-ci.txt`** if it changed (new imports for CI parity).
+
 ## Smoke jobs (warping)
 
 Example nonlinear static jobs under [`jobs/`](jobs/):

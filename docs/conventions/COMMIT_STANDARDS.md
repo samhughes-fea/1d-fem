@@ -28,3 +28,11 @@ This repository follows **[Conventional Commits](https://www.conventionalcommits
 For full rules, see **[Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)`.
 
 **Note:** Present proposed commit messages for review before pushing shared branches when working in a team.
+
+## Pull request size (optional)
+
+For easier review, split unrelated work into separate PRs by theme (e.g. `docs:` only, `chore(jobs):` for `jobs/**` `simulation_settings.txt` churn, benchmarks isolated from library changes). Keep each PR focused and conventionally titled.
+
+## Releases and changelog
+
+When tagging a release, move **`## [Unreleased]`** in **[`CHANGELOG.md`](../CHANGELOG.md)** into a dated section **`## [x.y.z] - YYYY-MM-DD`** per [Keep a Changelog](https://keepachangelog.com/).
