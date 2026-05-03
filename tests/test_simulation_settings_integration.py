@@ -134,7 +134,7 @@ num_processes = auto
 
 
     def test_static_nonlinear_type_and_newton_defaults(self):
-        """static_nonlinear is accepted; newton block always present with defaults."""
+        """Legacy [Type] static_nonlinear normalizes to type=static and nonlinear kind."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
             f.write("""[Simulation]
 [Type]
@@ -143,7 +143,8 @@ static_nonlinear
             temp_path = f.name
         try:
             settings = parse_simulation_settings(temp_path)
-            assert settings["type"] == "static_nonlinear"
+            assert settings["type"] == "static"
+            assert settings.get("_resolved_static_kind") == "nonlinear"
             assert "newton" in settings
             assert settings["newton"]["tolerance"] == 1e-8
             assert settings["newton"]["max_iterations"] == 50
@@ -409,46 +410,5 @@ enable_parallel_computation = true
             assert settings["solver"]["type"] == "cg"
             assert settings["condensation"]["base_tol"] == 1e-12
             assert settings["parallel"]["num_processes"] == "auto"
-        finally:
-            os.unlink(temp_path)
-
-
-
-    def test_static_nonlinear_type_and_newton_defaults(self):
-        """static_nonlinear is accepted; newton block always present with defaults."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
-            f.write("""[Simulation]
-[Type]
-static_nonlinear
-""")
-            temp_path = f.name
-        try:
-            settings = parse_simulation_settings(temp_path)
-            assert settings["type"] == "static_nonlinear"
-            assert "newton" in settings
-            assert settings["newton"]["tolerance"] == 1e-8
-            assert settings["newton"]["max_iterations"] == 50
-            assert settings["newton"]["tolerance_delta_u"] == 1e-10
-        finally:
-            os.unlink(temp_path)
-
-    def test_newton_section_overrides(self):
-        """[Newton] keys override defaults."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
-            f.write("""[Simulation]
-[Type]
-static_nonlinear
-
-[Newton]
-tolerance = 1e-6
-max_iterations = 100
-tolerance_delta_u = 1e-9
-""")
-            temp_path = f.name
-        try:
-            settings = parse_simulation_settings(temp_path)
-            assert settings["newton"]["tolerance"] == 1e-6
-            assert settings["newton"]["max_iterations"] == 100
-            assert settings["newton"]["tolerance_delta_u"] == 1e-9
         finally:
             os.unlink(temp_path)

@@ -423,10 +423,17 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
                 "Check disk space and logs (e.g. [Errno 28] No space left on device)."
             )
 
-        # Compute element mass matrices when needed for modal/dynamic
+        # Compute element mass matrices when needed (spectral, transient, harmonic, etc.)
         solver_type = simulation_settings.get("type", "").lower()
         element_mass_matrices = None
-        if solver_type in ("modal", "dynamic"):
+        if solver_type in (
+            "modal",
+            "dynamic",
+            "eigen",
+            "buckling",
+            "harmonic",
+            "transient",
+        ):
             step_start = time.time()
             from pre_processing.element_library.parallel_compute import (
                 compute_element_mass_parallel,
@@ -465,53 +472,53 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
         step_start = time.time()
 
         if solver_type == "static":
-            from simulation_runner.static.linear_static_simulation import LinearStaticSimulationRunner
-            runner = LinearStaticSimulationRunner(
-                elements                   = all_elements,
-                grid_dictionary            = grid_dictionary,
-                element_dictionary         = element_dictionary,
-                material_dictionary        = material_dictionary,
-                section_dictionary         = section_dictionary,
-                point_load_array           = point_load_array,
-                distributed_load_array     = distributed_load_array,
-                element_objects            = element_objects,      # NEW: ElementObject[]
-                force_objects              = force_objects,        # NEW: ForceObject[]
-                job_name                   = case_name,
-                job_results_dir            = job_results_dir,
-                simulation_settings        = simulation_settings   # NEW: Pass simulation settings
-            )
-            # Set prescribed displacements if provided
+            resolved = simulation_settings.get("_resolved_static_kind", "linear")
+            if resolved == "nonlinear":
+                from simulation_runner.static.nonlinear_static_simulation import NonlinearStaticSimulationRunner
+
+                runner = NonlinearStaticSimulationRunner(
+                    elements=all_elements,
+                    grid_dictionary=grid_dictionary,
+                    element_dictionary=element_dictionary,
+                    material_dictionary=material_dictionary,
+                    section_dictionary=section_dictionary,
+                    point_load_array=point_load_array,
+                    distributed_load_array=distributed_load_array,
+                    element_objects=element_objects,
+                    force_objects=force_objects,
+                    job_name=case_name,
+                    job_results_dir=job_results_dir,
+                    simulation_settings=simulation_settings,
+                )
+            else:
+                from simulation_runner.static.linear_static_simulation import LinearStaticSimulationRunner
+
+                runner = LinearStaticSimulationRunner(
+                    elements=all_elements,
+                    grid_dictionary=grid_dictionary,
+                    element_dictionary=element_dictionary,
+                    material_dictionary=material_dictionary,
+                    section_dictionary=section_dictionary,
+                    point_load_array=point_load_array,
+                    distributed_load_array=distributed_load_array,
+                    element_objects=element_objects,
+                    force_objects=force_objects,
+                    job_name=case_name,
+                    job_results_dir=job_results_dir,
+                    simulation_settings=simulation_settings,
+                )
             if prescribed_displacement_dict is not None:
                 runner.prescribed_displacements = prescribed_displacement_dict
 
-        elif solver_type == "static_nonlinear":
-            from simulation_runner.static.nonlinear_static_simulation import NonlinearStaticSimulationRunner
-            runner = NonlinearStaticSimulationRunner(
-                elements=all_elements,
-                grid_dictionary=grid_dictionary,
-                element_dictionary=element_dictionary,
-                material_dictionary=material_dictionary,
-                section_dictionary=section_dictionary,
-                point_load_array=point_load_array,
-                distributed_load_array=distributed_load_array,
-                element_objects=element_objects,
-                force_objects=force_objects,
-                job_name=case_name,
-                job_results_dir=job_results_dir,
-                simulation_settings=simulation_settings,
-            )
-            if prescribed_displacement_dict is not None:
-                runner.prescribed_displacements = prescribed_displacement_dict
+        elif solver_type == "eigen":
+            from simulation_runner.eigen.eigen_simulation import EigenSimulationRunner
 
-        elif solver_type == "modal":
-            from simulation_runner.modal.modal_simulation import ModalSimulationRunner
-            # Extract stiffness and mass from element/mass objects
             element_stiffness_matrices = np.array([obj.K_e for obj in element_objects], dtype=object)
-            modal_settings = {
+            eigen_settings = {
                 "elements": all_elements,
                 "mesh_dictionary": {
                     "node_ids": grid_dictionary.get("ids", []),
-                    "coordinates": grid_dictionary.get("coordinates", [])
+                    "coordinates": grid_dictionary.get("coordinates", []),
                 },
                 "element_stiffness_matrices": element_stiffness_matrices,
                 "element_mass_matrices": element_mass_matrices,
@@ -527,13 +534,63 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
                 "force_objects": force_objects,
                 "prescribed_displacement_dict": prescribed_displacement_dict,
             }
-            runner = ModalSimulationRunner(
-                settings=modal_settings,
-                job_name=case_name
-            )
+            runner = EigenSimulationRunner(eigen_settings, case_name)
 
-        elif solver_type == "dynamic":
-            from simulation_runner.dynamic.dynamic_simulation import DynamicSimulationRunner
+        elif solver_type == "buckling":
+            from simulation_runner.buckling.buckling_simulation import BucklingSimulationRunner
+
+            element_stiffness_matrices = np.array([obj.K_e for obj in element_objects], dtype=object)
+            buckling_settings = {
+                "elements": all_elements,
+                "mesh_dictionary": {
+                    "node_ids": grid_dictionary.get("ids", []),
+                    "coordinates": grid_dictionary.get("coordinates", []),
+                },
+                "element_stiffness_matrices": element_stiffness_matrices,
+                "element_mass_matrices": element_mass_matrices,
+                "element_dictionary": element_dictionary,
+                "grid_dictionary": grid_dictionary,
+                "material_dictionary": material_dictionary,
+                "section_dictionary": section_dictionary,
+                "point_load_array": point_load_array,
+                "distributed_load_array": distributed_load_array,
+                "job_results_dir": job_results_dir,
+                "simulation_settings": simulation_settings,
+                "element_objects": element_objects,
+                "force_objects": force_objects,
+                "prescribed_displacement_dict": prescribed_displacement_dict,
+            }
+            runner = BucklingSimulationRunner(buckling_settings, case_name)
+
+        elif solver_type == "harmonic":
+            from simulation_runner.harmonic.harmonic_simulation import HarmonicSimulationRunner
+
+            element_stiffness_matrices = np.array([obj.K_e for obj in element_objects], dtype=object)
+            harmonic_settings = {
+                "elements": all_elements,
+                "mesh_dictionary": {
+                    "node_ids": grid_dictionary.get("ids", []),
+                    "coordinates": grid_dictionary.get("coordinates", []),
+                },
+                "element_stiffness_matrices": element_stiffness_matrices,
+                "element_mass_matrices": element_mass_matrices,
+                "element_dictionary": element_dictionary,
+                "grid_dictionary": grid_dictionary,
+                "material_dictionary": material_dictionary,
+                "section_dictionary": section_dictionary,
+                "point_load_array": point_load_array,
+                "distributed_load_array": distributed_load_array,
+                "job_results_dir": job_results_dir,
+                "simulation_settings": simulation_settings,
+                "element_objects": element_objects,
+                "force_objects": force_objects,
+                "prescribed_displacement_dict": prescribed_displacement_dict,
+                "job_dir": job_dir,
+            }
+            runner = HarmonicSimulationRunner(harmonic_settings, case_name)
+
+        elif solver_type in ("transient", "dynamic"):
+            from simulation_runner.transient.dynamic_simulation import DynamicSimulationRunner
             element_stiffness_matrices_dyn = np.array([obj.K_e for obj in element_objects], dtype=object)
             dynamic_settings = {
                 "elements": all_elements,

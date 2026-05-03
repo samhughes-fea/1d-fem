@@ -7,7 +7,7 @@ Diagrams in this folder document the finite element model pipeline: job orchestr
 | Diagram | File | Description |
 |--------|------|-------------|
 | Pipeline overview | [pipeline_overview.md](pipeline_overview.md) | End-to-end flow from job discovery to results and post-processing.
-| Static simulation flow | [static_simulation_flow.md](static_simulation_flow.md) | Stage-by-stage linear-static workflow (prepare → assemble → BCs → condense → solve → reconstruct → primary/secondary/tertiary results).
+| Static simulation flow | [static_simulation_flow.md](static_simulation_flow.md) | Stage-by-stage linear-static workflow (prepare → assemble → BCs → condense → solve → reconstruct → primary/secondary/tertiary results). Filename is historical (linear-static only; there is no `static_simulation` Python module).
 | Data flow | [data_flow.md](data_flow.md) | Job input files and result output directories/artifacts.
 | Component structure | [component_structure.md](component_structure.md) | Top-level modules (pre_processing, processing, simulation_runner, post_processing) and dependencies.
 

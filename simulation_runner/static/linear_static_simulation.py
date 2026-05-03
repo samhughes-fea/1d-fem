@@ -885,17 +885,3 @@ class LinearStaticSimulationRunner:
         except Exception as exc:
             logger.exception("💥 Simulation failed with critical error")
             raise RuntimeError("Simulation aborted") from exc
-
-
-def __getattr__(name: str):
-    """Backward compatibility: ``StaticSimulationRunner`` → :class:`LinearStaticSimulationRunner`."""
-    if name == "StaticSimulationRunner":
-        import warnings
-
-        warnings.warn(
-            "StaticSimulationRunner is deprecated; use LinearStaticSimulationRunner.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return LinearStaticSimulationRunner
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
