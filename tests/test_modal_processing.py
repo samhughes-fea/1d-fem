@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from processing.modal.assembly import assemble_global_matrices
-from processing.modal.boundary_conditions import apply_boundary_conditions
+from processing.eigen.assembly import assemble_global_matrices
+from processing.eigen.boundary_conditions import apply_boundary_conditions
 
 
 class _MockElement:
@@ -22,7 +22,7 @@ class _MockElement:
 
 
 class TestModalAssembly:
-    """Tests for processing.modal.assembly.assemble_global_matrices."""
+    """Tests for processing.eigen.assembly.assemble_global_matrices."""
 
     def test_assemble_single_element(self):
         """Single element: 12 DOFs, K and M 12x12 -> global 12x12."""
@@ -72,7 +72,7 @@ class TestModalAssembly:
 
 
 class TestModalBoundaryConditions:
-    """Tests for processing.modal.boundary_conditions.apply_boundary_conditions."""
+    """Tests for processing.eigen.boundary_conditions.apply_boundary_conditions."""
 
     def test_apply_fixed_dofs(self):
         """Fixed first 6 DOFs: K_mod and M_mod have penalty/1 on diagonal for those DOFs."""

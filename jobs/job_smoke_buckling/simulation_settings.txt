@@ -1,0 +1,9 @@
+[Simulation]
+[Type]
+buckling
+
+[Buckling]
+enabled = true
+num_modes = 4
+buckling_prestress = linear_static
+buckling_load_factor = 1.0

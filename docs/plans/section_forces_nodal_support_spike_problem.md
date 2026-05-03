@@ -176,5 +176,5 @@ Nodal section forces are now projected in the tertiary pipeline using the same s
 
 - **Projector:** `processing/static/results/compute_tertiary/nodal_section_forces_projector.py` — projects GP section forces to nodes via N_mat (solve/lstsq), averages at shared nodes, and uses element mean at boundary nodes.
 - **Storage:** `tertiary_results/nodal/nodal_section_forces.csv` (one row per node, columns N,Vy,Vz,T,My,Mz).
-- **Visualiser:** Section-forces visualisation prefers this file when present; otherwise falls back to element-mean from GP CSVs.
+- **Visualiser:** Section-forces visualisation prefers this file when present; otherwise falls back to element-mean from GP CSVs. GP **ξ** for plot positions uses **`# xi_per_row=`** from each element CSV when present (`_read_elem_section_forces_csv` in `section_forces_visualisation.py`).
 - **Tests:** `tests/test_nodal_section_forces_projector.py` — constant GP section forces yield matching nodal values (no boundary spike).

@@ -2,4 +2,4 @@
 [Type]      
 Static             
 #Dynamic          
-#Modal
+# eigen/buckling: use [Type] eigen or buckling ([Type] modal is legacy).

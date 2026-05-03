@@ -59,12 +59,17 @@ def parse_point_load(file_path):
                     continue  # Skip this row if it contains anything non-numeric
                 first_numeric_line_detected = True  # Set flag after processing first data row
 
-            if len(parts) != 9:
-                logging.warning(f"[Point load] Line {line_number}: Expected 9 values, found {len(parts)}. Content: {parts}. Skipping.")
+            if len(parts) not in (9, 10):
+                logging.warning(
+                    f"[Point load] Line {line_number}: Expected 9 or 10 values "
+                    f"(optional phase_rad), found {len(parts)}. Content: {parts}. Skipping."
+                )
                 continue
 
             try:
                 numeric_values = [float(x) for x in parts]
+                if len(numeric_values) == 9:
+                    numeric_values.append(0.0)
                 loads_list.append(numeric_values)
                 logging.debug(f"Successfully parsed line {line_number}: {numeric_values}")
             except ValueError as e:
@@ -80,7 +85,7 @@ def parse_point_load(file_path):
         logging.error(f"[Point load] No valid load data found in '{file_path}'. Returning empty array.")
         return np.empty((0, 9), dtype=float)
 
-    # Step 6: Convert to NumPy array and log results
+    # Step 6: Convert to NumPy array and log results (10 cols: … forces/torques + phase_rad)
     point_load_array = np.array(loads_list, dtype=float)
     logging.info(f"[Point load] Successfully parsed {point_load_array.shape[0]} load entries from '{file_path}'.")
     logging.debug(f"[Point load] Final parsed array:\n{point_load_array}")

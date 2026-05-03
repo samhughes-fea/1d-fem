@@ -11,3 +11,7 @@ Track these as separate issues or milestone epics; they are **not** blocking har
 | **Nonlinear prestress → linear buckling** | [`MODAL_BUCKLING_NONLINEAR_PRESTRESS_DESIGN.md`](MODAL_BUCKLING_NONLINEAR_PRESTRESS_DESIGN.md) | Prestressed **K** for §5 buckling vs transient nonlinear paths. |
 
 When opening a GitHub issue, link the doc above and the simulation type (**eigen**, **buckling**, **transient**, **harmonic**) affected.
+
+## Branch WIP (snapshot)
+
+Large batches of `jobs/job_*_*/simulation_settings.txt` updates that remain unstaged are intentionally split from taxonomy PRs: commit or revert them in a dedicated **jobs** or **chore** change when ready.

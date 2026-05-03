@@ -48,3 +48,49 @@ Same geometry, load magnitudes (P, w), and mesh variants (n4, n8, n16, n32, n64,
 ## jobs/bin
 
 Duplicate/canonical definitions for some load types also live under `jobs/bin`. Verification scripts resolve job input files from `jobs/` (e.g. job_0003, job_0004, job_0005 for distributed loads).
+
+## Smoke jobs (`eigen` / `buckling` / `harmonic`)
+
+Minimal end-to-end inputs for canonical **`[Type] eigen`**, **`buckling`**, and **`harmonic`** live under **`jobs/job_smoke_eigen`**, **`jobs/job_smoke_buckling`**, and **`jobs/job_smoke_harmonic`** (linear Euler–Bernoulli beam, short mesh). **`tests/test_job_smoke_eigen_buckling_e2e.py`** covers eigen/buckling; **`tests/test_harmonic_frequency_response.py`** includes **`job_smoke_harmonic`**.
+
+To run the same checks locally from the repository root (after installing dependencies from **`requirements-ci.txt`** or your usual environment):
+
+```bash
+python -m pytest tests/test_job_smoke_eigen_buckling_e2e.py tests/test_harmonic_frequency_response.py -q
+```
+
+The orchestrator script **`workflow_orchestrator/run_job.py`** discovers **all** directories matching **`jobs/job_*`**; use **`pytest`** above if you only want these smoke cases instead of the full job sweep.
+
+## `simulation_settings.txt` taxonomy (§1–§5)
+
+Canonical **`[Type]`** values after parsing: **`static`**, **`eigen`**, **`transient`**, **`harmonic`**, **`buckling`**. Optional bracket sections **`[Static]`**, **`[Eigen]`**, **`[Transient]`**, **`[Harmonic]`**, **`[Buckling]`** may set **`enabled = true`** to select the primary analysis (exactly one enabled).
+
+**Preferred (vibration):**
+
+```ini
+[Simulation]
+[Type]
+eigen
+
+[Eigen]
+enabled = true
+num_modes = 10
+```
+
+**Preferred (linear buckling):**
+
+```ini
+[Simulation]
+[Type]
+buckling
+
+[Buckling]
+enabled = true
+num_modes = 6
+buckling_prestress = linear_static
+buckling_load_factor = 1.0
+```
+
+**Legacy (still supported):** `[Type] modal` with **`[Modal]`** and **`analysis = vibration`** or **`buckling`**. Example snippet: [fixtures/simulation_settings_legacy_modal_vibration.txt](fixtures/simulation_settings_legacy_modal_vibration.txt). See [simulation_runner/README.md](../simulation_runner/README.md) and [SIMULATION_SETTINGS_TAXONOMY.md](../docs/conventions/SIMULATION_SETTINGS_TAXONOMY.md).
+
+**Harmonic (§4):** `[Type] harmonic` and **`[Harmonic]`** accept reserved stub keys for a future solver; the runner still raises `NotImplementedError` until implemented (see [simulation_runner/harmonic/README.md](../simulation_runner/harmonic/README.md)).

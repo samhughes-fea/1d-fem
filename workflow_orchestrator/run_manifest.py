@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from pre_processing.parsing.simulation_settings_resolution import finalize_simulation_settings
+
 try:
     import numpy as np
 except ImportError:
@@ -117,7 +119,9 @@ def write_run_manifest(
         },
     }
     if simulation_settings is not None:
-        manifest["simulation_settings_resolved"] = _json_safe(dict(simulation_settings))
+        resolved = dict(simulation_settings)
+        finalize_simulation_settings(resolved, type_line_explicit=("type" in resolved))
+        manifest["simulation_settings_resolved"] = _json_safe(resolved)
 
     try:
         with open(out_path, "w", encoding="utf-8") as f:

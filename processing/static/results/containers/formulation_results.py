@@ -15,11 +15,30 @@ Benefits:
 """
 
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import List
 from pre_processing.element_library.gauss_point_data import ElementObject, ForceObject
 
 logger = logging.getLogger(__name__)
+
+STRICT_SHAPE_FUNCTIONS_ENV_VAR = "FEM_FORMULATION_CACHE_STRICT_SHAPE"
+
+
+def strict_shape_functions_validation_from_env() -> bool:
+    """
+    If True, formulation-cache validation raises when any Gauss record lacks
+    ``shape_functions`` / ``shape_derivatives`` (stiffness).
+
+    Enable with environment variable ``FEM_FORMULATION_CACHE_STRICT_SHAPE=1``
+    (also ``true`` / ``yes`` / ``on``, case-insensitive).
+    """
+    return os.environ.get(STRICT_SHAPE_FUNCTIONS_ENV_VAR, "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
 
 def validate_shape_functions_populated(
@@ -40,7 +59,8 @@ def validate_shape_functions_populated(
         Force formulation cache.
     strict : bool, optional
         If True, raise on first missing shape data; otherwise only log a warning.
-        Default False.
+        Default False. Runners may set this from
+        :func:`strict_shape_functions_validation_from_env` (``FEM_FORMULATION_CACHE_STRICT_SHAPE``).
     """
     for obj in element_objects:
         for i, gp in enumerate(obj.gauss_data):

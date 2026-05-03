@@ -1,0 +1,7 @@
+[Simulation]
+[Type]
+eigen
+
+[Eigen]
+enabled = true
+num_modes = 4

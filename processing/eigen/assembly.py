@@ -1,7 +1,9 @@
-# processing/modal/assembly.py
+# processing/eigen/assembly.py
 """
-Assemble global stiffness and mass matrices for modal analysis.
-Copied and extended from static assembly logic; no imports from processing.static.
+Assemble global stiffness and mass matrices for §2 eigen / undamped vibration analysis.
+
+Shared scatter utilities are reused by §5 linear buckling (``processing.buckling``); no imports
+from ``processing.static``.
 """
 
 import logging
@@ -57,7 +59,7 @@ def assemble_global_matrices(
     job_results_dir: Optional[str] = None,
 ) -> Tuple[csr_matrix, csr_matrix, List[np.ndarray]]:
     """
-    Assemble global K and M for modal analysis.
+    Assemble global K and M for eigen / modal vibration analysis.
 
     Parameters
     ----------
@@ -136,7 +138,7 @@ def assemble_global_matrices(
         M_global = csr_matrix((total_dof, total_dof), dtype=np.float64)
 
     _logger.info(
-        "Modal assembly: K nnz=%s, M nnz=%s",
+        "Eigen assembly: K nnz=%s, M nnz=%s",
         K_global.nnz,
         M_global.nnz,
     )

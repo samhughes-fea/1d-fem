@@ -2,6 +2,8 @@
 
 2-node 3D **geometrically nonlinear** Timoshenko beam: Green–Lagrange strain with shear deformation. The element uses the **generalised 3D** layout: tangent stiffness **K_T** and internal force **F_int** are **(12×12)** and **(12×1)** when no warping DOFs are used; with **`[warping]`** and a mesh that allocates χ per node, **(14×14)** and **(14×1)** (same Vlasov row as linear Timoshenko + warping). Formulation is **Total Lagrangian** (all quantities referred to the initial configuration).
 
+**Factory:** only **`NonlinearTimoshenkoBeamElement3D`** is registered — there is no `NonlinearWarpingTimoshenkoBeamElement3D` alias. Job authoring for χ DOFs, `section.txt` Γ tier, and `prescribed_displacement.txt` **`CHI`** / **`W`** is described in [docs/conventions/JOB_INPUT_BEAM_WARPING.md](../../../../docs/conventions/JOB_INPUT_BEAM_WARPING.md).
+
 ---
 
 ## Full formulation document

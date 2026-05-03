@@ -6,7 +6,11 @@ from .nodal_results import NodalResults
 from .gaussian_results import GaussianResults
 from .tertiary_results import TertiaryResults
 from .map_results import MapEntry
-from .formulation_results import FormulationResultSet, validate_shape_functions_populated
+from .formulation_results import (
+    FormulationResultSet,
+    strict_shape_functions_validation_from_env,
+    validate_shape_functions_populated,
+)
 from .container_hopper import (
     PrimaryResultSet,
     SecondaryResultSet,
@@ -23,6 +27,7 @@ __all__ = [
     "MapEntry",
     "FormulationResultSet",
     "validate_shape_functions_populated",
+    "strict_shape_functions_validation_from_env",
     "PrimaryResultSet",
     "SecondaryResultSet",
     "TertiaryResultSet",

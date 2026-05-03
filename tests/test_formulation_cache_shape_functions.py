@@ -16,6 +16,15 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.linear_levinson_3D import (
+    LinearLevinsonBeamElement3D,
+)
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.linear_reddy_3D import (
+    LinearReddyBeamElement3D,
+)
+from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    LinearTimoshenkoBeamElement3D,
+)
 from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
     LinearEulerBernoulliBeamElement3D,
 )
@@ -193,3 +202,257 @@ def test_nodal_result_projector_with_shape_functions_cache():
     finally:
         if os.path.isdir(job_results_dir):
             shutil.rmtree(os.path.dirname(job_results_dir), ignore_errors=True)
+
+
+def _job_dirs(job_results_dir: str) -> None:
+    os.makedirs(job_results_dir, exist_ok=True)
+    os.makedirs(os.path.join(job_results_dir, "element_stiffness_matrices"), exist_ok=True)
+    os.makedirs(os.path.join(job_results_dir, "element_force_vectors"), exist_ok=True)
+
+
+def test_linear_euler_bernoulli_warping_element_object_shape_functions_populated():
+    """14-DOF linear EB + [warping]: every stiffness Gauss point has N and dN/dξ in cache."""
+    L = 1.0
+    element_dictionary = {
+        "ids": np.array([0]),
+        "connectivity": np.array([[0, 1]]),
+        "types": np.array(["LinearEulerBernoulliBeamElement3D"]),
+        "warping": np.array([1], dtype=np.int8),
+        "integration_orders": {
+            "axial": np.array([3]),
+            "bending_y": np.array([3]),
+            "bending_z": np.array([3]),
+            "shear_y": np.array([2]),
+            "shear_z": np.array([2]),
+            "torsion": np.array([3]),
+            "load": np.array([2]),
+        },
+    }
+    grid_dictionary = {"coordinates": np.array([[0.0, 0.0, 0.0], [L, 0.0, 0.0]])}
+    material_dictionary = {
+        "E": np.array([2.1e11]),
+        "G": np.array([8.1e10]),
+        "nu": np.array([0.3]),
+        "rho": np.array([7850.0]),
+    }
+    section_dictionary = {
+        "A": np.array([1e-3]),
+        "I_x": np.array([1e-9]),
+        "I_y": np.array([1e-8]),
+        "I_z": np.array([1e-8]),
+        "J_t": np.array([1e-9]),
+        "kappa": np.array([5.0 / 6.0]),
+        "alpha": np.array([0.0]),
+        "y_sc": np.array([0.0]),
+        "z_sc": np.array([0.0]),
+        "Gamma": np.array([1e-8]),
+    }
+    temp_dir = tempfile.mkdtemp()
+    job_results_dir = os.path.join(temp_dir, "eb_warp_sf")
+    _job_dirs(job_results_dir)
+    try:
+        element = LinearEulerBernoulliBeamElement3D(
+            element_id=0,
+            element_dictionary=element_dictionary,
+            grid_dictionary=grid_dictionary,
+            material_dictionary=material_dictionary,
+            section_dictionary=section_dictionary,
+            point_load_array=np.empty((0, 9)),
+            distributed_load_array=np.empty((0, 9)),
+            job_results_dir=job_results_dir,
+        )
+        obj = element.element_stiffness_matrix()
+        assert obj.gauss_data
+        for i, gp in enumerate(obj.gauss_data):
+            assert gp.shape_functions is not None, f"gauss_data[{i}] shape_functions"
+            assert gp.shape_derivatives is not None, f"gauss_data[{i}] shape_derivatives"
+    finally:
+        import shutil
+
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def test_linear_timoshenko_warping_element_object_shape_functions_populated():
+    """14-DOF linear Timoshenko + [warping]: every stiffness Gauss point has N and dN/dξ in cache."""
+    L = 1.0
+    element_dictionary = {
+        "ids": np.array([0]),
+        "connectivity": np.array([[0, 1]]),
+        "types": np.array(["LinearTimoshenkoBeamElement3D"]),
+        "warping": np.array([1], dtype=np.int8),
+        "integration_orders": {
+            "axial": np.array([3]),
+            "bending_y": np.array([3]),
+            "bending_z": np.array([3]),
+            "shear_y": np.array([2]),
+            "shear_z": np.array([2]),
+            "torsion": np.array([3]),
+            "load": np.array([2]),
+        },
+    }
+    grid_dictionary = {"coordinates": np.array([[0.0, 0.0, 0.0], [L, 0.0, 0.0]])}
+    material_dictionary = {
+        "E": np.array([2.1e11]),
+        "G": np.array([8.1e10]),
+        "nu": np.array([0.3]),
+        "rho": np.array([7850.0]),
+    }
+    section_dictionary = {
+        "A": np.array([1e-3]),
+        "I_x": np.array([0.0]),
+        "I_y": np.array([1e-8]),
+        "I_z": np.array([1e-8]),
+        "J_t": np.array([1e-9]),
+        "kappa": np.array([5.0 / 6.0]),
+        "alpha": np.array([0.0]),
+        "y_sc": np.array([0.0]),
+        "z_sc": np.array([0.0]),
+        "Gamma": np.array([1e-8]),
+    }
+    temp_dir = tempfile.mkdtemp()
+    job_results_dir = os.path.join(temp_dir, "ts_warp_sf")
+    _job_dirs(job_results_dir)
+    try:
+        element = LinearTimoshenkoBeamElement3D(
+            element_id=0,
+            element_dictionary=element_dictionary,
+            grid_dictionary=grid_dictionary,
+            material_dictionary=material_dictionary,
+            section_dictionary=section_dictionary,
+            point_load_array=np.empty((0, 9)),
+            distributed_load_array=np.empty((0, 9)),
+            job_results_dir=job_results_dir,
+        )
+        obj = element.element_stiffness_matrix()
+        assert obj.gauss_data
+        for i, gp in enumerate(obj.gauss_data):
+            assert gp.shape_functions is not None, f"gauss_data[{i}] shape_functions"
+            assert gp.shape_derivatives is not None, f"gauss_data[{i}] shape_derivatives"
+    finally:
+        import shutil
+
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def test_linear_levinson_warping_element_object_shape_functions_populated():
+    """14-DOF linear Levinson + [warping]: stiffness Gauss cache has N and dN/dξ."""
+    L = 1.0
+    element_dictionary = {
+        "ids": np.array([0]),
+        "connectivity": np.array([[0, 1]]),
+        "types": np.array(["LinearLevinsonBeamElement3D"]),
+        "warping": np.array([1], dtype=np.int8),
+        "integration_orders": {
+            "axial": np.array([3]),
+            "bending_y": np.array([3]),
+            "bending_z": np.array([3]),
+            "shear_y": np.array([3]),
+            "shear_z": np.array([3]),
+            "torsion": np.array([3]),
+            "load": np.array([2]),
+        },
+    }
+    grid_dictionary = {"coordinates": np.array([[0.0, 0.0, 0.0], [L, 0.0, 0.0]])}
+    material_dictionary = {
+        "E": np.array([2.1e11]),
+        "G": np.array([8.1e10]),
+        "nu": np.array([0.3]),
+        "rho": np.array([7850.0]),
+    }
+    section_dictionary = {
+        "A": np.array([1e-3]),
+        "I_x": np.array([0.0]),
+        "I_y": np.array([1e-8]),
+        "I_z": np.array([1e-8]),
+        "J_t": np.array([1e-9]),
+        "kappa": np.array([5.0 / 6.0]),
+        "alpha": np.array([0.01]),
+        "y_sc": np.array([0.0]),
+        "z_sc": np.array([0.0]),
+        "Gamma": np.array([1e-8]),
+    }
+    temp_dir = tempfile.mkdtemp()
+    job_results_dir = os.path.join(temp_dir, "lev_warp_sf")
+    _job_dirs(job_results_dir)
+    try:
+        element = LinearLevinsonBeamElement3D(
+            element_id=0,
+            element_dictionary=element_dictionary,
+            grid_dictionary=grid_dictionary,
+            material_dictionary=material_dictionary,
+            section_dictionary=section_dictionary,
+            point_load_array=np.empty((0, 9)),
+            distributed_load_array=np.empty((0, 9)),
+            job_results_dir=job_results_dir,
+        )
+        obj = element.element_stiffness_matrix()
+        assert obj.gauss_data
+        for i, gp in enumerate(obj.gauss_data):
+            assert gp.shape_functions is not None, f"gauss_data[{i}] shape_functions"
+            assert gp.shape_derivatives is not None, f"gauss_data[{i}] shape_derivatives"
+    finally:
+        import shutil
+
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def test_linear_reddy_warping_element_object_shape_functions_populated():
+    """14-DOF linear Reddy + [warping]: stiffness Gauss cache has N and dN/dξ."""
+    L = 1.0
+    element_dictionary = {
+        "ids": np.array([0]),
+        "connectivity": np.array([[0, 1]]),
+        "types": np.array(["LinearReddyBeamElement3D"]),
+        "warping": np.array([1], dtype=np.int8),
+        "integration_orders": {
+            "axial": np.array([3]),
+            "bending_y": np.array([3]),
+            "bending_z": np.array([3]),
+            "shear_y": np.array([3]),
+            "shear_z": np.array([3]),
+            "torsion": np.array([3]),
+            "load": np.array([2]),
+        },
+    }
+    grid_dictionary = {"coordinates": np.array([[0.0, 0.0, 0.0], [L, 0.0, 0.0]])}
+    material_dictionary = {
+        "E": np.array([2.1e11]),
+        "G": np.array([8.1e10]),
+        "nu": np.array([0.3]),
+        "rho": np.array([7850.0]),
+    }
+    section_dictionary = {
+        "A": np.array([1e-3]),
+        "I_x": np.array([0.0]),
+        "I_y": np.array([1e-8]),
+        "I_z": np.array([1e-8]),
+        "J_t": np.array([1e-9]),
+        "kappa": np.array([5.0 / 6.0]),
+        "alpha": np.array([0.01]),
+        "y_sc": np.array([0.0]),
+        "z_sc": np.array([0.0]),
+        "Gamma": np.array([1e-8]),
+    }
+    temp_dir = tempfile.mkdtemp()
+    job_results_dir = os.path.join(temp_dir, "reddy_warp_sf")
+    _job_dirs(job_results_dir)
+    try:
+        element = LinearReddyBeamElement3D(
+            element_id=0,
+            element_dictionary=element_dictionary,
+            grid_dictionary=grid_dictionary,
+            material_dictionary=material_dictionary,
+            section_dictionary=section_dictionary,
+            point_load_array=np.empty((0, 9)),
+            distributed_load_array=np.empty((0, 9)),
+            job_results_dir=job_results_dir,
+        )
+        obj = element.element_stiffness_matrix()
+        assert obj.gauss_data
+        for i, gp in enumerate(obj.gauss_data):
+            assert gp.shape_functions is not None, f"gauss_data[{i}] shape_functions"
+            assert gp.shape_derivatives is not None, f"gauss_data[{i}] shape_derivatives"
+    finally:
+        import shutil
+
+        shutil.rmtree(temp_dir, ignore_errors=True)

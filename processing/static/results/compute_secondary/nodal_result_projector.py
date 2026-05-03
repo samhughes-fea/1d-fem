@@ -3,13 +3,21 @@
 """
 Nodal Result Projector
 
-Projects Gaussian-level field quantities (strain, stress, energy density) 
-to nodal resolution using shape function extrapolation.
+Projects Gaussian-level field quantities (strain, stress, energy density)
+to nodal resolution using shape-function extrapolation.
+
+When every Gauss point on an element carries **`shape_functions`** from the
+formulation cache (`ElementObject.gauss_data`) and there are at least as many
+Gauss points as element nodes, projection uses the assembled-cache operator
+matrix (**values_g ≈ N_mat @ values_nodal**, inverted or least-squares).
+That keeps GP→nodal recovery consistent with the element formulation.
+Otherwise the projector falls back to Lagrange interpolation at node natural
+coordinates (ξ for the element).
 
 For each element:
-1. Evaluates shape functions at node locations (ξ = -1, +1 for 2-node elements)
-2. Extrapolates Gauss point values to element nodes
-3. For shared nodes, accumulates and averages contributions from all connected elements
+1. Prefer cache **`shape_functions`** at Gauss points when complete (see above).
+2. Else evaluate Lagrange shape functions at node locations (e.g. ξ = ±1 for 2-node elements).
+3. Extrapolate Gauss point values to element nodes; average contributions at shared nodes.
 """
 
 import numpy as np
@@ -25,10 +33,11 @@ from processing.static.results.containers import (
 class NodalResultProjector:
     """
     Projects Gaussian-level field quantities to nodal resolution.
-    
-    Uses shape function extrapolation to project strain, stress, and energy
-    density from Gauss integration points to element nodes, then averages
-    contributions at shared nodes.
+
+    Uses formulation-cache **`shape_functions`** at Gauss points when every GP
+    provides them and quadrature is well-posed for extrapolation; otherwise
+    Lagrange interpolation in natural coordinates. Averages contributions at
+    shared nodes.
     """
     
     def __init__(

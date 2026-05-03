@@ -36,9 +36,10 @@ REMOVED_ELEMENT_TYPES: Dict[str, str] = {
         "(or set element_dictionary['warping']). See docs/conventions/DEPRECATED_ELEMENT_TYPES.md."
     ),
     "NonlinearWarpingTimoshenkoBeamElement3D": (
-        "Element type 'NonlinearWarpingTimoshenkoBeamElement3D' is not registered "
-        "(nonlinear warping Timoshenko was never implemented; stub only). "
-        "Use 'NonlinearTimoshenkoBeamElement3D' for 12-DOF TL Timoshenko. "
+        "Element type 'NonlinearWarpingTimoshenkoBeamElement3D' is not registered (legacy alias removed). "
+        "Use 'NonlinearTimoshenkoBeamElement3D' with [warping]=1 in element.txt "
+        "(or set element_dictionary['warping']) for TL Timoshenko + Vlasov warping (14 local DOFs); "
+        "omit warping for 12-DOF TL Timoshenko only. "
         "See docs/conventions/DEPRECATED_ELEMENT_TYPES.md."
     ),
     "NonlinearWarpingEulerBernoulliBeamElement3D": (

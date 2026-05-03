@@ -1,0 +1,10 @@
+[Simulation]
+[Type]
+harmonic
+
+[Harmonic]
+enabled = true
+frequency_min_hz = 8.0
+frequency_max_hz = 12.0
+num_frequency_points = 5
+modal_damping_ratio = 0.02

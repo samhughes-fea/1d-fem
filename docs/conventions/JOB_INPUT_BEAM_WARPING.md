@@ -21,9 +21,11 @@ Legacy helpers `mesh_uses_warping_dof`, `element_warping_stiffness_on`, and `eff
 - **Optional 12th column:** either `[curvature]` (legacy scalar, not used by current elements) **or** `[warping]` (0/1 per element), disambiguated by the subheader.
 - **Optional 13th column:** when both `[curvature]` and `[warping]` appear, order is **fixed**: curvature then warping.
 
-**Preferred authoring:** use baseline beam type strings (e.g. `LinearTimoshenkoBeamElement3D`, `LinearEulerBernoulliBeamElement3D`, `NonlinearEulerBernoulliBeamElement3D`) and set `[warping]` to **1** where Vlasov warping DOFs and/or stiffness are needed. Removed legacy aliases (`LinearWarping*`, `NonlinearWarpingEulerBernoulliBeamElement3D`) are listed in [`DEPRECATED_ELEMENT_TYPES.md`](DEPRECATED_ELEMENT_TYPES.md). When the `[warping]` column is **absent**, `beam_warping.py` can still infer warping from a type name containing `"Warping"` (legacy); explicit `[warping]` is recommended.
+**Preferred authoring:** use baseline beam type strings (e.g. `LinearTimoshenkoBeamElement3D`, `LinearEulerBernoulliBeamElement3D`, `NonlinearEulerBernoulliBeamElement3D`) and set `[warping]` to **1** where Vlasov warping DOFs and/or stiffness are needed. Removed legacy aliases (`LinearWarping*`, `NonlinearWarpingEulerBernoulliBeamElement3D`, `NonlinearWarpingTimoshenkoBeamElement3D`) are listed in [`DEPRECATED_ELEMENT_TYPES.md`](DEPRECATED_ELEMENT_TYPES.md). When the `[warping]` column is **absent**, `beam_warping.py` can still infer warping from a type name containing `"Warping"` (legacy); explicit `[warping]` is recommended.
 
 **Nonlinear EB + warping:** use **`NonlinearEulerBernoulliBeamElement3D`** with `[warping]` — the implementation selects 12 vs 14 local DOFs from the same policy as linear EB.
+
+**Nonlinear Timoshenko + warping:** use **`NonlinearTimoshenkoBeamElement3D`** with `[warping]` — same mesh policy (7 DOF per node when any row enables warping), 14 local DOFs per element, warping restraint and prescribed χ via **`CHI`** / **`W`** in `prescribed_displacement.txt` as for linear Timoshenko + warping.
 
 ## `section.txt`: column tiers (6 / 8 / 10 / 11)
 
@@ -63,17 +65,20 @@ If any row in `element.txt` turns on **Vlasov warping** (`[warping]` / `element_
 
 **Boundary conditions:** prescribe **`CHI`** / **`W`** wherever the model needs a warping restraint (e.g. fixed root). For some loadings and element combinations, an additional restraint on **χ** at a free end may be required to remove a null mode in the warping subspace; the reference job `jobs/job_smoke_nl_eb_warp` fixes **χ** at the root and tip. See also `tests/test_warping_integration_benchmark.py` for a minimal element-level discussion.
 
-## Linear modal buckling with warping (7 DOF per node)
+## Linear buckling with warping (7 DOF per node)
 
-When `simulation_settings["type"]` is `modal` and `modal.analysis` is `buckling`, linear EB/Timoshenko elements with `[warping]` allocate **χ** at nodes. The buckling eigenproblem uses elastic **K** and stress geometric stiffness **K_σ** assembled from element `linear_geometric_stiffness_matrix`. For warping-enabled beams, **K_σ** embeds the same **12×12** beam-column geometric stiffness on the standard translation/rotation DOFs as in the nonlinear TL warping tangent (rows/cols for **χ** are zero in **K_σ**). This captures classical beam-column buckling on the line; thin-walled **lateral–torsional** modes that rely on full χ–bending coupling in **K_σ** are only partially represented—validate critical loads against benchmarks when Γ-driven behaviour dominates.
+When `simulation_settings["type"]` is **`buckling`** (legacy: **`modal`** with **`modal.analysis = buckling`**), linear EB/Timoshenko elements with `[warping]` allocate **χ** at nodes. The buckling eigenproblem uses elastic **K** and stress geometric stiffness **K_σ** assembled from element `linear_geometric_stiffness_matrix`. For warping-enabled beams, **K_σ** embeds the same **12×12** beam-column geometric stiffness on the standard translation/rotation DOFs as in the nonlinear TL warping tangent (rows/cols for **χ** are zero in **K_σ**). This captures classical beam-column buckling on the line; thin-walled **lateral–torsional** modes that rely on full χ–bending coupling in **K_σ** are only partially represented—validate critical loads against benchmarks when Γ-driven behaviour dominates.
 
 **Workflow alternative:** run buckling with **[warping] off** (or a 6 DOF/node mesh) for a conservative column check, then enable warping for detailed static/post results.
 
 **Regression / benchmarks:** [`tests/test_modal_buckling_warping_benchmark.py`](../../tests/test_modal_buckling_warping_benchmark.py) checks Euler column band (warping-off mesh) and confirms **14×14** `K_σ` equals the **12×12** beam-column block on the first twelve DOFs when χ degrees of freedom are inactive in the displacement vector (embedding behaviour).
 
+**LTB validation playbook:** [`MODAL_BUCKLING_LTB_VALIDATION.md`](MODAL_BUCKLING_LTB_VALIDATION.md) — when Γ-driven or lateral–torsional modes matter, how to scope checks and external references.
+
 ## See also
 
 - [`MODAL_BUCKLING_NONLINEAR_PRESTRESS_DESIGN.md`](MODAL_BUCKLING_NONLINEAR_PRESTRESS_DESIGN.md) — future nonlinear prestress for linear buckling (design only)
+- [`MODAL_BUCKLING_LTB_VALIDATION.md`](MODAL_BUCKLING_LTB_VALIDATION.md) — LTB / χ coupling limitations and validation checklist
 - [`DEPRECATED_ELEMENT_TYPES.md`](DEPRECATED_ELEMENT_TYPES.md) — removed type strings and migrations
 - [`BEAM_SHEAR_CORRECTION_AND_THINWALL.md`](BEAM_SHEAR_CORRECTION_AND_THINWALL.md) — Timoshenko \(\kappa\) defaults vs thin-walled sections
 - `pre_processing/parsing/element_parser.py`

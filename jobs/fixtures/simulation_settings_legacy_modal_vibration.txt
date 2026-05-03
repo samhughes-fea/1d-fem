@@ -1,0 +1,9 @@
+# Curated LEGACY example only — prefer [Type] eigen + [Eigen] (see jobs/README_JOBS.md).
+
+[Simulation]
+[Type]
+modal
+
+[Modal]
+num_modes = 10
+analysis = vibration

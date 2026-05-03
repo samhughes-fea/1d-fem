@@ -69,7 +69,7 @@ flowchart LR
 | grid.txt | Yes | GridParser — node IDs, coordinates |
 | material.txt | Yes | MaterialParser — E, nu, rho, etc. |
 | section.txt | Yes | SectionParser — section properties |
-| simulation_settings.txt | Yes | parse_simulation_settings — solver type (static/modal/dynamic), solver config, parallel options; **[Modal]** section keys include `analysis` (`vibration` \| `buckling`), `buckling_prestress` (`linear_static`; `none` is rejected), `buckling_load_factor` (scales reference loads for prestress used to build geometric stiffness) |
+| simulation_settings.txt | Yes | parse_simulation_settings — canonical **`type`** (`static` \| `eigen` \| `transient` \| `harmonic` \| `buckling`; legacy aliases `modal` / `dynamic` / `static_nonlinear`), solver config, parallel options; taxonomy sections **`[Eigen]`**, **`[Buckling]`**, **`[Transient]`**, etc.; legacy **[Modal]** / **[Dynamic]** still merged on read; optional **[PostProcessing]** gates formulation-cache **secondary/tertiary** recovery (`run_secondary_tertiary_modal`, `run_secondary_tertiary_dynamic`, mode/time indices — see [`RESULTS_DESIGN.md`](../../processing/static/results/RESULTS_DESIGN.md)) |
 | point_load.txt | No | parse_point_load — concentrated loads |
 | distributed_load.txt | No | parse_distributed_load — line loads |
 | prescribed_displacement.txt | No | parse_prescribed_displacement — fixed/prescribed DOFs |
@@ -93,3 +93,5 @@ Result root: `post_processing/results/{case_name}_{timestamp}_pid{pid}_{uid}/`
 | element_force_vectors | Per-element F_e (from element phase) |
 
 Post-processing scripts (graphical, verification, tensor visualisers) discover results by scanning `post_processing/results/` and parsing job result directory names.
+
+**Modal / dynamic:** when **`[PostProcessing]`** enables **`run_secondary_tertiary_*`**, the same **`secondary_results/`** and **`tertiary_results/`** subtrees are populated from a snapshot **`U`** (mode shape, buckling mode or prestress, or a transient time row), using the shared static results kernel under `processing/static/results/`.

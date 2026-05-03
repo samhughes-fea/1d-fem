@@ -1,5 +1,8 @@
-# processing/modal/buckling.py
-"""Linear buckling: global :math:`\\mathbf{K}_\\sigma` from prestress and eigenpairs for :math:`\\mathbf{K}_L + \\lambda \\mathbf{K}_\\sigma`."""
+# processing/buckling/linear_buckling.py
+"""Linear buckling: global geometric stiffness from prestress and eigenpairs for K_L + λ K_σ.
+
+§5 assembly reuses §2 global scatter and BC helpers from ``processing.eigen``.
+"""
 
 from __future__ import annotations
 
@@ -10,8 +13,8 @@ import numpy as np
 from scipy import linalg
 from scipy.sparse import coo_matrix, csr_matrix
 
-from processing.modal.boundary_conditions import apply_boundary_conditions
-from processing.modal.assembly import _compute_local_global_dof_map, _scatter_element_matrix
+from processing.eigen.boundary_conditions import apply_boundary_conditions
+from processing.eigen.assembly import _compute_local_global_dof_map, _scatter_element_matrix
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,8 @@
-# processing/modal/boundary_conditions.py
+# processing/eigen/boundary_conditions.py
 """
-Apply boundary conditions to global K and M for modal analysis.
-Copied and extended from static modification logic; no imports from processing.static.
+Apply boundary conditions to global K and M for §2 eigen problems (penalty method).
+
+Copied and extended from static modification logic; no imports from ``processing.static``.
 """
 
 import logging
@@ -73,5 +74,5 @@ def apply_boundary_conditions(
 
     K_mod = K_work.tocsr()
     M_mod = M_work.tocsr()
-    _logger.info("Modal BCs applied: %s DOFs constrained", bc_dofs.size)
+    _logger.info("Eigen BCs applied: %s DOFs constrained", bc_dofs.size)
     return K_mod, M_mod, bc_dofs

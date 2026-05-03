@@ -23,13 +23,15 @@ TL EB with Vlasov warping is implemented in a single class: `NonlinearEulerBerno
 |---------------------|-------------|
 | `NonlinearWarpingEulerBernoulliBeamElement3D` | `NonlinearEulerBernoulliBeamElement3D` + `[warping]` |
 
-## Bucket C — Deregistered: nonlinear warping Timoshenko (stub)
+## Bucket C — Removed: nonlinear warping Timoshenko alias
 
-| Type string | Status |
-|-------------|--------|
-| `NonlinearWarpingTimoshenkoBeamElement3D` | **Not registered.** (Legacy stub class file removed; no warping NL Timoshenko implementation.) Use `NonlinearTimoshenkoBeamElement3D` for 12-DOF TL Timoshenko until a warping-capable NL Timoshenko ships. |
+TL Timoshenko with Vlasov warping is implemented in a single class: `NonlinearTimoshenkoBeamElement3D` (14 local DOFs when `[warping]` enables the mesh). The legacy dedicated stub module was deleted; there is no separate `NonlinearWarping*` factory entry.
 
-The package directory `pre_processing/element_library/nonlinear/timoshenko_with_warp/` is reserved (no implementation module); the factory does not load a warping NL Timoshenko class.
+| Removed / deregistered type string | Use instead |
+|------------------------------------|-------------|
+| `NonlinearWarpingTimoshenkoBeamElement3D` | `NonlinearTimoshenkoBeamElement3D` + `[warping]` |
+
+The directory `pre_processing/element_library/nonlinear/timoshenko_with_warp/` is obsolete (reserved empty); shared warping policy lives in `beam_warping.py` and the unified nonlinear Timoshenko module.
 
 ## Legacy inference in `beam_warping.py`
 

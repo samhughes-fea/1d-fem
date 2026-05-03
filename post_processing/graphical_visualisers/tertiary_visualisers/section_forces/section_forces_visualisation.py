@@ -9,22 +9,22 @@ outputs [N, M_y, M_z, V_y, V_z, T]; section force computation reorders before
 save. Legacy CSVs (no "# column_order=resultant" first line) were saved in
 formulation order; we reorder on read so existing plots correct without re-running.
 
-Gauss points: Positions are from Gauss–Legendre (e.g. 3-point: ξ ≈ −0.77, 0, 0.77),
-so they are not equally spaced along the element. For Timoshenko, 3 GPs per element
-and constant Vy at those 3 GPs are expected when shear is constant (e.g. tip load).
-See docs/proofs/timoshenko/gauss_points_and_reduced_integration.md.
+Gauss points: Physical plot positions use natural coordinates **ξ** per CSV row.
+When the saver writes ``# xi_per_row=...`` (ascending ξ, same order as GP rows),
+those values are used. Otherwise ξ defaults to Gauss–Legendre points for ``n_gp``
+(3-point: ξ ≈ −0.77, 0, 0.77). See docs/proofs/timoshenko/gauss_points_and_reduced_integration.md.
 
-Nodal values: At each node we use the mean of the element-wise mean of GP
-section forces over all elements that touch that node (no least-squares
-extrapolation), so values stay within the GP range and boundaries are stable.
+**Nodal markers:** If ``tertiary_results/nodal/nodal_section_forces.csv`` exists
+(pipeline ``NodalSectionForcesProjector``: formulation-cache shape matrix,
+least-squares / solve where applicable, **element mean at boundary nodes**), those
+values are used. If it is missing, nodal markers fall back to the **element-wise
+mean of GP** section forces averaged over elements meeting each node.
 
 Euler-Bernoulli: Vy and Vz are zero (no shear strain); shear in EB comes from
 equilibrium (V = dM/dx). Timoshenko/Levinson elements produce non-zero Vy, Vz.
 
-- B2: red small solid circle at Gauss points; projected nodal = hollow circle;
-  interpolated = thin black line (shape functions).
-GP positions are inferred from element geometry and 3-point Gauss-Legendre rule.
-Nodal values are extrapolated from Gauss point data for consistency with secondary plots.
+Plot elements: red solid circles at Gauss points; hollow circles at nodal samples;
+thin interpolated line where applicable.
 """
 
 from __future__ import annotations
@@ -32,6 +32,7 @@ from __future__ import annotations
 import glob
 import os
 import sys
+import warnings
 from pathlib import Path
 from typing import Final, Optional
 
@@ -69,6 +70,56 @@ COMPONENTS = ["N", "Vy", "Vz", "T", "My", "Mz"]
 
 # Legacy CSVs (no format marker) had formulation order [N, M_y, M_z, V_y, V_z, T]; reorder to [N,Vy,Vz,T,My,Mz]
 _FORMULATION_TO_RESULTANT = (0, 3, 4, 5, 1, 2)
+
+
+def _read_elem_section_forces_csv(
+    csv_path: Path,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Load one element section-forces CSV.
+
+    Returns
+    -------
+    data : ndarray, shape (n_gp, 6)
+        Resultant order [N, Vy, Vz, T, My, Mz].
+    xi_used : ndarray, shape (n_gp,)
+        Natural coordinates for each row: from ``# xi_per_row=`` when present
+        and length matches ``n_gp``; else Gauss–Legendre points (3-point shortcut
+        when ``n_gp == 3``).
+    """
+    with open(csv_path, encoding="utf-8") as f:
+        first_line = f.readline()
+    skip = 2 if "column_order=resultant" in first_line else 1
+    xi_from_file: Optional[np.ndarray] = None
+    if skip == 2:
+        with open(csv_path, encoding="utf-8") as f:
+            f.readline()
+            second_line = f.readline()
+        if second_line.strip().startswith("# xi_per_row="):
+            rest = second_line.split("=", 1)[1].strip()
+            xi_from_file = np.array([float(x) for x in rest.split(",")], dtype=np.float64)
+            skip = 3
+
+    data = np.genfromtxt(csv_path, delimiter=",", skip_header=skip)
+    if data.ndim == 1:
+        data = data.reshape(1, -1)
+    if data.shape[1] != 6:
+        raise ValueError(f"Expected 6 columns, got {data.shape[1]} in {csv_path}")
+    if skip == 1:
+        data = np.asarray(data[:, _FORMULATION_TO_RESULTANT], dtype=np.float64)
+
+    n_gp = int(data.shape[0])
+    if xi_from_file is not None and xi_from_file.size == n_gp:
+        xi_used = xi_from_file
+    else:
+        if xi_from_file is not None and xi_from_file.size != n_gp:
+            warnings.warn(
+                f"{csv_path.name}: xi_per_row length {xi_from_file.size} != n_gp {n_gp}; "
+                "using default Gauss–Legendre ξ.",
+                stacklevel=2,
+            )
+        xi_used = GAUSS_3PT_XI if n_gp == 3 else np.polynomial.legendre.leggauss(n_gp)[0]
+    return data, xi_used
 
 
 def _nodal_shape_matrix_at_xi(xi: np.ndarray, n_nodes: int) -> np.ndarray:
@@ -315,27 +366,9 @@ class VisualiseSectionForces:
                 except Exception:
                     continue
                 try:
-                    with open(csv_path, encoding="utf-8") as f:
-                        first_line = f.readline()
-                    skip = 2 if "column_order=resultant" in first_line else 1
-                    if skip == 2:
-                        second_line = f.readline()
-                        if second_line.strip().startswith("# xi_per_row="):
-                            skip = 3
-                    data = np.genfromtxt(csv_path, delimiter=",", skip_header=skip)
+                    data, xi_used = _read_elem_section_forces_csv(Path(csv_path))
                 except Exception:
                     continue
-                if data.ndim == 1:
-                    data = data.reshape(1, -1)
-                if data.shape[1] != 6:
-                    continue
-                # Legacy CSVs were in formulation order [N, M_y, M_z, V_y, V_z, T]
-                if skip == 1:
-                    data = data[:, _FORMULATION_TO_RESULTANT]
-                n_gp = data.shape[0]
-                # CSV row i = GP at natural coordinate xi_used[i] (ascending). Same convention as formulation cache and saver.
-                # 3-point Gauss–Legendre: ξ ≈ −0.775, 0, 0.775 → in x at ~11%, 50%, 89% of element length. See docs/proofs/timoshenko/gauss_points_and_reduced_integration.md.
-                xi_used = GAUSS_3PT_XI if n_gp == 3 else np.polynomial.legendre.leggauss(n_gp)[0]
                 x_gp = _gauss_point_x_for_element(node_coords, xi_used)
                 x_list.append(x_gp)
                 forces_list.append(data)

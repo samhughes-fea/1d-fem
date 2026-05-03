@@ -1,7 +1,7 @@
 """
 Regression: linear buckling critical load vs Euler cantilever formula.
 
-Uses ``ModalSimulationRunner`` with ``modal.analysis = buckling``, EB beams without warping,
+Uses ``BucklingSimulationRunner`` with canonical or legacy buckling settings, EB beams without warping,
 cantilever base fixed by default modal BCs (first six global DOFs), compressive tip load.
 """
 
@@ -24,7 +24,7 @@ def _euler_cantilever_P_cr(E: float, I: float, L: float) -> float:
 
 
 def _build_cantilever_modal_case(n_elem: int, L: float, E: float, P_ref: float):
-    """Return (settings dict for ModalSimulationRunner, temp_dir to rmtree)."""
+    """Return (settings dict for BucklingSimulationRunner, temp_dir to rmtree)."""
     from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
         LinearEulerBernoulliBeamElement3D,
     )
@@ -144,14 +144,14 @@ def _build_cantilever_modal_case(n_elem: int, L: float, E: float, P_ref: float):
 @pytest.mark.parametrize("n_elem", [16, 32])
 def test_modal_buckling_cantilever_matches_euler(n_elem: int):
     """Lowest buckling load factor × reference tip compressive load vs Euler cantilever P_cr."""
-    from simulation_runner.modal.modal_simulation import ModalSimulationRunner
+    from simulation_runner.buckling.buckling_simulation import BucklingSimulationRunner
 
     L = 2.5
     E = 210.0e9
     P_ref = 1.0
     settings, temp_dir, I_val = _build_cantilever_modal_case(n_elem, L, E, P_ref)
     try:
-        runner = ModalSimulationRunner(settings=settings, job_name="buckling_euler_test")
+        runner = BucklingSimulationRunner(settings=settings, job_name="buckling_euler_test")
         runner.run()
         lambdas = np.asarray(
             runner.secondary_results["global"]["buckling_load_factors"], dtype=np.float64
@@ -170,7 +170,7 @@ def test_modal_buckling_cantilever_matches_euler(n_elem: int):
 
 def test_buckling_load_factor_scales_eigenvalues():
     """Doubling ``buckling_load_factor`` halves λ: same physical critical load λ·(factor·P_ref)."""
-    from simulation_runner.modal.modal_simulation import ModalSimulationRunner
+    from simulation_runner.buckling.buckling_simulation import BucklingSimulationRunner
 
     L = 2.5
     E = 210.0e9
@@ -180,9 +180,9 @@ def test_buckling_load_factor_scales_eigenvalues():
     settings2, td2, _ = _build_cantilever_modal_case(n_elem, L, E, P_ref)
     settings2["simulation_settings"]["modal"]["buckling_load_factor"] = 2.0
     try:
-        r1 = ModalSimulationRunner(settings=settings1, job_name="bf1")
+        r1 = BucklingSimulationRunner(settings=settings1, job_name="bf1")
         r1.run()
-        r2 = ModalSimulationRunner(settings=settings2, job_name="bf2")
+        r2 = BucklingSimulationRunner(settings=settings2, job_name="bf2")
         r2.run()
         lam1 = np.asarray(r1.secondary_results["global"]["buckling_load_factors"], dtype=np.float64).ravel()
         lam2 = np.asarray(r2.secondary_results["global"]["buckling_load_factors"], dtype=np.float64).ravel()
@@ -196,7 +196,7 @@ def test_buckling_load_factor_scales_eigenvalues():
 
 
 def test_buckling_prestress_none_raises():
-    from simulation_runner.modal.modal_simulation import ModalSimulationRunner
+    from simulation_runner.buckling.buckling_simulation import BucklingSimulationRunner
 
     L = 2.5
     E = 210.0e9
@@ -204,8 +204,8 @@ def test_buckling_prestress_none_raises():
     settings, td, _ = _build_cantilever_modal_case(8, L, E, P_ref)
     settings["simulation_settings"]["modal"]["buckling_prestress"] = "none"
     try:
-        runner = ModalSimulationRunner(settings=settings, job_name="none_prestress")
-        with pytest.raises(RuntimeError, match="Modal simulation aborted") as exc_info:
+        runner = BucklingSimulationRunner(settings=settings, job_name="none_prestress")
+        with pytest.raises(RuntimeError, match="Buckling simulation aborted") as exc_info:
             runner.run()
         assert isinstance(exc_info.value.__cause__, ValueError)
         assert "buckling_prestress" in str(exc_info.value.__cause__)
@@ -218,7 +218,7 @@ def test_modal_buckling_timoshenko_smoke():
     from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
-    from simulation_runner.modal.modal_simulation import ModalSimulationRunner
+    from simulation_runner.buckling.buckling_simulation import BucklingSimulationRunner
 
     L = 2.0
     E = 200.0e9
@@ -321,7 +321,7 @@ def test_modal_buckling_timoshenko_smoke():
         "prescribed_displacement_dict": None,
     }
     try:
-        runner = ModalSimulationRunner(settings=settings, job_name="ts_buckling")
+        runner = BucklingSimulationRunner(settings=settings, job_name="ts_buckling")
         runner.run()
         lam = np.asarray(runner.secondary_results["global"]["buckling_load_factors"], dtype=np.float64).ravel()
         assert np.all(np.isfinite(lam))
@@ -335,7 +335,7 @@ def test_modal_buckling_euler_warping_mesh_smoke():
     from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
         LinearEulerBernoulliBeamElement3D,
     )
-    from simulation_runner.modal.modal_simulation import ModalSimulationRunner
+    from simulation_runner.buckling.buckling_simulation import BucklingSimulationRunner
 
     L = 2.0
     E = 200.0e9
@@ -449,7 +449,7 @@ def test_modal_buckling_euler_warping_mesh_smoke():
         "prescribed_displacement_dict": prescribed_displacement_dict,
     }
     try:
-        runner = ModalSimulationRunner(settings=settings, job_name="eb_warp_buckling")
+        runner = BucklingSimulationRunner(settings=settings, job_name="eb_warp_buckling")
         runner.run()
         lam = np.asarray(runner.secondary_results["global"]["buckling_load_factors"], dtype=np.float64).ravel()
         assert np.all(np.isfinite(lam))
@@ -462,7 +462,7 @@ def test_processing_modal_buckling_unit_eigenpair():
     """Smoke: K + λ K_g singular pair yields positive λ from generalized eigen."""
     from scipy.sparse import csr_matrix
 
-    from processing.modal.buckling import solve_linear_buckling_eigenpairs
+    from processing.buckling import solve_linear_buckling_eigenpairs
 
     K = csr_matrix(np.diag([1.0, 2.0, 3.0]))
     Kg = csr_matrix(np.diag([-0.5, -1.0, -1.5]))

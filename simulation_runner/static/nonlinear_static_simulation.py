@@ -31,14 +31,15 @@ from processing.static.results.containers.container_hopper import PrimaryResultS
 # Results: compute
 from processing.static.results.compute_primary.element_formulation_processor import ElementFormulationProcessor
 from processing.static.results.compute_primary.primary_results_orchestrator import PrimaryResultsOrchestrator
-from processing.static.results.compute_secondary.secondary_results_orchestrator import SecondaryResultsOrchestrator
-from processing.static.results.compute_tertiary.tertiary_results_orchestrator import TertiaryResultsOrchestrator
-
 # Results: save
 from processing.static.results.save_primary_container import SavePrimaryResults, SavePrimaryResultsSummary
 from processing.static.results.save_index_map_container import SaveIndexMaps
-from processing.static.results.save_secondary_container import SaveSecondaryResults, SaveSecondaryResultsSummary
-from processing.static.results.save_tertiary_container import SaveTertiaryResults, SaveTertiaryResultsSummary
+from processing.static.results.postprocess_secondary_tertiary import (
+    compute_secondary_result_set,
+    compute_tertiary_result_set,
+    save_secondary_outputs,
+    save_tertiary_outputs,
+)
 from processing.static.results.build_converged_formulation_cache import build_converged_formulation_cache
 
 logger = logging.getLogger(__name__)
@@ -103,6 +104,7 @@ class NonlinearStaticSimulationRunner:
     ):
         from processing.static.results.containers import (
             FormulationResultSet,
+            strict_shape_functions_validation_from_env,
             validate_shape_functions_populated,
         )
 
@@ -122,7 +124,7 @@ class NonlinearStaticSimulationRunner:
         validate_shape_functions_populated(
             self.formulation_cache.element_objects,
             self.formulation_cache.force_objects,
-            strict=False,
+            strict=strict_shape_functions_validation_from_env(),
         )
 
         # Initial K_e and F_e (nonlinear elements return tangent at U=0 and F_e from loads)
@@ -775,26 +777,17 @@ class NonlinearStaticSimulationRunner:
         """Compute and save secondary results (stresses, strains, etc.)."""
         logger.info("📈 Computing secondary results using cached formulation data...")
 
-        orchestrator = SecondaryResultsOrchestrator(
+        self.secondary_results_set = compute_secondary_result_set(
             elements=self.elements,
             grid_dictionary=self.grid_dictionary,
             element_dictionary=self.element_dictionary,
             material_dictionary=self.material_dictionary,
             section_dictionary=self.section_dictionary,
-            global_displacement=self.U_global,
+            U_global=self.U_global,
             formulation_cache=self.formulation_cache,
             job_results_dir=self.secondary_results_dir,
         )
-        self.secondary_results_set = orchestrator.compute_all()
-
-        SaveSecondaryResults(
-            secondary_results=self.secondary_results_set,
-            save_dir=self.secondary_results_dir,
-        ).save_all()
-        SaveSecondaryResultsSummary(
-            secondary_results=self.secondary_results_set,
-            save_dir=self.secondary_results_dir,
-        ).save()
+        save_secondary_outputs(self.secondary_results_set, self.secondary_results_dir)
 
         logger.info("✅ Secondary results computed and saved")
 
@@ -806,17 +799,14 @@ class NonlinearStaticSimulationRunner:
         """Compute and save tertiary results (section forces, etc.)."""
         logger.info("📊 Computing tertiary results...")
 
-        orchestrator = TertiaryResultsOrchestrator(
-            secondary_results=self.secondary_results_set,
+        self.tertiary_results = compute_tertiary_result_set(
+            secondary_results_set=self.secondary_results_set,
             formulation_cache=self.formulation_cache,
             element_dictionary=self.element_dictionary,
             grid_dictionary=self.grid_dictionary,
-            job_results_dir=self.tertiary_results_dir,
+            tertiary_results_dir=self.tertiary_results_dir,
         )
-        self.tertiary_results = orchestrator.compute()
-
-        SaveTertiaryResults(tertiary_results=self.tertiary_results, save_dir=self.results_root).save_all()
-        SaveTertiaryResultsSummary(tertiary_results=self.tertiary_results, save_dir=self.results_root).save()
+        save_tertiary_outputs(self.tertiary_results, self.results_root)
 
         logger.info("✅ Tertiary results computed and saved")
 

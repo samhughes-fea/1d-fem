@@ -43,6 +43,7 @@ def parse_prescribed_displacement(file_path, dof_per_node: int = 6):
         - 'value': np.ndarray of prescribed displacement values
         - 'type': np.ndarray of condition types
         - 'global_dof': np.ndarray of global DOF indices (node_id * dof_per_node + dof_index)
+        - 'phase_rad': optional per-row harmonic phase (rad); zeros if omitted in file
     """
     if dof_per_node not in (6, 7):
         raise ValueError(f"dof_per_node must be 6 or 7, got {dof_per_node}")
@@ -57,7 +58,8 @@ def parse_prescribed_displacement(file_path, dof_per_node: int = 6):
             'dof_index': np.array([], dtype=int),
             'value': np.array([], dtype=float),
             'type': np.array([], dtype=str),
-            'global_dof': np.array([], dtype=int)
+            'global_dof': np.array([], dtype=int),
+            'phase_rad': np.array([], dtype=float),
         }
 
     logging.info(f"[Prescribed Displacement] Reading file: {file_path}")
@@ -68,6 +70,7 @@ def parse_prescribed_displacement(file_path, dof_per_node: int = 6):
     dof_indices = []
     values = []
     types = []
+    phases = []
     
     header_pattern = re.compile(r"^\[Prescribed Displacement\]$", re.IGNORECASE)
     current_section = False
@@ -110,6 +113,12 @@ def parse_prescribed_displacement(file_path, dof_per_node: int = 6):
                 dof_name = parts[2].upper()
                 value = float(parts[3])
                 condition_type = parts[4].lower()
+                phase_row = 0.0
+                if len(parts) >= 6:
+                    try:
+                        phase_row = float(parts[5])
+                    except ValueError:
+                        phase_row = 0.0
 
                 # Validate DOF name
                 if dof_name not in dof_map:
@@ -128,6 +137,7 @@ def parse_prescribed_displacement(file_path, dof_per_node: int = 6):
                 dof_indices.append(dof_index)
                 values.append(value)
                 types.append(condition_type)
+                phases.append(phase_row)
 
                 logging.debug(f"[Prescribed Displacement] Line {line_number}: Node {node_id}, DOF {dof_name} (index {dof_index}), value {value}, global DOF {global_dof}")
 
@@ -145,7 +155,8 @@ def parse_prescribed_displacement(file_path, dof_per_node: int = 6):
             'dof_index': np.array([], dtype=int),
             'value': np.array([], dtype=float),
             'type': np.array([], dtype=str),
-            'global_dof': np.array([], dtype=int)
+            'global_dof': np.array([], dtype=int),
+            'phase_rad': np.array([], dtype=float),
         }
 
     # Convert to NumPy arrays
@@ -159,7 +170,8 @@ def parse_prescribed_displacement(file_path, dof_per_node: int = 6):
         'global_dof': np.array(
             [node_id * dof_per_node + dof_idx for node_id, dof_idx in zip(node_ids, dof_indices)],
             dtype=int,
-        )
+        ),
+        'phase_rad': np.array(phases, dtype=float),
     }
 
     logging.info(f"[Prescribed Displacement] Successfully parsed {len(ids)} prescribed displacement conditions from '{file_path}'.")

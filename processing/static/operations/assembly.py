@@ -132,7 +132,13 @@ class AssembleGlobalSystem:
 
     def _validate_inputs(self):
         """Validate elements, stiffness matrices, and force vectors."""
-        if not self.elements:
+        el = self.elements
+        if el is None:
+            raise ValueError("No elements provided")
+        if isinstance(el, np.ndarray):
+            if el.size == 0:
+                raise ValueError("No elements provided")
+        elif not el:
             raise ValueError("No elements provided")
         if self.total_dof is None or self.total_dof <= 0:
             raise ValueError("Invalid total_dof - must be positive integer")
@@ -264,16 +270,21 @@ class AssembleGlobalSystem:
         if not self.element_force_vectors:
             self.F_global = np.zeros(self.total_dof, dtype=np.float64)
         else:
-            F = np.zeros(self.total_dof, dtype=np.float64)
+            dt = np.float64
+            for Fe in self.element_force_vectors:
+                if np.iscomplexobj(Fe):
+                    dt = np.complex128
+                    break
+            F = np.zeros(self.total_dof, dtype=dt)
             for idx, (Fe, dof_map) in enumerate(zip(self.element_force_vectors, self.local_global_dof_map)):
                 if Fe.shape[0] != dof_map.size:
                     raise ValueError(f"Force vector {idx} shape mismatch")
-                F[dof_map] += Fe.astype(np.float64)
+                F[dof_map] += np.asarray(Fe, dtype=dt)
             self.F_global = F
 
         assert isinstance(self.F_global, np.ndarray)
         assert self.F_global.shape == (self.total_dof,)
-        assert self.F_global.dtype == np.float64
+        assert self.F_global.dtype in (np.float64, np.complex128)
         self.logger.info("✅ Force vector assembled")
 
     def _process_stiffness_element(self, Ke: coo_matrix, dof_map: np.ndarray):

@@ -1,0 +1,4 @@
+# Axial compression at tip for linear-static prestress (Euler-type buckling smoke).
+[Point load]
+         [x]          [y]          [z]        [F_x]        [F_y]        [F_z]        [M_x]        [M_y]        [M_z]
+    2.000000     0.000000     0.000000 -1000.000000     0.000000     0.000000     0.000000     0.000000     0.000000

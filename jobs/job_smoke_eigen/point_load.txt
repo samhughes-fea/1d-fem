@@ -1,0 +1,5 @@
+# Same tip load pattern as job_0000 (smoke); eigen analysis uses K and M only for modes.
+# Load Type: End load
+[Point load]
+         [x]          [y]          [z]        [F_x]        [F_y]        [F_z]        [M_x]        [M_y]        [M_z]
+    2.000000     0.000000     0.000000     0.000000  -500.000000     0.000000     0.000000     0.000000     0.000000

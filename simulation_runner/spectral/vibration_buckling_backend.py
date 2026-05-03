@@ -5,16 +5,22 @@ import logging
 import numpy as np
 import os
 import datetime
-from scipy.sparse import coo_matrix, linalg
+from scipy.sparse import coo_matrix
+from scipy.sparse import spmatrix
 
-from processing.modal.assembly import assemble_global_matrices
-from processing.modal.boundary_conditions import apply_boundary_conditions
-from processing.modal.buckling import (
+from processing.eigen.assembly import assemble_global_matrices
+from processing.eigen.smallest_generalized_eigenpairs import smallest_generalized_eigenpairs
+from processing.eigen.boundary_conditions import apply_boundary_conditions
+from processing.buckling import (
     apply_buckling_boundary_conditions,
     assemble_global_geometric_stiffness,
     solve_linear_buckling_eigenpairs,
 )
-from simulation_runner.modal.modal_diagnostic import log_modal_diagnostics
+from simulation_runner.spectral.spectral_diagnostics import log_spectral_diagnostics
+from pre_processing.parsing.simulation_settings_resolution import (
+    effective_buckling_config,
+    effective_eigen_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +48,12 @@ def _nonlinear_twin_element_dictionary(element_dictionary: dict) -> dict:
     return ed
 
 
-class ModalSimulationRunner:
+class VibrationBucklingBackend:
     """
-    Handles modal finite element analysis (natural frequencies and mode shapes).
+    Shared implementation for §2 eigen vibration and §5 linear buckling (undamped
+    :math:`K` / :math:`M` and buckling pencil). Subclass with a concrete ``run()`` in
+    :class:`~simulation_runner.eigen.eigen_simulation.EigenSimulationRunner` or
+    :class:`~simulation_runner.buckling.buckling_simulation.BucklingSimulationRunner`.
     """
 
     def __init__(self, settings, job_name):
@@ -55,7 +64,10 @@ class ModalSimulationRunner:
         self.primary_results = {"global": {}, "element": {"data": []}}
         self.secondary_results = {"global": {}, "element": {"data": []}}
 
-        self.elements = self.settings.get("elements", np.array([]))
+        raw_el = self.settings.get("elements", np.array([]))
+        self.elements = (
+            raw_el if isinstance(raw_el, np.ndarray) else np.asarray(raw_el, dtype=object)
+        )
         self.mesh_dictionary = self.settings.get("mesh_dictionary", {})
 
         if self.elements.size == 0 or not self.mesh_dictionary:
@@ -74,6 +86,8 @@ class ModalSimulationRunner:
         if job_results_dir:
             self.results_root = job_results_dir
             self.primary_results_dir = os.path.join(job_results_dir, "primary_results")
+            self.secondary_results_dir = os.path.join(job_results_dir, "secondary_results")
+            self.tertiary_results_dir = os.path.join(job_results_dir, "tertiary_results")
             self.diagnostics_dir = os.path.join(job_results_dir, "diagnostics")
             self.logs_dir = os.path.join(job_results_dir, "logs")
         else:
@@ -81,6 +95,8 @@ class ModalSimulationRunner:
                 "post_processing", "results", f"{self.job_name}_{self.start_time}"
             )
             self.primary_results_dir = os.path.join(self.results_root, "primary_results")
+            self.secondary_results_dir = os.path.join(self.results_root, "secondary_results")
+            self.tertiary_results_dir = os.path.join(self.results_root, "tertiary_results")
             self.diagnostics_dir = os.path.join(self.results_root, "diagnostics")
             self.logs_dir = os.path.join(self.results_root, "logs")
 
@@ -90,15 +106,21 @@ class ModalSimulationRunner:
         """Converts matrices to sparse COO format if needed."""
         if matrices is None:
             return None
-        return np.array([
-            coo_matrix(matrix) if not isinstance(matrix, coo_matrix) else matrix
-            for matrix in matrices
-        ], dtype=object)
+        out = []
+        for matrix in matrices:
+            if isinstance(matrix, spmatrix):
+                out.append(matrix.tocoo() if not isinstance(matrix, coo_matrix) else matrix)
+            else:
+                dense = np.asarray(matrix, dtype=np.float64)
+                out.append(coo_matrix(dense))
+        return np.array(out, dtype=object)
 
     def setup_simulation(self):
         """Create output directory structure under results root."""
         logger.info("Setting up modal simulation for job: %s", self.job_name)
         os.makedirs(self.primary_results_dir, exist_ok=True)
+        os.makedirs(self.secondary_results_dir, exist_ok=True)
+        os.makedirs(self.tertiary_results_dir, exist_ok=True)
         os.makedirs(self.diagnostics_dir, exist_ok=True)
         os.makedirs(self.logs_dir, exist_ok=True)
         logger.info("Results will be saved to: %s", self.results_root)
@@ -129,7 +151,7 @@ class ModalSimulationRunner:
         )
         if K_global is None or M_global is None:
             raise ValueError("Global matrices could not be assembled")
-        log_modal_diagnostics(K_global, M_global, job_results_dir)
+        log_spectral_diagnostics(K_global, M_global, job_results_dir)
         logger.info("Global stiffness and mass matrices assembled.")
         return K_global, M_global
 
@@ -141,7 +163,7 @@ class ModalSimulationRunner:
         """Apply boundary conditions to the modal system."""
         logger.info("Applying boundary conditions to global matrices...")
         K_mod, M_mod, bc_dofs = apply_boundary_conditions(K_global, M_global)
-        log_modal_diagnostics(K_mod, M_mod, job_results_dir)
+        log_spectral_diagnostics(K_mod, M_mod, job_results_dir)
         logger.info("Boundary conditions applied.")
         return K_mod, M_mod, bc_dofs
 
@@ -166,7 +188,13 @@ class ModalSimulationRunner:
         logger.info(f"🔹 Solving for {num_modes} natural frequencies and mode shapes...")
 
         try:
-            eigenvalues, eigenvectors = linalg.eigsh(K_mod, k=num_modes, M=M_mod, which="SM")
+            eigenvalues, eigenvectors = smallest_generalized_eigenpairs(
+                K_mod,
+                M_mod,
+                num_modes,
+                dense_threshold=512,
+                context="eigen vibration",
+            )
 
             frequencies = np.sqrt(np.abs(eigenvalues)) / (2 * np.pi)
             mode_shapes = eigenvectors
@@ -240,10 +268,10 @@ class ModalSimulationRunner:
         K_global,
         job_results_dir: str,
         num_modes: int,
-        modal_cfg: dict,
+        buck_cfg: dict,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Prestress via linear static solve, assemble :math:`\\mathbf{K}_g`, solve buckling eigenpairs."""
-        prestress = str(modal_cfg.get("buckling_prestress", "linear_static")).lower()
+        prestress = str(buck_cfg.get("buckling_prestress", "linear_static")).lower()
         if prestress == "none":
             raise ValueError(
                 "modal.buckling_prestress='none' cannot define reference internal forces for linear buckling "
@@ -262,7 +290,7 @@ class ModalSimulationRunner:
             )
         element_objects_list = list(np.asarray(eo, dtype=object).ravel())
         force_objects_list = list(np.asarray(fo, dtype=object).ravel())
-        load_scale = float(modal_cfg.get("buckling_load_factor", 1.0))
+        load_scale = float(buck_cfg.get("buckling_load_factor", 1.0))
 
         if prestress == "linear_static":
             from simulation_runner.static.linear_static_simulation import LinearStaticSimulationRunner
@@ -288,7 +316,7 @@ class ModalSimulationRunner:
             static_runner.solve_linear_system_only(force_scale=load_scale)
             U_global = static_runner.U_global
         else:
-            use_twins = bool(modal_cfg.get("buckling_nonlinear_prestress_twins", False))
+            use_twins = bool(buck_cfg.get("buckling_nonlinear_prestress_twins", False))
             nl_elements_run = list(self.elements)
             nl_eo = element_objects_list
             nl_fo = force_objects_list
@@ -342,6 +370,7 @@ class ModalSimulationRunner:
                     "Adjust [Newton] / [Nonlinear] settings, loads, or boundary conditions."
                 )
             U_global = nl_runner.U_global
+        self._buckling_prestress_u = np.asarray(U_global, dtype=np.float64).copy()
         total_dof = self._total_dof()
         Kg_global = assemble_global_geometric_stiffness(
             list(self.elements), U_global, total_dof
@@ -350,14 +379,94 @@ class ModalSimulationRunner:
         K_mod, Kg_mod, bc_dofs = apply_buckling_boundary_conditions(
             K_global, Kg_global, prescribed_displacements=prescribed, fixed_dofs=None
         )
-        log_modal_diagnostics(K_mod, Kg_mod, job_results_dir)
+        log_spectral_diagnostics(K_mod, Kg_mod, job_results_dir)
         lambdas, modes = solve_linear_buckling_eigenpairs(
             K_mod, Kg_mod, num_modes, constrained_dofs=bc_dofs
         )
         return lambdas, modes
 
     # -------------------------------------------------------------------------
-    # 5) COMPUTE SECONDARY RESULTS (PLACEHOLDERS)
+    # 5) OPTIONAL: formulation-cache secondary / tertiary (static-style pipeline)
+    # -------------------------------------------------------------------------
+
+    def _modal_post_processing_cfg(self) -> dict:
+        return self.simulation_settings.get("post_processing") or {}
+
+    def _modal_post_processing_enabled(self) -> bool:
+        return bool(self._modal_post_processing_cfg().get("run_secondary_tertiary_modal", False))
+
+    def _snapshot_u_vibration(self, mode_shapes: np.ndarray) -> np.ndarray:
+        cfg = self._modal_post_processing_cfg()
+        k = int(cfg.get("modal_mode_index", 0))
+        amp = float(cfg.get("modal_amplitude", 1.0))
+        ms = np.asarray(mode_shapes, dtype=np.float64)
+        if ms.ndim != 2:
+            raise ValueError("mode_shapes must be 2-D (n_dof × n_modes)")
+        if k < 0 or k >= ms.shape[1]:
+            raise IndexError(f"modal_mode_index={k} out of range for {ms.shape[1]} modes")
+        return ms[:, k] * amp
+
+    def _snapshot_u_buckling(self, buckling_modes: np.ndarray) -> np.ndarray:
+        cfg = self._modal_post_processing_cfg()
+        policy = str(cfg.get("buckling_displacement", "mode")).strip().lower()
+        amp = float(cfg.get("modal_amplitude", 1.0))
+        if policy == "prestress":
+            u0 = getattr(self, "_buckling_prestress_u", None)
+            if u0 is None:
+                raise RuntimeError("buckling prestress displacement not stored")
+            return np.asarray(u0, dtype=np.float64).ravel() * amp
+        if policy != "mode":
+            raise ValueError("post_processing.buckling_displacement must be 'mode' or 'prestress'")
+        k = int(cfg.get("buckling_mode_index", cfg.get("modal_mode_index", 0)))
+        bm = np.asarray(buckling_modes, dtype=np.float64)
+        if bm.ndim != 2:
+            raise ValueError("buckling mode matrix must be 2-D")
+        if k < 0 or k >= bm.shape[1]:
+            raise IndexError(f"buckling_mode_index={k} out of range for {bm.shape[1]} modes")
+        return bm[:, k] * amp
+
+    def _run_secondary_tertiary_from_formulation_cache(self, U_global: np.ndarray) -> None:
+        from processing.static.results.containers.formulation_results import (
+            FormulationResultSet,
+            strict_shape_functions_validation_from_env,
+            validate_shape_functions_populated,
+        )
+        from processing.static.results.postprocess_secondary_tertiary import (
+            run_secondary_tertiary_from_formulation_cache,
+        )
+
+        eo = self.settings.get("element_objects")
+        fo = self.settings.get("force_objects")
+        if eo is None or fo is None:
+            raise ValueError(
+                "post_processing.run_secondary_tertiary_modal requires element_objects and force_objects "
+                "(run_job wiring)."
+            )
+        cache = FormulationResultSet(
+            element_objects=list(np.asarray(eo, dtype=object).ravel()),
+            force_objects=list(np.asarray(fo, dtype=object).ravel()),
+        )
+        validate_shape_functions_populated(
+            cache.element_objects,
+            cache.force_objects,
+            strict=strict_shape_functions_validation_from_env(),
+        )
+        U = np.asarray(U_global, dtype=np.float64).ravel()
+        run_secondary_tertiary_from_formulation_cache(
+            elements=list(self.elements),
+            grid_dictionary=self.settings["grid_dictionary"],
+            element_dictionary=self.settings["element_dictionary"],
+            material_dictionary=self.settings["material_dictionary"],
+            section_dictionary=self.settings["section_dictionary"],
+            U_global=U,
+            formulation_cache=cache,
+            results_root=self.results_root,
+            secondary_results_dir=self.secondary_results_dir,
+            tertiary_results_dir=self.tertiary_results_dir,
+        )
+
+    # -------------------------------------------------------------------------
+    # 6) COMPUTE SECONDARY RESULTS (PLACEHOLDERS)
     # -------------------------------------------------------------------------
 
     def _compute_secondary_results(self, frequencies, mode_shapes):
@@ -377,39 +486,38 @@ class ModalSimulationRunner:
         logger.info("Saved secondary modal results.")
 
     # -------------------------------------------------------------------------
-    # RUN
+    # Vibration / buckling analysis bodies (shared with Eigen/Buckling runners)
     # -------------------------------------------------------------------------
 
-    def run(self):
-        """Execute modal vibration or linear buckling (``modal.analysis`` in simulation settings)."""
-        try:
-            self.setup_simulation()
-            modal_cfg = self.simulation_settings.get("modal", {})
-            num_modes = int(modal_cfg.get("num_modes", 10))
-            analysis = str(modal_cfg.get("analysis", "vibration")).lower()
-            job_results_dir = self.primary_results_dir
-
-            K_global, M_global = self._assemble_global_matrices(job_results_dir)
-
-            if analysis == "buckling":
-                lambdas, mode_shapes = self._run_linear_buckling(
-                    K_global, job_results_dir, num_modes, modal_cfg
-                )
-                self._save_buckling_results(lambdas, mode_shapes)
-                self.secondary_results["global"]["buckling_load_factors"] = lambdas
-                logger.info("Modal buckling simulation completed -> %s", self.results_root)
-                return
-
-            K_mod, M_mod, _ = self._modify_global_matrices(K_global, M_global, job_results_dir)
-            frequencies, mode_shapes = self.solve_modal_vibration(
-                K_mod, M_mod, num_modes, job_results_dir
-            )
-
-            self._save_primary_results(frequencies, mode_shapes)
+    def _run_vibration_analysis(self) -> None:
+        eigen_cfg = effective_eigen_config(self.simulation_settings)
+        num_modes = int(eigen_cfg["num_modes"])
+        job_results_dir = self.primary_results_dir
+        K_global, M_global = self._assemble_global_matrices(job_results_dir)
+        K_mod, M_mod, _ = self._modify_global_matrices(K_global, M_global, job_results_dir)
+        frequencies, mode_shapes = self.solve_modal_vibration(
+            K_mod, M_mod, num_modes, job_results_dir
+        )
+        self._save_primary_results(frequencies, mode_shapes)
+        if self._modal_post_processing_enabled():
+            U_snap = self._snapshot_u_vibration(mode_shapes)
+            self._run_secondary_tertiary_from_formulation_cache(U_snap)
+        else:
             self._compute_secondary_results(frequencies, mode_shapes)
             self._save_secondary_results()
+        logger.info("Modal simulation completed successfully -> %s", self.results_root)
 
-            logger.info("Modal simulation completed successfully -> %s", self.results_root)
-        except Exception as exc:
-            logger.exception("Modal simulation failed")
-            raise RuntimeError("Modal simulation aborted") from exc
+    def _run_buckling_analysis(self) -> None:
+        buck_cfg = effective_buckling_config(self.simulation_settings)
+        num_modes = int(buck_cfg["num_modes"])
+        job_results_dir = self.primary_results_dir
+        K_global, M_global = self._assemble_global_matrices(job_results_dir)
+        lambdas, mode_shapes = self._run_linear_buckling(
+            K_global, job_results_dir, num_modes, buck_cfg
+        )
+        self._save_buckling_results(lambdas, mode_shapes)
+        self.secondary_results["global"]["buckling_load_factors"] = lambdas
+        if self._modal_post_processing_enabled():
+            U_snap = self._snapshot_u_buckling(mode_shapes)
+            self._run_secondary_tertiary_from_formulation_cache(U_snap)
+        logger.info("Modal buckling simulation completed -> %s", self.results_root)

@@ -676,8 +676,8 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
                     B_matrix=B.copy(),
                     D_matrix=D.copy(),
                     jacobian=float(detJ),
-                    shape_functions=None,
-                    shape_derivatives=None,
+                    shape_functions=_N.copy(),
+                    shape_derivatives=dN_dξ.copy(),
                 )
             )
             if self.logger_operator:
@@ -757,6 +757,8 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
                 if self.logger_operator:
                     self._log_distributed_loads(xi, w, N, q_gauss, Fe_dist)
             if self.point_load_array.size > 0:
+                from pre_processing.element_library.point_load_utils import add_phased_increment, point_load_phase_rad
+
                 for load in self.point_load_array:
                     x_p = float(load[0])
                     F_p = load[3:9].astype(np.float64)
@@ -765,8 +767,10 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
                         N_p = self.shape_function_operator.natural_coordinate_form(np.array([xi_p]))[0][0]
                         Fe_trans = N_p[[0, 1, 2, 6, 7, 8], :3] @ F_p[:3]
                         Fe_rot = N_p[[3, 4, 5, 9, 10, 11], 3:] @ F_p[3:]
-                        Fe[[0, 1, 2, 6, 7, 8]] += Fe_trans
-                        Fe[[3, 4, 5, 9, 10, 11]] += Fe_rot
+                        inc = np.zeros_like(Fe)
+                        inc[[0, 1, 2, 6, 7, 8]] = Fe_trans
+                        inc[[3, 4, 5, 9, 10, 11]] = Fe_rot
+                        Fe = add_phased_increment(Fe, inc, point_load_phase_rad(load))
                         if self.logger_operator:
                             self._log_point_load(x_p, xi_p, F_p, N_p, Fe_trans, Fe_rot)
             if self.logger_operator:
@@ -813,6 +817,8 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
             if self.logger_operator:
                 self._log_distributed_loads(xi, w, N, q_gauss, Fe_dist)
         if self.point_load_array.size > 0:
+            from pre_processing.element_library.point_load_utils import add_phased_increment, point_load_phase_rad
+
             for load in self.point_load_array:
                 x_p = float(load[0])
                 F_p = load[3:9].astype(np.float64)
@@ -821,8 +827,10 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
                     N_p = self.shape_function_operator.natural_coordinate_form(np.array([xi_p]))[0][0]
                     Fe_trans = N_p[[0, 1, 2, 6, 7, 8], :3] @ F_p[:3]
                     Fe_rot = N_p[[3, 4, 5, 9, 10, 11], 3:] @ F_p[3:]
-                    Fe[[0, 1, 2, 6, 7, 8]] += Fe_trans
-                    Fe[[3, 4, 5, 9, 10, 11]] += Fe_rot
+                    inc = np.zeros_like(Fe)
+                    inc[[0, 1, 2, 6, 7, 8]] = Fe_trans
+                    inc[[3, 4, 5, 9, 10, 11]] = Fe_rot
+                    Fe = add_phased_increment(Fe, inc, point_load_phase_rad(load))
                     if self.logger_operator:
                         self._log_point_load(x_p, xi_p, F_p, N_p, Fe_trans, Fe_rot)
         if self.logger_operator:

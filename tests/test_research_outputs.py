@@ -39,7 +39,8 @@ def test_write_run_manifest_schema(tmp_path: Path):
     assert m["wall_time_sec"] == 12.5
     assert m["simulation_settings_txt_sha256"] is not None
     assert len(m["simulation_settings_txt_sha256"]) == 64
-    assert m["simulation_settings_resolved"]["type"] == "static_nonlinear"
+    assert m["simulation_settings_resolved"]["type"] == "static"
+    assert m["simulation_settings_resolved"]["_resolved_static_kind"] == "nonlinear"
     assert m["paths"]["newton_history_csv"] is not None
 
 

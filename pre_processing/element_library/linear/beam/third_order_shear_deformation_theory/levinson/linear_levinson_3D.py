@@ -373,8 +373,8 @@ class LinearLevinsonBeamElement3D(Element1DBase):
                     B_matrix=B.copy(),
                     D_matrix=D.copy(),
                     jacobian=float(detJ),
-                    shape_functions=None,
-                    shape_derivatives=None,
+                    shape_functions=N.copy(),
+                    shape_derivatives=dN_dξ.copy(),
                 ))
             if self.logger_operator:
                 self.logger_operator.log_text(
@@ -681,26 +681,30 @@ class LinearLevinsonBeamElement3D(Element1DBase):
     # Fe - point load contribution
     def _compute_point_load_contribution(self) -> np.ndarray:
         """Compute point load contributions using shape function evaluation."""
+        from pre_processing.element_library.point_load_utils import add_phased_increment, point_load_phase_rad
+
         Fe_point = np.zeros(12, dtype=np.float64)
-        
+
         for load in self.point_load_array:
             x_p = float(load[0])
             F_p = load[3:9].astype(np.float64)
-            
+
             if not self._is_point_in_element(x_p):
                 continue
 
             xi_p = 2 * (x_p - self.x_start) / self.L - 1
             N_p = self.shape_function_operator.natural_coordinate_form(np.array([xi_p]))[0][0]
 
-            Fe_trans = np.einsum("ij,j->i", N_p[[0,1,2,6,7,8], :3], F_p[:3])
-            Fe_rot = np.einsum("ij,j->i", N_p[[3,4,5,9,10,11], 3:], F_p[3:])
-            Fe_point[[0,1,2,6,7,8]] += Fe_trans
-            Fe_point[[3,4,5,9,10,11]] += Fe_rot
+            Fe_trans = np.einsum("ij,j->i", N_p[[0, 1, 2, 6, 7, 8], :3], F_p[:3])
+            Fe_rot = np.einsum("ij,j->i", N_p[[3, 4, 5, 9, 10, 11], 3:], F_p[3:])
+            inc = np.zeros(12, dtype=np.float64)
+            inc[[0, 1, 2, 6, 7, 8]] = Fe_trans
+            inc[[3, 4, 5, 9, 10, 11]] = Fe_rot
+            Fe_point = add_phased_increment(Fe_point, inc, point_load_phase_rad(load))
 
             if self.logger_operator:
                 self._log_point_load(x_p, xi_p, F_p, N_p, Fe_trans, Fe_rot)
-        
+
         return Fe_point
 
     # Stiffness logging helpers ----------------------------------------------------------

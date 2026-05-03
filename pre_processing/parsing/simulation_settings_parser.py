@@ -4,7 +4,12 @@ import os
 import logging
 import re
 
-VALID_SIMULATION_TYPES = {"static", "static_nonlinear", "modal", "dynamic"}
+from pre_processing.parsing.simulation_settings_resolution import (
+    VALID_TYPE_LINE_INPUTS,
+    finalize_simulation_settings,
+)
+
+VALID_SIMULATION_TYPES = VALID_TYPE_LINE_INPUTS
 
 def _get_defaults():
     """Return default values for all configuration sections."""
@@ -43,6 +48,23 @@ def _get_defaults():
             "end_time": 1.0,
             "scheme": "newmark",
         },
+        # Optional: strain/stress recovery from FormulationResultSet for modal/dynamic snapshots.
+        "post_processing": {
+            "run_secondary_tertiary_modal": False,
+            "run_secondary_tertiary_dynamic": False,
+            "run_secondary_tertiary_harmonic": False,
+            "harmonic_frequency_index": 0,
+            "harmonic_secondary_tertiary_all_frequencies": False,
+            "harmonic_secondary_tertiary_frequency_indices": None,
+            "harmonic_secondary_tertiary_displacement_component": "real",
+            "modal_mode_index": 0,
+            "modal_amplitude": 1.0,
+            # Buckling snapshot: eigenmode shape vs prestress displacement field.
+            "buckling_displacement": "mode",
+            "buckling_mode_index": 0,
+            # Row index into U(t) from Newmark; negative counts from end (-1 = last step).
+            "dynamic_time_index": -1,
+        },
         "newton": {
             "tolerance": 1e-8,
             "max_iterations": 50,
@@ -62,6 +84,47 @@ def _get_defaults():
             "gesdb_tl_fallback": False,
             # Optional: GeometricallyExactShearDeformableBeam3D — tl_locked (default) | native
             "gesdb_kernel": "tl_locked",
+        },
+        # Taxonomy §1–§5 sections (optional ``enabled`` flags; see finalize_simulation_settings).
+        "static": {
+            "enabled": False,
+        },
+        "eigen": {
+            "enabled": False,
+            "num_modes": 10,
+        },
+        "transient": {
+            "enabled": False,
+            "time_step": 0.001,
+            "end_time": 1.0,
+            "scheme": "newmark",
+        },
+        "harmonic": {
+            "enabled": False,
+            # §4 harmonic sweep — defaults applied at runtime if omitted (see harmonic_simulation.effective_harmonic_config)
+            "frequency_min_hz": None,
+            "frequency_max_hz": None,
+            "num_frequency_points": None,
+            "modal_damping_ratio": None,
+            "rayleigh_alpha": None,
+            "rayleigh_beta": None,
+            "load_phase_rad": None,
+            "parallel_frequency_sweep": None,
+            "mp_damping_reference": None,
+            "use_modal_superposition": None,
+            "modal_superposition_num_modes": None,
+            "prescribed_motion_phase_rad": None,
+            "harmonic_linear_solver": None,
+            "damping_zeta_table_file": None,
+            "harmonic_modal_basis_dir": None,
+            "harmonic_modal_basis_job_name": None,
+        },
+        "buckling": {
+            "enabled": False,
+            "num_modes": 10,
+            "buckling_prestress": "linear_static",
+            "buckling_load_factor": 1.0,
+            "buckling_nonlinear_prestress_twins": False,
         },
     }
 
@@ -116,7 +179,7 @@ def parse_simulation_settings(file_path):
     Parses simulation settings from a structured simulation_settings.txt file.
 
     Supports multiple sections:
-    - [Simulation][Type]: simulation type (static, modal, dynamic)
+    - [Simulation][Type]: canonical types static, eigen, transient, harmonic, buckling (legacy aliases modal, dynamic, static_nonlinear)
     - [Solver]: solver configuration (type, tolerance, max_iterations, etc.)
     - [Condensation]: condensation configuration (base_tol)
     - [Parallel]: parallel processing configuration
@@ -129,7 +192,9 @@ def parse_simulation_settings(file_path):
     Returns
     -------
     dict
-        Dictionary with keys: 'type', 'solver', 'condensation', 'parallel'
+        Dictionary with keys including ``type``, ``solver``, ``condensation``, ``parallel``,
+        ``modal``, ``dynamic``, ``static``, ``eigen``, ``transient``, ``harmonic``, ``buckling``,
+        ``newton``, ``nonlinear``, ``post_processing``.
         All sections have defaults if not specified.
 
     Raises
@@ -170,6 +235,14 @@ def parse_simulation_settings(file_path):
         "dynamic": defaults["dynamic"].copy(),
         "newton": defaults["newton"].copy(),
         "nonlinear": defaults["nonlinear"].copy(),
+        "post_processing": defaults["post_processing"].copy(),
+        "static": defaults["static"].copy(),
+        "eigen": defaults["eigen"].copy(),
+        "transient": defaults["transient"].copy(),
+        "harmonic": defaults["harmonic"].copy(),
+        "buckling": defaults["buckling"].copy(),
+        "_modal_section_in_input": False,
+        "_dynamic_section_in_input": False,
     }
 
     current_section = None
@@ -202,12 +275,26 @@ def parse_simulation_settings(file_path):
                     current_section = "parallel"
                 elif section_name == "modal":
                     current_section = "modal"
+                    simulation_settings["_modal_section_in_input"] = True
                 elif section_name == "dynamic":
                     current_section = "dynamic"
+                    simulation_settings["_dynamic_section_in_input"] = True
                 elif section_name == "newton":
                     current_section = "newton"
                 elif section_name == "nonlinear":
                     current_section = "nonlinear"
+                elif section_name.replace(" ", "").replace("_", "") == "postprocessing":
+                    current_section = "post_processing"
+                elif section_name == "static":
+                    current_section = "static_taxonomy"
+                elif section_name == "eigen":
+                    current_section = "eigen"
+                elif section_name == "transient":
+                    current_section = "transient"
+                elif section_name == "harmonic":
+                    current_section = "harmonic"
+                elif section_name == "buckling":
+                    current_section = "buckling_taxonomy"
                 else:
                     current_section = None
                 continue
@@ -292,6 +379,54 @@ def parse_simulation_settings(file_path):
                     elif key == "scheme":
                         simulation_settings["dynamic"]["scheme"] = value.lower()
 
+            elif current_section == "post_processing":
+                key, value = _parse_key_value(line)
+                if key and value:
+                    pp = simulation_settings["post_processing"]
+                    if key in (
+                        "run_secondary_tertiary_modal",
+                        "run_secondary_tertiary_eigen",
+                        "run_secondary_tertiary_buckling",
+                    ):
+                        pp["run_secondary_tertiary_modal"] = _convert_value(value, bool)
+                    elif key == "run_secondary_tertiary_dynamic":
+                        pp["run_secondary_tertiary_dynamic"] = _convert_value(value, bool)
+                    elif key == "run_secondary_tertiary_harmonic":
+                        pp["run_secondary_tertiary_harmonic"] = _convert_value(value, bool)
+                    elif key == "harmonic_frequency_index":
+                        pp["harmonic_frequency_index"] = _convert_value(value, int)
+                    elif key == "harmonic_secondary_tertiary_all_frequencies":
+                        pp["harmonic_secondary_tertiary_all_frequencies"] = _convert_value(value, bool)
+                    elif key == "harmonic_secondary_tertiary_frequency_indices":
+                        pp["harmonic_secondary_tertiary_frequency_indices"] = [
+                            int(x.strip()) for x in value.split(",") if x.strip()
+                        ]
+                    elif key == "harmonic_secondary_tertiary_displacement_component":
+                        hc = value.strip().lower()
+                        if hc not in ("real", "imag", "both"):
+                            raise ValueError(
+                                "post_processing.harmonic_secondary_tertiary_displacement_component "
+                                "must be 'real', 'imag', or 'both', "
+                                f"got {value!r}"
+                            )
+                        pp["harmonic_secondary_tertiary_displacement_component"] = hc
+                    elif key == "modal_mode_index":
+                        pp["modal_mode_index"] = _convert_value(value, int)
+                    elif key == "modal_amplitude":
+                        pp["modal_amplitude"] = _convert_value(value, float)
+                    elif key == "buckling_displacement":
+                        bd = value.strip().lower()
+                        if bd not in ("mode", "prestress"):
+                            raise ValueError(
+                                "post_processing.buckling_displacement must be 'mode' or 'prestress', "
+                                f"got {value!r}"
+                            )
+                        pp["buckling_displacement"] = bd
+                    elif key == "buckling_mode_index":
+                        pp["buckling_mode_index"] = _convert_value(value, int)
+                    elif key == "dynamic_time_index":
+                        pp["dynamic_time_index"] = _convert_value(value, int)
+
             elif current_section == "newton":
                 key, value = _parse_key_value(line)
                 if key and value:
@@ -345,16 +480,100 @@ def parse_simulation_settings(file_path):
                             )
                         simulation_settings["nonlinear"]["gesdb_kernel"] = value.strip()
 
-    # Validate simulation type was found (backward compatibility: allow missing if defaults are acceptable)
-    if not type_found and simulation_settings["type"] == defaults["type"]:
-        logging.warning("Simulation type not specified, using default: 'static'")
-    
+            elif current_section == "static_taxonomy":
+                key, value = _parse_key_value(line)
+                if key and value:
+                    if key == "enabled":
+                        simulation_settings["static"]["enabled"] = _convert_value(value, bool)
+
+            elif current_section == "eigen":
+                key, value = _parse_key_value(line)
+                if key and value:
+                    if key == "enabled":
+                        simulation_settings["eigen"]["enabled"] = _convert_value(value, bool)
+                    elif key == "num_modes":
+                        simulation_settings["eigen"]["num_modes"] = _convert_value(value, int)
+
+            elif current_section == "transient":
+                key, value = _parse_key_value(line)
+                if key and value:
+                    if key == "enabled":
+                        simulation_settings["transient"]["enabled"] = _convert_value(value, bool)
+                    elif key == "time_step":
+                        simulation_settings["transient"]["time_step"] = _convert_value(value, float)
+                    elif key == "end_time":
+                        simulation_settings["transient"]["end_time"] = _convert_value(value, float)
+                    elif key == "scheme":
+                        simulation_settings["transient"]["scheme"] = value.lower()
+
+            elif current_section == "harmonic":
+                key, value = _parse_key_value(line)
+                if key and value:
+                    hm = simulation_settings["harmonic"]
+                    if key == "enabled":
+                        hm["enabled"] = _convert_value(value, bool)
+                    elif key in ("frequency_min_hz", "frequency_min"):
+                        hm["frequency_min_hz"] = _convert_value(value, float)
+                    elif key in ("frequency_max_hz", "frequency_max"):
+                        hm["frequency_max_hz"] = _convert_value(value, float)
+                    elif key in ("num_frequency_points", "num_points"):
+                        hm["num_frequency_points"] = _convert_value(value, int)
+                    elif key in ("modal_damping_ratio", "damping_ratio"):
+                        hm["modal_damping_ratio"] = _convert_value(value, float)
+                    elif key in ("rayleigh_alpha", "rayleigh_m"):
+                        hm["rayleigh_alpha"] = _convert_value(value, float)
+                    elif key in ("rayleigh_beta", "rayleigh_k"):
+                        hm["rayleigh_beta"] = _convert_value(value, float)
+                    elif key in ("load_phase_rad", "load_phase"):
+                        hm["load_phase_rad"] = _convert_value(value, float)
+                    elif key == "parallel_frequency_sweep":
+                        hm["parallel_frequency_sweep"] = _convert_value(value, bool)
+                    elif key in ("mp_damping_reference", "mass_proportional_damping_reference"):
+                        hm["mp_damping_reference"] = value.strip().lower()
+                    elif key == "use_modal_superposition":
+                        hm["use_modal_superposition"] = _convert_value(value, bool)
+                    elif key in ("modal_superposition_num_modes", "modal_superposition_modes"):
+                        hm["modal_superposition_num_modes"] = _convert_value(value, int)
+                    elif key in ("prescribed_motion_phase_rad", "prescribed_motion_phase"):
+                        hm["prescribed_motion_phase_rad"] = _convert_value(value, float)
+                    elif key == "harmonic_linear_solver":
+                        hm["harmonic_linear_solver"] = value.strip().lower()
+                    elif key in ("damping_zeta_table_file", "zeta_table_file"):
+                        hm["damping_zeta_table_file"] = value.strip()
+                    elif key in ("harmonic_modal_basis_dir", "modal_basis_dir"):
+                        hm["harmonic_modal_basis_dir"] = value.strip()
+                    elif key in ("harmonic_modal_basis_job_name", "modal_basis_job_name"):
+                        hm["harmonic_modal_basis_job_name"] = value.strip()
+
+            elif current_section == "buckling_taxonomy":
+                key, value = _parse_key_value(line)
+                if key and value:
+                    bk = simulation_settings["buckling"]
+                    if key == "enabled":
+                        bk["enabled"] = _convert_value(value, bool)
+                    elif key == "num_modes":
+                        bk["num_modes"] = _convert_value(value, int)
+                    elif key == "buckling_prestress":
+                        bp = value.strip().lower()
+                        if bp not in ("linear_static", "nonlinear_static", "none"):
+                            raise ValueError(
+                                "buckling.buckling_prestress must be 'linear_static', "
+                                f"'nonlinear_static', or 'none', got {value!r}"
+                            )
+                        bk["buckling_prestress"] = bp
+                    elif key == "buckling_load_factor":
+                        bk["buckling_load_factor"] = _convert_value(value, float)
+                    elif key == "buckling_nonlinear_prestress_twins":
+                        bk["buckling_nonlinear_prestress_twins"] = _convert_value(value, bool)
+
     # Validate parallel config
     try:
         _validate_parallel_config(simulation_settings["parallel"])
     except ValueError as e:
         logging.error(f"Invalid parallel configuration: {e}")
         raise
+
+    finalize_simulation_settings(simulation_settings, type_line_explicit=type_found)
 
     return simulation_settings
 

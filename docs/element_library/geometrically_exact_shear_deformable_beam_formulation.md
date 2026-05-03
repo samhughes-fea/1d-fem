@@ -32,4 +32,15 @@ See also `docs/element_library/large_rotation_vs_total_lagrangian.md`.
 
 Future work can replace the strain map with a distinct Simo–Vu-Quoc `B` operator while keeping the same Gauss structure documented in [`gesdb_weak_form.md`](gesdb_weak_form.md).
 
+**Tracked milestone (GESDB strain map):** implement the native operator distinct from chord-frame TL equivalence only together with locked weak-form / kinematics regression targets in [`gesdb_weak_form.md`](gesdb_weak_form.md) and `tests/test_gesdb_milestone_kinematics.py`, so TL-parent parity remains explicit.
+
+## Native strain map: implementation checklist (PR-sized)
+
+Work in small steps; keep **`gesdb_kernel=tl_locked`** and existing TL comparisons green while introducing **`native`** pieces.
+
+1. **Kinematics only:** extend `gesdb_kinematics` (or a sibling module) with the target strain map; add unit tests that compare Voigt components to reference values on fixed director/translation states (no assembly yet).
+2. **Hook:** route `gesdb_kernel=native` through the new map; document the strain–stress pairing in [`gesdb_weak_form.md`](gesdb_weak_form.md) and update **Tests** there.
+3. **Assembly regression:** `F_int` / `K_T` spot checks at `U=0` and a deformed state vs `NonlinearTimoshenkoBeamElement3D` where theory still overlaps, plus `tests/test_gesdb_milestone_kinematics.py` baselines.
+4. **Docs:** update this file’s comparison table if the frame/strain definition diverges from chord-frame TL.
+
 Regression coverage: `tests/test_large_rotation_beam_kinematics.py`, `tests/test_gesdb_milestone_kinematics.py`.

@@ -1,7 +1,7 @@
 # processing/modal/__init__.py
-"""Modal analysis: assembly of K/M and boundary conditions. No imports from processing.static."""
+"""
+Doc-only placeholder: legacy ``processing.modal.*`` assembly/BC/buckling shims were removed.
 
-from processing.modal.assembly import assemble_global_matrices
-from processing.modal.boundary_conditions import apply_boundary_conditions
-
-__all__ = ["assemble_global_matrices", "apply_boundary_conditions"]
+Use :mod:`processing.eigen` for global **K**/**M** assembly and BCs, and :mod:`processing.buckling`
+for linear buckling kernels.
+"""
