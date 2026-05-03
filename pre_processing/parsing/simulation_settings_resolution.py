@@ -148,6 +148,7 @@ def effective_buckling_config(settings: Dict[str, Any]) -> Dict[str, Any]:
                 m.get("buckling_nonlinear_prestress_twins", False),
             )
         ),
+        "nonlinear_buckling": bool(b.get("nonlinear_buckling", False)),
     }
 
 

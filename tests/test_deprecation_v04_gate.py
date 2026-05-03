@@ -50,3 +50,11 @@ def test_no_library_imports_processing_modal_shim_paths() -> None:
     bad = _python_grep_legacy_modal_imports()
     assert not bad, "Found legacy processing.modal submodule imports:\n" + "\n".join(bad)
 
+
+def test_simulation_runner_modal_shim_package_removed() -> None:
+    """``simulation_runner.modal`` re-export shims were removed; use ``simulation_runner.spectral``."""
+    legacy = PROJECT_ROOT / "simulation_runner" / "modal"
+    assert not legacy.is_dir(), (
+        f"expected {legacy} to be removed; import from simulation_runner.spectral instead"
+    )
+

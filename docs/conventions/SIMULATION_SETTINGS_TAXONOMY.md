@@ -10,7 +10,7 @@ Job files **`simulation_settings.txt`** map to five canonical analysis families.
 | `[Eigen]` | §2 | `enabled`, `num_modes` (vibration eigenproblem). Optional **`dense_threshold`** (int, default **512**): passed to [`SolveGeneralizedEigenproblem`](../../processing/spectral/operations/solve_generalized_eigenproblem.py) to choose dense vs sparse paths inside [`smallest_generalized_eigenpairs`](../../processing/eigen/smallest_generalized_eigenpairs.py). Optional **`fixed_node_id`** (int): clamp all global DOFs at that node for penalty BCs when combined with prescribed data (see [`processing.boundary_supports`](../../processing/boundary_supports/__init__.py)); if `prescribed_displacement_dict` is absent, same anchor semantics as §3 (node clamp or legacy first six DOFs). |
 | `[Transient]` | §3 | `enabled`, `time_step`, `end_time`, `scheme`; merges with legacy `[Dynamic]` when present. Authoritative merged dict: **`effective_transient_config`** in [`simulation_settings_resolution.py`](../../pre_processing/parsing/simulation_settings_resolution.py). Optional BC: **`fixed_node_id`**. Loads: **`load_scale`**, **`load_ramp`**, **`force_time_series_file`** (two columns `time` + scalar scale on `F_ref`, or `time` plus one column per global DOF), **`force_analytic`** (`none` \| `sin` \| `sin_burst`) with **`force_analytic_amplitude`**, **`force_analytic_frequency_hz`**, **`force_analytic_phase_rad`**, **`force_analytic_t_start`**, **`force_analytic_t_end`**. Damping when element `C` is empty: **`rayleigh_alpha`** / **`rayleigh_beta`** (parser aliases **`rayleigh_m`** / **`rayleigh_k`**). |
 | `[Harmonic]` | §4 | `enabled` plus frequency sweep / damping keys consumed by [`HarmonicSimulationRunner`](../../simulation_runner/harmonic/harmonic_simulation.py). Optional **`fixed_node_id`** for penalty BCs (same helper as §2/§3; see **Harmonic keys** below). |
-| `[Buckling]` | §5 | `enabled`, `num_modes`, `buckling_prestress`, `buckling_load_factor`, `buckling_nonlinear_prestress_twins`. |
+| `[Buckling]` | §5 | `enabled`, `num_modes`, `buckling_prestress`, `buckling_load_factor`, `buckling_nonlinear_prestress_twins`. Optional **`nonlinear_buckling`** (bool, default **false**): when **true**, [`run_job`](../../workflow_orchestrator/run_job.py) runs [`NonlinearBucklingSimulationRunner`](../../simulation_runner/buckling/nonlinear_buckling_simulation.py) (MVP stub — not the linearized eigen buckling path); see [`NONLINEAR_BUCKLING_MVP.md`](NONLINEAR_BUCKLING_MVP.md). |
 
 Legacy **`[Modal]`** and **`[Dynamic]`** remain supported; prefer **`[Eigen]`** / **`[Buckling]`** / **`[Transient]`**. Deprecation warnings use **`FEM_SILENCE_LEGACY_SIMULATION_SETTINGS_WARNINGS`** (see [`simulation_runner/README.md`](../../simulation_runner/README.md)).
 
@@ -41,12 +41,14 @@ The parser still accepts legacy **`[Modal]`** blocks and **`[Type] modal`** (nor
 
 Set **`FEM_LEGACY_MODAL_ERROR=1`** (**`true`** / **`yes`** / **`on`**) to **raise** `ValueError` on legacy **`[Modal]`** or **`[Type] modal`** input (CI stricter than warnings-only).
 
+**Policy summary:** legacy job text stays supported until at least **v0.5.0**; strict env rejects it in CI; **`simulation_runner.modal`** import shims are already **gone** (use **`simulation_runner.spectral`**).
+
 ## Terminology: “modal” in docs vs packages
 
 - **Job-file legacy “modal”:** **`[Type] modal`** and **`[Modal]`** sections — deprecated; canonical **`eigen`** / **`buckling`** + **`[Eigen]`** / **`[Buckling]`**.
 - **`processing.modal`:** placeholder package only — no **`processing.modal.assembly`** etc.; use **`processing.eigen`** and **`processing.buckling`**.
-- **`simulation_runner/spectral/`:** shared **`VibrationBucklingBackend`** for **`EigenSimulationRunner`** / **`BucklingSimulationRunner`** — not the removed **`ModalSimulationRunner`** façade. Legacy imports under **`simulation_runner.modal`** are deprecated ([CHANGELOG](../CHANGELOG.md)).
-- **Results keys / folders named “modal”:** e.g. **`run_secondary_tertiary_modal`**, **`modal_results/`** — legacy naming; prefer **`run_secondary_tertiary_eigen`** / **`run_secondary_tertiary_buckling`** aliases in new prose ([**`RESULTS_DESIGN.md`**](../processing/static/results/RESULTS_DESIGN.md)).
+- **`simulation_runner/spectral/`:** shared **`VibrationBucklingBackend`** for **`EigenSimulationRunner`** / **`LinearBucklingSimulationRunner`** — not the removed **`ModalSimulationRunner`** façade. The **`simulation_runner.modal`** Python shim is **removed**; import from **`simulation_runner.spectral`** ([CHANGELOG](../CHANGELOG.md)).
+- **Results keys / folders named “modal”:** e.g. **`run_secondary_tertiary_modal`**, **`primary_results/modal_results/`** — legacy **naming** retained for **on-disk stability** (eigen/buckling primary `.txt`, harmonic **`harmonic_modal_basis_dir`**, manifests). Prefer **`run_secondary_tertiary_eigen`** / **`run_secondary_tertiary_buckling`** in new job prose ([**`RESULTS_DESIGN.md`**](../processing/static/results/RESULTS_DESIGN.md)). Renaming the results folder would be a **semver-major** migration (not done here).
 
 ## Deferred / follow-up (not parsed today)
 
@@ -55,4 +57,4 @@ These are **not** read from `simulation_settings.txt` yet; reserved for future p
 | Topic | Intent |
 |-------|--------|
 | **`[Eigen] participation_load_scale`** | Optional scalar to scale assembled nodal `F` used only for **`modal_load_participation.txt`** without editing load files. |
-| **Transient Rayleigh vs element `C`** | When **both** assembled element damping **`C`** (non-empty) and **`rayleigh_alpha` / `rayleigh_beta`** are set, **`DynamicSimulationRunner`** keeps **element `C`** and **ignores** Rayleigh for assembly (warning in logs). Combining models would need an explicit policy and tests. |
+| **Transient Rayleigh vs element `C`** | When **both** assembled element damping **`C`** (non-empty) and **`rayleigh_alpha` / `rayleigh_beta`** are set, **`TransientSimulationRunner`** keeps **element `C`** and **ignores** Rayleigh for assembly (warning in logs). Combining models would need an explicit policy and tests. |

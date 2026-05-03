@@ -126,14 +126,14 @@ def _build_nl_ts_cantilever_buckling(n_elem: int, L: float, E: float, P_ref: flo
 
 
 def test_modal_buckling_nonlinear_static_prestress_smoke():
-    from simulation_runner.buckling.buckling_simulation import BucklingSimulationRunner
+    from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
 
     L = 2.0
     E = 200.0e9
     P_ref = 1.0
     settings, td = _build_nl_ts_cantilever_buckling(10, L, E, P_ref, "nonlinear_static")
     try:
-        runner = BucklingSimulationRunner(settings=settings, job_name="nl_prestress_smoke")
+        runner = LinearBucklingSimulationRunner(settings=settings, job_name="nl_prestress_smoke")
         runner.run()
         lam = np.asarray(runner.secondary_results["global"]["buckling_load_factors"], dtype=np.float64).ravel()
         assert np.all(np.isfinite(lam))
@@ -146,7 +146,7 @@ def test_modal_buckling_linear_element_rejects_nonlinear_prestress():
     from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
-    from simulation_runner.buckling.buckling_simulation import BucklingSimulationRunner
+    from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
 
     L = 1.0
     E = 200.0e9
@@ -240,7 +240,7 @@ def test_modal_buckling_linear_element_rejects_nonlinear_prestress():
         "prescribed_displacement_dict": None,
     }
     try:
-        runner = BucklingSimulationRunner(settings=settings, job_name="reject_nl")
+        runner = LinearBucklingSimulationRunner(settings=settings, job_name="reject_nl")
         with pytest.raises(RuntimeError, match="Buckling simulation aborted"):
             runner.run()
     finally:
@@ -252,7 +252,7 @@ def test_modal_buckling_nonlinear_static_with_linear_twins_smoke():
     from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
-    from simulation_runner.buckling.buckling_simulation import BucklingSimulationRunner
+    from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
 
     L = 2.0
     E = 200.0e9
@@ -362,7 +362,7 @@ def test_modal_buckling_nonlinear_static_with_linear_twins_smoke():
         "prescribed_displacement_dict": None,
     }
     try:
-        runner = BucklingSimulationRunner(settings=settings, job_name="nl_twins_smoke")
+        runner = LinearBucklingSimulationRunner(settings=settings, job_name="nl_twins_smoke")
         runner.run()
         lam = np.asarray(runner.secondary_results["global"]["buckling_load_factors"], dtype=np.float64).ravel()
         assert np.all(np.isfinite(lam))

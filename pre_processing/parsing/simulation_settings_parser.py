@@ -142,6 +142,8 @@ def _get_defaults():
             "buckling_prestress": "linear_static",
             "buckling_load_factor": 1.0,
             "buckling_nonlinear_prestress_twins": False,
+            # When true, run_job dispatches to NonlinearBucklingSimulationRunner (MVP stub; not linear eigen).
+            "nonlinear_buckling": False,
         },
     }
 
@@ -652,6 +654,8 @@ def parse_simulation_settings(file_path):
                         bk["buckling_load_factor"] = _convert_value(value, float)
                     elif key == "buckling_nonlinear_prestress_twins":
                         bk["buckling_nonlinear_prestress_twins"] = _convert_value(value, bool)
+                    elif key in ("nonlinear_buckling", "use_nonlinear_buckling"):
+                        bk["nonlinear_buckling"] = _convert_value(value, bool)
 
     # Validate parallel config
     try:

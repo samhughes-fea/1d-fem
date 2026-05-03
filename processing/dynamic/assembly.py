@@ -8,9 +8,71 @@ import logging
 import numpy as np
 from pathlib import Path
 from scipy.sparse import coo_matrix, csr_matrix
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 _logger = logging.getLogger(__name__)
+
+
+def assemble_global_force_vector(
+    elements: List,
+    element_force_vectors: Optional[Sequence],
+    total_dof: int,
+    *,
+    job_results_dir: Optional[Union[str, Path]] = None,
+    local_global_dof_map: Optional[List[np.ndarray]] = None,
+) -> np.ndarray:
+    """
+    Scatter element nodal loads ``F_e`` into a global vector (same pattern as static force assembly).
+
+    Parameters
+    ----------
+    elements :
+        FE elements with ``assemble_global_dof_indices()``; used when *local_global_dof_map*
+        is omitted.
+    element_force_vectors :
+        Per-element nodal force arrays (aligned with DOF maps). ``None`` or empty yields zeros.
+    total_dof :
+        Global vector length.
+    job_results_dir :
+        Optional path for assembly logs (parent ``logs/`` is created when set).
+    local_global_dof_map :
+        Precomputed DOF indices per element; if ``None``, maps are built from *elements*.
+    """
+    if total_dof <= 0:
+        raise ValueError("total_dof must be positive")
+
+    job_path = Path(job_results_dir) if job_results_dir else None
+    if job_path:
+        logs_dir = job_path.parent / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+
+    if element_force_vectors is None or len(element_force_vectors) == 0:
+        return np.zeros(total_dof, dtype=np.float64)
+
+    fe_list = [np.asarray(f, dtype=np.complex128 if np.iscomplexobj(f) else np.float64).ravel() for f in element_force_vectors]
+
+    if local_global_dof_map is None:
+        if not elements:
+            raise ValueError("elements required when local_global_dof_map is not provided")
+        local_global_dof_map = _compute_local_global_dof_map(elements, total_dof)
+
+    if len(fe_list) != len(local_global_dof_map):
+        raise ValueError(
+            f"force vector count {len(fe_list)} != DOF map count {len(local_global_dof_map)}"
+        )
+
+    dt = np.float64
+    for Fe in fe_list:
+        if np.iscomplexobj(Fe):
+            dt = np.complex128
+            break
+    F = np.zeros(total_dof, dtype=dt)
+    for idx, (Fe, dof_map) in enumerate(zip(fe_list, local_global_dof_map)):
+        dof_map = np.asarray(dof_map, dtype=np.int32).ravel()
+        if Fe.shape[0] != dof_map.size:
+            raise ValueError(f"Force vector {idx} shape mismatch")
+        F[dof_map] += np.asarray(Fe, dtype=dt)
+    return F
 
 
 def _compute_local_global_dof_map(elements: List, total_dof: int) -> List[np.ndarray]:

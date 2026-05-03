@@ -30,8 +30,8 @@ flowchart TB
 
     subgraph runner [simulation_runner]
         StaticRunner["static/LinearStaticSimulationRunner"]
-        EigenRunner["eigen/EigenSimulationRunner\nbuckling/BucklingSimulationRunner"]
-        TransientRunner["transient/DynamicSimulationRunner"]
+        EigenRunner["eigen/EigenSimulationRunner\nbuckling/LinearBucklingSimulationRunner"]
+        TransientRunner["transient/TransientSimulationRunner"]
     end
 
     subgraph post [post_processing]
@@ -74,5 +74,5 @@ flowchart TB
 | **processing/eigen** | Global **K** / **M** assembly and BCs for eigen, buckling, harmonic (and related). |
 | **processing/modal** | Placeholder package only; legacy shims removed — use **processing.eigen**. |
 | **processing/dynamic** | Global assembly, boundary conditions, and time integration for transient analysis. |
-| **simulation_runner** | **LinearStaticSimulationRunner** (linear static); **NonlinearStaticSimulationRunner** (nonlinear static); **EigenSimulationRunner** / **BucklingSimulationRunner** (eigen/buckling); **DynamicSimulationRunner** in **transient/**; **HarmonicSimulationRunner**; etc. |
+| **simulation_runner** | **LinearStaticSimulationRunner** (linear static); **NonlinearStaticSimulationRunner** (nonlinear static); **EigenSimulationRunner** / **LinearBucklingSimulationRunner** (eigen/linear buckling); **TransientSimulationRunner** in **transient/**; **HarmonicSimulationRunner**; etc. |
 | **post_processing** | Scripts that read result directories: graphical (deformation, load, stress, strain, section forces, etc.), verification (Roark, deflection convergence, GCI), tensor visualisers. |

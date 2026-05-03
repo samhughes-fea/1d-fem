@@ -33,7 +33,7 @@ def strict_shape_env(monkeypatch):
 
 def test_modal_buckling_prestress_secondary_tertiary(strict_shape_env):
     """Modal buckling branch + prestress snapshot U (avoids vibration ARPACK on tiny meshes)."""
-    from simulation_runner.buckling.buckling_simulation import BucklingSimulationRunner
+    from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
 
     settings, tmp, _ = _build_cantilever_modal_case(8, 2.5, 210e9, 1.0)
     settings["simulation_settings"] = {
@@ -50,7 +50,7 @@ def test_modal_buckling_prestress_secondary_tertiary(strict_shape_env):
         },
     }
     try:
-        BucklingSimulationRunner(settings=settings, job_name="modal_pp_test").run()
+        LinearBucklingSimulationRunner(settings=settings, job_name="modal_pp_test").run()
         root = Path(settings["job_results_dir"])
         assert (root / "secondary_results" / "secondary_summary.csv").is_file()
         assert (root / "tertiary_results" / "tertiary_summary.csv").is_file()
@@ -59,7 +59,7 @@ def test_modal_buckling_prestress_secondary_tertiary(strict_shape_env):
 
 
 def test_dynamic_secondary_tertiary(strict_shape_env):
-    from simulation_runner.transient.dynamic_simulation import DynamicSimulationRunner
+    from simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
 
     settings, tmp, _ = _build_cantilever_modal_case(8, 2.5, 210e9, 1.0)
     eos = list(np.asarray(settings["element_objects"], dtype=object).ravel())
@@ -94,7 +94,7 @@ def test_dynamic_secondary_tertiary(strict_shape_env):
         },
     }
     try:
-        DynamicSimulationRunner(settings=dyn_settings, job_name="dynamic_pp_test").run()
+        TransientSimulationRunner(settings=dyn_settings, job_name="dynamic_pp_test").run()
         root = Path(settings["job_results_dir"])
         assert (root / "secondary_results" / "secondary_summary.csv").is_file()
         assert (root / "tertiary_results" / "tertiary_summary.csv").is_file()
@@ -104,7 +104,7 @@ def test_dynamic_secondary_tertiary(strict_shape_env):
 
 def test_dynamic_multi_snapshot_secondary_tertiary(strict_shape_env):
     """Two time indices produce separate dynamic_post subtrees."""
-    from simulation_runner.transient.dynamic_simulation import DynamicSimulationRunner
+    from simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
 
     settings, tmp, _ = _build_cantilever_modal_case(8, 2.5, 210e9, 1.0)
     eos = list(np.asarray(settings["element_objects"], dtype=object).ravel())
@@ -139,7 +139,7 @@ def test_dynamic_multi_snapshot_secondary_tertiary(strict_shape_env):
         },
     }
     try:
-        DynamicSimulationRunner(settings=dyn_settings, job_name="dyn_multi_pp").run()
+        TransientSimulationRunner(settings=dyn_settings, job_name="dyn_multi_pp").run()
         root = Path(settings["job_results_dir"])
         assert (root / "secondary_results" / "dynamic_post" / "t_000000" / "secondary_summary.csv").is_file()
         assert (root / "secondary_results" / "dynamic_post" / "t_000005" / "secondary_summary.csv").is_file()

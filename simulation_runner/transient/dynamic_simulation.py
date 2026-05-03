@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
+import warnings
+from typing import Any, Callable, Optional
 
 import numpy as np
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix, csr_matrix
 
 from processing.boundary_supports import resolve_penalty_fixed_dofs
 from processing.common.primary_artifact_manifest import write_primary_artifact_manifest
@@ -27,9 +28,13 @@ from pre_processing.parsing.simulation_settings_resolution import effective_tran
 logger = logging.getLogger(__name__)
 
 
-class DynamicSimulationRunner:
+class TransientSimulationRunner:
     """
     Transient finite element analysis: assemble K/M/C, apply BCs, Newmark integrate.
+
+    Instance methods ``assemble_dynamic_global_system``, ``modify_dynamic_global_system``,
+    ``integrate_transient_system``, etc. mirror the staged style of
+    :class:`~simulation_runner.static.linear_static_simulation.LinearStaticSimulationRunner`.
     """
 
     def __init__(self, settings: dict, job_name: str):
@@ -75,6 +80,17 @@ class DynamicSimulationRunner:
             self.logs_dir = os.path.join(self.results_root, "logs")
 
         self.simulation_settings = self.settings.get("simulation_settings", {})
+
+        self.K_global: csr_matrix | None = None
+        self.M_global: csr_matrix | None = None
+        self.C_global: csr_matrix | None = None
+        self.K_mod: csr_matrix | None = None
+        self.M_mod: csr_matrix | None = None
+        self.C_mod: csr_matrix | None = None
+        self.U_time_history: np.ndarray | None = None
+        self.V_time_history: np.ndarray | None = None
+        self.A_time_history: np.ndarray | None = None
+        self.t_grid: np.ndarray | None = None
 
     def _ensure_sparse_format(self, matrices):
         if matrices is None:
@@ -243,6 +259,129 @@ class DynamicSimulationRunner:
         os.makedirs(self.logs_dir, exist_ok=True)
         logger.info("Results will be saved to: %s", self.results_root)
 
+    def assemble_dynamic_global_system(self, total_dof: int) -> tuple[csr_matrix, csr_matrix, Any, Any]:
+        """Global ``K``, ``M``, optional ``C``, and assembly metadata. Caches ``self.K_global``, ``self.M_global``, ``self.C_global``."""
+        K_global, M_global, C_global, meta = AssembleDynamicGlobalSystem(
+            elements=list(self.elements),
+            element_stiffness_matrices=self.element_stiffness_matrices,
+            element_mass_matrices=self.element_mass_matrices,
+            total_dof=total_dof,
+            job_results_dir=self.primary_results_dir,
+            element_damping_matrices=self.element_damping_matrices,
+        ).run()
+        self.K_global = K_global
+        self.M_global = M_global
+        self.C_global = C_global
+        return K_global, M_global, C_global, meta
+
+    def apply_rayleigh_damping_if_needed(
+        self,
+        K_global: csr_matrix,
+        M_global: csr_matrix,
+        C_global: Any,
+        dyn_config: dict,
+    ) -> Any:
+        """Return effective ``C`` (Rayleigh fill-in when element ``C`` is empty)."""
+        ra = dyn_config.get("rayleigh_alpha")
+        rb = dyn_config.get("rayleigh_beta")
+        ra_f = float(ra) if ra is not None else 0.0
+        rb_f = float(rb) if rb is not None else 0.0
+        if (C_global is None or getattr(C_global, "nnz", 0) == 0) and (ra_f != 0.0 or rb_f != 0.0):
+            C_use = (ra_f * M_global + rb_f * K_global).tocsr()
+            logger.info(
+                "Transient Rayleigh damping assembled: alpha=%s beta=%s (element C absent)",
+                ra_f,
+                rb_f,
+            )
+            self.C_global = C_use
+            return C_use
+        if (C_global is not None and getattr(C_global, "nnz", 0) > 0) and (ra_f != 0.0 or rb_f != 0.0):
+            logger.warning(
+                "Transient: Rayleigh alpha/beta are ignored when assembled element C is non-empty "
+                "(precedence: element C)."
+            )
+        return C_global
+
+    def modify_dynamic_global_system(
+        self, K_global: csr_matrix, M_global: csr_matrix, C_global: Any
+    ) -> tuple[csr_matrix, csr_matrix, Any, np.ndarray]:
+        """Apply BCs; cache ``self.K_mod``, ``self.M_mod``, ``self.C_mod``."""
+        fdyn = self._resolved_penalty_fixed_dofs()
+        K_mod, M_mod, C_mod, bc_dyn = ModifyDynamicGlobalSystem(
+            fixed_dofs=fdyn,
+            prescribed_displacements=self.prescribed_displacement_dict,
+            job_results_dir=self.primary_results_dir,
+        ).run(K_global, M_global, C_global)
+        self.K_mod = K_mod
+        self.M_mod = M_mod
+        self.C_mod = C_mod
+        log_transient_modified_system(
+            K_mod,
+            M_mod,
+            C_mod,
+            n_bc_dofs=int(np.asarray(bc_dyn).size),
+            job_results_dir=self.primary_results_dir,
+        )
+        return K_mod, M_mod, C_mod, bc_dyn
+
+    def integrate_transient_system(
+        self,
+        K_mod: csr_matrix,
+        M_mod: csr_matrix,
+        C_mod: Any,
+        t_grid: np.ndarray,
+        F_func: Callable[[float], np.ndarray],
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Newmark integration; caches ``self.U_time_history``, ``self.V_time_history``, ``self.A_time_history``, ``self.t_grid``."""
+        total_dof = int(K_mod.shape[0])
+        u0 = np.zeros(total_dof, dtype=np.float64)
+        v0 = np.zeros(total_dof, dtype=np.float64)
+        U, V, A = IntegrateTransientSystem(
+            t_grid=t_grid,
+            force_func=F_func,
+            job_results_dir=self.primary_results_dir,
+        ).run(K_mod, M_mod, C_mod, u0, v0)
+        self.U_time_history = U
+        self.V_time_history = V
+        self.A_time_history = A
+        self.t_grid = t_grid
+        return U, V, A
+
+    def save_transient_primary_results(self, t_grid: np.ndarray, U: np.ndarray, V: np.ndarray, A: np.ndarray) -> None:
+        """Write ``dynamic_results/*.txt`` time histories."""
+        results_dir = os.path.join(self.primary_results_dir, "dynamic_results")
+        os.makedirs(results_dir, exist_ok=True)
+        np.savetxt(os.path.join(results_dir, f"{self.job_name}_time.txt"), t_grid, fmt="%.6f")
+        np.savetxt(os.path.join(results_dir, f"{self.job_name}_displacements.txt"), U, fmt="%.6e")
+        np.savetxt(os.path.join(results_dir, f"{self.job_name}_velocities.txt"), V, fmt="%.6e")
+        np.savetxt(os.path.join(results_dir, f"{self.job_name}_accelerations.txt"), A, fmt="%.6e")
+
+    def run_dynamic_post_processing_if_enabled(self, U: np.ndarray) -> None:
+        """Optional formulation-cache secondary/tertiary from displacement snapshots."""
+        if not self._dynamic_post_enabled():
+            return
+        indices = self._dynamic_snapshot_row_indices(U.shape[0])
+        use_subdir = len(indices) > 1
+        for ti in indices:
+            logger.info("Dynamic post-processing snapshot at time index %s", ti)
+            sub = os.path.join("dynamic_post", f"t_{ti:06d}") if use_subdir else None
+            self._run_secondary_tertiary_from_cache(U[ti], results_subdir=sub)
+
+    def write_transient_primary_artifact_manifest(self) -> None:
+        """``logs/primary_artifacts.json`` index for transient outputs."""
+        dr = "primary_results/dynamic_results"
+        write_primary_artifact_manifest(
+            self.results_root,
+            family="transient",
+            job_name=self.job_name,
+            artifacts={
+                "time": f"{dr}/{self.job_name}_time.txt",
+                "displacements": f"{dr}/{self.job_name}_displacements.txt",
+                "velocities": f"{dr}/{self.job_name}_velocities.txt",
+                "accelerations": f"{dr}/{self.job_name}_accelerations.txt",
+            },
+        )
+
     def run(self):
         """Execute transient workflow: setup, assemble, BCs, time integrate, save."""
         try:
@@ -257,51 +396,14 @@ class DynamicSimulationRunner:
             monitor = RuntimeMonitorTelemetry(job_results_dir=self.diagnostics_dir)
 
             with monitor.stage("AssembleDynamicGlobalSystem"):
-                K_global, M_global, C_global, _ = AssembleDynamicGlobalSystem(
-                    elements=list(self.elements),
-                    element_stiffness_matrices=self.element_stiffness_matrices,
-                    element_mass_matrices=self.element_mass_matrices,
-                    total_dof=total_dof,
-                    job_results_dir=self.primary_results_dir,
-                    element_damping_matrices=self.element_damping_matrices,
-                ).run()
+                K_global, M_global, C_global, _ = self.assemble_dynamic_global_system(total_dof)
 
-            ra = dyn_config.get("rayleigh_alpha")
-            rb = dyn_config.get("rayleigh_beta")
-            ra_f = float(ra) if ra is not None else 0.0
-            rb_f = float(rb) if rb is not None else 0.0
-            if (C_global is None or getattr(C_global, "nnz", 0) == 0) and (
-                ra_f != 0.0 or rb_f != 0.0
-            ):
-                C_global = (ra_f * M_global + rb_f * K_global).tocsr()
-                logger.info(
-                    "Transient Rayleigh damping assembled: alpha=%s beta=%s (element C absent)",
-                    ra_f,
-                    rb_f,
-                )
-            elif (C_global is not None and getattr(C_global, "nnz", 0) > 0) and (
-                ra_f != 0.0 or rb_f != 0.0
-            ):
-                logger.warning(
-                    "Transient: Rayleigh alpha/beta are ignored when assembled element C is non-empty "
-                    "(precedence: element C)."
-                )
+            C_global = self.apply_rayleigh_damping_if_needed(K_global, M_global, C_global, dyn_config)
 
-            fdyn = self._resolved_penalty_fixed_dofs()
             with monitor.stage("ModifyDynamicGlobalSystem"):
-                K_mod, M_mod, C_mod, bc_dyn = ModifyDynamicGlobalSystem(
-                    fixed_dofs=fdyn,
-                    prescribed_displacements=self.prescribed_displacement_dict,
-                    job_results_dir=self.primary_results_dir,
-                ).run(K_global, M_global, C_global)
-
-            log_transient_modified_system(
-                K_mod,
-                M_mod,
-                C_mod,
-                n_bc_dofs=int(np.asarray(bc_dyn).size),
-                job_results_dir=self.primary_results_dir,
-            )
+                K_mod, M_mod, C_mod, _bc_dyn = self.modify_dynamic_global_system(
+                    K_global, M_global, C_global
+                )
 
             F_ref = self._assemble_reference_force(total_dof)
             F_func = build_transient_force_func(
@@ -312,45 +414,26 @@ class DynamicSimulationRunner:
                 end_time=end_time,
             )
 
-            u0 = np.zeros(total_dof, dtype=np.float64)
-            v0 = np.zeros(total_dof, dtype=np.float64)
-
             with monitor.stage("IntegrateTransientSystem"):
-                U, V, A = IntegrateTransientSystem(
-                    t_grid=t_grid,
-                    force_func=F_func,
-                    job_results_dir=self.primary_results_dir,
-                ).run(K_mod, M_mod, C_mod, u0, v0)
+                U, V, A = self.integrate_transient_system(K_mod, M_mod, C_mod, t_grid, F_func)
 
-            results_dir = os.path.join(self.primary_results_dir, "dynamic_results")
-            os.makedirs(results_dir, exist_ok=True)
-            np.savetxt(os.path.join(results_dir, f"{self.job_name}_time.txt"), t_grid, fmt="%.6f")
-            np.savetxt(os.path.join(results_dir, f"{self.job_name}_displacements.txt"), U, fmt="%.6e")
-            np.savetxt(os.path.join(results_dir, f"{self.job_name}_velocities.txt"), V, fmt="%.6e")
-            np.savetxt(os.path.join(results_dir, f"{self.job_name}_accelerations.txt"), A, fmt="%.6e")
-
-            if self._dynamic_post_enabled():
-                indices = self._dynamic_snapshot_row_indices(U.shape[0])
-                use_subdir = len(indices) > 1
-                for ti in indices:
-                    logger.info("Dynamic post-processing snapshot at time index %s", ti)
-                    sub = os.path.join("dynamic_post", f"t_{ti:06d}") if use_subdir else None
-                    self._run_secondary_tertiary_from_cache(U[ti], results_subdir=sub)
-
-            dr = "primary_results/dynamic_results"
-            write_primary_artifact_manifest(
-                self.results_root,
-                family="transient",
-                job_name=self.job_name,
-                artifacts={
-                    "time": f"{dr}/{self.job_name}_time.txt",
-                    "displacements": f"{dr}/{self.job_name}_displacements.txt",
-                    "velocities": f"{dr}/{self.job_name}_velocities.txt",
-                    "accelerations": f"{dr}/{self.job_name}_accelerations.txt",
-                },
-            )
+            self.save_transient_primary_results(t_grid, U, V, A)
+            self.run_dynamic_post_processing_if_enabled(U)
+            self.write_transient_primary_artifact_manifest()
 
             logger.info("Dynamic simulation completed successfully -> %s", self.results_root)
         except Exception as exc:
             logger.exception("Dynamic simulation failed")
             raise RuntimeError("Dynamic simulation aborted") from exc
+
+
+class DynamicSimulationRunner(TransientSimulationRunner):
+    """Deprecated alias for :class:`TransientSimulationRunner`."""
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "DynamicSimulationRunner is deprecated; use TransientSimulationRunner.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

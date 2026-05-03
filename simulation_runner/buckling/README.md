@@ -1,6 +1,10 @@
 # Linear buckling (Section 5)
 
-**Runner:** [`BucklingSimulationRunner`](buckling_simulation.py) — uses the same [`VibrationBucklingBackend`](../spectral/vibration_buckling_backend.py) as eigen (Section 2), with prestress and **(K, K_g)** solve stages.
+**Linear buckling runner:** [`LinearBucklingSimulationRunner`](buckling_simulation.py) — uses the same [`VibrationBucklingBackend`](../spectral/vibration_buckling_backend.py) as eigen (Section 2), with prestress and **(K, K_g)** solve stages. **`BucklingSimulationRunner`** is a deprecated alias.
+
+**Nonlinear buckling (MVP):** [`NonlinearBucklingSimulationRunner`](nonlinear_buckling_simulation.py) is selected when **`[Buckling] nonlinear_buckling = true`**; it is a wiring stub only — see [`NONLINEAR_BUCKLING_MVP.md`](../../docs/conventions/NONLINEAR_BUCKLING_MVP.md).
+
+Staged pipeline and **static-vs-spectral mapping**: [simulation_runner/spectral/README.md](../spectral/README.md) (*Stage mapping vs linear static*). Primary outputs use **`primary_results/modal_results/`** (same historical path as eigen; see [SIMULATION_SETTINGS_TAXONOMY.md](../../docs/conventions/SIMULATION_SETTINGS_TAXONOMY.md)).
 
 ## Primary layout (`job_results_dir`)
 

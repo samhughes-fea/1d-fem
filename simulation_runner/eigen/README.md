@@ -2,6 +2,8 @@
 
 **Runner:** [`EigenSimulationRunner`](eigen_simulation.py) — thin façade over [`VibrationBucklingBackend`](../spectral/vibration_buckling_backend.py) for **`[Type] eigen`**.
 
+Orchestration stages and the **static-vs-spectral stage map** are documented in [simulation_runner/spectral/README.md](../spectral/README.md) (*Stage mapping vs linear static*). Primary text files are still written under **`primary_results/modal_results/`** (historical folder name; unchanged for on-disk compatibility — see [SIMULATION_SETTINGS_TAXONOMY.md](../../docs/conventions/SIMULATION_SETTINGS_TAXONOMY.md) *Terminology*).
+
 ## Primary layout (`job_results_dir`)
 
 | Path | Content |

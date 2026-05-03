@@ -51,12 +51,12 @@ Duplicate/canonical definitions for some load types also live under `jobs/bin`. 
 
 ## Smoke jobs (`eigen` / `buckling` / `harmonic`)
 
-Minimal end-to-end inputs for canonical **`[Type] eigen`**, **`buckling`**, and **`harmonic`** live under **`jobs/job_smoke_eigen`**, **`jobs/job_smoke_buckling`**, and **`jobs/job_smoke_harmonic`** (linear Euler–Bernoulli beam, short mesh). **`tests/test_job_smoke_eigen_buckling_e2e.py`** covers eigen/buckling; **`tests/test_harmonic_frequency_response.py`** includes **`job_smoke_harmonic`**.
+Minimal end-to-end inputs for canonical **`[Type] eigen`**, **`buckling`**, and **`harmonic`** live under **`jobs/job_smoke_eigen`**, **`jobs/job_smoke_buckling`**, and **`jobs/job_smoke_harmonic`** (linear Euler–Bernoulli beam, short mesh). **`tests/test_job_smoke_eigen_buckling_e2e.py`** covers eigen/buckling; **`tests/test_harmonic_frequency_response.py`** includes **`job_smoke_harmonic`** (`test_job_smoke_harmonic_process_job` asserts **`logs/primary_artifacts.json`**); **`tests/test_nonlinear_buckling_dispatch_mvp.py`** covers **`[Buckling] nonlinear_buckling`** dispatch to the MVP stub.
 
 To run the same checks locally from the repository root (after installing dependencies from **`requirements-ci.txt`** or your usual environment):
 
 ```bash
-python -m pytest tests/test_job_smoke_eigen_buckling_e2e.py tests/test_harmonic_frequency_response.py -q
+python -m pytest tests/test_job_smoke_eigen_buckling_e2e.py tests/test_harmonic_frequency_response.py tests/test_nonlinear_buckling_dispatch_mvp.py -q
 ```
 
 The orchestrator script **`workflow_orchestrator/run_job.py`** discovers **all** directories matching **`jobs/job_*`**; use **`pytest`** above if you only want these smoke cases instead of the full job sweep.
@@ -91,6 +91,6 @@ buckling_prestress = linear_static
 buckling_load_factor = 1.0
 ```
 
-**Legacy (still supported):** `[Type] modal` with **`[Modal]`** and **`analysis = vibration`** or **`buckling`**. Example snippet: [fixtures/simulation_settings_legacy_modal_vibration.txt](fixtures/simulation_settings_legacy_modal_vibration.txt). See [simulation_runner/README.md](../simulation_runner/README.md) and [SIMULATION_SETTINGS_TAXONOMY.md](../docs/conventions/SIMULATION_SETTINGS_TAXONOMY.md).
+**Legacy (still supported):** `[Type] modal` with **`[Modal]`** and **`analysis = vibration`** or **`buckling`**. Example snippet: [fixtures/simulation_settings_legacy_modal_vibration.txt](fixtures/simulation_settings_legacy_modal_vibration.txt). See [simulation_runner/README.md](../simulation_runner/README.md), [SIMULATION_SETTINGS_TAXONOMY.md](../docs/conventions/SIMULATION_SETTINGS_TAXONOMY.md), and the **key-alias / import migration** guide [SIMULATION_SETTINGS_MODAL_AND_RUNNER_MIGRATION.md](../docs/conventions/SIMULATION_SETTINGS_MODAL_AND_RUNNER_MIGRATION.md).
 
-**Harmonic (§4):** `[Type] harmonic` and **`[Harmonic]`** accept reserved stub keys for a future solver; the runner still raises `NotImplementedError` until implemented (see [simulation_runner/harmonic/README.md](../simulation_runner/harmonic/README.md)).
+**Harmonic (§4):** `[Type] harmonic` with **`[Harmonic]`** runs the frequency sweep (`HarmonicSimulationRunner`); see [simulation_runner/harmonic/README.md](../simulation_runner/harmonic/README.md) and **`tests/test_harmonic_frequency_response.py`** (`test_job_smoke_harmonic_process_job`).

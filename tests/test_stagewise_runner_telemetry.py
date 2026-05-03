@@ -25,7 +25,7 @@ def _element_matrix_to_coo(m):
 
 
 def test_dynamic_runner_runtime_monitor_telemetry_stages():
-    from simulation_runner.transient.dynamic_simulation import DynamicSimulationRunner
+    from simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
 
     settings, tmp, _ = _build_cantilever_modal_case(8, 2.5, 210e9, 1.0)
     eos = list(np.asarray(settings["element_objects"], dtype=object).ravel())
@@ -54,7 +54,7 @@ def test_dynamic_runner_runtime_monitor_telemetry_stages():
         "simulation_settings": {"dynamic": {"time_step": 0.01, "end_time": 0.03}},
     }
     try:
-        DynamicSimulationRunner(settings=dyn_settings, job_name="telemetry_dyn").run()
+        TransientSimulationRunner(settings=dyn_settings, job_name="telemetry_dyn").run()
         root = Path(settings["job_results_dir"])
         log_path = root / "diagnostics" / "RuntimeMonitorTelemetry.log"
         assert log_path.is_file(), f"missing telemetry log: {log_path}"
@@ -73,7 +73,7 @@ def test_dynamic_runner_runtime_monitor_telemetry_stages():
 
 
 def test_dynamic_runner_stage_log_files_under_logs():
-    from simulation_runner.transient.dynamic_simulation import DynamicSimulationRunner
+    from simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
 
     settings, tmp, _ = _build_cantilever_modal_case(8, 2.5, 210e9, 1.0)
     eos = list(np.asarray(settings["element_objects"], dtype=object).ravel())
@@ -102,7 +102,7 @@ def test_dynamic_runner_stage_log_files_under_logs():
         "simulation_settings": {"dynamic": {"time_step": 0.01, "end_time": 0.02}},
     }
     try:
-        DynamicSimulationRunner(settings=dyn_settings, job_name="stage_logs_dyn").run()
+        TransientSimulationRunner(settings=dyn_settings, job_name="stage_logs_dyn").run()
         root = Path(settings["job_results_dir"])
         logs = root / "logs"
         assert (logs / "AssembleDynamicGlobalSystem.log").is_file()

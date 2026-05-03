@@ -1,12 +1,12 @@
 # Design note: nonlinear prestress for linear buckling
 
-**Implemented:** `buckling.buckling_prestress = nonlinear_static` (legacy: `modal.buckling_prestress`; see [`BucklingSimulationRunner`](../../simulation_runner/buckling/buckling_simulation.py) / [`VibrationBucklingBackend`](../../simulation_runner/spectral/vibration_buckling_backend.py)).
+**Implemented:** `buckling.buckling_prestress = nonlinear_static` (legacy: `modal.buckling_prestress`; see [`LinearBucklingSimulationRunner`](../../simulation_runner/buckling/buckling_simulation.py) / [`VibrationBucklingBackend`](../../simulation_runner/spectral/vibration_buckling_backend.py)).
 
 This document records the **API and architecture** for using a converged **nonlinear static** state to build **K_σ** for the linearised buckling eigenproblem, in addition to the long-standing **`linear_static`** prestress.
 
 ## Current behaviour
 
-- **`buckling_prestress = linear_static`** (default): shared buckling pipeline in [`BucklingSimulationRunner`](../../simulation_runner/buckling/buckling_simulation.py) / [`VibrationBucklingBackend`](../../simulation_runner/spectral/vibration_buckling_backend.py) runs [`LinearStaticSimulationRunner.solve_linear_system_only`](../../simulation_runner/static/linear_static_simulation.py) with load scale `buckling_load_factor`, uses **U_global** to evaluate element **K_σ**, then solves \((\mathbf{K} + \lambda \mathbf{K}_\sigma)\boldsymbol{\phi} = \mathbf{0}\).
+- **`buckling_prestress = linear_static`** (default): shared buckling pipeline in [`LinearBucklingSimulationRunner`](../../simulation_runner/buckling/buckling_simulation.py) / [`VibrationBucklingBackend`](../../simulation_runner/spectral/vibration_buckling_backend.py) runs [`LinearStaticSimulationRunner.solve_linear_system_only`](../../simulation_runner/static/linear_static_simulation.py) with load scale `buckling_load_factor`, uses **U_global** to evaluate element **K_σ**, then solves \((\mathbf{K} + \lambda \mathbf{K}_\sigma)\boldsymbol{\phi} = \mathbf{0}\).
 - **`buckling_prestress = none`**: rejected with **`ValueError`** — no reference stresses → **K_σ** cannot be defined meaningfully.
 
 ## Intended nonlinear workflow (design)

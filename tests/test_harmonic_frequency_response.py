@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -300,6 +301,15 @@ def test_job_smoke_harmonic_process_job() -> None:
         force_serial=True,
         max_processes_per_job=1,
     )
-    harm_dir = Path(res_dir) / "primary_results" / "harmonic_results"
+    root = Path(res_dir)
+    assert (root / "logs" / "run_manifest.json").is_file()
+    harm_dir = root / "primary_results" / "harmonic_results"
     assert (harm_dir / "job_smoke_harmonic_frequencies_hz.txt").is_file()
     assert (harm_dir / "job_smoke_harmonic_displacement_real.txt").is_file()
+    manifest = root / "logs" / "primary_artifacts.json"
+    assert manifest.is_file(), "harmonic runner should write primary_artifacts.json like static/spectral"
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    assert payload.get("family") == "harmonic"
+    arts = payload.get("artifacts") or {}
+    assert "frequencies_hz" in arts
+    assert arts["frequencies_hz"].startswith("primary_results/harmonic_results/")

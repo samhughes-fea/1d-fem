@@ -28,7 +28,7 @@ def test_warping_off_modal_matches_euler_band():
     from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
         LinearEulerBernoulliBeamElement3D,
     )
-    from simulation_runner.buckling.buckling_simulation import BucklingSimulationRunner
+    from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
 
     L = 2.0
     E = 200.0e9
@@ -121,7 +121,7 @@ def test_warping_off_modal_matches_euler_band():
         "prescribed_displacement_dict": None,
     }
     try:
-        runner = BucklingSimulationRunner(settings=settings, job_name="euler_band")
+        runner = LinearBucklingSimulationRunner(settings=settings, job_name="euler_band")
         runner.run()
         lam = np.asarray(runner.secondary_results["global"]["buckling_load_factors"], dtype=np.float64).ravel()
         P_cr = _euler_cantilever_P_cr(E, I_val, L)

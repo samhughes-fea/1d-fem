@@ -537,8 +537,6 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
             runner = EigenSimulationRunner(eigen_settings, case_name)
 
         elif solver_type == "buckling":
-            from simulation_runner.buckling.buckling_simulation import BucklingSimulationRunner
-
             element_stiffness_matrices = np.array([obj.K_e for obj in element_objects], dtype=object)
             buckling_settings = {
                 "elements": all_elements,
@@ -560,7 +558,17 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
                 "force_objects": force_objects,
                 "prescribed_displacement_dict": prescribed_displacement_dict,
             }
-            runner = BucklingSimulationRunner(buckling_settings, case_name)
+            bk_cfg = simulation_settings.get("buckling") or {}
+            if bool(bk_cfg.get("nonlinear_buckling", False)):
+                from simulation_runner.buckling.nonlinear_buckling_simulation import (
+                    NonlinearBucklingSimulationRunner,
+                )
+
+                runner = NonlinearBucklingSimulationRunner(buckling_settings, case_name)
+            else:
+                from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
+
+                runner = LinearBucklingSimulationRunner(buckling_settings, case_name)
 
         elif solver_type == "harmonic":
             from simulation_runner.harmonic.harmonic_simulation import HarmonicSimulationRunner
@@ -590,7 +598,7 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
             runner = HarmonicSimulationRunner(harmonic_settings, case_name)
 
         elif solver_type in ("transient", "dynamic"):
-            from simulation_runner.transient.dynamic_simulation import DynamicSimulationRunner
+            from simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
             element_stiffness_matrices_dyn = np.array([obj.K_e for obj in element_objects], dtype=object)
             dynamic_settings = {
                 "elements": all_elements,
@@ -604,7 +612,7 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
                 "job_results_dir": job_results_dir,
                 "simulation_settings": simulation_settings,
             }
-            runner = DynamicSimulationRunner(settings=dynamic_settings, job_name=case_name)
+            runner = TransientSimulationRunner(settings=dynamic_settings, job_name=case_name)
 
         else:
             logger.error(f"❌ Unknown simulation type: '{solver_type}'")

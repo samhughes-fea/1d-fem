@@ -140,7 +140,12 @@ def effective_harmonic_config(simulation_settings: dict) -> Dict[str, Any]:
 
 
 class HarmonicSimulationRunner:
-    """Harmonic / frequency-response analysis using direct frequency sweep."""
+    """
+    Harmonic / frequency-response analysis using direct frequency sweep.
+
+    Staged methods (``collect_harmonic_assembly_inputs``, ``assemble_harmonic_structural_matrices``, …)
+    mirror :class:`~simulation_runner.static.linear_static_simulation.LinearStaticSimulationRunner` orchestration.
+    """
 
     def __init__(self, settings: dict, job_name: str):
         self.settings = settings
@@ -175,6 +180,15 @@ class HarmonicSimulationRunner:
         self.material_dictionary = self.settings.get("material_dictionary") or {}
         self.section_dictionary = self.settings.get("section_dictionary") or {}
         self.job_dir = self.settings.get("job_dir")
+
+        self.K_global = None
+        self.M_global = None
+        self.F_global = None
+        self.K_mod = None
+        self.M_mod = None
+        self.C_mod = None
+        self.harmonic_frequencies_hz = None
+        self.harmonic_displacement = None
 
     def _dof_per_node(self) -> int:
         ed = self.settings.get("element_dictionary")
@@ -302,37 +316,28 @@ class HarmonicSimulationRunner:
         pp = self.simulation_settings.get("post_processing") or {}
         return bool(pp.get("run_secondary_tertiary_harmonic"))
 
-    def run(self) -> None:
-        cfg = effective_harmonic_config(self.simulation_settings)
-        f_min = cfg["frequency_min_hz"]
-        f_max = cfg["frequency_max_hz"]
-        n_pts = cfg["num_frequency_points"]
-        zeta = cfg["modal_damping_ratio"]
-        ra = cfg["rayleigh_alpha"]
-        rb = cfg["rayleigh_beta"]
-        load_phase = cfg["load_phase_rad"]
-        use_parallel = cfg["parallel_frequency_sweep"]
-        mp_ref = cfg["mp_damping_reference"]
-        use_modal = cfg["use_modal_superposition"]
-        num_modal = cfg["modal_superposition_num_modes"]
-        prescribed_phase = cfg["prescribed_motion_phase_rad"]
-        lin_solver = cfg["harmonic_linear_solver"]
-
+    def prepare_harmonic_job_tree(self) -> None:
+        """Create primary/secondary/tertiary/diagnostics/logs folders."""
         os.makedirs(self.primary_results_dir, exist_ok=True)
         os.makedirs(self.secondary_results_dir, exist_ok=True)
         os.makedirs(self.tertiary_results_dir, exist_ok=True)
         os.makedirs(self.diagnostics_dir, exist_ok=True)
         os.makedirs(self.logs_dir, exist_ok=True)
 
-        monitor = RuntimeMonitorTelemetry(job_results_dir=self.diagnostics_dir)
+    def collect_harmonic_assembly_inputs(self):
+        """
+        Build element lists and COO matrices for structural and load assembly.
+
+        Returns
+        -------
+        el_flat, Ke_list, Me_list, Fe_flat, total_dof, modal_assembly_dir, force_assembly_dir
+        """
         total_dof = self._total_dof()
         eo = np.asarray(self.settings.get("element_objects"), dtype=object).ravel()
         fo = np.asarray(self.settings.get("force_objects"), dtype=object).ravel()
         if eo.size == 0 or fo.size == 0:
             raise ValueError("Harmonic requires element_objects and force_objects (run_job wiring).")
 
-        # Do not ravel pre-stacked ``element_stiffness_matrices`` numpy arrays: ``np.array([K0,..])``
-        # can become numeric (n_el, n, n) and ravel to n_el*n*n scalars. Use formulation K_e per object.
         Ke_list = self._ensure_coo_ke([obj.K_e for obj in eo])
         Fe_flat = np.empty(fo.shape[0], dtype=object)
         for i, obj in enumerate(fo):
@@ -345,7 +350,6 @@ class HarmonicSimulationRunner:
         if Me_src is None:
             raise ValueError("Harmonic requires element_mass_matrices in settings")
         Me_arr = np.asarray(Me_src)
-        # Prefer numeric (n_el, ndof, ndof) stacks before raveling generic arrays (avoids 576 scalars).
         if Me_arr.ndim == 3 and Me_arr.shape[0] == n_el:
             Me_flat = [Me_arr[i] for i in range(n_el)]
         elif Me_arr.dtype == object and Me_arr.size == n_el:
@@ -370,40 +374,58 @@ class HarmonicSimulationRunner:
 
         modal_assembly_dir = os.path.join(self.primary_results_dir, "assembly_modal")
         force_assembly_dir = os.path.join(self.primary_results_dir, "assembly_force")
+        return el_flat, Ke_list, Me_list, Fe_flat, total_dof, modal_assembly_dir, force_assembly_dir
 
-        with monitor.stage("AssembleHarmonicStructuralMatrices"):
-            K_global, M_global, _ = AssembleHarmonicStructuralMatrices(
-                elements=el_flat,
-                element_stiffness_matrices=list(Ke_list),
-                element_mass_matrices=list(Me_list),
-                total_dof=total_dof,
-                job_results_dir=modal_assembly_dir,
-            ).run()
+    def assemble_harmonic_structural_matrices(
+        self, el_flat, Ke_list, Me_list, total_dof: int, modal_assembly_dir: str
+    ):
+        """Global ``K``, ``M`` for harmonic analysis."""
+        K_global, M_global, _ = AssembleHarmonicStructuralMatrices(
+            elements=el_flat,
+            element_stiffness_matrices=list(Ke_list),
+            element_mass_matrices=list(Me_list),
+            total_dof=total_dof,
+            job_results_dir=modal_assembly_dir,
+        ).run()
+        self.K_global = K_global
+        self.M_global = M_global
+        return K_global, M_global
 
-        with monitor.stage("AssembleHarmonicLoadVector"):
-            F_global = AssembleHarmonicLoadVector(
-                elements=el_flat,
-                element_stiffness_matrices=list(Ke_list),
-                element_force_vectors=list(Fe_flat),
-                total_dof=total_dof,
-                job_results_dir=force_assembly_dir,
-            ).run()
+    def assemble_harmonic_load_vector(
+        self, el_flat, Ke_list, Fe_flat, total_dof: int, force_assembly_dir: str
+    ):
+        """Global load vector ``F``."""
+        F_global = AssembleHarmonicLoadVector(
+            elements=el_flat,
+            element_stiffness_matrices=list(Ke_list),
+            element_force_vectors=list(Fe_flat),
+            total_dof=total_dof,
+            job_results_dir=force_assembly_dir,
+        ).run()
+        self.F_global = F_global
+        return F_global
 
+    def modify_harmonic_structural_matrices(self, K_global, M_global, F_global, total_dof: int):
+        """BCs on structural matrices and load."""
         h_fixed = self._resolved_penalty_fixed_dofs(total_dof)
-        with monitor.stage("ModifyHarmonicStructuralMatrices"):
-            K_mod, M_mod, bc_dofs, F_mod = ModifyHarmonicStructuralMatrices(
-                prescribed_displacements=self.prescribed_displacement_dict,
-                job_results_dir=self.primary_results_dir,
-                fixed_dofs=h_fixed,
-            ).run(K_global, M_global, F_global)
+        K_mod, M_mod, bc_dofs, F_mod = ModifyHarmonicStructuralMatrices(
+            prescribed_displacements=self.prescribed_displacement_dict,
+            job_results_dir=self.primary_results_dir,
+            fixed_dofs=h_fixed,
+        ).run(K_global, M_global, F_global)
+        self.K_mod = K_mod
+        self.M_mod = M_mod
+        return K_mod, M_mod, bc_dofs, F_mod
 
-        f_ref_hz = float(np.sqrt(f_min * f_max))
-        omega_ref = 2.0 * np.pi * f_ref_hz
-        with monitor.stage("BuildHarmonicDampingMatrix"):
-            C_mod = BuildHarmonicDampingMatrix(
-                job_results_dir=self.primary_results_dir,
-            ).run(M_mod, K_mod, zeta, omega_ref, ra, rb)
+    def build_harmonic_damping_matrix(self, M_mod, K_mod, zeta: float, omega_ref: float, ra: float, rb: float):
+        """Damping matrix ``C`` for the sweep."""
+        C_mod = BuildHarmonicDampingMatrix(
+            job_results_dir=self.primary_results_dir,
+        ).run(M_mod, K_mod, zeta, omega_ref, ra, rb)
+        self.C_mod = C_mod
+        return C_mod
 
+    def log_harmonic_structural_diagnostics(self, K_mod, M_mod, C_mod, F_mod, bc_dofs) -> None:
         log_harmonic_structural_summary(
             K_mod,
             M_mod,
@@ -413,9 +435,166 @@ class HarmonicSimulationRunner:
             job_results_dir=self.primary_results_dir,
         )
 
+    def build_harmonic_complex_load_vector(self, F_mod, load_phase_rad: float) -> np.ndarray:
         F_use = F_mod.astype(np.complex128, copy=True)
-        if load_phase != 0.0:
-            F_use *= np.exp(1j * float(load_phase))
+        if load_phase_rad != 0.0:
+            F_use *= np.exp(1j * float(load_phase_rad))
+        return F_use
+
+    def solve_harmonic_frequency_sweep(
+        self,
+        K_mod,
+        M_mod,
+        C_mod,
+        F_use: np.ndarray,
+        freqs_hz: np.ndarray,
+        u_template,
+        dof_unknown,
+        sweep_cfg: HarmonicSweepConfig,
+    ) -> np.ndarray:
+        U = SolveHarmonicFrequencySweep(
+            job_results_dir=self.primary_results_dir,
+            resolve_job_path=self._resolve_job_path,
+        ).run(
+            K_mod,
+            M_mod,
+            C_mod,
+            F_use,
+            freqs_hz,
+            u_template,
+            dof_unknown,
+            sweep_cfg,
+        )
+        self.harmonic_displacement = U
+        return U
+
+    def save_harmonic_primary_results(self, freqs_hz: np.ndarray, U: np.ndarray) -> str:
+        """Write ``harmonic_results/*.txt``; returns output directory path."""
+        out_dir = os.path.join(self.primary_results_dir, "harmonic_results")
+        os.makedirs(out_dir, exist_ok=True)
+        np.savetxt(os.path.join(out_dir, f"{self.job_name}_frequencies_hz.txt"), freqs_hz, fmt="%.8e")
+        np.savetxt(os.path.join(out_dir, f"{self.job_name}_displacement_real.txt"), np.real(U), fmt="%.8e")
+        np.savetxt(os.path.join(out_dir, f"{self.job_name}_displacement_imag.txt"), np.imag(U), fmt="%.8e")
+        np.savetxt(os.path.join(out_dir, f"{self.job_name}_displacement_abs.txt"), np.abs(U), fmt="%.8e")
+        np.savetxt(os.path.join(out_dir, f"{self.job_name}_displacement_phase_rad.txt"), np.angle(U), fmt="%.8e")
+        return out_dir
+
+    def write_harmonic_primary_artifact_manifest(self) -> None:
+        hr = "primary_results/harmonic_results"
+        jn = self.job_name
+        write_primary_artifact_manifest(
+            self.results_root,
+            family="harmonic",
+            job_name=jn,
+            artifacts={
+                "frequencies_hz": f"{hr}/{jn}_frequencies_hz.txt",
+                "displacement_real": f"{hr}/{jn}_displacement_real.txt",
+                "displacement_imag": f"{hr}/{jn}_displacement_imag.txt",
+                "displacement_abs": f"{hr}/{jn}_displacement_abs.txt",
+                "displacement_phase_rad": f"{hr}/{jn}_displacement_phase_rad.txt",
+            },
+        )
+
+    def run_harmonic_post_processing_if_enabled(self, U: np.ndarray) -> None:
+        if not self._harmonic_post_processing_enabled():
+            return
+        pp = self.simulation_settings.get("post_processing") or {}
+        n_col = int(U.shape[1])
+        raw_multi = pp.get("harmonic_secondary_tertiary_frequency_indices")
+        indices: List[int] = []
+        if raw_multi is not None and raw_multi != "":
+            if isinstance(raw_multi, str):
+                indices = [int(x.strip()) for x in raw_multi.split(",") if x.strip()]
+            else:
+                indices = [int(x) for x in raw_multi]
+        export_all = bool(pp.get("harmonic_secondary_tertiary_all_frequencies", False))
+        comp_raw = pp.get("harmonic_secondary_tertiary_displacement_component")
+        comp = "real" if comp_raw is None else str(comp_raw).strip().lower()
+        if comp not in ("real", "imag", "both"):
+            raise ValueError(
+                "post_processing.harmonic_secondary_tertiary_displacement_component must be "
+                f"'real', 'imag', or 'both', got {comp_raw!r}"
+            )
+
+        def run_one_frequency_column(idx: int) -> None:
+            Ucol = np.asarray(U[:, idx], dtype=np.complex128)
+            if comp in ("real", "both"):
+                self._run_secondary_tertiary_from_formulation_cache(
+                    np.real(Ucol),
+                    results_subdir=os.path.join("harmonic_post", f"freq_{idx:04d}"),
+                )
+            if comp in ("imag", "both"):
+                self._run_secondary_tertiary_from_formulation_cache(
+                    np.imag(Ucol),
+                    results_subdir=os.path.join("harmonic_post", f"freq_{idx:04d}_imag"),
+                )
+
+        if indices:
+            for idx in indices:
+                if idx < 0 or idx >= n_col:
+                    raise ValueError(
+                        f"post_processing.harmonic_secondary_tertiary_frequency_indices "
+                        f"entry {idx} out of range for {n_col} samples"
+                    )
+                run_one_frequency_column(idx)
+        elif export_all:
+            for idx in range(n_col):
+                run_one_frequency_column(idx)
+        else:
+            idx = int(pp.get("harmonic_frequency_index", 0))
+            if idx < 0 or idx >= n_col:
+                raise ValueError(
+                    f"post_processing.harmonic_frequency_index {idx} out of range "
+                    f"for {n_col} samples"
+                )
+            run_one_frequency_column(idx)
+
+    def run(self) -> None:
+        cfg = effective_harmonic_config(self.simulation_settings)
+        f_min = cfg["frequency_min_hz"]
+        f_max = cfg["frequency_max_hz"]
+        n_pts = cfg["num_frequency_points"]
+        zeta = cfg["modal_damping_ratio"]
+        ra = cfg["rayleigh_alpha"]
+        rb = cfg["rayleigh_beta"]
+        load_phase = cfg["load_phase_rad"]
+        use_parallel = cfg["parallel_frequency_sweep"]
+        mp_ref = cfg["mp_damping_reference"]
+        use_modal = cfg["use_modal_superposition"]
+        num_modal = cfg["modal_superposition_num_modes"]
+        prescribed_phase = cfg["prescribed_motion_phase_rad"]
+        lin_solver = cfg["harmonic_linear_solver"]
+
+        self.prepare_harmonic_job_tree()
+        monitor = RuntimeMonitorTelemetry(job_results_dir=self.diagnostics_dir)
+
+        el_flat, Ke_list, Me_list, Fe_flat, total_dof, modal_assembly_dir, force_assembly_dir = (
+            self.collect_harmonic_assembly_inputs()
+        )
+
+        with monitor.stage("AssembleHarmonicStructuralMatrices"):
+            K_global, M_global = self.assemble_harmonic_structural_matrices(
+                el_flat, Ke_list, Me_list, total_dof, modal_assembly_dir
+            )
+
+        with monitor.stage("AssembleHarmonicLoadVector"):
+            F_global = self.assemble_harmonic_load_vector(
+                el_flat, Ke_list, Fe_flat, total_dof, force_assembly_dir
+            )
+
+        with monitor.stage("ModifyHarmonicStructuralMatrices"):
+            K_mod, M_mod, bc_dofs, F_mod = self.modify_harmonic_structural_matrices(
+                K_global, M_global, F_global, total_dof
+            )
+
+        f_ref_hz = float(np.sqrt(f_min * f_max))
+        omega_ref = 2.0 * np.pi * f_ref_hz
+        with monitor.stage("BuildHarmonicDampingMatrix"):
+            C_mod = self.build_harmonic_damping_matrix(M_mod, K_mod, zeta, omega_ref, ra, rb)
+
+        self.log_harmonic_structural_diagnostics(K_mod, M_mod, C_mod, F_mod, bc_dofs)
+
+        F_use = self.build_harmonic_complex_load_vector(F_mod, load_phase)
 
         u_template, dof_unknown = self._harmonic_prescribed_partition(
             bc_dofs,
@@ -424,6 +603,7 @@ class HarmonicSimulationRunner:
         )
 
         freqs_hz = frequency_grid_hz(f_min, f_max, n_pts)
+        self.harmonic_frequencies_hz = freqs_hz
 
         ft_tab = zt_tab = None
         zeta_table_path = cfg.get("damping_zeta_table_file")
@@ -450,10 +630,7 @@ class HarmonicSimulationRunner:
             zt_tab=zt_tab,
         )
         with monitor.stage("SolveHarmonicFrequencySweep"):
-            U = SolveHarmonicFrequencySweep(
-                job_results_dir=self.primary_results_dir,
-                resolve_job_path=self._resolve_job_path,
-            ).run(
+            U = self.solve_harmonic_frequency_sweep(
                 K_mod,
                 M_mod,
                 C_mod,
@@ -464,84 +641,13 @@ class HarmonicSimulationRunner:
                 sweep_cfg,
             )
 
-        out_dir = os.path.join(self.primary_results_dir, "harmonic_results")
-        os.makedirs(out_dir, exist_ok=True)
-
-        np.savetxt(os.path.join(out_dir, f"{self.job_name}_frequencies_hz.txt"), freqs_hz, fmt="%.8e")
-        np.savetxt(os.path.join(out_dir, f"{self.job_name}_displacement_real.txt"), np.real(U), fmt="%.8e")
-        np.savetxt(os.path.join(out_dir, f"{self.job_name}_displacement_imag.txt"), np.imag(U), fmt="%.8e")
-        np.savetxt(os.path.join(out_dir, f"{self.job_name}_displacement_abs.txt"), np.abs(U), fmt="%.8e")
-        np.savetxt(os.path.join(out_dir, f"{self.job_name}_displacement_phase_rad.txt"), np.angle(U), fmt="%.8e")
-
-        hr = "primary_results/harmonic_results"
-        jn = self.job_name
-        write_primary_artifact_manifest(
-            self.results_root,
-            family="harmonic",
-            job_name=jn,
-            artifacts={
-                "frequencies_hz": f"{hr}/{jn}_frequencies_hz.txt",
-                "displacement_real": f"{hr}/{jn}_displacement_real.txt",
-                "displacement_imag": f"{hr}/{jn}_displacement_imag.txt",
-                "displacement_abs": f"{hr}/{jn}_displacement_abs.txt",
-                "displacement_phase_rad": f"{hr}/{jn}_displacement_phase_rad.txt",
-            },
-        )
+        out_dir = self.save_harmonic_primary_results(freqs_hz, U)
+        self.write_harmonic_primary_artifact_manifest()
 
         self.primary_results["global"]["harmonic_frequencies_hz"] = freqs_hz
         self.primary_results["global"]["harmonic_displacement"] = U
 
-        if self._harmonic_post_processing_enabled():
-            pp = self.simulation_settings.get("post_processing") or {}
-            n_col = int(U.shape[1])
-            raw_multi = pp.get("harmonic_secondary_tertiary_frequency_indices")
-            indices: List[int] = []
-            if raw_multi is not None and raw_multi != "":
-                if isinstance(raw_multi, str):
-                    indices = [int(x.strip()) for x in raw_multi.split(",") if x.strip()]
-                else:
-                    indices = [int(x) for x in raw_multi]
-            export_all = bool(pp.get("harmonic_secondary_tertiary_all_frequencies", False))
-            comp_raw = pp.get("harmonic_secondary_tertiary_displacement_component")
-            comp = "real" if comp_raw is None else str(comp_raw).strip().lower()
-            if comp not in ("real", "imag", "both"):
-                raise ValueError(
-                    "post_processing.harmonic_secondary_tertiary_displacement_component must be "
-                    f"'real', 'imag', or 'both', got {comp_raw!r}"
-                )
-
-            def run_one_frequency_column(idx: int) -> None:
-                Ucol = np.asarray(U[:, idx], dtype=np.complex128)
-                if comp in ("real", "both"):
-                    self._run_secondary_tertiary_from_formulation_cache(
-                        np.real(Ucol),
-                        results_subdir=os.path.join("harmonic_post", f"freq_{idx:04d}"),
-                    )
-                if comp in ("imag", "both"):
-                    self._run_secondary_tertiary_from_formulation_cache(
-                        np.imag(Ucol),
-                        results_subdir=os.path.join("harmonic_post", f"freq_{idx:04d}_imag"),
-                    )
-
-            if indices:
-                for idx in indices:
-                    if idx < 0 or idx >= n_col:
-                        raise ValueError(
-                            f"post_processing.harmonic_secondary_tertiary_frequency_indices "
-                            f"entry {idx} out of range for {n_col} samples"
-                        )
-                    run_one_frequency_column(idx)
-            elif export_all:
-                for idx in range(n_col):
-                    run_one_frequency_column(idx)
-            else:
-                idx = int(pp.get("harmonic_frequency_index", 0))
-                if idx < 0 or idx >= n_col:
-                    raise ValueError(
-                        f"post_processing.harmonic_frequency_index {idx} out of range "
-                        f"for {n_col} samples"
-                    )
-                run_one_frequency_column(idx)
+        self.run_harmonic_post_processing_if_enabled(U)
 
         logger.info(
             "Harmonic sweep completed: %s frequencies from %.4g to %.4g Hz -> %s",

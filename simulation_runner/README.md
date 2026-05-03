@@ -10,9 +10,9 @@ After parsing `simulation_settings.txt`, `settings["type"]` is always one of:
 |--------|----------|------------------|
 | `static` | §1 | [static/](static/) — linear ([LinearStaticSimulationRunner](static/linear_static_simulation.py)) or nonlinear ([NonlinearStaticSimulationRunner](static/nonlinear_static_simulation.py)); nonlinear jobs set `_resolved_static_kind == "nonlinear"` (legacy `[Type] static_nonlinear` normalizes here). |
 | `eigen` | §2 | [eigen/](eigen/) — `EigenSimulationRunner` (natural frequencies / mode shapes). Legacy `[Type] modal` with `modal.analysis=vibration` normalizes to `eigen`. |
-| `transient` | §3 | [transient/](transient/) — `DynamicSimulationRunner` ([transient/dynamic_simulation.py](transient/dynamic_simulation.py)). Legacy `[Type] dynamic` normalizes to `transient`. |
+| `transient` | §3 | [transient/](transient/) — `TransientSimulationRunner` ([transient/dynamic_simulation.py](transient/dynamic_simulation.py)); `DynamicSimulationRunner` remains a deprecated subclass. Legacy `[Type] dynamic` normalizes to `transient`. |
 | `harmonic` | §4 | [harmonic/](harmonic/) — `HarmonicSimulationRunner` (frequency sweep); see [harmonic/README.md](harmonic/README.md). |
-| `buckling` | §5 | [buckling/](buckling/) — `BucklingSimulationRunner`. Legacy `[Type] modal` with `modal.analysis=buckling` normalizes to `buckling`. |
+| `buckling` | §5 | [buckling/](buckling/) — `LinearBucklingSimulationRunner` (linearized **K** / **K_g**); optional **`[Buckling] nonlinear_buckling = true`** dispatches **`NonlinearBucklingSimulationRunner`** (MVP stub). `BucklingSimulationRunner` is a deprecated alias. Legacy `[Type] modal` with `modal.analysis=buckling` normalizes to `buckling`. |
 
 Optional bracket sections **`[Static]`**, **`[Eigen]`**, **`[Transient]`**, **`[Harmonic]`**, **`[Buckling]`** support `enabled = true` to declare the primary analysis; see [pre_processing/parsing/simulation_settings_parser.py](../pre_processing/parsing/simulation_settings_parser.py) and `finalize_simulation_settings` in [simulation_settings_resolution.py](../pre_processing/parsing/simulation_settings_resolution.py).
 
@@ -27,12 +27,11 @@ Parser deprecation warnings log at **`WARNING`** unless **`FEM_SILENCE_LEGACY_SI
 
 Set **`FEM_LEGACY_MODAL_ERROR=1`** to **raise** on legacy **`[Modal]`** / **`[Type] modal`** input (see [**SIMULATION_SETTINGS_TAXONOMY.md**](../docs/conventions/SIMULATION_SETTINGS_TAXONOMY.md)).
 
-**`ModalSimulationRunner`** was removed — use **`EigenSimulationRunner`** / **`BucklingSimulationRunner`** via **`run_job`** ([**CHANGELOG**](../docs/CHANGELOG.md) **Removed**).
+**`ModalSimulationRunner`** was removed — use **`EigenSimulationRunner`** / **`LinearBucklingSimulationRunner`** via **`run_job`** ([**CHANGELOG**](../docs/CHANGELOG.md) **Removed**).
 
 ## Shared spectral backend (eigen + buckling)
 
-- **[spectral/](spectral/)** — **`VibrationBucklingBackend`** ([`vibration_buckling_backend.py`](spectral/vibration_buckling_backend.py)) shared by **`EigenSimulationRunner`** and **`BucklingSimulationRunner`** (not a separate public façade).
-- **`simulation_runner.modal`** — **deprecated** one-release import path; **`_vibration_buckling_backend`** / **`modal_diagnostic`** emit **`DeprecationWarning`** and delegate to **`simulation_runner.spectral`** ([CHANGELOG](../docs/CHANGELOG.md)).
+- **[spectral/](spectral/)** — **`VibrationBucklingBackend`** ([`vibration_buckling_backend.py`](spectral/vibration_buckling_backend.py)) shared by **`EigenSimulationRunner`** and **`LinearBucklingSimulationRunner`** (not a separate public façade). Import **`simulation_runner.spectral`** (or concrete submodules); the old **`simulation_runner.modal`** shim package has been **removed** ([CHANGELOG](../docs/CHANGELOG.md)).
 
 ## Processing packages (§2 assembly)
 
@@ -40,7 +39,7 @@ Set **`FEM_LEGACY_MODAL_ERROR=1`** to **raise** on legacy **`[Modal]`** / **`[Ty
 - **`processing.modal`** — placeholder package only (**`processing/modal/__init__.py`**); legacy **`processing.modal.assembly`**, **`boundary_conditions`**, and **`buckling`** submodules were **removed** — import **`processing.eigen`** and **`processing.buckling`** instead ([CHANGELOG](../docs/CHANGELOG.md) **Removed**).
 - **`processing.buckling`** — linear buckling kernels; reuses §2 scatter/BC helpers from **`processing.eigen`**. Runners import **`processing.buckling`** directly.
 
-**Transient:** import **`DynamicSimulationRunner`** from **`simulation_runner.transient.dynamic_simulation`** (the old **`simulation_runner.dynamic`** shim was removed).
+**Transient:** import **`TransientSimulationRunner`** from **`simulation_runner.transient.dynamic_simulation`** (the old **`simulation_runner.dynamic`** shim was removed; **`DynamicSimulationRunner`** is a deprecated alias).
 
 ## Runtime telemetry and per-stage logs
 
@@ -49,7 +48,7 @@ Set **`FEM_LEGACY_MODAL_ERROR=1`** to **raise** on legacy **`[Modal]`** / **`[Ty
 | Runner | Typical `RuntimeMonitorTelemetry(...)` argument |
 |--------|-----------------------------------------------|
 | §2 eigen / §5 buckling (spectral) | `diagnostics_dir` under job root |
-| §3 transient (`DynamicSimulationRunner`) | `diagnostics_dir` |
+| §3 transient (`TransientSimulationRunner`) | `diagnostics_dir` |
 | §4 harmonic | `diagnostics_dir` |
 | §1 linear static | `primary_results_dir` in `__init__`, then `diagnostics_dir` in `solve_linear_system_only` / `run()` — effective log path is still **job** `diagnostics/` |
 | §1 nonlinear static | `primary_results_dir` on the long-lived monitor, `diagnostics_dir` on the top-level `run()` monitor |

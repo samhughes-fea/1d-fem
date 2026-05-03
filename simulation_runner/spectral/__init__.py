@@ -2,7 +2,7 @@
 """
 Shared spectral analysis backend for eigen vibration and linear buckling (analysis sections 2 and 5).
 
-``EigenSimulationRunner`` and ``BucklingSimulationRunner`` subclass
+``EigenSimulationRunner`` and ``LinearBucklingSimulationRunner`` subclass
 :class:`VibrationBucklingBackend` from ``vibration_buckling_backend``.
 """
 

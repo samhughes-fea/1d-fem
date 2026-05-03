@@ -57,10 +57,13 @@ def _nonlinear_twin_element_dictionary(element_dictionary: dict) -> dict:
 
 class VibrationBucklingBackend:
     """
-    Shared implementation for §2 eigen vibration and §5 linear buckling (undamped
+    Shared implementation for Section 2 eigen vibration and Section 5 linear buckling (undamped
     :math:`K` / :math:`M` and buckling pencil). Subclass with a concrete ``run()`` in
     :class:`~simulation_runner.eigen.eigen_simulation.EigenSimulationRunner` or
-    :class:`~simulation_runner.buckling.buckling_simulation.BucklingSimulationRunner`.
+    :class:`~simulation_runner.buckling.buckling_simulation.LinearBucklingSimulationRunner`.
+
+    Staged instance methods (``prepare_spectral_local_matrices``, ``assemble_spectral_global_system``,
+    etc.) mirror the decomposition style of :class:`~simulation_runner.static.linear_static_simulation.LinearStaticSimulationRunner`.
     """
 
     def __init__(self, settings, job_name):
@@ -108,6 +111,16 @@ class VibrationBucklingBackend:
             self.logs_dir = os.path.join(self.results_root, "logs")
 
         self.simulation_settings = self.settings.get("simulation_settings", {})
+
+        # Cached global matrices / solutions (last vibration or elastic buckling branch).
+        self.K_global = None
+        self.M_global = None
+        self.K_mod = None
+        self.M_mod = None
+        self.vibration_frequencies_hz = None
+        self.vibration_mode_shapes = None
+        self.buckling_load_factors = None
+        self.buckling_mode_shapes = None
 
     def _ensure_sparse_format(self, matrices):
         """Converts matrices to sparse COO format if needed."""
@@ -190,6 +203,98 @@ class VibrationBucklingBackend:
         ).run(K_global, M_global)
         logger.info("Boundary conditions applied.")
         return K_mod, M_mod, bc_dofs
+
+    # --- Staged API (linear-static-style orchestration) ---------------------------------
+
+    def prepare_spectral_local_matrices(self, job_results_dir: str):
+        """
+        Format element stiffness/mass to COO lists (analogue of ``PrepareLocalSystem`` for spectral).
+        """
+        return PrepareSpectralLocalMatrices(
+            element_stiffness_matrices=self.element_stiffness_matrices,
+            element_mass_matrices=self.element_mass_matrices,
+            job_results_dir=job_results_dir,
+        ).run()
+
+    def assemble_spectral_global_system(self, job_results_dir: str, ke_list, me_list):
+        """
+        Assemble global ``K``, ``M`` (analogue of ``AssembleGlobalSystem`` for the undamped pencil).
+        Caches ``self.K_global``, ``self.M_global``.
+        """
+        K_global, M_global = self._assemble_global_matrices(
+            job_results_dir, ke_list=ke_list, me_list=me_list
+        )
+        self.K_global = K_global
+        self.M_global = M_global
+        return K_global, M_global
+
+    def modify_spectral_global_system(self, K_global, M_global, job_results_dir: str):
+        """
+        Apply spectral BCs (analogue of ``ModifyGlobalSystem`` for :math:`K`, :math:`M` only).
+        Caches ``self.K_mod``, ``self.M_mod``.
+        """
+        K_mod, M_mod, bc_dofs = self._modify_global_matrices(K_global, M_global, job_results_dir)
+        self.K_mod = K_mod
+        self.M_mod = M_mod
+        return K_mod, M_mod, bc_dofs
+
+    def solve_vibration_eigenpairs(
+        self,
+        K_mod,
+        M_mod,
+        num_modes: int,
+        job_results_dir: str,
+        *,
+        dense_threshold: int = 512,
+    ):
+        """
+        Solve :math:`K x = \\lambda M x` for the smallest modes (analogue of ``SolveCondensedSystem``).
+        Caches ``self.vibration_frequencies_hz``, ``self.vibration_mode_shapes``.
+        """
+        frequencies, mode_shapes = self.solve_modal_vibration(
+            K_mod, M_mod, num_modes, job_results_dir, dense_threshold=dense_threshold
+        )
+        self.vibration_frequencies_hz = frequencies
+        self.vibration_mode_shapes = mode_shapes
+        return frequencies, mode_shapes
+
+    def save_vibration_primary_results(self, frequencies, mode_shapes) -> None:
+        """Write modal primary text outputs and primary-artifact manifest."""
+        self._save_primary_results(frequencies, mode_shapes)
+
+    def finalize_vibration_secondary_or_post(
+        self, frequencies, mode_shapes, M_mod
+    ) -> None:
+        """Either formulation-cache post or native secondary .txt metrics."""
+        if self._modal_post_processing_enabled():
+            U_snap = self._snapshot_u_vibration(mode_shapes)
+            self._run_secondary_tertiary_from_formulation_cache(U_snap)
+        else:
+            self._compute_secondary_results(frequencies, mode_shapes, M_mod=M_mod)
+            self._save_secondary_results()
+
+    def solve_buckling_linearized_problem(
+        self,
+        K_global,
+        job_results_dir: str,
+        num_modes: int,
+        buck_cfg: dict,
+        monitor: RuntimeMonitorTelemetry | None = None,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Prestress, :math:`K_g`, BCs, and linear buckling eigenpairs (buckling-only stages)."""
+        return self._run_linear_buckling(K_global, job_results_dir, num_modes, buck_cfg, monitor=monitor)
+
+    def save_buckling_primary_results(self, load_factors: np.ndarray, mode_shapes: np.ndarray) -> None:
+        """Write buckling primary outputs; cache factors and modes on ``self``."""
+        self._save_buckling_results(load_factors, mode_shapes)
+        self.buckling_load_factors = load_factors
+        self.buckling_mode_shapes = mode_shapes
+
+    def finalize_buckling_optional_post(self, mode_shapes: np.ndarray) -> None:
+        """Optional formulation-cache post from a buckling or prestress snapshot."""
+        if self._modal_post_processing_enabled():
+            U_snap = self._snapshot_u_buckling(mode_shapes)
+            self._run_secondary_tertiary_from_formulation_cache(U_snap)
 
     # -------------------------------------------------------------------------
     # 3) SOLVE MODAL SYSTEM
@@ -620,28 +725,21 @@ class VibrationBucklingBackend:
         job_results_dir = self.primary_results_dir
         monitor = RuntimeMonitorTelemetry(job_results_dir=self.diagnostics_dir)
         with monitor.stage("PrepareSpectralLocalMatrices"):
-            ke_list, me_list = PrepareSpectralLocalMatrices(
-                element_stiffness_matrices=self.element_stiffness_matrices,
-                element_mass_matrices=self.element_mass_matrices,
-                job_results_dir=job_results_dir,
-            ).run()
+            ke_list, me_list = self.prepare_spectral_local_matrices(job_results_dir)
         with monitor.stage("AssembleSpectralGlobalSystem"):
-            K_global, M_global = self._assemble_global_matrices(
-                job_results_dir, ke_list=ke_list, me_list=me_list
+            K_global, M_global = self.assemble_spectral_global_system(
+                job_results_dir, ke_list, me_list
             )
         with monitor.stage("ModifySpectralGlobalSystem"):
-            K_mod, M_mod, _ = self._modify_global_matrices(K_global, M_global, job_results_dir)
+            K_mod, M_mod, _ = self.modify_spectral_global_system(
+                K_global, M_global, job_results_dir
+            )
         with monitor.stage("SolveGeneralizedEigenproblem"):
-            frequencies, mode_shapes = self.solve_modal_vibration(
+            frequencies, mode_shapes = self.solve_vibration_eigenpairs(
                 K_mod, M_mod, num_modes, job_results_dir, dense_threshold=dense_th
             )
-        self._save_primary_results(frequencies, mode_shapes)
-        if self._modal_post_processing_enabled():
-            U_snap = self._snapshot_u_vibration(mode_shapes)
-            self._run_secondary_tertiary_from_formulation_cache(U_snap)
-        else:
-            self._compute_secondary_results(frequencies, mode_shapes, M_mod=M_mod)
-            self._save_secondary_results()
+        self.save_vibration_primary_results(frequencies, mode_shapes)
+        self.finalize_vibration_secondary_or_post(frequencies, mode_shapes, M_mod)
         logger.info("Modal simulation completed successfully -> %s", self.results_root)
 
     def _run_buckling_analysis(self) -> None:
@@ -650,22 +748,16 @@ class VibrationBucklingBackend:
         job_results_dir = self.primary_results_dir
         monitor = RuntimeMonitorTelemetry(job_results_dir=self.diagnostics_dir)
         with monitor.stage("PrepareSpectralLocalMatrices"):
-            b_ke, b_me = PrepareSpectralLocalMatrices(
-                element_stiffness_matrices=self.element_stiffness_matrices,
-                element_mass_matrices=self.element_mass_matrices,
-                job_results_dir=job_results_dir,
-            ).run()
+            b_ke, b_me = self.prepare_spectral_local_matrices(job_results_dir)
         with monitor.stage("AssembleSpectralGlobalSystem"):
-            K_global, M_global = self._assemble_global_matrices(
-                job_results_dir, ke_list=b_ke, me_list=b_me
+            K_global, M_global = self.assemble_spectral_global_system(
+                job_results_dir, b_ke, b_me
             )
         with monitor.stage("BucklingPrestress"):
-            lambdas, mode_shapes = self._run_linear_buckling(
+            lambdas, mode_shapes = self.solve_buckling_linearized_problem(
                 K_global, job_results_dir, num_modes, buck_cfg, monitor=monitor
             )
-        self._save_buckling_results(lambdas, mode_shapes)
+        self.save_buckling_primary_results(lambdas, mode_shapes)
         self.secondary_results["global"]["buckling_load_factors"] = lambdas
-        if self._modal_post_processing_enabled():
-            U_snap = self._snapshot_u_buckling(mode_shapes)
-            self._run_secondary_tertiary_from_formulation_cache(U_snap)
+        self.finalize_buckling_optional_post(mode_shapes)
         logger.info("Modal buckling simulation completed -> %s", self.results_root)

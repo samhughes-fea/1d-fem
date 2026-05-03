@@ -1,6 +1,6 @@
 # Transient dynamics (§3)
 
-**Status:** Newmark integration in [`dynamic_simulation.py`](dynamic_simulation.py); matrix path in [`processing/dynamic/operations`](../../processing/dynamic/operations/__init__.py). Taxonomy: [SIMULATION_SETTINGS_TAXONOMY.md](../../docs/conventions/SIMULATION_SETTINGS_TAXONOMY.md).
+**Status:** Newmark integration in [`dynamic_simulation.py`](dynamic_simulation.py) via **`TransientSimulationRunner`** (`DynamicSimulationRunner` is a deprecated alias); matrix path in [`processing/dynamic/operations`](../../processing/dynamic/operations/__init__.py). Taxonomy: [SIMULATION_SETTINGS_TAXONOMY.md](../../docs/conventions/SIMULATION_SETTINGS_TAXONOMY.md).
 
 ## Telemetry
 

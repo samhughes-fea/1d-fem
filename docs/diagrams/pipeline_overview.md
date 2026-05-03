@@ -24,7 +24,7 @@ flowchart TB
 
     subgraph runner [Simulation type]
         Static["LinearStaticSimulationRunner.run()"]
-        NonModal["EigenSimulationRunner / BucklingSimulationRunner /\nDynamicSimulationRunner / HarmonicSimulationRunner / …"]
+        NonModal["EigenSimulationRunner / LinearBucklingSimulationRunner /\nTransientSimulationRunner / HarmonicSimulationRunner / …"]
     end
 
     subgraph results [Results]
