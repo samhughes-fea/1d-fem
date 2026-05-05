@@ -201,6 +201,7 @@ def _parse_job(job_dir: Path) -> dict:
         "simulation_settings_path": str(job_dir / "simulation_settings.txt"),
         "simulation_type": dispatch["simulation_type"],
         "simulation_settings": dispatch["simulation_settings"],
+        "artifact_contract": dispatch["artifact_contract"],
     }
 
 
@@ -221,6 +222,9 @@ def _generate_script_content(data: dict, out_csv_dir: str) -> str:
     distributed_loads = data.get("distributed_loads") or []
     simulation_type = str(data.get("simulation_type", "static")).strip().lower()
     simulation_settings = data.get("simulation_settings") or {}
+    artifact_contract = data.get("artifact_contract") or {}
+    artifact_contract_name = str(artifact_contract.get("contract_name", "static_reference"))
+    expected_files = list(artifact_contract.get("expected_files") or [])
     nonlinear_cfg = simulation_settings.get("nonlinear") or {}
     nonlinear_num_increments = int(nonlinear_cfg.get("num_increments", 1))
 
@@ -291,6 +295,8 @@ POINT_LOADS = {point_loads}
 DISTRIBUTED_LOADS = {distributed_loads}
 DISTRIBUTED_EQUIVALENT_NODAL = {distributed_equivalent_nodal}
 OUT_CSV_DIR = r"{out_csv_dir_escaped}"
+ARTIFACT_CONTRACT_NAME = "{artifact_contract_name}"
+EXPECTED_ARTIFACT_FILES = {expected_files}
 
 # Default encastre at node 0 if no prescribed DOFs given
 if not PRESCRIBED_NODES_DOF_VALUES and COORDS:
@@ -509,6 +515,9 @@ if os.path.exists(odb_path):
     rotation_src = "ODB" if "UR" in frame.fieldOutputs else "none"
     with open(os.path.join(OUT_CSV_DIR, "rotation_source.txt"), "w") as _rf:
         _rf.write(rotation_src + "\\n")
+    with open(os.path.join(OUT_CSV_DIR, "artifact_contract.txt"), "w") as _cf:
+        _cf.write("contract_name=" + ARTIFACT_CONTRACT_NAME + "\\n")
+        _cf.write("expected_files=" + ",".join(EXPECTED_ARTIFACT_FILES) + "\\n")
     # --- Export section forces (x, N, Vy, Vz, T, My, Mz) for comparison ---
     if "SF" in frame.fieldOutputs:
         sf_field = frame.fieldOutputs["SF"]

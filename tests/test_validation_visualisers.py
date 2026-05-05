@@ -130,6 +130,47 @@ def test_simulation_type_dispatch_payload_reads_canonical_type() -> None:
     payload = build_validation_dispatch_payload(str(job_dir))
     assert payload["simulation_type"] == "eigen"
     assert isinstance(payload["simulation_settings"], dict)
+    assert payload["artifact_contract"]["contract_name"] == "eigen_reference"
+    assert "eigen_frequencies.csv" in payload["artifact_contract"]["expected_files"]
+
+
+def test_simulation_type_dispatch_wave1_contracts_cover_core_families() -> None:
+    from post_processing.validation_visualisers.abaqus.simulation_type_dispatch import build_validation_dispatch_payload
+
+    cases = {
+        "job_0000_n8": ("static_reference", "U_global.csv"),
+        "job_benchmark_transient_cantilever_multidof": ("transient_reference", "transient_reference_contract.txt"),
+        "job_smoke_eigen": ("eigen_reference", "eigen_frequencies.csv"),
+        "job_smoke_buckling": ("linear_buckling_reference", "buckling_load_factors.csv"),
+    }
+    for job_name, (contract_name, expected_file) in cases.items():
+        job_dir = PROJECT_ROOT / "jobs" / job_name
+        if not job_dir.is_dir():
+            pytest.skip(f"{job_name} not found")
+        payload = build_validation_dispatch_payload(str(job_dir))
+        assert payload["artifact_contract"]["contract_name"] == contract_name
+        assert expected_file in payload["artifact_contract"]["expected_files"]
+
+
+def test_job_to_abaqus_script_emits_wave1_contract_artifact_metadata() -> None:
+    from post_processing.validation_visualisers.abaqus.job_to_abaqus_script import _parse_job, _generate_script_content
+    from post_processing.validation_visualisers.abaqus.config import ABAQUS_RESULTS_DIR
+
+    cases = {
+        "job_0000_n8": ["ARTIFACT_CONTRACT_NAME = \"static_reference\"", "artifact_contract.txt"],
+        "job_benchmark_transient_cantilever_multidof": ["ARTIFACT_CONTRACT_NAME = \"transient_reference\"", "transient_reference_contract.txt"],
+        "job_smoke_eigen": ["ARTIFACT_CONTRACT_NAME = \"eigen_reference\"", "eigen_frequencies.csv", "mode_shapes.csv"],
+        "job_smoke_buckling": ["ARTIFACT_CONTRACT_NAME = \"linear_buckling_reference\"", "buckling_load_factors.csv", "buckling_mode_shapes.csv"],
+    }
+    for job_name, snippets in cases.items():
+        job_dir = PROJECT_ROOT / "jobs" / job_name
+        if not job_dir.is_dir():
+            pytest.skip(f"{job_name} not found")
+        data = _parse_job(job_dir)
+        out_csv_dir = str(ABAQUS_RESULTS_DIR / data["job_name"])
+        content = _generate_script_content(data, out_csv_dir)
+        for snippet in snippets:
+            assert snippet in content
 
 
 def test_extract_odb_results_mentions_tip_history_flag() -> None:
