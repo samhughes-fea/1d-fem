@@ -180,6 +180,14 @@ def test_extract_odb_results_mentions_tip_history_flag() -> None:
     assert "tip_load_history.csv" in text
 
 
+def test_extract_odb_results_mentions_wave1_placeholder_exports() -> None:
+    p = PROJECT_ROOT / "post_processing" / "validation_visualisers" / "abaqus" / "extract_odb_results.py"
+    text = p.read_text(encoding="utf-8")
+    assert "frequency_response.csv" in text
+    assert "eigen_frequencies.csv" in text
+    assert "buckling_load_factors.csv" in text
+
+
 def test_extract_odb_results_tip_history_helpers_pick_last_node_u2() -> None:
     from post_processing.validation_visualisers.abaqus.extract_odb_results import (
         _tip_node_label_from_u_field,

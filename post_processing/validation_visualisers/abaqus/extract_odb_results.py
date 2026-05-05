@@ -28,7 +28,30 @@ def _tip_u2_from_field_values(u_values, tip_node: int | None) -> float:
     return float(vals[0].data[1]) if vals and len(vals[0].data) >= 2 else 0.0
 
 
-def extract_odb_to_csv(odb_path: str, out_dir: str, *, export_tip_history: bool = False) -> None:
+def _write_wave1_placeholder_exports(out_dir: str, *, simulation_type: str) -> None:
+    sim = str(simulation_type).strip().lower()
+    if sim == "harmonic":
+        with open(os.path.join(out_dir, "frequency_response.csv"), "w") as f:
+            f.write("frequency_hz,response_real,response_imag\n")
+    elif sim == "eigen":
+        with open(os.path.join(out_dir, "eigen_frequencies.csv"), "w") as f:
+            f.write("mode_index,frequency_hz\n")
+        with open(os.path.join(out_dir, "mode_shapes.csv"), "w") as f:
+            f.write("mode_index,node_label,dof,value\n")
+    elif sim == "buckling":
+        with open(os.path.join(out_dir, "buckling_load_factors.csv"), "w") as f:
+            f.write("mode_index,load_factor\n")
+        with open(os.path.join(out_dir, "buckling_mode_shapes.csv"), "w") as f:
+            f.write("mode_index,node_label,dof,value\n")
+
+
+def extract_odb_to_csv(
+    odb_path: str,
+    out_dir: str,
+    *,
+    export_tip_history: bool = False,
+    simulation_type: str = "static",
+) -> None:
     """
     Read ODB at odb_path; write U_global.csv (and optionally section_forces.csv) to out_dir.
     Requires Abaqus odbAccess (run from Abaqus Python).
@@ -47,6 +70,7 @@ def extract_odb_to_csv(odb_path: str, out_dir: str, *, export_tip_history: bool 
 
     odb = odbAccess.openOdb(path=odb_path)
     os.makedirs(out_dir, exist_ok=True)
+    _write_wave1_placeholder_exports(out_dir, simulation_type=simulation_type)
 
     # Last step, last frame
     step_names = list(odb.steps.keys())
@@ -219,7 +243,8 @@ def main() -> None:
         print("Usage: abaqus cae noGUI=extract_odb_results.py -- odb_path=<path> out_dir=<path>", file=sys.stderr)
         sys.exit(1)
     export_tip_history = str(args.get("export_tip_history", "false")).strip().lower() in ("1", "true", "yes", "on")
-    extract_odb_to_csv(odb_path, out_dir, export_tip_history=export_tip_history)
+    simulation_type = str(args.get("simulation_type", "static")).strip().lower()
+    extract_odb_to_csv(odb_path, out_dir, export_tip_history=export_tip_history, simulation_type=simulation_type)
 
 
 if __name__ == "__main__":
