@@ -279,6 +279,17 @@ def test_wave1_family_validation_runners_report_reference_artifact_presence(tmp_
         assert "present_files=" in summary_text
 
 
+def test_gitignore_mentions_local_abaqus_and_validation_hygiene_patterns() -> None:
+    p = PROJECT_ROOT / ".gitignore"
+    text = p.read_text(encoding="utf-8")
+    assert "abaqus.rpy*" in text
+    assert "abaqus*.rec" in text
+    assert "*_abaqus.odb" in text
+    assert "post_processing/validation_visualisers/abaqus/generated/run_*.py" in text
+    assert "post_processing/validation_visualisers/abaqus_results/*/" in text
+    assert "post_processing/results/validation/" in text
+
+
 def test_section_forces_comparison_runs():
     """Run section forces comparison; must not raise."""
     from post_processing.validation_visualisers.section_forces.section_forces_comparison import (

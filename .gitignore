@@ -18,6 +18,30 @@ post_processing/results/dbg_*/
 #post_processing/validation_visualisers/abaqus/generated/
 #post_processing/validation_visualisers/abaqus_results/
 
+# Local Abaqus session/recorder artifacts
+abaqus.rpy*
+abaqus*.rec
+
+# Root-level Abaqus job outputs generated during local validation runs
+*_abaqus.com
+*_abaqus.dat
+*_abaqus.inp
+*_abaqus.log
+*_abaqus.msg
+*_abaqus.odb
+*_abaqus.prt
+*_abaqus.sta
+
+# Local validation-generated wrappers and extracted raw reference results
+post_processing/validation_visualisers/abaqus/generated/run_*.py
+post_processing/validation_visualisers/abaqus_results/*/
+
+# Local validation result trees and generated plot outputs
+post_processing/results/validation/
+post_processing/results/job_benchmark_*_20*/
+post_processing/validation_visualisers/deformation/deformation_plots/*.png
+post_processing/validation_visualisers/section_forces/section_forces_plots/*.png
+
 # IDE
 .vscode/
 .idea/
@@ -42,4 +66,3 @@ debug*.log
 build/
 dist/
 *.egg-info/
-
