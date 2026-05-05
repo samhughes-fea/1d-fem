@@ -276,123 +276,7 @@ def _generate_script_content(data: dict, out_csv_dir: str) -> str:
         out_csv_dir_escaped=out_csv_dir_escaped,
         artifact_contract_name=artifact_contract_name,
         expected_files=expected_files,
-    ) + f'''
-# Auto-generated Abaqus CAE script for job: {job_name}
-# Run with project Python (abqpy): python this_file; abqpy saveAs() launches Abaqus.
-# Outputs CSV to: {out_csv_dir}
-
-from abaqus import *
-from abaqusConstants import *
-from driverUtils import *
-import regionToolset
-import mesh
-import os
-import sys
-import shutil
-
-executeOnCaeStartup()
-
-# Detect if running inside Abaqus (real kernel) vs project Python (abqpy stubs)
-try:
-    import odbAccess
-    IN_ABAQUS = True
-except Exception:
-    IN_ABAQUS = False
-
-# --- Data (from job dir) ---
-COORDS = {coords}
-ABAQUS_ELEM = "{abaqus_elem}"
-E_MODULUS = {E}
-NU = {nu}
-RHO = {rho}
-A_AREA = {A}
-I11 = {I_y}
-I22 = {I_z}
-J_TORSION = {J_t}
-PRESCRIBED_NODES_DOF_VALUES = {prescribed_tuples}
-POINT_LOADS = {point_loads}
-DISTRIBUTED_LOADS = {distributed_loads}
-DISTRIBUTED_EQUIVALENT_NODAL = {distributed_equivalent_nodal}
-OUT_CSV_DIR = r"{out_csv_dir_escaped}"
-ARTIFACT_CONTRACT_NAME = "{artifact_contract_name}"
-EXPECTED_ARTIFACT_FILES = {expected_files}
-
-# Default encastre at node 0 if no prescribed DOFs given
-if not PRESCRIBED_NODES_DOF_VALUES and COORDS:
-    for dof_idx in range(6):
-        PRESCRIBED_NODES_DOF_VALUES.append((0, dof_idx, 0.0))
-
-# When run by project Python (abqpy), only trigger Abaqus launch; model/job/export run only inside Abaqus
-if not IN_ABAQUS:
-    mdb.saveAs(os.path.join(OUT_CSV_DIR, "model.cae"))
-    sys.exit(0)
-
-# --- Model ---
-modelName = "Model-1"
-try:
-    del mdb.models[modelName]
-except KeyError:
-    pass
-mdb.Model(name=modelName)
-model = mdb.models[modelName]
-
-# --- Part: 3D wire from polyline ---
-partName = "Beam"
-part = model.Part(name=partName, dimensionality=THREE_D, type=DEFORMABLE_BODY)
-points = tuple(tuple(float(c) for c in pt) for pt in COORDS)
-part.WirePolyLine(mergeType=IMPRINT, meshable=ON, points=points)
-
-# --- Material ---
-matName = "Steel"
-model.Material(name=matName)
-model.materials[matName].Elastic(table=((E_MODULUS, NU),))
-if RHO > 0:
-    model.materials[matName].Density(table=((RHO,),))
-
-# --- Beam section: use Rectangular profile (dimensions from A, I22) so Abaqus accepts it ---
-# Match cross-section A and I22 (bending); I11 and J will differ for non-rectangular sections.
-import math
-a_rect = A_AREA * math.sqrt(A_AREA / (12.0 * I22)) if I22 > 0 else math.sqrt(A_AREA)
-b_rect = math.sqrt(12.0 * I22 / A_AREA) if A_AREA > 0 and I22 > 0 else math.sqrt(A_AREA)
-profileName = "BeamRectProfile"
-model.RectangularProfile(name=profileName, a=a_rect, b=b_rect)
-sectionName = "BeamSection"
-model.BeamSection(
-    name=sectionName,
-    integration=DURING_ANALYSIS,
-    poissonRatio=NU,
-    profile=profileName,
-    material=matName,
-    temperatureVar=LINEAR,
-)
-region = part.Set(edges=part.edges, name="BeamSet")
-part.SectionAssignment(region=region, sectionName=sectionName, offset=0.0, offsetType=MIDDLE_SURFACE)
-try:
-    part.beamOrientations.assign(region=region, method=N1_COSINES, n1=(0.0, 1.0, 0.0))
-except AttributeError:
-    pass  # Some Abaqus versions use different API; default orientation may apply
-
-# --- Element type and mesh (seed, setElementType, then generateMesh) ---
-part.seedPart(size=1e10, minSizeFactor=0.1, deviationFactor=0.1)
-part.setElementType(regions=(part.edges,), elemTypes=(mesh.ElemType(elemCode=ABAQUS_ELEM, elemLibrary=STANDARD),))
-part.generateMesh()
-
-# --- Assembly ---
-assembly = model.rootAssembly
-assembly.DatumCsysByDefault(CARTESIAN)
-assembly.Instance(name="Beam-1", part=part, dependent=ON)
-
-# --- Step ---
-{step_block}
-if not os.path.exists(OUT_CSV_DIR):
-    os.makedirs(OUT_CSV_DIR)
-def _log(msg):
-    print(msg)
-    try:
-        with open(os.path.join(OUT_CSV_DIR, "run_log.txt"), "a") as _f:
-            _f.write(str(msg) + "\\n")
-    except Exception:
-        pass
+    ) + _build_step_and_model_block(step_block) + f'''
 # Request U, UR (deflection/rotation) and SF, SM (section forces and section moments).
 # UR is nodal rotation; SF = N,Vy,Vz; SM = T,My,Mz. If model.FieldOutputRequest is missing (e.g. Abaqus 2021), try step-based API.
 FIELD_OUTPUT_USED = "none"
@@ -641,6 +525,78 @@ if not PRESCRIBED_NODES_DOF_VALUES and COORDS:
 if not IN_ABAQUS:
     mdb.saveAs(os.path.join(OUT_CSV_DIR, "model.cae"))
     sys.exit(0)
+
+'''
+
+
+def _build_step_and_model_block(step_block: str) -> str:
+    return f'''
+# --- Model ---
+modelName = "Model-1"
+try:
+    del mdb.models[modelName]
+except KeyError:
+    pass
+mdb.Model(name=modelName)
+model = mdb.models[modelName]
+
+# --- Part: 3D wire from polyline ---
+partName = "Beam"
+part = model.Part(name=partName, dimensionality=THREE_D, type=DEFORMABLE_BODY)
+points = tuple(tuple(float(c) for c in pt) for pt in COORDS)
+part.WirePolyLine(mergeType=IMPRINT, meshable=ON, points=points)
+
+# --- Material ---
+matName = "Steel"
+model.Material(name=matName)
+model.materials[matName].Elastic(table=((E_MODULUS, NU),))
+if RHO > 0:
+    model.materials[matName].Density(table=((RHO,),))
+
+# --- Beam section: use Rectangular profile (dimensions from A, I22) so Abaqus accepts it ---
+# Match cross-section A and I22 (bending); I11 and J will differ for non-rectangular sections.
+import math
+a_rect = A_AREA * math.sqrt(A_AREA / (12.0 * I22)) if I22 > 0 else math.sqrt(A_AREA)
+b_rect = math.sqrt(12.0 * I22 / A_AREA) if A_AREA > 0 and I22 > 0 else math.sqrt(A_AREA)
+profileName = "BeamRectProfile"
+model.RectangularProfile(name=profileName, a=a_rect, b=b_rect)
+sectionName = "BeamSection"
+model.BeamSection(
+    name=sectionName,
+    integration=DURING_ANALYSIS,
+    poissonRatio=NU,
+    profile=profileName,
+    material=matName,
+    temperatureVar=LINEAR,
+)
+region = part.Set(edges=part.edges, name="BeamSet")
+part.SectionAssignment(region=region, sectionName=sectionName, offset=0.0, offsetType=MIDDLE_SURFACE)
+try:
+    part.beamOrientations.assign(region=region, method=N1_COSINES, n1=(0.0, 1.0, 0.0))
+except AttributeError:
+    pass  # Some Abaqus versions use different API; default orientation may apply
+
+# --- Element type and mesh (seed, setElementType, then generateMesh) ---
+part.seedPart(size=1e10, minSizeFactor=0.1, deviationFactor=0.1)
+part.setElementType(regions=(part.edges,), elemTypes=(mesh.ElemType(elemCode=ABAQUS_ELEM, elemLibrary=STANDARD),))
+part.generateMesh()
+
+# --- Assembly ---
+assembly = model.rootAssembly
+assembly.DatumCsysByDefault(CARTESIAN)
+assembly.Instance(name="Beam-1", part=part, dependent=ON)
+
+# --- Step ---
+{step_block}
+if not os.path.exists(OUT_CSV_DIR):
+    os.makedirs(OUT_CSV_DIR)
+def _log(msg):
+    print(msg)
+    try:
+        with open(os.path.join(OUT_CSV_DIR, "run_log.txt"), "a") as _f:
+            _f.write(str(msg) + "\\n")
+    except Exception:
+        pass
 
 '''
 
