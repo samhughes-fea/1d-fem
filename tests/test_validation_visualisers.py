@@ -265,6 +265,20 @@ def test_wave1_family_validation_runner_entrypoints_exist(tmp_path) -> None:
         assert "summary_file" in out
 
 
+def test_wave1_family_validation_runners_report_reference_artifact_presence(tmp_path) -> None:
+    from post_processing.validation_visualisers.harmonic.run_harmonic_validation import run_harmonic_validation
+    from post_processing.validation_visualisers.eigen.run_eigen_validation import run_eigen_validation
+    from post_processing.validation_visualisers.buckling.run_buckling_validation import run_buckling_validation
+
+    for runner in [run_harmonic_validation, run_eigen_validation, run_buckling_validation]:
+        out = runner(tmp_path)
+        assert "reference_dir" in out
+        assert "present_files" in out
+        summary_text = Path(out["summary_file"]).read_text(encoding="utf-8")
+        assert "expected_files=" in summary_text
+        assert "present_files=" in summary_text
+
+
 def test_section_forces_comparison_runs():
     """Run section forces comparison; must not raise."""
     from post_processing.validation_visualisers.section_forces.section_forces_comparison import (
