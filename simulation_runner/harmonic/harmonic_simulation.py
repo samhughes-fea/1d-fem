@@ -11,6 +11,7 @@ import numpy as np
 from scipy.sparse import coo_matrix
 
 from processing.common.primary_artifact_manifest import write_primary_artifact_manifest
+from processing.common.harmonic_complex_post import build_harmonic_complex_snapshots
 from processing.harmonic.damping_table import interpolate_zeta_hz, load_zeta_vs_frequency_hz
 from processing.harmonic.diagnostics.harmonic_run_diagnostic import log_harmonic_structural_summary
 from processing.harmonic.frequency_response import frequency_grid_hz
@@ -510,23 +511,23 @@ class HarmonicSimulationRunner:
         export_all = bool(pp.get("harmonic_secondary_tertiary_all_frequencies", False))
         comp_raw = pp.get("harmonic_secondary_tertiary_displacement_component")
         comp = "real" if comp_raw is None else str(comp_raw).strip().lower()
-        if comp not in ("real", "imag", "both"):
+        if comp not in ("real", "imag", "both", "complex_components"):
             raise ValueError(
                 "post_processing.harmonic_secondary_tertiary_displacement_component must be "
-                f"'real', 'imag', or 'both', got {comp_raw!r}"
+                f"'real', 'imag', 'both', or 'complex_components', got {comp_raw!r}"
             )
 
         def run_one_frequency_column(idx: int) -> None:
             Ucol = np.asarray(U[:, idx], dtype=np.complex128)
-            if comp in ("real", "both"):
+            snapshots = build_harmonic_complex_snapshots(
+                U_column=Ucol,
+                frequency_index=idx,
+                displacement_component=comp,
+            )
+            for snap in snapshots:
                 self._run_secondary_tertiary_from_formulation_cache(
-                    np.real(Ucol),
-                    results_subdir=os.path.join("harmonic_post", f"freq_{idx:04d}"),
-                )
-            if comp in ("imag", "both"):
-                self._run_secondary_tertiary_from_formulation_cache(
-                    np.imag(Ucol),
-                    results_subdir=os.path.join("harmonic_post", f"freq_{idx:04d}_imag"),
+                    snap.U_global,
+                    results_subdir=snap.results_subdir,
                 )
 
         if indices:

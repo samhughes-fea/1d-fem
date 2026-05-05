@@ -1,4 +1,4 @@
-"""Unit tests for stagewise processing.spectral / harmonic / dynamic operations."""
+"""Unit tests for stagewise processing.spectral / harmonic / transient operations."""
 
 from __future__ import annotations
 
@@ -8,10 +8,10 @@ import numpy as np
 import pytest
 from scipy.sparse import coo_matrix, csr_matrix, eye
 
-from processing.dynamic.operations import (
-    AssembleDynamicGlobalSystem,
+from processing.transient.operations import (
+    AssembleTransientGlobalSystem,
     IntegrateTransientSystem,
-    ModifyDynamicGlobalSystem,
+    ModifyTransientGlobalSystem,
 )
 from processing.harmonic.operations import (
     AssembleHarmonicLoadVector,
@@ -87,11 +87,11 @@ def test_build_harmonic_damping_matrix():
     assert C.shape == (n, n)
 
 
-def test_modify_dynamic_global_system():
+def test_modify_transient_global_system():
     n = 4
     K = csr_matrix(eye(n, format="csr", dtype=np.float64))
     M = csr_matrix(eye(n, format="csr", dtype=np.float64))
-    Km, Mm, Cm, bc = ModifyDynamicGlobalSystem(
+    Km, Mm, Cm, bc = ModifyTransientGlobalSystem(
         fixed_dofs=[0, 1],
         prescribed_displacements=None,
         job_results_dir=None,
@@ -100,9 +100,9 @@ def test_modify_dynamic_global_system():
     assert bc.size == 2
 
 
-def test_assemble_dynamic_global_system_requires_elements():
+def test_assemble_transient_global_system_requires_elements():
     with pytest.raises(ValueError, match="No elements"):
-        AssembleDynamicGlobalSystem(
+        AssembleTransientGlobalSystem(
             elements=[],
             element_stiffness_matrices=None,
             element_mass_matrices=None,

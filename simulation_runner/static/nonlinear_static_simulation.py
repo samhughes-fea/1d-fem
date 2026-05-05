@@ -41,36 +41,16 @@ from processing.static.results.postprocess_secondary_tertiary import (
     save_tertiary_outputs,
 )
 from processing.static.results.build_converged_formulation_cache import build_converged_formulation_cache
+from processing.static.results.save_nonlinear_static_validation_summary import (
+    write_nonlinear_static_tip_history_summary,
+)
+from processing.common.nonlinear_equilibrium import (
+    NonlinearEquilibriumIterationRecord,
+    newton_condensed_residual_converged,
+    solve_newton_equilibrium,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def newton_condensed_residual_converged(
-    norm_r_cond: float,
-    atol: float,
-    rtol: float | None,
-    ref_scale: float,
-) -> bool:
-    """
-    Compare ‖F_cond‖₂ (condensed Newton RHS) to atol + rtol·ref_scale.
-
-    ``ref_scale`` is set once from the first Newton iteration (first_residual)
-    or from ‖F_ext‖ on condensed DOFs (external_force), depending on settings.
-
-    Parameters
-    ----------
-    norm_r_cond
-        Euclidean norm of the condensed residual vector ``F_cond``.
-    atol
-        Absolute tolerance on forces (same units as ``F_cond`` entries).
-    rtol
-        Relative multiplier; if ``None``, only ``atol`` applies via ``atol + 0``.
-    ref_scale
-        Positive reference scale (first residual or external-load norm).
-    """
-    rt = 0.0 if rtol is None else float(rtol)
-    ref = max(float(ref_scale), np.finfo(float).eps)
-    return bool(float(norm_r_cond) <= float(atol) + rt * ref)
 
 
 def _to_coo(Ke):
@@ -224,6 +204,7 @@ class NonlinearStaticSimulationRunner:
         self.last_norm_F_cond = None
         self.newton_iterations_total = 0
         self.load_increments_completed = 0
+        self._validation_tip_history = []
 
         # Intermediate system storage
         self.K_global = None
@@ -882,17 +863,9 @@ class NonlinearStaticSimulationRunner:
         -------
         U_global, delta_U_cond, converged
         """
-        newton_tol = self.newton_tol
-        newton_max = self.newton_max_iter
-        tol_du = self.newton_tol_delta_u
-        delta_U_cond = None
-        newton_ref_residual = None
-        newton_ref_external = None
-        converged = False
-
-        for iteration in range(newton_max):
+        def build_system(current_U: np.ndarray) -> tuple[float, float, np.ndarray]:
             with self.monitor.stage("NewtonBuildKT_Fint"):
-                K_T_list, F_int_list = self._build_K_T_and_F_int(U_global)
+                K_T_list, F_int_list = self._build_K_T_and_F_int(current_U)
 
             with self.monitor.stage("NewtonAssemble"):
                 self.assemble_global_system(
@@ -927,25 +900,11 @@ class NonlinearStaticSimulationRunner:
             F_cond_arr = np.asarray(self.F_cond, dtype=np.float64).ravel()
             norm_R_conv = float(np.linalg.norm(F_cond_arr))
             norm_R_full = float(np.linalg.norm(R_global))
-            self.last_norm_F_cond = norm_R_conv
-            if iteration == 0:
-                newton_ref_residual = norm_R_conv
-                cd0 = np.asarray(self.condensed_dofs, dtype=np.intp)
-                newton_ref_external = float(np.linalg.norm(F_ext_global[cd0]))
+            return norm_R_full, norm_R_conv, R_global
 
-            if self.newton_relative_reference == "external_force":
-                ref_scale = newton_ref_external
-            else:
-                ref_scale = newton_ref_residual
-            residual_ok = newton_condensed_residual_converged(
-                norm_R_conv,
-                newton_tol,
-                self.newton_relative_tol,
-                ref_scale,
-            )
-
+        def solve_condensed_step(iteration: int, lam: float) -> np.ndarray:
             with self.monitor.stage("NewtonSolve"):
-                delta_U_cond = self.solve_condensed_system(
+                delta = self.solve_condensed_system(
                     self.K_cond,
                     self.F_cond,
                     self.primary_results_dir,
@@ -958,14 +917,16 @@ class NonlinearStaticSimulationRunner:
                     ilu_fill_factor=self.solver_config.get("ilu_fill_factor", 1.0),
                     disable_scaling=self.solver_config.get("disable_scaling", False),
                     load_increment_index=self.load_increment_index,
-                    newton_iter=iteration + 1,
-                    load_factor=float(load_factor),
+                    newton_iter=iteration,
+                    load_factor=float(lam),
                 )
-                if delta_U_cond is None:
-                    raise RuntimeError("Newton step solve failed")
+            if delta is None:
+                raise RuntimeError("Newton step solve failed")
+            return delta
 
+        def reconstruct_delta(delta_U_cond: np.ndarray) -> np.ndarray:
             with self.monitor.stage("NewtonReconstruct"):
-                delta_U_global = self.reconstruct_global_system(
+                return self.reconstruct_global_system(
                     self.condensed_dofs,
                     delta_U_cond,
                     self.total_dof,
@@ -975,64 +936,54 @@ class NonlinearStaticSimulationRunner:
                     local_global_dof_map=self.local_global_dof_map,
                 )
 
-            alpha = 1.0
-            if self.nonlinear_line_search:
-                shrink = self.nonlinear_line_search_shrink
-                max_bt = self.nonlinear_line_search_max_backtracks
-                best_norm = float("inf")
-                best_alpha = 1.0
-                for k in range(max_bt + 1):
-                    a = float(shrink ** k)
-                    if a < 1e-14:
-                        break
-                    U_try = U_global + a * delta_U_global
-                    n_try = self._condensed_residual_norm(U_try, F_ext_global)
-                    if n_try < best_norm:
-                        best_norm = n_try
-                        best_alpha = a
-                alpha = best_alpha
-                logger.debug(
-                    "Newton line search: chose alpha=%.4e (best ||F_cond||=%.4e)",
-                    alpha,
-                    best_norm,
-                )
-
-            U_global = U_global + alpha * delta_U_global
-
-            norm_du = float(np.linalg.norm(alpha * delta_U_global))
-            thr = newton_tol
-            if self.newton_relative_tol is not None:
-                rs = max(float(ref_scale), np.finfo(float).eps)
-                thr = newton_tol + self.newton_relative_tol * rs
+        def on_iteration(record: NonlinearEquilibriumIterationRecord) -> None:
             logger.info(
                 "Newton iter %d: ||R||_full=%.4e ||F_cond||=%.4e (vs thr=%.4e) ||delta_U||=%.4e alpha=%.4e",
-                iteration + 1,
-                norm_R_full,
-                norm_R_conv,
-                thr,
-                norm_du,
-                alpha,
+                record.newton_iter,
+                record.norm_R_full,
+                record.norm_F_cond,
+                record.threshold,
+                record.norm_delta_u,
+                record.alpha,
             )
             self.newton_iterations_total += 1
+            self.last_norm_F_cond = record.norm_F_cond
             self._append_newton_history_row(
-                load_increment_index=self.load_increment_index,
-                load_factor=float(load_factor),
-                newton_iter=iteration + 1,
-                norm_R_full=norm_R_full,
-                norm_F_cond=norm_R_conv,
-                threshold=thr,
-                norm_delta_u=norm_du,
-                alpha=float(alpha),
-                residual_ok=bool(residual_ok),
+                load_increment_index=record.load_increment_index,
+                load_factor=record.load_factor,
+                newton_iter=record.newton_iter,
+                norm_R_full=record.norm_R_full,
+                norm_F_cond=record.norm_F_cond,
+                threshold=record.threshold,
+                norm_delta_u=record.norm_delta_u,
+                alpha=record.alpha,
+                residual_ok=record.residual_ok,
             )
-            if residual_ok and norm_du < tol_du:
-                logger.info("Newton converged at iteration %d", iteration + 1)
-                converged = True
-                break
-        else:
-            logger.warning("Newton did not converge within %d iterations", newton_max)
 
-        return U_global, delta_U_cond, converged
+        result = solve_newton_equilibrium(
+            U_global=U_global,
+            F_ext_global=F_ext_global,
+            load_factor=float(load_factor),
+            load_increment_index=self.load_increment_index,
+            newton_tol=self.newton_tol,
+            newton_max_iter=self.newton_max_iter,
+            newton_tol_delta_u=self.newton_tol_delta_u,
+            newton_relative_tol=self.newton_relative_tol,
+            newton_relative_reference=self.newton_relative_reference,
+            build_system=build_system,
+            solve_condensed_step=solve_condensed_step,
+            reconstruct_delta=reconstruct_delta,
+            condensed_residual_norm=self._condensed_residual_norm,
+            iteration_callback=on_iteration,
+            line_search_enabled=self.nonlinear_line_search,
+            line_search_shrink=self.nonlinear_line_search_shrink,
+            line_search_max_backtracks=self.nonlinear_line_search_max_backtracks,
+        )
+        if result.converged:
+            logger.info("Newton converged at iteration %d", result.iterations_used)
+        else:
+            logger.warning("Newton did not converge within %d iterations", self.newton_max_iter)
+        return result.U_global, result.delta_U_cond, result.converged
 
     # -------------------------------------------------------------------------
     # TOP-LEVEL SIMULATION FLOW
@@ -1092,6 +1043,8 @@ class NonlinearStaticSimulationRunner:
                 self.newton_converged = converged
                 if converged:
                     self.load_increments_completed = inc_i + 1
+                    tip_dof = max(0, self.total_dof - self.dof_per_node + 1)
+                    self._validation_tip_history.append((float(lam), float(U_global[tip_dof]) if U_global.size else 0.0))
                 if not converged:
                     logger.warning(
                         "Stopping after failed Newton at load increment %d (lambda=%.6f)",
@@ -1133,6 +1086,16 @@ class NonlinearStaticSimulationRunner:
             # -----------------------------------------------------------------
             with self.monitor.stage("ComputePrimaryResults"):
                 self.compute_primary_results()
+
+            if self._validation_tip_history:
+                lam_hist = np.array([x[0] for x in self._validation_tip_history], dtype=np.float64)
+                tip_hist = np.array([x[1] for x in self._validation_tip_history], dtype=np.float64)
+                write_nonlinear_static_tip_history_summary(
+                    primary_results_dir=self.primary_results_dir,
+                    job_name=self.job_name,
+                    load_factors=lam_hist,
+                    tip_displacements=tip_hist,
+                )
 
             # -----------------------------------------------------------------
             # 8  Save formulation cache

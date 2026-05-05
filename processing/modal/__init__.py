@@ -1,7 +1,9 @@
-# processing/modal/__init__.py
-"""
-Doc-only placeholder: legacy ``processing.modal.*`` assembly/BC/buckling shims were removed.
+"""Deprecated terminology placeholder for removed `processing.modal` shims.
 
-Use :mod:`processing.eigen` for global **K**/**M** assembly and BCs, and :mod:`processing.buckling`
-for linear buckling kernels.
+Use [`processing.spectral`](../spectral/__init__.py) for the shared eigen+buckling staged backend,
+[`processing.eigen`](../eigen/__init__.py) for eigen assembly/BC helpers, and
+[`processing.buckling`](../buckling/__init__.py) for linear buckling kernels.
+
+The term *modal* remains valid for results concepts such as mode shapes or modal superposition,
+but it is no longer the canonical processing package name.
 """

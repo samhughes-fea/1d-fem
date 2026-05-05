@@ -29,6 +29,7 @@ from processing.harmonic.modal_superposition import (
     harmonic_truncation_metrics_vs_direct,
     undamped_natural_modes,
 )
+from processing.common.harmonic_complex_post import build_harmonic_complex_snapshots
 from simulation_runner.harmonic.harmonic_simulation import effective_harmonic_config
 from workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
@@ -58,6 +59,18 @@ def test_solve_one_frequency_sdof_matches_dense() -> None:
     ).astype(np.complex128)
     u_dense = np.linalg.solve(A_dense, F.astype(np.complex128))
     np.testing.assert_allclose(u_sparse, u_dense, rtol=1e-9, atol=1e-9)
+
+
+def test_harmonic_sdof_matches_analytical_reference() -> None:
+    n = 1
+    omega = 8.0
+    K = eye(n, format="csr", dtype=np.float64) * 100.0
+    M = eye(n, format="csr", dtype=np.float64) * 1.0
+    C = eye(n, format="csr", dtype=np.float64) * 0.0
+    F = np.array([1.0], dtype=np.float64)
+    u = solve_one_frequency(K, M, C, F, omega)
+    u_ref = np.array([1.0 / (100.0 - omega**2)], dtype=np.complex128)
+    np.testing.assert_allclose(u, u_ref, rtol=1e-9, atol=1e-10)
 
 
 def test_sweep_two_points_column_layout() -> None:
@@ -313,3 +326,17 @@ def test_job_smoke_harmonic_process_job() -> None:
     arts = payload.get("artifacts") or {}
     assert "frequencies_hz" in arts
     assert arts["frequencies_hz"].startswith("primary_results/harmonic_results/")
+
+
+def test_build_harmonic_complex_snapshots_both_components() -> None:
+    Ucol = np.array([1.0 + 2.0j, 3.0 + 4.0j], dtype=np.complex128)
+    snaps = build_harmonic_complex_snapshots(
+        U_column=Ucol,
+        frequency_index=2,
+        displacement_component="complex_components",
+    )
+    assert len(snaps) == 2
+    assert snaps[0].component_name == "real"
+    assert snaps[1].component_name == "imag"
+    np.testing.assert_allclose(snaps[0].U_global, np.array([1.0, 3.0]))
+    np.testing.assert_allclose(snaps[1].U_global, np.array([2.0, 4.0]))

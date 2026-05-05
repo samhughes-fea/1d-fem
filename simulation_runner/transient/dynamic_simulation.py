@@ -13,13 +13,14 @@ from scipy.sparse import coo_matrix, csr_matrix
 
 from processing.boundary_supports import resolve_penalty_fixed_dofs
 from processing.common.primary_artifact_manifest import write_primary_artifact_manifest
-from processing.dynamic.diagnostics.transient_run_diagnostic import log_transient_modified_system
-from processing.dynamic.operations import (
-    AssembleDynamicGlobalSystem,
+from processing.transient.primary_summary import write_transient_primary_summary
+from processing.transient.diagnostics.transient_run_diagnostic import log_transient_modified_system
+from processing.transient.operations import (
+    AssembleTransientGlobalSystem,
     IntegrateTransientSystem,
-    ModifyDynamicGlobalSystem,
+    ModifyTransientGlobalSystem,
 )
-from processing.dynamic.transient_forcing import build_transient_force_func
+from processing.transient.transient_forcing import build_transient_force_func
 from processing.dynamic.assembly import assemble_global_force_vector
 from processing.static.diagnostics.runtime_monitor_telemetry import RuntimeMonitorTelemetry
 from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
@@ -91,6 +92,8 @@ class TransientSimulationRunner:
         self.V_time_history: np.ndarray | None = None
         self.A_time_history: np.ndarray | None = None
         self.t_grid: np.ndarray | None = None
+        self._transient_damping_source = "none"
+        self._transient_bc_count = 0
 
     def _ensure_sparse_format(self, matrices):
         if matrices is None:
@@ -261,7 +264,7 @@ class TransientSimulationRunner:
 
     def assemble_dynamic_global_system(self, total_dof: int) -> tuple[csr_matrix, csr_matrix, Any, Any]:
         """Global ``K``, ``M``, optional ``C``, and assembly metadata. Caches ``self.K_global``, ``self.M_global``, ``self.C_global``."""
-        K_global, M_global, C_global, meta = AssembleDynamicGlobalSystem(
+        K_global, M_global, C_global, meta = AssembleTransientGlobalSystem(
             elements=list(self.elements),
             element_stiffness_matrices=self.element_stiffness_matrices,
             element_mass_matrices=self.element_mass_matrices,
@@ -294,12 +297,18 @@ class TransientSimulationRunner:
                 rb_f,
             )
             self.C_global = C_use
+            self._transient_damping_source = "rayleigh"
             return C_use
         if (C_global is not None and getattr(C_global, "nnz", 0) > 0) and (ra_f != 0.0 or rb_f != 0.0):
             logger.warning(
                 "Transient: Rayleigh alpha/beta are ignored when assembled element C is non-empty "
                 "(precedence: element C)."
             )
+            self._transient_damping_source = "element"
+        elif C_global is not None and getattr(C_global, "nnz", 0) > 0:
+            self._transient_damping_source = "element"
+        else:
+            self._transient_damping_source = "none"
         return C_global
 
     def modify_dynamic_global_system(
@@ -307,7 +316,7 @@ class TransientSimulationRunner:
     ) -> tuple[csr_matrix, csr_matrix, Any, np.ndarray]:
         """Apply BCs; cache ``self.K_mod``, ``self.M_mod``, ``self.C_mod``."""
         fdyn = self._resolved_penalty_fixed_dofs()
-        K_mod, M_mod, C_mod, bc_dyn = ModifyDynamicGlobalSystem(
+        K_mod, M_mod, C_mod, bc_dyn = ModifyTransientGlobalSystem(
             fixed_dofs=fdyn,
             prescribed_displacements=self.prescribed_displacement_dict,
             job_results_dir=self.primary_results_dir,
@@ -315,6 +324,7 @@ class TransientSimulationRunner:
         self.K_mod = K_mod
         self.M_mod = M_mod
         self.C_mod = C_mod
+        self._transient_bc_count = int(np.asarray(bc_dyn).size)
         log_transient_modified_system(
             K_mod,
             M_mod,
@@ -355,6 +365,16 @@ class TransientSimulationRunner:
         np.savetxt(os.path.join(results_dir, f"{self.job_name}_displacements.txt"), U, fmt="%.6e")
         np.savetxt(os.path.join(results_dir, f"{self.job_name}_velocities.txt"), V, fmt="%.6e")
         np.savetxt(os.path.join(results_dir, f"{self.job_name}_accelerations.txt"), A, fmt="%.6e")
+        write_transient_primary_summary(
+            primary_results_dir=self.primary_results_dir,
+            job_name=self.job_name,
+            t_grid=t_grid,
+            U=U,
+            V=V,
+            A=A,
+            damping_source=self._transient_damping_source,
+            n_bc_dofs=self._transient_bc_count,
+        )
 
     def run_dynamic_post_processing_if_enabled(self, U: np.ndarray) -> None:
         """Optional formulation-cache secondary/tertiary from displacement snapshots."""
@@ -379,6 +399,7 @@ class TransientSimulationRunner:
                 "displacements": f"{dr}/{self.job_name}_displacements.txt",
                 "velocities": f"{dr}/{self.job_name}_velocities.txt",
                 "accelerations": f"{dr}/{self.job_name}_accelerations.txt",
+                "primary_summary": f"{dr}/{self.job_name}_primary_summary.csv",
             },
         )
 

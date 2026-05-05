@@ -1,4 +1,4 @@
-"""Nonlinear buckling MVP: stub runner and ``[Buckling] nonlinear_buckling`` dispatch."""
+"""Nonlinear buckling MVP: continuation outputs and dispatch wiring."""
 
 from __future__ import annotations
 
@@ -16,19 +16,16 @@ from simulation_runner.buckling.nonlinear_buckling_simulation import NonlinearBu
 from workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
 
-def test_nonlinear_buckling_runner_stub_writes_marker(tmp_path: Path) -> None:
+def test_nonlinear_buckling_runner_requires_full_settings(tmp_path: Path) -> None:
     jrd = tmp_path / "job_out"
     jrd.mkdir()
     settings = {"job_results_dir": str(jrd), "simulation_settings": {}}
-    NonlinearBucklingSimulationRunner(settings, "mvp").run()
-    marker = jrd / "diagnostics" / "nonlinear_buckling_mvp_stub.txt"
-    assert marker.is_file()
-    text = marker.read_text(encoding="utf-8")
-    assert "MVP" in text or "not implemented" in text.lower()
+    with pytest.raises(KeyError):
+        NonlinearBucklingSimulationRunner(settings, "mvp").run()
 
 
 @pytest.mark.integration
-def test_process_job_nonlinear_buckling_flag_dispatches_stub(tmp_path: Path) -> None:
+def test_process_job_nonlinear_buckling_flag_dispatches_continuation(tmp_path: Path) -> None:
     src = PROJECT_ROOT / "jobs" / "job_smoke_buckling"
     job_copy = tmp_path / "job_nl_buck_mvp"
     shutil.copytree(src, job_copy)
@@ -45,8 +42,10 @@ def test_process_job_nonlinear_buckling_flag_dispatches_stub(tmp_path: Path) -> 
         force_serial=True,
         max_processes_per_job=1,
     )
-    stub = Path(res_dir) / "diagnostics" / "nonlinear_buckling_mvp_stub.txt"
-    assert stub.is_file(), "nonlinear buckling MVP should write diagnostics marker"
+    history = Path(res_dir) / "primary_results" / "nonlinear_buckling_results" / "continuation_history.csv"
+    summary = Path(res_dir) / "diagnostics" / "nonlinear_buckling_summary.json"
+    assert history.is_file(), "nonlinear buckling continuation should write history CSV"
+    assert summary.is_file(), "nonlinear buckling continuation should write summary JSON"
 
 
 def test_deprecated_runner_aliases_are_subclasses() -> None:

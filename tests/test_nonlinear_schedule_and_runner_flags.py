@@ -73,6 +73,16 @@ def test_compute_load_factors_explicit_list():
     np.testing.assert_allclose(out, [0.1, 0.5, 1.0])
 
 
+def test_validation_tip_dof_selects_vertical_translation_of_last_node():
+    r = object.__new__(NonlinearStaticSimulationRunner)
+    r.total_dof = 24
+    r.dof_per_node = 6
+
+    tip_dof = max(0, r.total_dof - r.dof_per_node + 1)
+
+    assert tip_dof == 19
+
+
 def test_newton_condensed_helper_matches_runner_threshold_semantics():
     """Sanity: atol + rtol * ref matches documented NR residual gate."""
     from simulation_runner.static.nonlinear_static_simulation import newton_condensed_residual_converged

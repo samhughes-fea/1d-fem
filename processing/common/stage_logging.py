@@ -1,5 +1,5 @@
 # processing/common/stage_logging.py
-"""Per-stage file logging for processing operation classes (spectral, harmonic, dynamic, etc.)."""
+"""Per-stage file logging for processing operation classes (spectral, harmonic, transient, etc.)."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def init_stage_logger(
 
     For **element-level** file logging (per stiffness/force matrix under element subfolders),
     use ``pre_processing.element_library.base_logger_operator.BaseLoggerOperator`` instead;
-    this helper is for **job-stage** processing operations (spectral, harmonic, dynamic, etc.).
+    this helper is for **job-stage** processing operations (spectral, harmonic, transient, etc.).
     """
     log = logging.getLogger(f"processing.stage.{class_name}")
     log.handlers.clear()

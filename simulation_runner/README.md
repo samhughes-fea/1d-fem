@@ -39,7 +39,7 @@ Set **`FEM_LEGACY_MODAL_ERROR=1`** to **raise** on legacy **`[Modal]`** / **`[Ty
 - **`processing.modal`** — placeholder package only (**`processing/modal/__init__.py`**); legacy **`processing.modal.assembly`**, **`boundary_conditions`**, and **`buckling`** submodules were **removed** — import **`processing.eigen`** and **`processing.buckling`** instead ([CHANGELOG](../docs/CHANGELOG.md) **Removed**).
 - **`processing.buckling`** — linear buckling kernels; reuses §2 scatter/BC helpers from **`processing.eigen`**. Runners import **`processing.buckling`** directly.
 
-**Transient:** import **`TransientSimulationRunner`** from **`simulation_runner.transient.dynamic_simulation`** (the old **`simulation_runner.dynamic`** shim was removed; **`DynamicSimulationRunner`** is a deprecated alias).
+**Transient:** import **`TransientSimulationRunner`** from **`simulation_runner.transient.dynamic_simulation`** (the old **`simulation_runner.dynamic`** shim was removed; **`DynamicSimulationRunner`** is a deprecated alias). Canonical processing package name is **`processing.transient`**; **`processing.dynamic`** remains a deprecated compatibility shim.
 
 ## Runtime telemetry and per-stage logs
 
@@ -69,6 +69,8 @@ Canonical job root is **`job_results_dir`** (same tree for all types). Below: **
 **Machine-readable index:** successful runs may write **`logs/primary_artifacts.json`** (schema in [workflow_orchestrator/run_manifest.py](../workflow_orchestrator/run_manifest.py) companion field **`paths.primary_artifacts_json`** inside **`logs/run_manifest.json`** when that file exists).
 
 Family READMEs: [eigen/README.md](eigen/README.md), [buckling/README.md](buckling/README.md), [spectral/README.md](spectral/README.md), [harmonic/README.md](harmonic/README.md), [transient/README.md](transient/README.md).
+
+Production-readiness target for non-static families: [`NONSTATIC_PRODUCTION_READINESS_CHECKLIST.md`](../docs/conventions/NONSTATIC_PRODUCTION_READINESS_CHECKLIST.md).
 
 ## Usage
 

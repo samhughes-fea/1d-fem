@@ -41,5 +41,6 @@ Relative `force_time_series_file` paths resolve against the job directory (`sett
 | `{job_name}_displacements.txt` | **U**: rows = time index, columns = global DOF (same order as assembly). |
 | `{job_name}_velocities.txt` | **V**: same layout as **U** (first time derivative, consistent units with Newmark). |
 | `{job_name}_accelerations.txt` | **A**: same layout (second time derivative). |
+| `{job_name}_primary_summary.csv` | Operator-facing primary summary: time-step count, total DOFs, max abs U/V/A, damping source, constrained-DOF count. |
 
 Units follow the underlying model (typically SI: m, rad, s). Link snapshots to post-processing via **`dynamic_time_index`** (single row) or **`dynamic_time_indices`** (comma-separated list); see [RESULTS_DESIGN.md](../../processing/static/results/RESULTS_DESIGN.md).
