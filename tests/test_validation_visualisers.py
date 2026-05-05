@@ -91,6 +91,38 @@ def test_tip_load_fine_reference_pair_docs_exist() -> None:
     assert "job_benchmark_nl_static_cantilever_tip_n500" in text
 
 
+def test_wave1_pyabaqus_contract_docs_exist() -> None:
+    docs = {
+        "LINEAR_STATIC_PYABAQUS_REFERENCE_CONTRACT.md": [
+            "Linear static pyAbaqus reference contract",
+            "U_global.csv",
+            "rotation_source.txt",
+        ],
+        "HARMONIC_PYABAQUS_REFERENCE_CONTRACT.md": [
+            "Harmonic pyAbaqus reference contract",
+            "frequency_response.csv",
+            "frequency_hz",
+        ],
+        "EIGEN_PYABAQUS_REFERENCE_CONTRACT.md": [
+            "Eigen pyAbaqus reference contract",
+            "eigen_frequencies.csv",
+            "mode_shapes.csv",
+        ],
+        "LINEAR_BUCKLING_PYABAQUS_REFERENCE_CONTRACT.md": [
+            "Linear buckling pyAbaqus reference contract",
+            "buckling_load_factors.csv",
+            "buckling_mode_shapes.csv",
+        ],
+    }
+    base = PROJECT_ROOT / "docs" / "conventions"
+    for name, required_snippets in docs.items():
+        path = base / name
+        assert path.is_file(), f"missing contract doc: {name}"
+        text = path.read_text(encoding="utf-8")
+        for snippet in required_snippets:
+            assert snippet in text, f"expected snippet {snippet!r} in {name}"
+
+
 def test_simulation_type_dispatch_payload_reads_canonical_type() -> None:
     from post_processing.validation_visualisers.abaqus.simulation_type_dispatch import build_validation_dispatch_payload
 
