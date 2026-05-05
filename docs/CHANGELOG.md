@@ -16,6 +16,7 @@ All notable changes to this project are documented in this file. The format foll
 ### Added
 
 - **`TransientSimulationRunner`** (canonical §3 transient orchestration); **`DynamicSimulationRunner`** is a **deprecated** subclass emitting **`DeprecationWarning`** on construction ([`simulation_runner/transient/dynamic_simulation.py`](../simulation_runner/transient/dynamic_simulation.py)).
+- **`processing.transient`** — canonical Section 3 processing package; **`processing.dynamic`** now acts as a deprecated compatibility shim while imports migrate.
 - **`LinearBucklingSimulationRunner`** (canonical linearized buckling); **`BucklingSimulationRunner`** is a **deprecated** subclass. **`[Buckling] nonlinear_buckling`** (default **false**) selects **`NonlinearBucklingSimulationRunner`** when **true** — MVP diagnostics stub only ([`NONLINEAR_BUCKLING_MVP.md`](conventions/NONLINEAR_BUCKLING_MVP.md)).
 - [docs/conventions/SIMULATION_SETTINGS_MODAL_AND_RUNNER_MIGRATION.md](conventions/SIMULATION_SETTINGS_MODAL_AND_RUNNER_MIGRATION.md) — key-alias table, external-repo checklist, deferred **`modal_results/`** rename note.
 - `tests/test_nonlinear_buckling_dispatch_mvp.py` — nonlinear buckling stub + `process_job` dispatch wiring.
