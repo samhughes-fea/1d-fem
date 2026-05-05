@@ -246,6 +246,25 @@ def test_deformation_comparison_runs():
     run_deformation_comparison()
 
 
+def test_wave1_family_validation_runner_entrypoints_exist(tmp_path) -> None:
+    from post_processing.validation_visualisers.static.run_linear_static_validation import run_linear_static_validation
+    from post_processing.validation_visualisers.harmonic.run_harmonic_validation import run_harmonic_validation
+    from post_processing.validation_visualisers.eigen.run_eigen_validation import run_eigen_validation
+    from post_processing.validation_visualisers.buckling.run_buckling_validation import run_buckling_validation
+
+    runners = [
+        run_linear_static_validation,
+        run_harmonic_validation,
+        run_eigen_validation,
+        run_buckling_validation,
+    ]
+    for runner in runners:
+        out = runner(tmp_path)
+        assert isinstance(out, dict)
+        assert "family" in out
+        assert "summary_file" in out
+
+
 def test_section_forces_comparison_runs():
     """Run section forces comparison; must not raise."""
     from post_processing.validation_visualisers.section_forces.section_forces_comparison import (
