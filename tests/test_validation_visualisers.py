@@ -191,6 +191,12 @@ def test_job_to_abaqus_script_has_third_helper_slice() -> None:
     assert "def _build_loads_and_job_block(" in text
 
 
+def test_job_to_abaqus_script_has_results_export_prologue_helper_slice() -> None:
+    p = PROJECT_ROOT / "post_processing" / "validation_visualisers" / "abaqus" / "job_to_abaqus_script.py"
+    text = p.read_text(encoding="utf-8")
+    assert "def _build_results_export_prologue_block(" in text
+
+
 def test_extract_odb_results_mentions_tip_history_flag() -> None:
     p = PROJECT_ROOT / "post_processing" / "validation_visualisers" / "abaqus" / "extract_odb_results.py"
     text = p.read_text(encoding="utf-8")

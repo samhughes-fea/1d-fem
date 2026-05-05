@@ -280,6 +280,7 @@ def _generate_script_content(data: dict, out_csv_dir: str) -> str:
         )
         + _build_step_and_model_block(step_block)
         + _build_loads_and_job_block(job_name)
+        + _build_results_export_prologue_block()
         + f'''
 # Request U, UR (deflection/rotation) and SF, SM (section forces and section moments).
 # UR is nodal rotation; SF = N,Vy,Vz; SM = T,My,Mz. If model.FieldOutputRequest is missing (e.g. Abaqus 2021), try step-based API.
@@ -461,6 +462,31 @@ if os.path.exists(odb_path):
 '''
     )
     return script
+
+
+def _build_results_export_prologue_block() -> str:
+    return '''
+# --- Export ODB to CSV (displacements) ---
+try:
+    odb_path = mdb.jobs[jobName].path + ".odb"
+except AttributeError:
+    odb_path = os.path.join(os.getcwd(), jobName + ".odb")
+if os.path.exists(odb_path):
+    import odbAccess
+    odb = odbAccess.openOdb(path=odb_path)
+    step = odb.steps["Step-1"]
+    frame = step.frames[-1]
+    odb_var_list = list(frame.fieldOutputs.keys())
+    _log("ODB field outputs: " + str(odb_var_list))
+    _log("ODB has UR: " + str("UR" in frame.fieldOutputs))
+    field = frame.fieldOutputs["U"]
+    node_list = field.values
+    ur_by_node = {}
+    if "UR" in frame.fieldOutputs:
+        for _v in frame.fieldOutputs["UR"].values:
+            nlab = _v.nodeLabel
+            ur_by_node[nlab] = (_v.data[0], _v.data[1], _v.data[2]) if len(_v.data) >= 3 else (0.0, 0.0, 0.0)
+'''
 
 
 def _build_script_preamble(
