@@ -257,7 +257,8 @@ def _generate_script_content(data: dict, out_csv_dir: str) -> str:
         if simulation_type == "transient"
         else ('model.StaticStep(name="Step-1", previous="Initial", description="Nonlinear static")' if simulation_type == "static" and nonlinear_num_increments > 1 else 'model.StaticStep(name="Step-1", previous="Initial", description="Static")')
     )
-    script = _build_script_preamble(
+    script = (
+        _build_script_preamble(
         job_name=job_name,
         out_csv_dir=out_csv_dir,
         coords=coords,
@@ -276,7 +277,10 @@ def _generate_script_content(data: dict, out_csv_dir: str) -> str:
         out_csv_dir_escaped=out_csv_dir_escaped,
         artifact_contract_name=artifact_contract_name,
         expected_files=expected_files,
-    ) + _build_step_and_model_block(step_block) + f'''
+        )
+        + _build_step_and_model_block(step_block)
+        + _build_loads_and_job_block(job_name)
+        + f'''
 # Request U, UR (deflection/rotation) and SF, SM (section forces and section moments).
 # UR is nodal rotation; SF = N,Vy,Vz; SM = T,My,Mz. If model.FieldOutputRequest is missing (e.g. Abaqus 2021), try step-based API.
 FIELD_OUTPUT_USED = "none"
@@ -455,6 +459,7 @@ if os.path.exists(odb_path):
 
     # --- End ---
 '''
+    )
     return script
 
 
@@ -597,6 +602,67 @@ def _log(msg):
             _f.write(str(msg) + "\\n")
     except Exception:
         pass
+
+'''
+
+
+def _build_loads_and_job_block(job_name: str) -> str:
+    return f'''
+# --- BCs: encastre at first node (typical cantilever) ---
+try:
+    n_set = assembly.instances["Beam-1"].nodes.sequenceFromLabels(labels=(1,))
+    region = assembly.Set(nodes=n_set, name="Fixed")
+    model.DisplacementBC(name="Encastre", createStepName="Initial", region=region, u1=SET, u2=SET, u3=SET, ur1=SET, ur2=SET, ur3=SET)
+    model.boundaryConditions["Encastre"].setValuesInStep(stepName="Step-1", u1=0, u2=0, u3=0, ur1=0, ur2=0, ur3=0)
+except Exception as e:
+    print("BC warning: " + str(e))
+
+# --- Distributed load: equivalent nodal (triangular/parabolic) or LineLoad (UDL) ---
+# Job file inputs represented identically: apply only non-zero (Fx,Fy,Fz) and (Mx,My,Mz); Abaqus forbids zero-magnitude ConcentratedForce
+if DISTRIBUTED_EQUIVALENT_NODAL:
+    try:
+        _tol = 1e-12
+        for i, (node_label, fx, fy, fz, mx, my, mz) in enumerate(DISTRIBUTED_EQUIVALENT_NODAL):
+            n_set = assembly.instances["Beam-1"].nodes.sequenceFromLabels(labels=(node_label,))
+            region = assembly.Set(nodes=n_set, name="DistLoadNode_" + str(i))
+            if abs(fx) > _tol or abs(fy) > _tol or abs(fz) > _tol:
+                model.ConcentratedForce(name="DistCF_" + str(i), createStepName="Step-1", region=region, cf1=fx, cf2=fy, cf3=fz)
+            if abs(mx) > _tol or abs(my) > _tol or abs(mz) > _tol:
+                model.Moment(name="DistMoment_" + str(i), createStepName="Step-1", region=region, cm1=mx, cm2=my, cm3=mz)
+    except Exception as e:
+        print("Distributed equivalent nodal load warning: " + str(e))
+elif DISTRIBUTED_LOADS:
+    try:
+        fy_vals = [row[4] for row in DISTRIBUTED_LOADS if len(row) >= 5]
+        if fy_vals:
+            comp2_mag = sum(fy_vals) / len(fy_vals)
+            beam_edges = assembly.instances["Beam-1"].edges
+            region = assembly.Set(edges=beam_edges, name="BeamEdges")
+            model.LineLoad(name="LineLoad-1", createStepName="Step-1", region=region, comp1=0.0, comp2=comp2_mag, comp3=0.0, distributionType=UNIFORM)
+    except Exception as e:
+        print("Distributed load warning: " + str(e))
+
+# --- Point loads (apply at nearest node to given x,y,z) ---
+for i, row in enumerate(POINT_LOADS):
+    if len(row) < 9:
+        continue
+    x, y, z, Fx, Fy, Fz, Mx, My, Mz = row[0:9]
+    idx = min(range(len(COORDS)), key=lambda i: (COORDS[i][0]-x)**2 + (COORDS[i][1]-y)**2 + (COORDS[i][2]-z)**2)
+    node_label = idx + 1
+    try:
+        n_set = assembly.instances["Beam-1"].nodes.sequenceFromLabels(labels=(node_label,))
+        region = assembly.Set(nodes=n_set, name="LoadNode_" + str(i))
+        model.ConcentratedForce(name="CF_" + str(i), createStepName="Step-1", region=region, cf1=Fx, cf2=Fy, cf3=Fz)
+        if Mx != 0 or My != 0 or Mz != 0:
+            model.Moment(name="Moment_" + str(i), createStepName="Step-1", region=region, cm1=Mx, cm2=My, cm3=Mz)
+    except Exception as e:
+        print("Load warning: " + str(e))
+
+# --- Job ---
+jobName = "{job_name.replace('-', '_')}_abaqus"
+mdb.Job(name=jobName, model=modelName, description="", type=ANALYSIS)
+mdb.jobs[jobName].submit(consistencyChecking=OFF)
+mdb.jobs[jobName].waitForCompletion()
 
 '''
 
