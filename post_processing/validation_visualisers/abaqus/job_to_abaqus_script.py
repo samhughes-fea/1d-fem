@@ -281,6 +281,7 @@ def _generate_script_content(data: dict, out_csv_dir: str) -> str:
         + _build_step_and_model_block(step_block)
         + _build_loads_and_job_block(job_name)
         + _build_results_export_prologue_block()
+        + _build_results_export_displacement_block()
         + f'''
 # Request U, UR (deflection/rotation) and SF, SM (section forces and section moments).
 # UR is nodal rotation; SF = N,Vy,Vz; SM = T,My,Mz. If model.FieldOutputRequest is missing (e.g. Abaqus 2021), try step-based API.
@@ -486,6 +487,28 @@ if os.path.exists(odb_path):
         for _v in frame.fieldOutputs["UR"].values:
             nlab = _v.nodeLabel
             ur_by_node[nlab] = (_v.data[0], _v.data[1], _v.data[2]) if len(_v.data) >= 3 else (0.0, 0.0, 0.0)
+'''
+
+
+def _build_results_export_displacement_block() -> str:
+    return '''
+    if not os.path.exists(OUT_CSV_DIR):
+        os.makedirs(OUT_CSV_DIR)
+    csv_path = os.path.join(OUT_CSV_DIR, "U_global.csv")
+    with open(csv_path, "w") as f:
+        f.write("Global DOF,Value\\n")
+        for v in node_list:
+            nodeLabel = v.nodeLabel
+            u1, u2, u3 = v.data[0], v.data[1], v.data[2]
+            if len(v.data) >= 6:
+                ur1, ur2, ur3 = v.data[3], v.data[4], v.data[5]
+            else:
+                ur1, ur2, ur3 = ur_by_node.get(nodeLabel, (0.0, 0.0, 0.0))
+            if "UR" in frame.fieldOutputs:
+                ur1, ur2, ur3 = -ur1, -ur2, -ur3
+            gdof_base = (nodeLabel - 1) * 6
+            for d, val in enumerate([u1, u2, u3, ur1, ur2, ur3]):
+                f.write(str(gdof_base + d) + "," + str(val) + "\\n")
 '''
 
 
