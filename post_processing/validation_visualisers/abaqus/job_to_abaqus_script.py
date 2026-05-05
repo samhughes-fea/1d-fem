@@ -257,7 +257,26 @@ def _generate_script_content(data: dict, out_csv_dir: str) -> str:
         if simulation_type == "transient"
         else ('model.StaticStep(name="Step-1", previous="Initial", description="Nonlinear static")' if simulation_type == "static" and nonlinear_num_increments > 1 else 'model.StaticStep(name="Step-1", previous="Initial", description="Static")')
     )
-    script = f'''# -*- coding: utf-8 -*-
+    script = _build_script_preamble(
+        job_name=job_name,
+        out_csv_dir=out_csv_dir,
+        coords=coords,
+        abaqus_elem=abaqus_elem,
+        E=E,
+        nu=nu,
+        rho=rho,
+        A=A,
+        I_y=I_y,
+        I_z=I_z,
+        J_t=J_t,
+        prescribed_tuples=prescribed_tuples,
+        point_loads=point_loads,
+        distributed_loads=distributed_loads,
+        distributed_equivalent_nodal=distributed_equivalent_nodal,
+        out_csv_dir_escaped=out_csv_dir_escaped,
+        artifact_contract_name=artifact_contract_name,
+        expected_files=expected_files,
+    ) + f'''
 # Auto-generated Abaqus CAE script for job: {job_name}
 # Run with project Python (abqpy): python this_file; abqpy saveAs() launches Abaqus.
 # Outputs CSV to: {out_csv_dir}
@@ -550,9 +569,80 @@ if os.path.exists(odb_path):
     except Exception as e_copy:
         _log("Copy inp/odb/sta/msg to result dir failed: " + str(e_copy))
 
-# --- End ---
+    # --- End ---
 '''
     return script
+
+
+def _build_script_preamble(
+    *,
+    job_name: str,
+    out_csv_dir: str,
+    coords: list,
+    abaqus_elem: str,
+    E: float,
+    nu: float,
+    rho: float,
+    A: float,
+    I_y: float,
+    I_z: float,
+    J_t: float,
+    prescribed_tuples: list,
+    point_loads: list,
+    distributed_loads: list,
+    distributed_equivalent_nodal: list,
+    out_csv_dir_escaped: str,
+    artifact_contract_name: str,
+    expected_files: list,
+) -> str:
+    return f'''# -*- coding: utf-8 -*-
+from abaqus import *
+from abaqusConstants import *
+from driverUtils import *
+import regionToolset
+import mesh
+import os
+import sys
+import shutil
+
+executeOnCaeStartup()
+
+# Detect if running inside Abaqus (real kernel) vs project Python (abqpy stubs)
+try:
+    import odbAccess
+    IN_ABAQUS = True
+except Exception:
+    IN_ABAQUS = False
+
+# --- Data (from job dir) ---
+COORDS = {coords}
+ABAQUS_ELEM = "{abaqus_elem}"
+E_MODULUS = {E}
+NU = {nu}
+RHO = {rho}
+A_AREA = {A}
+I11 = {I_y}
+I22 = {I_z}
+J_TORSION = {J_t}
+PRESCRIBED_NODES_DOF_VALUES = {prescribed_tuples}
+POINT_LOADS = {point_loads}
+DISTRIBUTED_LOADS = {distributed_loads}
+DISTRIBUTED_EQUIVALENT_NODAL = {distributed_equivalent_nodal}
+OUT_CSV_DIR = r"{out_csv_dir_escaped}"
+ARTIFACT_CONTRACT_NAME = "{artifact_contract_name}"
+EXPECTED_ARTIFACT_FILES = {expected_files}
+
+# Default encastre at node 0 if no prescribed DOFs given
+if not PRESCRIBED_NODES_DOF_VALUES and COORDS:
+    for dof_idx in range(6):
+        PRESCRIBED_NODES_DOF_VALUES.append((0, dof_idx, 0.0))
+
+# When run by project Python (abqpy), only trigger Abaqus launch; model/job/export run only inside Abaqus
+if not IN_ABAQUS:
+    mdb.saveAs(os.path.join(OUT_CSV_DIR, "model.cae"))
+    sys.exit(0)
+
+'''
 
 
 def main() -> None:

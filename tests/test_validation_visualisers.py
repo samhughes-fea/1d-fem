@@ -173,6 +173,12 @@ def test_job_to_abaqus_script_emits_wave1_contract_artifact_metadata() -> None:
             assert snippet in content
 
 
+def test_job_to_abaqus_script_has_first_helper_slice() -> None:
+    p = PROJECT_ROOT / "post_processing" / "validation_visualisers" / "abaqus" / "job_to_abaqus_script.py"
+    text = p.read_text(encoding="utf-8")
+    assert "def _build_script_preamble(" in text
+
+
 def test_extract_odb_results_mentions_tip_history_flag() -> None:
     p = PROJECT_ROOT / "post_processing" / "validation_visualisers" / "abaqus" / "extract_odb_results.py"
     text = p.read_text(encoding="utf-8")
