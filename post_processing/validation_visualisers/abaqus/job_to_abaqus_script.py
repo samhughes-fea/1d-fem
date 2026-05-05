@@ -3,6 +3,8 @@
 Generate an Abaqus CAE Python script from a job directory.
 The script creates model, wire part, beam section, material, BCs, loads,
 runs the job, and exports ODB results to CSV.
+Supports transient validation script generation contract metadata for
+external-reference workflows.
 Run with project Python (abqpy): python run_<job>.py; abqpy's saveAs() launches Abaqus.
 """
 from __future__ import annotations
@@ -36,6 +38,7 @@ from post_processing.validation_visualisers.abaqus.config import (
     ELEMENT_TYPE_MAP,
     SUPPORTED_ELEMENT_TYPES,
 )
+from post_processing.validation_visualisers.abaqus.simulation_type_dispatch import build_validation_dispatch_payload
 from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.interpolate_loads import (
     LoadInterpolationOperator,
 )
@@ -176,6 +179,8 @@ def _parse_job(job_dir: Path) -> dict:
         except Exception:
             pass
 
+    dispatch = build_validation_dispatch_payload(str(job_dir))
+
     return {
         "job_name": job_dir.name,
         "coords": coords,
@@ -193,6 +198,9 @@ def _parse_job(job_dir: Path) -> dict:
         "prescribed": pres,
         "point_loads": point_loads,
         "distributed_loads": distributed_loads,
+        "simulation_settings_path": str(job_dir / "simulation_settings.txt"),
+        "simulation_type": dispatch["simulation_type"],
+        "simulation_settings": dispatch["simulation_settings"],
     }
 
 
@@ -211,6 +219,10 @@ def _generate_script_content(data: dict, out_csv_dir: str) -> str:
     prescribed = data["prescribed"]
     point_loads = data["point_loads"]
     distributed_loads = data.get("distributed_loads") or []
+    simulation_type = str(data.get("simulation_type", "static")).strip().lower()
+    simulation_settings = data.get("simulation_settings") or {}
+    nonlinear_cfg = simulation_settings.get("nonlinear") or {}
+    nonlinear_num_increments = int(nonlinear_cfg.get("num_increments", 1))
 
     # Build prescribed list as literal for generated script (Abaqus has no access to 'prescribed' dict)
     node_ids = prescribed.get("node_id", [])
@@ -236,6 +248,11 @@ def _generate_script_content(data: dict, out_csv_dir: str) -> str:
     # Embed extraction logic and output path
     out_csv_dir_escaped = out_csv_dir.replace("\\", "\\\\")
 
+    step_block = (
+        'model.ImplicitDynamicsStep(name="Step-1", previous="Initial", timePeriod=0.05, maxNumInc=1000, initialInc=0.01, minInc=1e-06, nlgeom=OFF)'
+        if simulation_type == "transient"
+        else ('model.StaticStep(name="Step-1", previous="Initial", description="Nonlinear static")' if simulation_type == "static" and nonlinear_num_increments > 1 else 'model.StaticStep(name="Step-1", previous="Initial", description="Static")')
+    )
     script = f'''# -*- coding: utf-8 -*-
 # Auto-generated Abaqus CAE script for job: {job_name}
 # Run with project Python (abqpy): python this_file; abqpy saveAs() launches Abaqus.
@@ -341,7 +358,7 @@ assembly.DatumCsysByDefault(CARTESIAN)
 assembly.Instance(name="Beam-1", part=part, dependent=ON)
 
 # --- Step ---
-model.StaticStep(name="Step-1", previous="Initial", description="Static")
+{step_block}
 if not os.path.exists(OUT_CSV_DIR):
     os.makedirs(OUT_CSV_DIR)
 def _log(msg):
@@ -478,6 +495,17 @@ if os.path.exists(odb_path):
             gdof_base = (nodeLabel - 1) * 6
             for d, val in enumerate([u1, u2, u3, ur1, ur2, ur3]):
                 f.write(str(gdof_base + d) + "," + str(val) + "\\n")
+    if "{simulation_type}" == "transient":
+        with open(os.path.join(OUT_CSV_DIR, "transient_reference_contract.txt"), "w") as _tf:
+            _tf.write("simulation_type=transient\\n")
+            _tf.write("step_name=Step-1\\n")
+            _tf.write("expected_reference=time_history_csv\\n")
+    if "{simulation_type}" == "static" and {nonlinear_num_increments} > 1:
+        try:
+            from post_processing.validation_visualisers.abaqus.extract_odb_results import extract_odb_to_csv as _extract_tip
+            _extract_tip(odb_path, OUT_CSV_DIR, export_tip_history=True)
+        except Exception as _e_tip:
+            _log("tip_load_history export failed: " + str(_e_tip))
     rotation_src = "ODB" if "UR" in frame.fieldOutputs else "none"
     with open(os.path.join(OUT_CSV_DIR, "rotation_source.txt"), "w") as _rf:
         _rf.write(rotation_src + "\\n")

@@ -61,7 +61,11 @@ ABAQUS_LAUNCHER_PATH = str(ABAQUS_CAE_CMD) if (_launcher_path.is_absolute() and 
 # B31 = 2-node linear beam (Timoshenko, shear deformation)
 ELEMENT_TYPE_MAP = {
     "EulerBernoulliBeamElement3D": "B33",
+    "LinearEulerBernoulliBeamElement3D": "B33",
+    "NonlinearEulerBernoulliBeamElement3D": "B33",
     "TimoshenkoBeamElement3D": "B31",
+    "LinearTimoshenkoBeamElement3D": "B31",
+    "NonlinearTimoshenkoBeamElement3D": "B31",
 }
 # Unsupported for this validation (e.g. Levinson) are ignored or raise
 SUPPORTED_ELEMENT_TYPES = set(ELEMENT_TYPE_MAP.keys())

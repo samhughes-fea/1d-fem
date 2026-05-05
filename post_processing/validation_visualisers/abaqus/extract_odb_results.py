@@ -16,7 +16,19 @@ import sys
 from collections import defaultdict
 
 
-def extract_odb_to_csv(odb_path: str, out_dir: str) -> None:
+def _tip_node_label_from_u_field(u_values) -> int | None:
+    node_labels = sorted({v.nodeLabel for v in u_values})
+    return max(node_labels) if node_labels else None
+
+
+def _tip_u2_from_field_values(u_values, tip_node: int | None) -> float:
+    if tip_node is None:
+        return 0.0
+    vals = [v for v in u_values if v.nodeLabel == tip_node]
+    return float(vals[0].data[1]) if vals and len(vals[0].data) >= 2 else 0.0
+
+
+def extract_odb_to_csv(odb_path: str, out_dir: str, *, export_tip_history: bool = False) -> None:
     """
     Read ODB at odb_path; write U_global.csv (and optionally section_forces.csv) to out_dir.
     Requires Abaqus odbAccess (run from Abaqus Python).
@@ -82,6 +94,21 @@ def extract_odb_to_csv(odb_path: str, out_dir: str) -> None:
         else:
             print("U_global.csv: U read from ODB; rotation not in ODB, written as zero.")
         print(f"Wrote {csv_path}")
+
+        if export_tip_history:
+            tip_hist_path = os.path.join(out_dir, "tip_load_history.csv")
+            tip_node = _tip_node_label_from_u_field(node_list)
+            frames = list(step.frames)
+            with open(tip_hist_path, "w") as tf:
+                tf.write("frame_index,load_factor,tip_displacement\n")
+                denom = max(1, len(frames) - 1)
+                for i, fr in enumerate(frames):
+                    if "U" not in fr.fieldOutputs or tip_node is None:
+                        tf.write(f"{i},{float(i)/denom:.12e},0.0\n")
+                        continue
+                    tip_u = _tip_u2_from_field_values(fr.fieldOutputs["U"].values, tip_node)
+                    tf.write(f"{i},{float(i)/denom:.12e},{tip_u:.12e}\n")
+            print(f"Wrote {tip_hist_path}")
 
     # Section forces: write section_forces.csv (x, N, Vy, Vz, T, My, Mz) and nodal_section_forces.csv (FEM format)
     if "SF" in frame.fieldOutputs:
@@ -191,7 +218,8 @@ def main() -> None:
     if not odb_path or not out_dir:
         print("Usage: abaqus cae noGUI=extract_odb_results.py -- odb_path=<path> out_dir=<path>", file=sys.stderr)
         sys.exit(1)
-    extract_odb_to_csv(odb_path, out_dir)
+    export_tip_history = str(args.get("export_tip_history", "false")).strip().lower() in ("1", "true", "yes", "on")
+    extract_odb_to_csv(odb_path, out_dir, export_tip_history=export_tip_history)
 
 
 if __name__ == "__main__":
