@@ -1,0 +1,23 @@
+[Simulation]
+[Type]
+buckling
+
+[Buckling]
+enabled = true
+nonlinear_buckling = true
+continuation_method = arc_length
+arc_length_radius = 0.01
+arc_length_alpha_scale = 1.0
+num_increments = 3
+imperfection_source = linear_buckling
+imperfection_mode_index = 0
+imperfection_scale = 1e-4
+
+[Newton]
+tolerance = 1e-4
+max_iterations = 12
+tolerance_delta_u = 1e-9
+
+[Solver]
+tolerance = 1e-10
+max_iterations = 2000

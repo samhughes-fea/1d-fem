@@ -61,6 +61,36 @@ python -m pytest tests/test_job_smoke_eigen_buckling_e2e.py tests/test_harmonic_
 
 The orchestrator script **`workflow_orchestrator/run_job.py`** discovers **all** directories matching **`jobs/job_*`**; use **`pytest`** above if you only want these smoke cases instead of the full job sweep.
 
+## Nonlinear-static benchmark roots
+
+Pinned nonlinear-static benchmark job roots currently include:
+
+- [`job_benchmark_nl_static_cantilever_tip`](job_benchmark_nl_static_cantilever_tip/)
+- [`job_benchmark_nl_static_midspan_point`](job_benchmark_nl_static_midspan_point/)
+- [`job_benchmark_nl_static_quarter_point`](job_benchmark_nl_static_quarter_point/)
+
+These are the first three canonical point-load nonlinear-static counterparts to the linear static cantilever validation family.
+
+Distributed-load nonlinear-static benchmark roots now also include:
+
+- [`job_benchmark_nl_static_udl`](job_benchmark_nl_static_udl/)
+- [`job_benchmark_nl_static_triangular`](job_benchmark_nl_static_triangular/)
+- [`job_benchmark_nl_static_parabolic`](job_benchmark_nl_static_parabolic/)
+
+Together, these six nonlinear-static benchmark roots now mirror the six canonical load-case families used by the linear static validation basis.
+
+Initial nonlinear-static ladder convention (first seeded level wave in progress): sibling mesh variants such as `*_n16` and later `*_n64` for each canonical family.
+
+Current ladder status:
+- full canonical family roots present
+- `n4` seeded across all six nonlinear-static families
+- `n16` seeded across all six nonlinear-static families
+- `n64` point-load ladder seeding started (currently tip-load case present)
+- `n64` point-load ladder seeding expanded to tip, midspan, and quarter-point families
+- `n64` distributed-load ladder seeding expanded to UDL, triangular, and parabolic families
+
+At this point, the nonlinear-static suite has full canonical roots plus seeded `n4`, `n16`, and `n64` coverage for all six load families.
+
 ## `simulation_settings.txt` taxonomy (§1–§5)
 
 Canonical **`[Type]`** values after parsing: **`static`**, **`eigen`**, **`transient`**, **`harmonic`**, **`buckling`**. Optional bracket sections **`[Static]`**, **`[Eigen]`**, **`[Transient]`**, **`[Harmonic]`**, **`[Buckling]`** may set **`enabled = true`** to select the primary analysis (exactly one enabled).

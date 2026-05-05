@@ -1,0 +1,7 @@
+[Element]
+[element_id]  [node1]  [node2]  [element_type]                [axial_order]     [bending_y_order] [bending_z_order] [shear_y_order]   [shear_z_order]   [torsion_order]   [load_order]
+0 0 1 NonlinearEulerBernoulliBeamElement3D 3 3 3 0 0 3 2
+1 1 2 NonlinearEulerBernoulliBeamElement3D 3 3 3 0 0 3 2
+2 2 3 NonlinearEulerBernoulliBeamElement3D 3 3 3 0 0 3 2
+3 3 4 NonlinearEulerBernoulliBeamElement3D 3 3 3 0 0 3 2
+4 4 5 NonlinearEulerBernoulliBeamElement3D 3 3 3 0 0 3 2

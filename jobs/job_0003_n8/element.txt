@@ -1,10 +1,10 @@
 [Element]
-[element_id]  [node1]  [node2]  [element_type]                [axial_order]     [bending_y_order] [bending_z_order] [shear_y_order]   [shear_z_order]   [torsion_order]   [load_order]      
-0             0        1        EulerBernoulliBeamElement3D   3                 3                 3                 0                 0                 3                 2                 
-1             1        2        EulerBernoulliBeamElement3D   3                 3                 3                 0                 0                 3                 2                 
-2             2        3        EulerBernoulliBeamElement3D   3                 3                 3                 0                 0                 3                 2                 
-3             3        4        EulerBernoulliBeamElement3D   3                 3                 3                 0                 0                 3                 2                 
-4             4        5        EulerBernoulliBeamElement3D   3                 3                 3                 0                 0                 3                 2                 
-5             5        6        EulerBernoulliBeamElement3D   3                 3                 3                 0                 0                 3                 2                 
-6             6        7        EulerBernoulliBeamElement3D   3                 3                 3                 0                 0                 3                 2                 
-7             7        8        EulerBernoulliBeamElement3D   3                 3                 3                 0                 0                 3                 2                 
+[element_id]  [node1]  [node2]  [element_type]                          [axial_order]     [bending_y_order] [bending_z_order] [shear_y_order]   [shear_z_order]   [torsion_order]   [load_order]      [warping]         
+0             0        1        LinearEulerBernoulliBeamElement3D       3                 3                 3                 0                 0                 3                 2                 0                 
+1             1        2        LinearEulerBernoulliBeamElement3D       3                 3                 3                 0                 0                 3                 2                 0                 
+2             2        3        LinearEulerBernoulliBeamElement3D       3                 3                 3                 0                 0                 3                 2                 0                 
+3             3        4        LinearEulerBernoulliBeamElement3D       3                 3                 3                 0                 0                 3                 2                 0                 
+4             4        5        LinearEulerBernoulliBeamElement3D       3                 3                 3                 0                 0                 3                 2                 0                 
+5             5        6        LinearEulerBernoulliBeamElement3D       3                 3                 3                 0                 0                 3                 2                 0                 
+6             6        7        LinearEulerBernoulliBeamElement3D       3                 3                 3                 0                 0                 3                 2                 0                 
+7             7        8        LinearEulerBernoulliBeamElement3D       3                 3                 3                 0                 0                 3                 2                 0                 

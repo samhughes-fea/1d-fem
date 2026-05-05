@@ -1,0 +1,15 @@
+[Simulation]
+[Type]
+transient
+
+[Transient]
+enabled = true
+time_step = 0.01
+end_time = 0.05
+load_scale = 1.0
+force_analytic = sin
+force_analytic_amplitude = 1.0
+force_analytic_frequency_hz = 5.0
+
+[PostProcessing]
+run_secondary_tertiary_dynamic = false

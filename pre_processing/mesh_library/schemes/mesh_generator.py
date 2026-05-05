@@ -95,7 +95,7 @@ def save_element_file(elements: List[Tuple[int, int]],
     path = os.path.join(save_dir, "element.txt")
 
     # Fixed column widths
-    ID_W, NODE_W, TYPE_W = 14, 9, 30   # identification columns
+    ID_W, NODE_W, TYPE_W = 14, 9, 40   # identification columns
     ORD_W = 18                         # ≥ len('[bending_z_order]') + 1
 
     # Default quadrature orders

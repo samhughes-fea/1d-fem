@@ -13,17 +13,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from pre_processing.mesh_library.schemes.mesh_generator import (
-    generate_mesh,
-    save_grid_file,
-    save_element_file,
-    save_material_file,
-    save_section_file,
+from pre_processing.mesh_library.benchmark_generation import (
+    linear_static_family_variant,
+    nonlinear_static_point_benchmark,
 )
+from pre_processing.mesh_library.job_generation import write_job_from_spec
 
 JOBS_DIR = REPO_ROOT / "jobs"
 L = 2.0  # m (must match mesh_generator default)
-P = -500.0  # N (Fy at load point)
 
 VARIANT_NS = [4, 8, 16, 32, 64, 128, 500]  # n500 = Abaqus validation reference (converged)
 # (base_id, load_label, load_formula, x_position)
@@ -34,52 +31,47 @@ BASE_JOBS = [
 ]
 
 
-def write_point_load(dir_path: Path, base_id: int, x: float) -> None:
-    labels = ["End load", "Midspan load", "Quarter-point load"]
-    formulas = ["P(x=L)", "P(x=L/2)", "P(x=L/4)"]
-    label = labels[base_id]
-    formula = formulas[base_id]
-    with open(dir_path / "point_load.txt", "w", encoding="utf-8") as f:
-        f.write(f"# Load Type: {label}\n")
-        f.write(f"# Load Formula: {formula}\n")
-        f.write("[Point load]\n")
-        f.write("         [x]          [y]          [z]        [F_x]        [F_y]        [F_z]        [M_x]        [M_y]        [M_z]\n")
-        f.write(f"    {x:.6f}     0.000000     0.000000     0.000000  {P:.6f}     0.000000     0.000000     0.000000     0.000000\n")
-
-
-def write_prescribed_displacement(dir_path: Path) -> None:
-    with open(dir_path / "prescribed_displacement.txt", "w", encoding="utf-8") as f:
-        f.write("[Prescribed Displacement]\n")
-        f.write("[id]     [node_id]  [dof]   [value]     [type]          [comment]\n")
-        for i, dof in enumerate(["UX", "UY", "UZ", "RX", "RY", "RZ"]):
-            f.write(f"{i}        0          {dof}      0.0         displacement     # Fixed support\n")
-
-
-def write_simulation_settings(dir_path: Path) -> None:
-    with open(dir_path / "simulation_settings.txt", "w", encoding="utf-8") as f:
-        f.write("[Simulation]\n[Type]      \nStatic             \n#Dynamic          \n#Modal\n")
-
-
 def main() -> None:
     for base_id, load_label, _formula, x_load in BASE_JOBS:
         for n in VARIANT_NS:
             name = f"job_{base_id:04d}_n{n}"
-            dir_path = JOBS_DIR / name
-            dir_path.mkdir(exist_ok=True)
-            save_dir = str(dir_path)
-            node_positions, elements = generate_mesh(
-                growth=0, max_nodes=n + 1, uniform_nodes=n + 1, length=L
+            spec = linear_static_family_variant(
+                name,
+                num_elements=n,
+                x_load=x_load,
+                load_label=load_label,
+                load_formula=_formula,
+                element_type="EulerBernoulliBeamElement3D",
             )
-            save_grid_file(node_positions, save_dir)
-            save_element_file(
-                elements, save_dir, element_type="EulerBernoulliBeamElement3D"
-            )
-            save_material_file(elements, save_dir)
-            save_section_file(elements, save_dir)
-            write_point_load(dir_path, base_id, x_load)
-            write_prescribed_displacement(dir_path)
-            write_simulation_settings(dir_path)
+            write_job_from_spec(JOBS_DIR, spec)
             print(f"Created {name}")
+
+    benchmark_jobs = [
+        ("job_benchmark_nl_static_cantilever_tip", 4, "End load", "P(x=L)", L),
+        ("job_benchmark_nl_static_midspan_point", 4, "Midspan load", "P(x=L/2)", L / 2),
+        ("job_benchmark_nl_static_quarter_point", 4, "Quarter-point load", "P(x=L/4)", L / 4),
+        ("job_benchmark_nl_static_cantilever_tip_n16", 16, "End load", "P(x=L)", L),
+        ("job_benchmark_nl_static_midspan_point_n16", 16, "Midspan load", "P(x=L/2)", L / 2),
+        ("job_benchmark_nl_static_quarter_point_n16", 16, "Quarter-point load", "P(x=L/4)", L / 4),
+        ("job_benchmark_nl_static_cantilever_tip_n64", 64, "End load", "P(x=L)", L),
+        ("job_benchmark_nl_static_midspan_point_n64", 64, "Midspan load", "P(x=L/2)", L / 2),
+        ("job_benchmark_nl_static_quarter_point_n64", 64, "Quarter-point load", "P(x=L/4)", L / 4),
+        ("job_benchmark_nl_static_cantilever_tip_n500", 500, "End load", "P(x=L)", L),
+        ("job_benchmark_nl_static_midspan_point_n500", 500, "Midspan load", "P(x=L/2)", L / 2),
+        ("job_benchmark_nl_static_quarter_point_n500", 500, "Quarter-point load", "P(x=L/4)", L / 4),
+    ]
+    for name, n, label, formula, x_load in benchmark_jobs:
+        write_job_from_spec(
+            JOBS_DIR,
+            nonlinear_static_point_benchmark(
+                name,
+                num_elements=n,
+                load_label=label,
+                load_formula=formula,
+                x_load=x_load,
+            ),
+        )
+        print(f"Created {name}")
 
 
 if __name__ == "__main__":

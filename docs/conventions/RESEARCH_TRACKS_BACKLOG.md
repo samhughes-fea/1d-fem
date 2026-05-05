@@ -9,6 +9,9 @@ Track these as separate issues or milestone epics; they are **not** blocking har
 | **LTB** lateral-torsional buckling validation | [`MODAL_BUCKLING_LTB_VALIDATION.md`](MODAL_BUCKLING_LTB_VALIDATION.md) | Closed-form or benchmark **P_cr** / load factor once reference BCs and loads are fixed. |
 | **GESDB** strain recovery milestones | [`geometrically_exact_shear_deformable_beam_formulation.md`](../element_library/geometrically_exact_shear_deformable_beam_formulation.md) | Native large-rotation beam roadmap items. |
 | **Nonlinear prestress → linear buckling** | [`MODAL_BUCKLING_NONLINEAR_PRESTRESS_DESIGN.md`](MODAL_BUCKLING_NONLINEAR_PRESTRESS_DESIGN.md) | Prestressed **K** for §5 buckling vs transient nonlinear paths. |
+| **Nonlinear buckling continuation benchmarks** | [`NONLINEAR_BUCKLING_CONTINUATION.md`](NONLINEAR_BUCKLING_CONTINUATION.md), [`NONLINEAR_BUCKLING_BENCHMARKS.md`](NONLINEAR_BUCKLING_BENCHMARKS.md) | Progress from smoke/regression to pinned imperfect-column and post-critical reference cases. |
+| **Non-static production-readiness parity** | [`NONSTATIC_PRODUCTION_READINESS_CHECKLIST.md`](NONSTATIC_PRODUCTION_READINESS_CHECKLIST.md) | Bring eigen, transient, harmonic, and buckling runners/packages to static-grade artifact, diagnostics, and validation standards. |
+| **Eigen + linear buckling acceptance benchmarks** | [`EIGEN_AND_LINEAR_BUCKLING_BENCHMARKS.md`](EIGEN_AND_LINEAR_BUCKLING_BENCHMARKS.md) | Pinned repository benchmark jobs and artifact/positivity acceptance checks before literature-calibrated closures. |
 
 When opening a GitHub issue, link the doc above and the simulation type (**eigen**, **buckling**, **transient**, **harmonic**) affected.
 
