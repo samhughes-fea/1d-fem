@@ -61,6 +61,14 @@ Parser: `pre_processing.parsing.section_geometry_parser.parse_section_geometry_f
 - Section coordinates \((y, z)\) are measured from the beam reference line through the element nodes, in the global \(y\) and \(z\) directions. The linear elements have no element frames yet, so the beam axis is global \(x\).
 - Unknown element or section ids are errors.
 - Element types that do not yet build their stiffness from a `SectionAnalysis` raise `NotImplementedError` when assigned a section, rather than silently using `section.txt`.
+- An optional third column `[modes]` sets how many cross-section distortional modes an element carries (`LinearGBTBeamElement3D`, with `[warping] = 1`). Each node then has `1 + 2 × modes` extra DOFs `Q1 … Qn`: `Q1` is the warping amplitude, and mode `k` has its amplitude on `Q(2k)` and its slope on `Q(2k+1)`. A diaphragm (rib) at a node is `Q2 = Q4 = … = 0`; also fixing the slopes stops the mode warping. See [../element_library/gbt_cross_section_modes.md](../element_library/gbt_cross_section_modes.md).
+
+```text
+[Element_Section]
+[element_id] [section_id] [modes]
+0  1  2
+1  1  2
+```
 
 The parsed result reaches every element as `element.section_analysis` (a `SectionAnalysis`, see [../element_library/section_analysis.md](../element_library/section_analysis.md)).
 

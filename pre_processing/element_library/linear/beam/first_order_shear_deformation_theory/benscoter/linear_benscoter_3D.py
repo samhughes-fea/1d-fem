@@ -61,7 +61,7 @@ class LinearBenscoterBeamElement3D(LinearTimoshenkoBeamElement3D):
                 f"Element {eid}: LinearBenscoterBeamElement3D needs a thin-walled section "
                 "(laminate.txt, section_geometry.txt and element_section.txt)."
             )
-        if self._n_dof != _N_DOF or not self._warp_stiff:
+        if self._n_dof < _N_DOF or not self._warp_stiff:
             raise ValueError(
                 f"Element {eid}: LinearBenscoterBeamElement3D needs the warping DOF; set [warping] = 1."
             )
@@ -73,6 +73,15 @@ class LinearBenscoterBeamElement3D(LinearTimoshenkoBeamElement3D):
     # ------------------------------------------------------------------ #
     # Operators
     # ------------------------------------------------------------------ #
+    @property
+    def _n_extra(self) -> int:
+        """Extra DOFs per node used by this element (1 for Benscoter: ``psi``)."""
+        return self.dof_per_node - 6
+
+    @property
+    def _psi_cols(self) -> tuple:
+        """Element columns of ``psi`` at node 1 and node 2."""
+        return (_N_STD, _N_STD + self._n_extra)
     def _D_matrix_7x7(self) -> np.ndarray:  # noqa: D401  (parent hook name)
         """Element-signed Benscoter stiffness (8, 8)."""
         return np.array(self.section_analysis.benscoter_stiffness, dtype=np.float64)
@@ -85,15 +94,19 @@ class LinearBenscoterBeamElement3D(LinearTimoshenkoBeamElement3D):
         n_gauss = dN_dξ.shape[0]
         B6 = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)
         xi = np.zeros(n_gauss) if xi is None else np.atleast_1d(np.asarray(xi, dtype=np.float64))
-        B = np.zeros((n_gauss, _N_STRAIN, _N_DOF), dtype=np.float64)
+        p1, p2 = self._psi_cols
+        B = np.zeros((n_gauss, _N_STRAIN, self._n_dof), dtype=np.float64)
         B[:, :6, :_N_STD] = B6
         for g in range(n_gauss):
             B[g, 6, :] = -B[g, 5, :]
-            B[g, 6, 12] += 0.5 * (1.0 - xi[g])
-            B[g, 6, 13] += 0.5 * (1.0 + xi[g])
-            B[g, 7, 12] = -1.0 / self.L
-            B[g, 7, 13] = 1.0 / self.L
+            B[g, 6, p1] += 0.5 * (1.0 - xi[g])
+            B[g, 6, p2] += 0.5 * (1.0 + xi[g])
+            B[g, 7, p1] = -1.0 / self.L
+            B[g, 7, p2] = 1.0 / self.L
         return B
+
+    def _full_order(self) -> int:
+        return self._timoshenko_orders.max_full_order
 
     def _B_at(self, xi_g: float):
         N, dN, d2N = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
@@ -109,12 +122,13 @@ class LinearBenscoterBeamElement3D(LinearTimoshenkoBeamElement3D):
         D = self._D_matrix_7x7()
         D_red = np.zeros_like(D)
         D_red[np.ix_(_REDUCED_ROWS, _REDUCED_ROWS)] = D[np.ix_(_REDUCED_ROWS, _REDUCED_ROWS)]
+        # rows 0-7 are the Benscoter strains; any further rows are integrated with the full rule
         detJ = self.jacobian_determinant
         orders = self._timoshenko_orders
 
-        Ke = np.zeros((_N_DOF, _N_DOF), dtype=np.float64)
+        Ke = np.zeros((self._n_dof, self._n_dof), dtype=np.float64)
         gauss_cache = []
-        for xi_g, w_g in zip(*np.polynomial.legendre.leggauss(orders.max_full_order)):
+        for xi_g, w_g in zip(*np.polynomial.legendre.leggauss(self._full_order())):
             B, N, dN = self._B_at(xi_g)
             Ke += B.T @ (D - D_red) @ B * w_g * detJ
             gauss_cache.append(StiffnessGaussPointData(
@@ -127,8 +141,8 @@ class LinearBenscoterBeamElement3D(LinearTimoshenkoBeamElement3D):
         Ke = 0.5 * (Ke + Ke.T)
 
         if self.logger_operator:
-            self.logger_operator.log_text("stiffness", f"\n=== Element {self.element_id} Benscoter K_e (14,14) ===")
-            self.logger_operator.log_matrix("stiffness", D, {"name": "Benscoter section stiffness D (8, 8)"})
+            self.logger_operator.log_text("stiffness", f"\n=== Element {self.element_id} {self.element_type_name} K_e {Ke.shape} ===")
+            self.logger_operator.log_matrix("stiffness", D, {"name": f"Section stiffness D {D.shape}"})
             self.logger_operator.log_matrix("stiffness", Ke, {"name": "Element Stiffness Matrix"})
             self.logger_operator.flush("stiffness")
         return ElementObject(
@@ -141,12 +155,13 @@ class LinearBenscoterBeamElement3D(LinearTimoshenkoBeamElement3D):
 
     def _precurvature_equivalent_load(self) -> np.ndarray:
         if not np.any(self._E_0_voigt):
-            return np.zeros(_N_DOF, dtype=np.float64)
-        E0 = np.concatenate([self._E_0_voigt, np.zeros(2)])
+            return np.zeros(self._n_dof, dtype=np.float64)
         D = self._D_matrix_7x7()
+        E0 = np.zeros(D.shape[0])
+        E0[:6] = self._E_0_voigt
         detJ = self.jacobian_determinant
-        f_e = np.zeros(_N_DOF, dtype=np.float64)
-        for xi_g, w_g in zip(*np.polynomial.legendre.leggauss(self._timoshenko_orders.max_full_order)):
+        f_e = np.zeros(self._n_dof, dtype=np.float64)
+        for xi_g, w_g in zip(*np.polynomial.legendre.leggauss(self._full_order())):
             B, _, _ = self._B_at(xi_g)
             f_e += B.T @ D @ E0 * w_g * detJ
         return f_e

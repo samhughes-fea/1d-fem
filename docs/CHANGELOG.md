@@ -15,6 +15,12 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- **Cross-section modes and the GBT element:**
+  - `CrossSectionModes` builds the conventional (Vlasov) distortional modes of any open, closed or multi-cell thin-walled section from its wall frame: a null space of the Vlasov constraints, then a generalised eigenproblem, ordered by transverse bending.
+  - It also gives the coupled GBT section stiffness (Benscoter strains plus \(a''\), \(a'\), \(a\) of each mode) and the section mass.
+  - New element `LinearGBTBeamElement3D`: the Benscoter element plus Hermite mode amplitudes. It is driven by a new optional `[modes]` column in `element_section.txt`, which also sets the mesh DOF layout. Diaphragms are `Q` supports.
+  - `SectionAnalysis` gains `gbt_modes`, `gbt_stiffness`, `gbt_mass` and `gbt_matrices(m)`.
+  - Docs: [element_library/gbt_cross_section_modes.md](element_library/gbt_cross_section_modes.md), [proofs/gbt/single_mode_cantilever.md](proofs/gbt/single_mode_cantilever.md).
 - **Mesh-wide nodal DOF layout** (`pre_processing/element_library/dof_layout.py`): the nodal stride is 6 plus the largest number of extra DOFs any element row asks for (`[warping] = 1`, or the new optional `element_dictionary["extra_dofs"]`). All runners, `process_job`, the Abaqus export and the modal \(z\) effective-mass metric use it instead of a 6/7 switch. Elements map their own DOF order onto the stride, so elements with fewer DOFs (trusses, plain beams) sit correctly on wider meshes. `prescribed_displacement.txt` accepts `Q1 … Qn` for extra DOFs (`W` / `CHI` stay as aliases of `Q1`). Docs: [conventions/NODAL_DOF_LAYOUT.md](conventions/NODAL_DOF_LAYOUT.md).
 - **Benscoter restrained warping for thin-walled sections:**
   - New element `LinearBenscoterBeamElement3D`: Timoshenko kinematics plus an independent warping amplitude \(\psi\) on the seventh nodal DOF (`[warping] = 1`, thin-walled section required).

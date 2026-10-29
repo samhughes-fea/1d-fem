@@ -116,7 +116,7 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
         idx = int(np.where(element_dictionary["ids"] == element_id)[0][0])
         etype_str = str(element_dictionary["types"][idx])
         warp_mesh = mesh_uses_warping_dof(element_dictionary)
-        dof_pn = 7 if warp_mesh else 6
+        dof_pn = self._nodal_dof_count(element_dictionary, idx, warp_mesh)
         self._n_dof = dof_pn * 2
 
         super().__init__(
@@ -194,6 +194,11 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
             )
         if not self.has_thin_walled_section:
             maybe_warn_timoshenko_default_kappa(self.section_array, element_id)
+
+    @classmethod
+    def _nodal_dof_count(cls, element_dictionary: dict, idx: int, warp_mesh: bool) -> int:
+        """DOFs this element uses per node: 6, or 7 on a warping mesh. Subclasses add more."""
+        return 7 if warp_mesh else 6
 
     def _validate_element_properties(self) -> None:
         """Validate critical element properties"""
