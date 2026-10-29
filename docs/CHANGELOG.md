@@ -15,6 +15,12 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- **Wall and ply stress recovery for thin-walled sections:**
+  - `stress_recovery.py`: full mid-surface strains from the kept beam strains (`N_ss = 0`, free or restrained hoop bending), wall resultants, ply stresses in wall and ply axes, and interlaminar `tau_xn`, `tau_sn` and `sigma_nn` by integrating 3D equilibrium through the thickness. `SaintVenantRecovery` takes section forces.
+  - `element_recovery.py`: wall stresses at any point of a solved Euler-Bernoulli, Timoshenko, Benscoter or GBT element.
+  - `process_job` writes `secondary_results/wall_stresses/wall_stresses.csv` for linear static jobs with thin-walled sections.
+  - Worked examples `examples/thin_walled/box_spar` and `examples/thin_walled/three_cell_blade` with figures.
+  - Docs: [element_library/thin_walled_stress_recovery.md](element_library/thin_walled_stress_recovery.md).
 - **GBT warping modes, shear lag and wall loads:**
   - The GBT element now uses plane-section beam kinematics with all warping in warping modes: the Saint-Venant warping span (always carried) plus optional shear-lag modes from a new `[shear_modes]` column. A support with the warping amplitudes fixed keeps the section plane, which gives shear lag and the warping-restraint end effect; with them free, tip loads give the Saint-Venant beam.
   - **Breaking (unreleased element):** `LinearGBTBeamElement3D` is now a Timoshenko subclass and its nodal extras are `[b_1 .. b_p, a_1, a_1', ..]` instead of `[psi, a_1, a_1', ..]`. `SectionAnalysis` gains `gbt_sv_modes` and `gbt_shear_modes`; `gbt_matrices(m, p_extra)` uses the new strain order.

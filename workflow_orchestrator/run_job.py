@@ -621,6 +621,16 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
             raise ValueError(f"Unknown simulation type: '{solver_type}'")
 
         runner.run()
+        tw = element_dictionary.get("thin_walled_analysis_per_element")
+        if (
+            tw is not None
+            and solver_type == "static"
+            and simulation_settings.get("_resolved_static_kind", "linear") != "nonlinear"
+            and getattr(runner, "U_global", None) is not None
+        ):
+            from post_processing.thin_walled.wall_stresses import write_wall_stresses
+
+            write_wall_stresses(job_results_dir, all_elements, tw, runner.U_global)
         simulation_time = time.time() - step_start
         performance_data.append(["Full Simulation", simulation_time, *track_usage().values()])
 
