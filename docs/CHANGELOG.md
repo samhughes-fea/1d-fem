@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- **Shell validation of the second-order and corotational beams** ([post_processing/validation_visualisers/abaqus/shell_validation](../post_processing/validation_visualisers/abaqus/shell_validation/README.md)). Five cases written as Abaqus S4R decks from the same section description the beam uses: channel flexural-torsional buckling, I-beam lateral-torsional buckling, the I-beam's prebuckling path near that moment (NLGEOM), large twist of an I-beam with restrained warping (NLGEOM) and a bend-twist coupled CFRP box under large tip deflection (NLGEOM). `run.py` writes the decks, runs Abaqus, extracts the ODB (`extract_odb.py`), reduces each station to beam displacements by a rigid section fit and compares with cached 1d-fem results against a 3 % target. The same decks run in CalculiX (`--solver calculix`, S8R), which checks the buckling cases and, linearly, the nonlinear decks.
+
 ### Removed
 
 - **`simulation_runner.modal`** — deprecated import shim (`_vibration_buckling_backend`, `modal_diagnostic`) **deleted**. Use **`simulation_runner.spectral.vibration_buckling_backend.VibrationBucklingBackend`** and **`simulation_runner.spectral.spectral_diagnostics.log_spectral_diagnostics`** instead.
