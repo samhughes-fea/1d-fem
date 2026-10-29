@@ -44,6 +44,7 @@ from pre_processing.parsing.point_load_parser import parse_point_load
 from pre_processing.parsing.distributed_load_parser import parse_distributed_load
 from pre_processing.parsing.prescribed_displacement_parser import parse_prescribed_displacement
 from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
+from pre_processing.section_integration.thin_walled.job_input import attach_section_analyses
 from pre_processing.parsing.precurvature_parser import parse_precurvature
 
 #from pre_processing.element_library.element_factory import ElementFactory # lazy import in process job
@@ -255,6 +256,7 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
         ).parse()["section_dictionary"]
 
         simulation_settings = parse_simulation_settings(os.path.join(job_dir, "simulation_settings.txt"))
+        element_dictionary = attach_section_analyses(job_dir, element_dictionary)
         warping_cfg = simulation_settings.get("warping", {})
         element_dictionary = {
             **element_dictionary,
