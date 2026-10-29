@@ -175,8 +175,21 @@ class LinearBenscoterBeamElement3D(LinearTimoshenkoBeamElement3D):
             Fe[p2] += 0.5 * self.L * f[6]
         return Fe
 
-    def linear_geometric_stiffness_matrix(self, U_e: np.ndarray) -> np.ndarray:
-        raise NotImplementedError("LinearBenscoterBeamElement3D is linear static only (second order arrives later).")
+    def _geometric_state(self, xi: float, U_e: np.ndarray):
+        """Timoshenko rows of ``[v', w', phi', phi]`` and the section terms with the bimoment.
+
+        The walls carry the Saint-Venant stresses of ``K psi6`` plus the warping stresses
+        of ``[d, psi']``; the ``psi'`` part is the bimoment's axial stress, which adds to
+        the Wagner term.
+        """
+        from pre_processing.element_library.linear.beam.second_order import _linear_rows
+
+        sa = self.section_analysis
+        e = self._B_at(xi)[0] @ U_e
+        e[_REDUCED_ROWS] = self._B_at(0.0)[0][_REDUCED_ROWS] @ U_e  # as the reduced rule sees them
+        e[:6] -= self._E_0_voigt
+        c = self._geometric_terms_matrix() @ (sa.stiffness @ e[:6]) + sa.benscoter_geometric_terms @ e[6:8]
+        return _linear_rows(self.L, xi, self._n_dof), c
 
     # ------------------------------------------------------------------ #
     # Mass

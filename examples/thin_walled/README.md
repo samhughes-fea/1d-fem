@@ -6,6 +6,7 @@ deflections and then back down to wall, ply and interlaminar stresses.
 | Example | What it shows |
 |---|---|
 | [box_spar](box_spar/README.md) | CFRP box spar: four beam theories against the exact Saint-Venant beam, Bredt torsion, shear lag at a restrained root, ply and interlaminar stresses |
+| [channel_buckling](channel_buckling/README.md) | Channel column with offset shear and tension centres: flexural-torsional buckling and P-delta through the job runners |
 | [three_cell_blade](three_cell_blade/README.md) | Three-cell blade section with spar caps and two webs: offset shear centre, multi-cell Bredt-Batho shear flows, cap and web stresses |
 
 Run each from the repository root, for example:

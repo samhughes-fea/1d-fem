@@ -26,6 +26,7 @@ for that element even if the section defines Γ.
 """
 
 import numpy as np
+from pre_processing.element_library.linear.beam.second_order import GeometricStiffnessMixin
 from typing import Optional, Tuple
 
 # Import Element1DBase class
@@ -67,7 +68,7 @@ logger = logging.getLogger(__name__)
 # --- element-level logger ----------------------------------
 from pre_processing.element_library.base_logger_operator import BaseLoggerOperator
 
-class LinearEulerBernoulliBeamElement3D(Element1DBase):
+class LinearEulerBernoulliBeamElement3D(GeometricStiffnessMixin, Element1DBase):
     """
     2-node straight beam, 6 DOF per node, 12 total (see module docstring for ``U_e`` order).
 
@@ -517,70 +518,35 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
             point_loads=point_loads_cache
         )
 
-    def linear_geometric_stiffness_matrix(self, U_e: np.ndarray) -> np.ndarray:
+    def _geometric_state(self, xi: float, U_e: np.ndarray):
+        """Rows of ``[v', w', phi', phi]`` (Hermite ``v``, ``w``) and the section terms at ``xi``.
+
+        ``N``, ``M_y``, ``M_z`` and ``T`` come from the strains; the shear forces, which a
+        shear-rigid element has no strain for, from the moment gradient over the element
+        (``V_z = M_y'``, ``V_y = -M_z'`` right-handed).
         """
-        Geometric stiffness :math:`\\mathbf{K}_\\sigma` from linear strains
-        :math:`\\boldsymbol{\\varepsilon}=\\mathbf{B}\\mathbf{U}_e` and :math:`\\mathbf{S}=\\mathbf{D}\\boldsymbol{\\varepsilon}`
-        (reference prestress for linear buckling). **12-DOF** EB; **14-DOF** warping embeds **12×12** ``K_σ``
-        on standard beam DOFs (χ unstressed in ``K_σ``), matching the nonlinear EB+warping tangent layout.
-        """
-        U_e = np.asarray(U_e, dtype=np.float64).ravel()
-        from pre_processing.element_library.nonlinear.euler_bernoulli.utilities.geometric_stiffness import (
-            GeometricStiffnessOperator,
-        )
-        from pre_processing.element_library.nonlinear.euler_bernoulli.utilities.stress_resultant import (
-            StressResultantOperator,
+        from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
+            _hermite_x,
         )
 
-        stress_op = StressResultantOperator()
-        geo = GeometricStiffnessOperator(element_length=self.L)
         D6 = self._D6()
-        xi, w = self.integration_points
-        detJ = self.jacobian_determinant
-        dξ_dx = 2.0 / self.L
-        n_g = len(xi)
-        N_gp = np.zeros(n_g, dtype=np.float64)
-        M_y_gp = np.zeros(n_g, dtype=np.float64)
-        M_z_gp = np.zeros(n_g, dtype=np.float64)
-        dN_dx_list = []
 
-        if U_e.size == 12:
-            for k, (xi_g, w_g) in enumerate(zip(xi, w)):
-                _, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-                B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)[0]
-                eps = B @ U_e - self._E_0_voigt
-                Ni, Myi, Mzi = stress_op.section_forces_from_strain(eps, D6)
-                N_gp[k] = Ni
-                M_y_gp[k] = Myi
-                M_z_gp[k] = Mzi
-                dN_dx = dN_dξ.copy() * dξ_dx
-                dN_dx[:, 3] = dN_dξ[:, 3] * dξ_dx
-                dN_dx_list.append(dN_dx[0])
-        elif U_e.size == 14 and self._n_dof == 14:
-            E0 = np.concatenate([self._E_0_voigt, np.zeros(1, dtype=np.float64)])
-            for k, (xi_g, w_g) in enumerate(zip(xi, w)):
-                _, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-                B = self.warping_strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)[0]
-                eps = B @ U_e - E0
-                Ni, Myi, Mzi = stress_op.section_forces_from_strain(eps[:6], D6)
-                N_gp[k] = Ni
-                M_y_gp[k] = Myi
-                M_z_gp[k] = Mzi
-                dN_dx = dN_dξ.copy() * dξ_dx
-                dN_dx[:, 3] = dN_dξ[:, 3] * dξ_dx
-                dN_dx_list.append(dN_dx[0])
-        else:
-            raise ValueError(
-                f"linear_geometric_stiffness_matrix: expected 12 or (14 with warping element) DOFs, got {U_e.size}"
-            )
+        def forces(x):
+            _, dN, d2N = self.shape_function_operator.natural_coordinate_form(np.array([x]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN, d2N)[0]
+            return D6 @ (B @ U_e[:12] - self._E_0_voigt)
 
-        dN_dx_arr = np.stack(dN_dx_list, axis=0)
-        K12 = geo.assemble_K_sigma(N_gp, M_y_gp, M_z_gp, w, dN_dx_arr, detJ)
-        if U_e.size == 12:
-            return K12
-        K_sigma = np.zeros((14, 14), dtype=np.float64)
-        K_sigma[:12, :12] = K12
-        return K_sigma
+        F = forces(xi)
+        dF = (forces(1.0) - forces(-1.0)) / self.L
+        F[3] = -dF[2]   # V_y = -M_z'
+        F[4] = -dF[1]   # V_z = M_y' (right-handed) = -(element-signed M_y)'
+        _, dH, _ = _hermite_x(xi, self.L)
+        G = np.zeros((4, self._n_dof))
+        G[0, [1, 5, 7, 11]] = dH                       # v' with slopes theta_z
+        G[1, [2, 4, 8, 10]] = dH * [1.0, -1.0, 1.0, -1.0]  # w' with slopes -theta_y
+        G[2, [3, 9]] = [-1.0 / self.L, 1.0 / self.L]
+        G[3, [3, 9]] = [0.5 * (1.0 - xi), 0.5 * (1.0 + xi)]
+        return G, self._geometric_terms_matrix() @ F
 
     def element_mass_matrix(self):
         """Consistent mass: translations rho*A; torsion rho*J_t; bending rotations rho*Iy / rho*Iz."""
