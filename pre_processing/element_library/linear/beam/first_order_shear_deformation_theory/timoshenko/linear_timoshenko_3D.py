@@ -79,6 +79,9 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
     Quadrature: orders from ``element_array``; shear columns default to 2 if zero; selective bending/shear assembly (module docstring).
     Loads: ``F_dist += w_g * N.T @ q * detJ`` like EB; optional logging.
     """
+
+    #: Builds ``D`` from ``self.section_analysis`` (thin-walled anisotropic sections).
+    supports_section_analysis = True
     
     # Element formulation identifier for tracking in multi-element meshes
     element_type_name = "Timoshenko-3D"
@@ -181,7 +184,13 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
                 element_id=element_id,
             )
 
-        maybe_warn_timoshenko_default_kappa(self.section_array, element_id)
+        if self.has_thin_walled_section and self._n_dof == 14:
+            raise NotImplementedError(
+                f"Element {element_id}: a thin-walled SectionAnalysis with the warping DOF is not "
+                "supported by LinearTimoshenkoBeamElement3D; use [warping] = 0."
+            )
+        if not self.has_thin_walled_section:
+            maybe_warn_timoshenko_default_kappa(self.section_array, element_id)
 
     def _validate_element_properties(self) -> None:
         """Validate critical element properties"""
@@ -293,7 +302,7 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
         return B
 
     def _D_matrix_7x7(self) -> np.ndarray:
-        D6 = self.material_stiffness_operator.assembly_form()
+        D6 = self._D6()
         D = np.zeros((_TS_W_N_STRAIN, _TS_W_N_STRAIN), dtype=np.float64)
         D[:6, :6] = D6
         g_eff = self._warp_policy.gamma_effective
@@ -315,7 +324,7 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
             return np.zeros(nd, dtype=np.float64)
         detJ = self.jacobian_determinant
         if nd == 12:
-            D = self.material_stiffness_operator.assembly_form()
+            D = self._D6()
             max_order = self._timoshenko_orders.max_full_order
             xi, w = np.polynomial.legendre.leggauss(max_order)
             f_e = np.zeros(12, dtype=np.float64)
@@ -343,9 +352,15 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
         """``B_tilde`` in natural ``xi``; element sums ``K_e += B.T @ D @ B * w_g * detJ`` (physical ``B``)."""
         return self.strain_displacement_operator.natural_coordinate_form(dN_dξ, d2N_dξ2, N)
 
+    def _D6(self) -> np.ndarray:
+        """Section ``D`` (6, 6): the assigned thin-walled ``SectionAnalysis`` stiffness, else the isotropic operator."""
+        if self.has_thin_walled_section:
+            return self.section_analysis.stiffness
+        return self.material_stiffness_operator.assembly_form()
+
     def D_matrix(self) -> np.ndarray:
         """D-matrix for stiffness assembly (4×4)."""
-        return self.material_stiffness_operator.assembly_form()
+        return self._D6()
     
     # Ke tensor computations ---------------------------------------------------------
     def element_stiffness_matrix(self):
@@ -397,7 +412,7 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
             )
 
         L = np.array([[self.L]], dtype=np.float64)
-        D = self.material_stiffness_operator.assembly_form()
+        D = self._D6()
         orders = self._timoshenko_orders
         max_order = orders.max_full_order
         detJ = self.jacobian_determinant
@@ -548,7 +563,7 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
 
         stress_op = StressResultantOperator()
         geo = GeometricStiffnessOperator(element_length=self.L)
-        D6 = self.material_stiffness_operator.assembly_form()
+        D6 = self._D6()
         xi, w = self.integration_points
         detJ = self.jacobian_determinant
         dξ_dx = 2.0 / self.L
@@ -627,6 +642,13 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
                 M_e=M_e,
             )
 
+        if self.has_thin_walled_section:
+            return MassObject(
+                element_id=self.element_id,
+                element_type=self.element_type_name,
+                M_e=self._section_mass_matrix(),
+            )
+
         rho = float(self.material_array[3])
         mu = np.zeros(12, dtype=np.float64)
         for i in (0, 1, 2, 6, 7, 8):
@@ -654,6 +676,19 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
         )
 
 
+
+    def _section_mass_matrix(self) -> np.ndarray:
+        """``M_e = sum N M_s N^T w_g detJ`` with the rigid-section mass ``M_s`` of the SectionAnalysis."""
+        Ms = self.section_analysis.mass_matrix()
+        M_e = np.zeros((12, 12), dtype=np.float64)
+        xi, w = self.integration_points
+        detJ = self.jacobian_determinant
+        for xi_g, w_g in zip(xi, w):
+            # all six right-handed fields are linear Lagrange interpolations of their own DOFs
+            L1, L2 = 0.5 * (1.0 - xi_g), 0.5 * (1.0 + xi_g)
+            Phi = np.hstack([L1 * np.eye(6), L2 * np.eye(6)])
+            M_e += Phi.T @ Ms @ Phi * w_g * detJ
+        return 0.5 * (M_e + M_e.T)
 
     # Fe - distributed load contribution ------------------------------------------------
     def _compute_distributed_load_contribution(self):
