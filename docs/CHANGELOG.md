@@ -13,6 +13,15 @@ All notable changes to this project are documented in this file. The format foll
 - **Breaking:** `NonlinearWarpingEulerBernoulliBeamElement3D` removed — TL EB with Vlasov warping is unified into `NonlinearEulerBernoulliBeamElement3D` with `[warping]` / `element_dictionary["warping"]` (same mesh policy as linear EB).
 - **Housekeeping:** Source files for the legacy dedicated classes are deleted: `euler_bernoulli_with_warp/linear_warping_euler_bernoulli_3D.py` and `nonlinear/timoshenko_with_warp/nonlinear_warping_timoshenko_3D.py`. Vlasov operator code remains in `euler_bernoulli_with_warp/utilities/` (used by unified `LinearEulerBernoulliBeamElement3D` / `NonlinearEulerBernoulliBeamElement3D` with warping).
 
+### Changed
+
+- **Breaking: `LinearReddyBeamElement3D` and `LinearLevinsonBeamElement3D` rewritten** as third-order shear elements derived from the section ([element_library/higher_order_shear.md](element_library/higher_order_shear.md)). The previous elements gave a cantilever tip about 30 times too stiff and did not converge, because their rotation shape functions could not represent a linear rotation.
+  - Kinematics: the Timoshenko section motion plus the Saint-Venant shear warping slaved to the shear strain, `eps_xx += Psi(s) . chi` with `chi = gamma' - R psi6`. For a solid rectangle this is Reddy's cubic; for thin walls it is the wall analysis' shear warping.
+  - Reddy is variational; Levinson keeps only the classical equilibrium equations (Petrov-Galerkin), which gives Timoshenko deflections for uncoupled sections.
+  - Nodes carry two extra DOFs, the slopes `v'` and `w'` (`Q1`, `Q2`), so a mesh with these elements has 8 DOFs per node. Fix `Q1`, `Q2` at a clamp to restrain the shear warping (Reddy).
+  - Both elements accept thin-walled sections (`element_section.txt`) and give wall and ply stresses. `[warping] = 1` is refused (use `LinearBenscoterBeamElement3D`), and the `[alpha]` column of `section.txt` is no longer used.
+  - `SectionAnalysis` gains `third_order_stiffness` (8 x 8) and `third_order_rate`; `ThinWalledSectionAnalysis` computes them from the walls.
+
 ### Added
 
 - **Wall and ply stress recovery for thin-walled sections:**
