@@ -1,6 +1,6 @@
 # Job input: thin-walled anisotropic sections
 
-Two optional job files describe anisotropic thin-walled sections from their walls and plies. They are parsed and validated now; later PRs turn them into section stiffness for the beam elements. Until then they do not change any analysis, and `section.txt` stays the input for existing jobs.
+Three optional job files describe anisotropic thin-walled sections from their walls and plies and assign them to elements. They must be given together. A job with none of them runs exactly as before. `section.txt` is still required for every element and still supplies the properties of elements that are not assigned a thin-walled section.
 
 ## `laminate.txt`
 
@@ -47,5 +47,21 @@ Parser: `pre_processing.parsing.laminate_parser.parse_laminate_file` returns `{l
 - Closed cells are counted from the wall graph (`walls - points + components`).
 
 Parser: `pre_processing.parsing.section_geometry_parser.parse_section_geometry_file` returns `{section_id: ThinWalledSection}`.
+
+## `element_section.txt`
+
+```text
+[Element_Section]
+[element_id] [section_id]
+0  1
+1  1
+```
+
+- Each listed element uses the thin-walled section `section_id`. Each section is analysed once, however many elements use it.
+- Section coordinates \((y, z)\) are measured from the beam reference line through the element nodes, in the global \(y\) and \(z\) directions. The linear elements have no element frames yet, so the beam axis is global \(x\).
+- Unknown element or section ids are errors.
+- Element types that do not yet build their stiffness from a `SectionAnalysis` raise `NotImplementedError` when assigned a section, rather than silently using `section.txt`.
+
+The parsed result reaches every element as `element.section_analysis` (a `SectionAnalysis`, see [../element_library/section_analysis.md](../element_library/section_analysis.md)).
 
 Theory: [../element_library/thin_walled_section_walls.md](../element_library/thin_walled_section_walls.md).
