@@ -8,13 +8,12 @@ import os
 # Set up detailed logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
+from pre_processing.element_library.dof_layout import dof_name_map
+
 # Standard beam DOFs per node (translations + rotations)
-DOF_MAP_6 = {
-    "UX": 0, "UY": 1, "UZ": 2,
-    "RX": 3, "RY": 4, "RZ": 5,
-}
-# Seventh DOF: Vlasov warping intensity χ (only when mesh uses 7 DOF/node)
-DOF_MAP_7 = {**DOF_MAP_6, "CHI": 6, "W": 6}
+DOF_MAP_6 = dof_name_map(6)
+# Seventh DOF: warping amplitude (W, CHI or Q1) when the mesh uses 7 DOF/node
+DOF_MAP_7 = dof_name_map(7)
 
 def parse_prescribed_displacement(file_path, dof_per_node: int = 6):
     """
@@ -29,8 +28,9 @@ def parse_prescribed_displacement(file_path, dof_per_node: int = 6):
     file_path : str
         Path to the prescribed_displacement.txt file
     dof_per_node : int
-        6 (default) or 7 when the mesh allocates a warping DOF per node
-        (``mesh_uses_warping_dof`` / ``[warping]`` in ``element.txt``).
+        Mesh nodal stride from ``dof_layout.mesh_dof_per_node``: 6 (default), 7 with a
+        warping DOF, more with cross-section mode DOFs. Extra DOFs are named ``Q1 … Qn``;
+        ``W`` and ``CHI`` are aliases of ``Q1``.
         
     Returns
     -------
@@ -45,9 +45,7 @@ def parse_prescribed_displacement(file_path, dof_per_node: int = 6):
         - 'global_dof': np.ndarray of global DOF indices (node_id * dof_per_node + dof_index)
         - 'phase_rad': optional per-row harmonic phase (rad); zeros if omitted in file
     """
-    if dof_per_node not in (6, 7):
-        raise ValueError(f"dof_per_node must be 6 or 7, got {dof_per_node}")
-    dof_map = DOF_MAP_7 if dof_per_node == 7 else DOF_MAP_6
+    dof_map = dof_name_map(dof_per_node)
     # Check if the file exists
     if not os.path.exists(file_path):
         logging.warning(f"[Prescribed Displacement] File not found: {file_path}. Returning empty arrays.")

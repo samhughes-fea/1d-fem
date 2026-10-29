@@ -142,6 +142,10 @@ class Element1DBase(ABC):
         self.job_results_dir        = job_results_dir
         self.element_id             = element_id
         self.dof_per_node           = dof_per_node
+        # Nodal stride of the global numbering (``dof_layout``); at least this element's own count.
+        from pre_processing.element_library.dof_layout import mesh_dof_per_node
+
+        self.mesh_dof_per_node      = max(int(dof_per_node), mesh_dof_per_node(element_dictionary))
 
         # Reference strain ``E_0`` (6,) from optional ``precurvature_per_element``; Voigt order ``FORMULATION_DOCSTRING_STANDARDS``.
         self._E_0_voigt = element_reference_strain_voigt(element_dictionary, element_id)
@@ -311,11 +315,12 @@ class Element1DBase(ABC):
 
         Notes
         -----
-        Global numbering is node-major: ``global_dof = node_id * dof_per_node + local_dof``.
-        Element vectors put the six standard DOFs of both nodes first and, on a warping
-        mesh (``dof_per_node == 7``), the two warping DOFs last:
-        ``[n1 0..5, n2 0..5, n1 6, n2 6]``. This is the layout every 14-DOF beam element
-        builds ``K_e`` and ``F_e`` in.
+        Global numbering is node-major with the mesh stride
+        (``global_dof = node_id * mesh_dof_per_node + local_dof``, see ``dof_layout``).
+        Element vectors put the six standard DOFs of both nodes first and the element's
+        extra DOFs last, node 1 then node 2: ``[n1 0..5, n2 0..5, n1 6.., n2 6..]``. This is
+        the layout every 14-DOF beam element builds ``K_e`` and ``F_e`` in. An element with
+        fewer DOFs than the mesh stride (a truss on a warping mesh) uses the first ones.
         """
         eid, n1, n2 = self.element_array[:3]
         for nid in (n1, n2):
@@ -323,13 +328,14 @@ class Element1DBase(ABC):
                 raise ValueError(f"Invalid node ID {nid} in element {eid}")
 
         dpn = int(self.dof_per_node)
+        stride = int(getattr(self, "mesh_dof_per_node", dpn))
         n_std = min(dpn, 6)
         dof_indices = []
         for nid in (n1, n2):
-            start = int(nid) * dpn
+            start = int(nid) * stride
             dof_indices.extend(range(start, start + n_std))
         for nid in (n1, n2):
-            start = int(nid) * dpn
+            start = int(nid) * stride
             dof_indices.extend(range(start + n_std, start + dpn))
 
         return np.asarray(dof_indices, dtype=int)

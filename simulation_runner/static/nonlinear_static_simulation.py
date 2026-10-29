@@ -147,9 +147,9 @@ class NonlinearStaticSimulationRunner:
         else:
             raise KeyError("grid_dictionary must contain an 'ids' array of node IDs")
 
-        from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
+        from pre_processing.element_library.dof_layout import mesh_dof_per_node
 
-        _dpn = 7 if mesh_uses_warping_dof(self.element_dictionary) else 6
+        _dpn = mesh_dof_per_node(self.element_dictionary)
         self.dof_per_node = _dpn
         self.total_dof = len(self.node_ids) * _dpn
         logger.debug(

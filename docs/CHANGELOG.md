@@ -15,6 +15,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- **Mesh-wide nodal DOF layout** (`pre_processing/element_library/dof_layout.py`): the nodal stride is 6 plus the largest number of extra DOFs any element row asks for (`[warping] = 1`, or the new optional `element_dictionary["extra_dofs"]`). All runners, `process_job`, the Abaqus export and the modal \(z\) effective-mass metric use it instead of a 6/7 switch. Elements map their own DOF order onto the stride, so elements with fewer DOFs (trusses, plain beams) sit correctly on wider meshes. `prescribed_displacement.txt` accepts `Q1 … Qn` for extra DOFs (`W` / `CHI` stay as aliases of `Q1`). Docs: [conventions/NODAL_DOF_LAYOUT.md](conventions/NODAL_DOF_LAYOUT.md).
 - **Benscoter restrained warping for thin-walled sections:**
   - New element `LinearBenscoterBeamElement3D`: Timoshenko kinematics plus an independent warping amplitude \(\psi\) on the seventh nodal DOF (`[warping] = 1`, thin-walled section required).
   - `ThinWalledSectionAnalysis.benscoter_stiffness` (8 × 8: the Saint-Venant 6 × 6 plus warping deviation \(d = \psi - \phi_x\) and \(\psi'\)) and `warping_inertia`; `SectionAnalysis` carries both in element signs.
