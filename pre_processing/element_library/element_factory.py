@@ -122,6 +122,8 @@ class ElementFactory:
             "pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D",
         "LinearTimoshenkoBeamElement3D":
             "pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D",
+        "LinearBenscoterBeamElement3D":
+            "pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_benscoter_3D",
         "LinearLevinsonBeamElement3D":
             "pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.linear_levinson_3D",
         "LinearReddyBeamElement3D":

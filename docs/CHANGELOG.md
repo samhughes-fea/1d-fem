@@ -15,6 +15,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- **Benscoter restrained warping for thin-walled sections:**
+  - New element `LinearBenscoterBeamElement3D`: Timoshenko kinematics plus an independent warping amplitude \(\psi\) on the seventh nodal DOF (`[warping] = 1`, thin-walled section required).
+  - `ThinWalledSectionAnalysis.benscoter_stiffness` (8 × 8: the Saint-Venant 6 × 6 plus warping deviation \(d = \psi - \phi_x\) and \(\psi'\)) and `warping_inertia`; `SectionAnalysis` carries both in element signs.
+  - Selective integration of the \(\{\gamma_{xy}, \gamma_{xz}, d\}\) block avoids warping-shear locking.
+  - Docs: [element_library/benscoter_restrained_warping.md](element_library/benscoter_restrained_warping.md), [proofs/benscoter/restrained_torsion.md](proofs/benscoter/restrained_torsion.md).
 - **Coupled Euler-Bernoulli and Timoshenko elements:**
   - `LinearEulerBernoulliBeamElement3D` and `LinearTimoshenkoBeamElement3D` build `D` from a thin-walled `SectionAnalysis` when one is assigned. Euler-Bernoulli uses the shear-rigid classical 4 × 4; Timoshenko uses the full coupled 6 × 6.
   - The section mass matrix includes mass-centre offsets.
@@ -42,6 +47,10 @@ All notable changes to this project are documented in this file. The format foll
 - `tests/test_prescribed_displacement_warping.py`, `tests/test_process_job_nl_eb_warp_minimal.py` — parser and minimal end-to-end **`process_job`** coverage for NL EB + `[warping]`.
 - [docs/conventions/DEPRECATED_ELEMENT_TYPES.md](conventions/DEPRECATED_ELEMENT_TYPES.md) — manifest of removed/deregistered types and replacements.
 - `pre_processing/element_library/removed_element_types.py` — `ensure_element_type_allowed()` raises `ValueError` with migration text and emits `DeprecationWarning` before removal errors.
+
+### Fixed
+
+- **Warping meshes (7 DOF per node):** `Element1DBase.assemble_global_dof_indices` now returns indices in the element's own order `[n1 0..5, n2 0..5, n1 W, n2 W]`. Before, it returned them node-major while every 14-DOF beam builds `K_e` with the two warping DOFs last, so `process_job` mixed the warping DOF of node 1 with `u_x` of node 2. Element-level results were unaffected.
 
 ### Changed
 
