@@ -1,0 +1,276 @@
+{
+ "solver": "calculix",
+ "fine": 0.5,
+ "element": "S8R",
+ "linear": true,
+ "cases": {
+  "channel_ft": {
+   "rows": [
+    {
+     "mode": "flexural",
+     "beam": 112067.191,
+     "shell": 111501.9,
+     "error": 0.005069788048454926
+    },
+    {
+     "mode": "torsional",
+     "beam": 147584.847,
+     "shell": 146321.6,
+     "error": 0.008633359668019036
+    }
+   ],
+   "shell_modes": [
+    {
+     "factor": 111501.9,
+     "residual": 0.0031568083115225275,
+     "twist_share": 0.00041522326030227013,
+     "global": true
+    },
+    {
+     "factor": 146321.6,
+     "residual": 0.00018743628999029954,
+     "twist_share": 1.0,
+     "global": true
+    },
+    {
+     "factor": 392622.1,
+     "residual": 0.964821387206612,
+     "twist_share": 0.11651011283293636,
+     "global": false
+    },
+    {
+     "factor": 394903.7,
+     "residual": 1.0002873428448114,
+     "twist_share": 0.0017548161112613209,
+     "global": false
+    },
+    {
+     "factor": 397963.1,
+     "residual": 0.9908289392129377,
+     "twist_share": 0.030279980939387812,
+     "global": false
+    },
+    {
+     "factor": 403592.4,
+     "residual": 1.0021604016464183,
+     "twist_share": 0.014881565052845097,
+     "global": false
+    },
+    {
+     "factor": 409303.4,
+     "residual": 0.9979649540070744,
+     "twist_share": 0.00594526903842444,
+     "global": false
+    },
+    {
+     "factor": 420551.7,
+     "residual": 1.0039368525238408,
+     "twist_share": 0.018895459254591816,
+     "global": false
+    },
+    {
+     "factor": 436208.6,
+     "residual": 1.0000566665915114,
+     "twist_share": 0.0066004645304898624,
+     "global": false
+    },
+    {
+     "factor": 449757.2,
+     "residual": 1.0017560419654308,
+     "twist_share": 0.012525330614415823,
+     "global": false
+    },
+    {
+     "factor": 458196.2,
+     "residual": 0.9970628075716031,
+     "twist_share": 0.049093549604269156,
+     "global": false
+    },
+    {
+     "factor": 475305.0,
+     "residual": 1.0016395533730031,
+     "twist_share": 0.024774318780601153,
+     "global": false
+    }
+   ],
+   "max_error": 0.008633359668019036,
+   "passed": true
+  },
+  "ibeam_ltb_buckle": {
+   "rows": [
+    {
+     "mode": "torsional",
+     "beam": 34204.1182,
+     "shell": 33902.11,
+     "error": 0.008908241994377342
+    }
+   ],
+   "shell_modes": [
+    {
+     "factor": 33902.11,
+     "residual": 0.0033321947110972043,
+     "twist_share": 0.8148872958794097,
+     "global": true
+    },
+    {
+     "factor": 116303.4,
+     "residual": 0.020542124127102303,
+     "twist_share": 0.7457735203399941,
+     "global": true
+    },
+    {
+     "factor": 204631.9,
+     "residual": 0.9914080991138843,
+     "twist_share": 0.188381820327878,
+     "global": false
+    },
+    {
+     "factor": 208046.3,
+     "residual": 0.9890304653600084,
+     "twist_share": 0.21998200650685942,
+     "global": false
+    },
+    {
+     "factor": 214437.4,
+     "residual": 0.9910335339021237,
+     "twist_share": 0.11264105477144185,
+     "global": false
+    },
+    {
+     "factor": 230220.0,
+     "residual": 1.0067726281495757,
+     "twist_share": 0.04823537191814001,
+     "global": false
+    },
+    {
+     "factor": 251495.7,
+     "residual": 1.0673316253927754,
+     "twist_share": 0.8001491601775341,
+     "global": false
+    },
+    {
+     "factor": 274728.2,
+     "residual": 1.0280585196778609,
+     "twist_share": 0.054957432647712336,
+     "global": false
+    },
+    {
+     "factor": 299671.0,
+     "residual": 1.0330931785984288,
+     "twist_share": 0.5350972714584636,
+     "global": false
+    },
+    {
+     "factor": 374043.8,
+     "residual": 1.001381623079307,
+     "twist_share": 1.0,
+     "global": false
+    }
+   ],
+   "max_error": 0.008908241994377342,
+   "passed": true
+  },
+  "ibeam_ltb_path": {
+   "rows": [
+    {
+     "station": 0.5,
+     "quantity": "v",
+     "levels": [
+      1.0
+     ],
+     "shell": [
+      0.0014452757795833332
+     ],
+     "beam": [
+      0.00144322289222
+     ],
+     "error": 0.0014204122094435446
+    },
+    {
+     "station": 0.5,
+     "quantity": "phi",
+     "levels": [
+      1.0
+     ],
+     "shell": [
+      0.006438766773443657
+     ],
+     "beam": [
+      0.006386502420273
+     ],
+     "error": 0.008117137180091388
+    }
+   ],
+   "max_error": 0.008117137180091388,
+   "passed": true
+  },
+  "ibeam_large_twist": {
+   "rows": [
+    {
+     "station": 1.0,
+     "quantity": "phi",
+     "levels": [
+      1.0
+     ],
+     "shell": [
+      0.8650866094562649
+     ],
+     "beam": [
+      0.8612409475684
+     ],
+     "error": 0.004445406790288977
+    }
+   ],
+   "max_error": 0.004445406790288977,
+   "passed": true
+  },
+  "composite_box": {
+   "rows": [
+    {
+     "station": 1.0,
+     "quantity": "u",
+     "levels": [
+      1.0
+     ],
+     "shell": [
+      4.256878299766257e-08
+     ],
+     "beam": [
+      -8.266724170736e-19
+     ],
+     "error": 7.094797166414873e-05
+    },
+    {
+     "station": 1.0,
+     "quantity": "w",
+     "levels": [
+      1.0
+     ],
+     "shell": [
+      1.1953857106321908
+     ],
+     "beam": [
+      1.199990011526
+     ],
+     "error": 0.0038517282353778743
+    },
+    {
+     "station": 1.0,
+     "quantity": "phi",
+     "levels": [
+      1.0
+     ],
+     "shell": [
+      -0.0870480717702864
+     ],
+     "beam": [
+      -0.08725376694641
+     ],
+     "error": 0.0023630066920542745
+    }
+   ],
+   "max_error": 0.0038517282353778743,
+   "passed": true
+  }
+ }
+}
