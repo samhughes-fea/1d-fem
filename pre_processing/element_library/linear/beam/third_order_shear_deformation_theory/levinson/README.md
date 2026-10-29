@@ -9,5 +9,4 @@ equations (Petrov-Galerkin).
 Derivation, section terms, boundary conditions and checks:
 [docs/element_library/higher_order_shear.md](../../../../../../docs/element_library/higher_order_shear.md).
 
-The `utilities/` operators in this folder belong to the previous formulation and are
-no longer used by the elements.
+The previous formulation and its `utilities/` operators were removed in PR 9.

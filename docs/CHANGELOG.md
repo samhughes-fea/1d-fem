@@ -21,6 +21,7 @@ All notable changes to this project are documented in this file. The format foll
   - Nodes carry two extra DOFs, the slopes `v'` and `w'` (`Q1`, `Q2`), so a mesh with these elements has 8 DOFs per node. Fix `Q1`, `Q2` at a clamp to restrain the shear warping (Reddy).
   - Both elements accept thin-walled sections (`element_section.txt`) and give wall and ply stresses. `[warping] = 1` is refused (use `LinearBenscoterBeamElement3D`), and the `[alpha]` column of `section.txt` is no longer used.
   - `SectionAnalysis` gains `third_order_stiffness` (8 x 8) and `third_order_rate`; `ThinWalledSectionAnalysis` computes them from the walls.
+  - Removed: the old `levinson/utilities` and `reddy/utilities` operators, their unit tests and the `scripts/*levinson*` verification scripts.
 
 ### Added
 
