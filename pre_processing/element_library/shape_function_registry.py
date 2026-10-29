@@ -27,20 +27,6 @@ def _timoshenko_operator(L: float) -> Any:
     return ShapeFunctionOperator(element_length=L)
 
 
-def _levinson_operator(L: float) -> Any:
-    from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.utilities.shape_functions import (
-        ShapeFunctionOperator,
-    )
-    return ShapeFunctionOperator(element_length=L)
-
-
-def _reddy_operator(L: float) -> Any:
-    from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.utilities.shape_functions import (
-        ShapeFunctionOperator,
-    )
-    return ShapeFunctionOperator(element_length=L)
-
-
 def _bar_operator(L: float) -> Any:
     from pre_processing.element_library.linear.bar.utilities.shape_functions import (
         ShapeFunctionOperator,
@@ -68,8 +54,8 @@ SHAPE_FUNCTION_REGISTRY: dict[str, ShapeFunctionOperatorFactory] = {
     "GeometricallyExactShearDeformableBeam3D": _timoshenko_operator,
     "CorotationalBeamElement3D": _timoshenko_operator,
     "GEBTUnshearableBeamElement3D": _eb_operator,
-    "LinearLevinsonBeamElement3D": _levinson_operator,
-    "LinearReddyBeamElement3D": _reddy_operator,
+    "LinearLevinsonBeamElement3D": _timoshenko_operator,
+    "LinearReddyBeamElement3D": _timoshenko_operator,
     "LinearBarElement3D": _bar_operator,
     "LinearTrussElement3D": _truss_operator,
 }

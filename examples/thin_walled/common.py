@@ -108,6 +108,8 @@ def write_job(job_dir: str, spec: CantileverSpec) -> None:
 
 def n_extra_dofs(spec: CantileverSpec) -> int:
     """Extra nodal DOFs of the job (from the section, as ``attach_section_analyses`` sets them)."""
+    if "Reddy" in spec.element_type or "Levinson" in spec.element_type:
+        return 2
     if "GBT" not in spec.element_type:
         return 1 if spec.warping else 0
     from pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes

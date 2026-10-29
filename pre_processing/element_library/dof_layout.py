@@ -7,7 +7,8 @@ amplitudes. The number of extra DOFs is the largest any element row asks for:
 
 * ``[warping] = 1`` (Vlasov ``chi`` or Benscoter ``psi``) asks for one;
 * an optional ``element_dictionary["extra_dofs"]`` integer per row asks for that many
-  (cross-section mode elements set it).
+  (cross-section mode elements set it);
+* the linear Reddy and Levinson elements ask for two (the slopes ``v'``, ``w'``).
 
 Global numbering is node-major with a fixed stride
 ``mesh_dof_per_node = 6 + mesh_extra_dofs``:
@@ -33,6 +34,8 @@ from pre_processing.element_library.beam_warping import element_warping_stiffnes
 STANDARD_DOFS_PER_NODE = 6
 STANDARD_DOF_NAMES = ("UX", "UY", "UZ", "RX", "RY", "RZ")
 WARPING_ALIASES = ("W", "CHI")
+#: element types that always carry extra nodal DOFs, and how many
+TYPE_EXTRA_DOFS = {"LinearReddyBeamElement3D": 2, "LinearLevinsonBeamElement3D": 2}
 
 
 def row_extra_dofs(element_dictionary: Dict[str, Any], idx: int) -> int:
@@ -45,7 +48,7 @@ def row_extra_dofs(element_dictionary: Dict[str, Any], idx: int) -> int:
     type_str = "" if types is None else str(np.asarray(types).ravel()[idx])
     if element_warping_stiffness_on(element_dictionary, idx, type_str):
         n = max(n, 1)
-    return n
+    return max(n, TYPE_EXTRA_DOFS.get(type_str, 0))
 
 
 def mesh_extra_dofs(element_dictionary: Dict[str, Any]) -> int:
@@ -56,6 +59,10 @@ def mesh_extra_dofs(element_dictionary: Dict[str, Any]) -> int:
         n = int(np.max(np.asarray(extra)))
     if mesh_uses_warping_dof(element_dictionary):
         n = max(n, 1)
+    types = element_dictionary.get("types")
+    if types is not None:
+        for t in np.asarray(types).ravel():
+            n = max(n, TYPE_EXTRA_DOFS.get(str(t), 0))
     return n
 
 
