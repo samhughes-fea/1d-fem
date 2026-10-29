@@ -159,3 +159,11 @@ def parse_laminate_file(filepath: str) -> Dict[int, WallLaminate]:
             raise ValueError(f"Missing {h} block in {filepath}")
     materials = parse_ply_materials(*blocks[PLY_MATERIAL_HEADER])
     return parse_laminates(*blocks[LAMINATE_HEADER], materials)
+
+
+def parse_ply_material_file(filepath: str) -> Dict[int, PlyMaterial]:
+    """Read only the ``[Ply_Material]`` block of ``laminate.txt``: ``{material_id: PlyMaterial}``."""
+    blocks = split_blocks(preprocess_lines(filepath), [PLY_MATERIAL_HEADER, LAMINATE_HEADER])
+    if PLY_MATERIAL_HEADER not in blocks:
+        raise ValueError(f"Missing {PLY_MATERIAL_HEADER} block in {filepath}")
+    return parse_ply_materials(*blocks[PLY_MATERIAL_HEADER])
