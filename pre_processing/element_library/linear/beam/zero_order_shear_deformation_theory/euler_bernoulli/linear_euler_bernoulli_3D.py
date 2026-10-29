@@ -89,6 +89,7 @@ class LinearEulerBernoulliBeamElement3D(GeometricStiffnessMixin, Element1DBase):
 
     #: Builds ``D`` from ``self.section_analysis`` (thin-walled anisotropic sections).
     supports_section_analysis = True
+    supports_element_frame = True
     
     # Element formulation identifier for tracking in multi-element meshes
     element_type_name = "Euler-Bernoulli-3D"
@@ -318,7 +319,7 @@ class LinearEulerBernoulliBeamElement3D(GeometricStiffnessMixin, Element1DBase):
         """Section ``D`` (6, 6): shear-rigid ``SectionAnalysis.euler_bernoulli_D()`` when a
         thin-walled section is assigned (classical 4 x 4 on ``[eps, kappa_y, kappa_z, phi]``),
         else the isotropic operator."""
-        if self.has_thin_walled_section:
+        if self.has_thin_walled_section or self._pretwist_rate:
             return self.section_analysis.euler_bernoulli_D()
         return self.material_stiffness_operator.assembly_form()
 

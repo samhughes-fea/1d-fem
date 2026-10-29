@@ -72,6 +72,8 @@ _N_GAUSS = 4
 class ThirdOrderShearBeamElement3D(LinearTimoshenkoBeamElement3D):
     """Shared Reddy / Levinson element (see module docstring). Subclasses set ``variational``."""
 
+    supports_element_frame = False   # rotated or curved elements: not yet
+
     element_type_name = "ThirdOrder-3D"
     variational = True
 

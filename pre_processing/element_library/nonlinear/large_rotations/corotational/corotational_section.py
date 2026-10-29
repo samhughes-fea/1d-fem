@@ -147,6 +147,8 @@ def _reference_frame(d: np.ndarray) -> np.ndarray:
 class CorotationalMixin:
     """Corotational large-displacement behaviour on top of a linear element core."""
 
+    supports_element_frame = False   # rotated or curved elements: not yet
+
     supports_section_analysis = True
 
     # ------------------------------------------------------------------ #
