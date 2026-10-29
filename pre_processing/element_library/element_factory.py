@@ -151,6 +151,12 @@ class ElementFactory:
             "pre_processing.element_library.nonlinear.timoshenko.updated_lagrangian_timoshenko_3D",
         "CorotationalBeamElement3D":
             "pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D",
+        "CorotationalEulerBernoulliBeamElement3D":
+            "pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section",
+        "CorotationalTimoshenkoBeamElement3D":
+            "pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section",
+        "CorotationalBenscoterBeamElement3D":
+            "pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section",
         "GeometricallyExactShearDeformableBeam3D":
             "pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.geometrically_exact_shear_deformable_beam_3D",
         "GEBTUnshearableBeamElement3D":

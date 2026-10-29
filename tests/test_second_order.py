@@ -138,7 +138,7 @@ class Beam:
     def __init__(self, etype, L, n_el, sa=None, rect=None):
         self.etype, self.L, self.n_el = etype, L, n_el
         Cls = getattr(importlib.import_module(ElementFactory.ELEMENT_CLASS_MAP[etype]), etype)
-        ed = _ed(etype, n_el, etype == BS)
+        ed = _ed(etype, n_el, "Benscoter" in etype)
         if sa is not None:
             ed["section_analysis_per_element"] = tuple([SectionAnalysis.from_thin_walled(sa)] * n_el)
         b, h = rect if rect is not None else (0.01, 0.2)
@@ -147,7 +147,7 @@ class Beam:
         self.rect = dict(A=A, I_y=Iy, I_z=Iz, J=J)
         mat = {k: np.full(n_el, v) for k, v in dict(E=E, G=G, nu=NU, rho=0.0).items()}
         props = dict(A=A, I_x=Iy + Iz, I_y=Iy, I_z=Iz, J_t=J, kappa=5 / 6, alpha=0.0)
-        if etype == BS:  # the warping mesh reads y_sc, z_sc and Gamma (unused with a thin-walled section)
+        if "Benscoter" in etype:  # the warping mesh reads y_sc, z_sc and Gamma (unused with a thin-walled section)
             props.update(y_sc=0.0, z_sc=0.0, Gamma=1e-9)
         sec = {k: np.full(n_el, v) for k, v in props.items()}
         x = np.linspace(0.0, L, n_el + 1)
@@ -167,6 +167,8 @@ class Beam:
             el.logger_operator = None
             g = np.asarray(el.assemble_global_dof_indices())
             self.K[np.ix_(g, g)] += el.element_stiffness_matrix().K_e
+            if hasattr(el, "_cr_setup"):
+                el._cr_setup()  # corotational elements cache their core while the logs exist
             self.elements.append(el)
             self.maps.append(g)
         shutil.rmtree(self._tmp, ignore_errors=True)
