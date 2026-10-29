@@ -25,6 +25,7 @@ max-order Gauss points only.
 """
 
 import numpy as np
+from pre_processing.element_library.linear.beam.second_order import GeometricStiffnessMixin, _linear_rows
 from typing import Tuple
 
 # Import Element1DBase class
@@ -62,7 +63,7 @@ _TS_W_N_STRAIN = 7
 _TS_W_N_DOF = 14
 
 
-class LinearTimoshenkoBeamElement3D(Element1DBase):
+class LinearTimoshenkoBeamElement3D(GeometricStiffnessMixin, Element1DBase):
     """
     2-node straight beam, 6 DOF per node, 12 total; local ``x`` along the chord.
 
@@ -558,65 +559,24 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
             point_loads=point_loads_cache
         )
 
-    def linear_geometric_stiffness_matrix(self, U_e: np.ndarray) -> np.ndarray:
+    def _geometric_state(self, xi: float, U_e: np.ndarray):
+        """Rows of ``[v', w', phi', phi]`` (linear fields) and the section terms at ``xi``.
+
+        The section forces are ``D (B U_e - E_0)`` on the twelve beam DOFs, with the shear
+        strains taken at the centre as the reduced shear rule sees them (elsewhere a linear
+        element's shear strain carries the parasitic part of the bending). The legacy
+        warping DOFs carry no stress here (``docs/element_library/second_order.md``).
         """
-        Geometric stiffness from linear strains :math:`\\varepsilon = B U_e`, :math:`S = D \\varepsilon`.
-        **12-DOF** standard Timoshenko; **14-DOF** warping: same embedded **12×12** ``K_σ`` on the first
-        twelve DOFs as ``NonlinearTimoshenkoBeamElement3D`` with warping (χ rows/cols zero in ``K_σ``).
-        """
-        U_e = np.asarray(U_e, dtype=np.float64).ravel()
-        from pre_processing.element_library.nonlinear.euler_bernoulli.utilities.geometric_stiffness import (
-            GeometricStiffnessOperator,
-        )
-        from pre_processing.element_library.nonlinear.euler_bernoulli.utilities.stress_resultant import (
-            StressResultantOperator,
-        )
 
-        stress_op = StressResultantOperator()
-        geo = GeometricStiffnessOperator(element_length=self.L)
-        D6 = self._D6()
-        xi, w = self.integration_points
-        detJ = self.jacobian_determinant
-        dξ_dx = 2.0 / self.L
-        n_g = len(xi)
-        N_gp = np.zeros(n_g, dtype=np.float64)
-        M_y_gp = np.zeros(n_g, dtype=np.float64)
-        M_z_gp = np.zeros(n_g, dtype=np.float64)
-        dN_dx_list = []
+        def strains(x):
+            N, dN, d2N = self.shape_function_operator.natural_coordinate_form(np.array([x]))
+            B6 = self.strain_displacement_operator.physical_coordinate_form(dN, d2N, N)[0]
+            return B6 @ U_e[:12] - self._E_0_voigt
 
-        if U_e.size == 12:
-            for k, (xi_g, w_g) in enumerate(zip(xi, w)):
-                N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-                B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
-                eps = B @ U_e - self._E_0_voigt
-                Ni, Myi, Mzi = stress_op.section_forces_from_strain(eps, D6)
-                N_gp[k] = Ni
-                M_y_gp[k] = Myi
-                M_z_gp[k] = Mzi
-                dN_dx_list.append(dN_dξ[0] * dξ_dx)
-        elif U_e.size == 14 and self._n_dof == 14:
-            E0 = np.concatenate([self._E_0_voigt, np.zeros(1, dtype=np.float64)])
-            for k, (xi_g, w_g) in enumerate(zip(xi, w)):
-                N12, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-                B = self._B_matrix_7x14(dN_dξ, d2N_dξ2, N12)[0]
-                eps = B @ U_e - E0
-                Ni, Myi, Mzi = stress_op.section_forces_from_strain(eps[:6], D6)
-                N_gp[k] = Ni
-                M_y_gp[k] = Myi
-                M_z_gp[k] = Mzi
-                dN_dx_list.append(dN_dξ[0] * dξ_dx)
-        else:
-            raise ValueError(
-                f"linear_geometric_stiffness_matrix: expected 12 or (14 with warping element) DOFs, got {U_e.size}"
-            )
-
-        dN_dx_arr = np.stack(dN_dx_list, axis=0)
-        K12 = geo.assemble_K_sigma(N_gp, M_y_gp, M_z_gp, w, dN_dx_arr, detJ)
-        if U_e.size == 12:
-            return K12
-        K_sigma = np.zeros((_TS_W_N_DOF, _TS_W_N_DOF), dtype=np.float64)
-        K_sigma[:_TS_W_N_STD, :_TS_W_N_STD] = K12
-        return K_sigma
+        e = strains(xi)
+        e[3:5] = strains(0.0)[3:5]
+        F = self._D6() @ e
+        return _linear_rows(self.L, xi, self._n_dof), self._geometric_terms_matrix() @ F
 
     def element_mass_matrix(self):
         """Consistent mass: translations rho*A; torsion rho*J_t; bending rotations rho*Iy / rho*Iz."""

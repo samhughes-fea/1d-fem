@@ -15,6 +15,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- **Fix: Benscoter torsional warping pole.** `ThinWalledSectionAnalysis` constrained the torsional warping against the `y` and `z` rigid modes while solving it. For a section whose origin is off the shear centre (a channel about its web), this put the pole in the wrong place: `E Γ` came out 16 % low. Only the constant mode is constrained now, and the warping is the same for any origin.
+
 - **Breaking: `LinearReddyBeamElement3D` and `LinearLevinsonBeamElement3D` rewritten** as third-order shear elements derived from the section ([element_library/higher_order_shear.md](element_library/higher_order_shear.md)). The previous elements gave a cantilever tip about 30 times too stiff and did not converge, because their rotation shape functions could not represent a linear rotation.
   - Kinematics: the Timoshenko section motion plus the Saint-Venant shear warping slaved to the shear strain, `eps_xx += Psi(s) . chi` with `chi = gamma' - R psi6`. For a solid rectangle this is Reddy's cubic; for thin walls it is the wall analysis' shear warping.
   - Reddy is variational; Levinson keeps only the classical equilibrium equations (Petrov-Galerkin), which gives Timoshenko deflections for uncoupled sections.
@@ -24,6 +26,13 @@ All notable changes to this project are documented in this file. The format foll
   - Removed: the old `levinson/utilities` and `reddy/utilities` operators, their unit tests and the `scripts/*levinson*` verification scripts.
 
 ### Added
+
+- **Second-order geometric stiffness, P-delta and linear buckling for the linear beam elements** ([element_library/second_order.md](element_library/second_order.md)):
+  - Euler-Bernoulli, Timoshenko, Benscoter, Reddy and Levinson elements build `K_σ` from the energy of a section that is rigid in its own plane, using its current stresses. The section terms `[N, S_y, S_z, W, V_y, V_z, Q_r]` (`ThinWalledSectionAnalysis.geometric_terms`, `SectionAnalysis.geometric_terms`) bring in the shear-centre and tension-centre offsets, the Wagner term and the bimoment for any reference axis.
+  - P-delta static solves: `[Static] second_order = p_delta` (`processing/buckling/p_delta.py`).
+  - Checked against Euler, Engesser, flexural-torsional (Timoshenko & Gere), lateral-torsional (uniform moment, monosymmetric Wagner, Michell) and beam-column closed forms. Example `examples/thin_walled/channel_buckling`.
+  - The previous `K_σ` of the linear EB and Timoshenko elements is replaced; it had no torsional terms and an `N + M/L` factor. The nonlinear elements keep `GeometricStiffnessOperator` until the large-displacement work.
+  - The buckling eigensolver no longer symmetrises a nonsymmetric `K` (Levinson).
 
 - **Wall and ply stress recovery for thin-walled sections:**
   - `stress_recovery.py`: full mid-surface strains from the kept beam strains (`N_ss = 0`, free or restrained hoop bending), wall resultants, ply stresses in wall and ply axes, and interlaminar `tau_xn`, `tau_sn` and `sigma_nn` by integrating 3D equilibrium through the thickness. `SaintVenantRecovery` takes section forces.

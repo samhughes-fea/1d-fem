@@ -180,8 +180,27 @@ class ThirdOrderShearBeamElement3D(LinearTimoshenkoBeamElement3D):
             integration_scheme="Gauss-Legendre",
         )
 
-    def linear_geometric_stiffness_matrix(self, U_e: np.ndarray) -> np.ndarray:
-        raise NotImplementedError(f"{type(self).__name__} is linear only (second order arrives in a later PR).")
+    def _geometric_state(self, xi: float, U_e: np.ndarray):
+        """Rows of ``[v', w', phi', phi]`` (Hermite ``v``, ``w``) and the section terms at ``xi``.
+
+        The walls carry the Saint-Venant stresses of ``K psi6`` plus the axial stress of
+        the slaved shear warping ``Psi chi``.
+        """
+        sa = self.section_analysis
+        e = self._B_at(xi) @ U_e
+        e[:6] -= self._E_0_voigt
+        e[6:] += self._R @ self._E_0_voigt
+        X = sa.third_order_geometric_terms
+        c = self._geometric_terms_matrix() @ (sa.stiffness @ e[:6])
+        if X is not None:
+            c = c + X @ e[6:]
+        _, dH, _ = _hermite_x(xi, self.L)
+        G = np.zeros((4, self._n_dof))
+        G[0, _V_COLS] = dH
+        G[1, _W_COLS] = dH
+        G[2, [3, 9]] = [-1.0 / self.L, 1.0 / self.L]
+        G[3, [3, 9]] = [0.5 * (1.0 - xi), 0.5 * (1.0 + xi)]
+        return G, c
 
     # ------------------------------------------------------------------ #
     # Loads

@@ -130,8 +130,9 @@ def solve_linear_buckling_eigenpairs(
     Kd = K_mod[np.ix_(free, free)].toarray()
     Gd = Kg_mod[np.ix_(free, free)].toarray()
     rhs = -Gd
-    # Symmetrize for numerical stability
-    Kd = 0.5 * (Kd + Kd.T)
+    # Symmetrize round-off only: a Petrov-Galerkin (Levinson) K is genuinely nonsymmetric.
+    if np.allclose(Kd, Kd.T, rtol=1e-10, atol=1e-12 * max(np.abs(Kd).max(), 1.0)):
+        Kd = 0.5 * (Kd + Kd.T)
     rhs = 0.5 * (rhs + rhs.T)
 
     # ``eigh`` requires a definite metric; :math:`-\\mathbf{K}_g` may be indefinite under compression.

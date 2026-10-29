@@ -25,7 +25,10 @@ def _pinned_eigen_cantilever_reference_frequencies_hz(n: int) -> np.ndarray:
 
 
 def _pinned_linear_buckling_reference_load_factors(n: int) -> np.ndarray:
-    return np.array([23.526405], dtype=np.float64)[:n]
+    # job_smoke_buckling: EB cantilever, L = 2 m, E = 210 GPa, I_min = 3.234e-7 m^4, P_ref = 1 kN.
+    # Euler: lambda = pi^2 E I / (4 L^2) / P_ref = 41.894 (the earlier 23.53 came from a K_sigma with
+    # an N + M/L factor and no torsion terms, replaced in docs/element_library/second_order.md).
+    return np.array([np.pi**2 * 2.1e11 * 3.234e-7 / (4 * 2.0**2) / 1000.0], dtype=np.float64)[:n]
 
 
 def _element_matrix_to_coo(m):

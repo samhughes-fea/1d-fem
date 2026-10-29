@@ -90,6 +90,10 @@ def _get_defaults():
         # Taxonomy §1–§5 sections (optional ``enabled`` flags; see finalize_simulation_settings).
         "static": {
             "enabled": False,
+            # Second-order static: "none" (linear) or "p_delta" ((K + K_sigma(U)) U = F).
+            "second_order": "none",
+            "p_delta_tolerance": 1e-8,
+            "p_delta_max_iterations": 50,
         },
         "eigen": {
             "enabled": False,
@@ -543,6 +547,15 @@ def parse_simulation_settings(file_path):
                 if key and value:
                     if key == "enabled":
                         simulation_settings["static"]["enabled"] = _convert_value(value, bool)
+                    elif key == "second_order":
+                        so = str(value).strip().lower()
+                        if so not in ("none", "p_delta"):
+                            raise ValueError(f"static.second_order must be 'none' or 'p_delta', got {value!r}")
+                        simulation_settings["static"]["second_order"] = so
+                    elif key == "p_delta_tolerance":
+                        simulation_settings["static"]["p_delta_tolerance"] = _convert_value(value, float)
+                    elif key == "p_delta_max_iterations":
+                        simulation_settings["static"]["p_delta_max_iterations"] = _convert_value(value, int)
 
             elif current_section == "eigen":
                 key, value = _parse_key_value(line)

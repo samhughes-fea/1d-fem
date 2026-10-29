@@ -203,7 +203,10 @@ class LinearGBTBeamElement3D(LinearTimoshenkoBeamElement3D):
         return f_e
 
     def linear_geometric_stiffness_matrix(self, U_e: np.ndarray) -> np.ndarray:
-        raise NotImplementedError("LinearGBTBeamElement3D is linear only (second order arrives later).")
+        raise NotImplementedError(
+            "LinearGBTBeamElement3D has no geometric stiffness: its distortional modes need a wall-level "
+            "K_sigma (local and distortional buckling). Use LinearBenscoterBeamElement3D for global buckling."
+        )
 
     # ------------------------------------------------------------------ #
     # Fields, wall loads and mass
