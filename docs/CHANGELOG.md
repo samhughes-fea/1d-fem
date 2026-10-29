@@ -15,6 +15,12 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- **Coupled Euler-Bernoulli and Timoshenko elements:**
+  - `LinearEulerBernoulliBeamElement3D` and `LinearTimoshenkoBeamElement3D` build `D` from a thin-walled `SectionAnalysis` when one is assigned. Euler-Bernoulli uses the shear-rigid classical 4 × 4; Timoshenko uses the full coupled 6 × 6.
+  - The section mass matrix includes mass-centre offsets.
+  - `assemble_timoshenko_K0` now under-integrates the full 2 × 2 bending and shear blocks, so the \(D_{34}\) shear-shear coupling is reduced with the shear terms. The result is unchanged for diagonal `D`.
+  - Thin-walled sections with the warping DOF are refused for now.
+  - Proof: [proofs/timoshenko/coupled_selective_integration.md](proofs/timoshenko/coupled_selective_integration.md).
 - **`SectionAnalysis` for every element:**
   - `pre_processing/section_integration/section_analysis.py` holds the 6 × 6 and 4 × 4 section stiffness in the element Voigt order and sign convention (\(\mathbf S = \mathrm{diag}(1,-1,1,1,1,1)\) from the right-handed section analysis), plus \(E\Gamma\), centres and mass.
   - `Element1DBase.section_analysis` gives the thin-walled section assigned in the new optional `element_section.txt`, or the isotropic section from `section.txt` / `material.txt`.

@@ -38,4 +38,19 @@ Tests: `tests/test_section_analysis_element_wiring.py`.
 
 ## Elements
 
-An element type sets `supports_section_analysis = True` once it builds its `D` from `self.section_analysis`. If any other element type is assigned a thin-walled section, it raises `NotImplementedError`. The linear Euler-Bernoulli and Timoshenko elements switch over in the next PR.
+An element type sets `supports_section_analysis = True` once it builds its `D` from `self.section_analysis`. If any other element type is assigned a thin-walled section, it raises `NotImplementedError`.
+
+| Element | `D` from a thin-walled section | Mass |
+|---|---|---|
+| `LinearEulerBernoulliBeamElement3D` | `euler_bernoulli_D()`: the shear-rigid `classical_stiffness` on rows `[0, 1, 2, 5]`. This is the inverse of the force-flexibility block, not a sub-block of the 6 × 6. | rigid-section mass with offsets, using the Hermite field interpolation |
+| `LinearTimoshenkoBeamElement3D` | the full 6 × 6 `stiffness`, with selective integration that keeps every coupling ([proof](../proofs/timoshenko/coupled_selective_integration.md)) | rigid-section mass with offsets, using linear interpolation |
+
+**Mass.** `SectionAnalysis.mass_matrix()` is the rigid-section mass per length. It includes the coupling terms from a mass centre that is off the reference line.
+
+**Not yet supported** (both elements raise `NotImplementedError`):
+- Thin-walled sections with the warping DOF (`[warping] = 1`). This comes with the Benscoter element in the next PR.
+
+**Approximations:**
+- The geometric stiffness used for buckling takes \(N\), \(M_y\) and \(M_z\) from the coupled `D`. It does not yet include the Wagner or shear-centre terms (planned for second order).
+
+**Accuracy (Euler-Bernoulli).** Bending is cubic and twist is linear. Constant moments and torque are exact on any mesh. A shear load on a section with bending-twist coupling converges at \(O(h^2)\), because the twist rate then varies along the element.
