@@ -25,11 +25,13 @@ class ElementParser:
                 },
                 "curvature":         np.ndarray[float64]  (legacy; always present, default 0),
                 "warping":           np.ndarray[int8]     (0/1; always present; from optional [warping] column or 0),
+                "twist":             np.ndarray[float64]  (section twist about the element axis, degrees; default 0),
             }
         }
 
-    **Column layouts:** 11 standard columns; optional 12th ``[curvature]`` *or* ``[warping]`` (disambiguated by
-    header); optional 13th when both ``[curvature]`` and ``[warping]`` are present (that order).
+    **Column layouts:** 11 standard columns, then any of the optional ``[curvature]``, ``[warping]``
+    and ``[twist]`` columns in that order. ``[twist]`` turns the section about the element axis
+    (``pre_processing/element_library/element_frame.py``).
 
     See ``docs/conventions/JOB_INPUT_BEAM_WARPING.md`` for beam warping columns, section tiers, and legacy type migration.
     Removed public type strings are listed in ``docs/conventions/DEPRECATED_ELEMENT_TYPES.md``.
@@ -88,13 +90,16 @@ class ElementParser:
                 if ln.strip() and not ln.lstrip().startswith("#")
             ]
 
+    OPTIONAL_COLUMNS = ("[curvature]", "[warping]", "[twist]")
+
     @staticmethod
     def _classify_subheader(subheader_line: str) -> Tuple[str, List[str]]:
         """
-        Return (mode, expected_tokens_lower) for the data rows that follow.
+        Return ``(mode, optional_columns)`` for the data rows that follow.
 
-        Modes: ``base`` (11), ``curv`` (12 + curvature), ``warp`` (12 + warping),
-        ``both`` (13 + curvature + warping).
+        After the 11 standard columns come any of the optional ``[curvature]``,
+        ``[warping]`` and ``[twist]`` columns, in that order. ``mode`` is ``base`` when there
+        are none, else the optional column names joined by ``+``.
         """
         tokens = [t.lower() for t in subheader_line.split()]
         exp = [h.lower() for h in [
@@ -102,18 +107,15 @@ class ElementParser:
             "[axial_order]", "[bending_y_order]", "[bending_z_order]",
             "[shear_y_order]", "[shear_z_order]", "[torsion_order]", "[load_order]",
         ]]
-        if tokens == exp:
-            return "base", tokens
-        if tokens == exp + ["[curvature]"]:
-            return "curv", tokens
-        if tokens == exp + ["[warping]"]:
-            return "warp", tokens
-        if tokens == exp + ["[curvature]", "[warping]"]:
-            return "both", tokens
-        raise ValueError(
-            "Sub-header must be 11 columns, or add optional [curvature], "
-            "or [warping], or both [curvature] then [warping] (13 columns)."
-        )
+        extra = tokens[len(exp):]
+        order = list(ElementParser.OPTIONAL_COLUMNS)
+        if tokens[:len(exp)] != exp or any(t not in order for t in extra) or \
+                [order.index(t) for t in extra] != sorted(order.index(t) for t in extra) or len(set(extra)) != len(extra):
+            raise ValueError(
+                "Sub-header must be the 11 standard columns, optionally followed by any of "
+                "[curvature], [warping] and [twist], in that order."
+            )
+        return ("base" if not extra else "+".join(extra)), extra
 
     @staticmethod
     def _parse_warping_token(tok: str) -> int:
@@ -155,28 +157,16 @@ class ElementParser:
         except StopIteration:
             raise ValueError("Missing [Element] section header.")
 
-        mode, _ = self._classify_subheader(lines[start_idx + 1])
-        if mode == "base":
-            self._assert_exact_subheader(lines[start_idx + 1], self.expected_subheader)
-        elif mode == "curv":
-            self._assert_exact_subheader(lines[start_idx + 1], self.optional_curvature_header)
-        elif mode == "warp":
-            self._assert_exact_subheader(lines[start_idx + 1], self.optional_warping_header)
-        else:
-            self._assert_exact_subheader(lines[start_idx + 1], self.optional_curvature_warping_header)
+        mode, extra = self._classify_subheader(lines[start_idx + 1])
 
         curvature_list: List[float] = []
         warping_list: List[int] = []
+        twist_list: List[float] = []
 
         # ------------------------------------------------------------------ #
         # Parse each data line
         # ------------------------------------------------------------------ #
-        if mode == "base":
-            expected_cols = 11
-        elif mode in ("curv", "warp"):
-            expected_cols = 12
-        else:
-            expected_cols = 13
+        expected_cols = 11 + len(extra)
 
         for ln in lines[start_idx + 2:]:
             parts = ln.split()
@@ -188,20 +178,10 @@ class ElementParser:
                 n1, n2            = map(int, parts[1:3])
                 etype             = parts[3]
                 orders            = list(map(int, parts[4:11]))
-                curv = 0.0
-                warp = 0
-                if mode == "curv":
-                    curvature_list.append(float(parts[11]))
-                    warping_list.append(0)
-                elif mode == "warp":
-                    curvature_list.append(0.0)
-                    warping_list.append(self._parse_warping_token(parts[11]))
-                elif mode == "both":
-                    curvature_list.append(float(parts[11]))
-                    warping_list.append(self._parse_warping_token(parts[12]))
-                else:
-                    curvature_list.append(0.0)
-                    warping_list.append(0)
+                values = dict(zip(extra, parts[11:]))
+                curvature_list.append(float(values.get("[curvature]", 0.0)))
+                warping_list.append(self._parse_warping_token(values.get("[warping]", "0")))
+                twist_list.append(float(values.get("[twist]", 0.0)))
             except (ValueError, IndexError) as exc:
                 raise TypeError(f"Bad data types in line {ln!r} → {exc}") from exc
 
@@ -238,6 +218,7 @@ class ElementParser:
         }
         curvature_arr = np.asarray(curvature_list, dtype=np.float64)
         warping_arr = np.asarray(warping_list, dtype=np.int8)
+        twist_arr = np.asarray(twist_list, dtype=np.float64)
 
         # ------------------------------------------------------------------ #
         # Return the uniform dictionary structure
@@ -250,5 +231,6 @@ class ElementParser:
                 "integration_orders": integ_np,
                 "curvature":         curvature_arr,
                 "warping":           warping_arr,
+                "twist":             twist_arr,
             }
         }

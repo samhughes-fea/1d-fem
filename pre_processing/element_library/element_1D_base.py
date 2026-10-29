@@ -47,6 +47,18 @@ class Element1DBase(ABC):
 
     #: Element types that build their ``D`` from ``self.section_analysis`` set this to True.
     supports_section_analysis: bool = False
+    #: Element types that may be rotated off the global axes or curved (``framed_element``).
+    supports_element_frame: bool = False
+
+    def __init_subclass__(cls, **kwargs):
+        """Wrap each subclass's element kernels so rotated and curved elements answer in global axes."""
+        super().__init_subclass__(**kwargs)
+        from pre_processing.element_library.framed_element import FRAMED_KERNELS, frame_kernel
+
+        for name in FRAMED_KERNELS:
+            fn = getattr(cls, name, None)          # own, inherited or from a mixin
+            if fn is not None and callable(fn) and not getattr(fn, "_frame_wrapped", False):
+                setattr(cls, name, frame_kernel(name, fn))
 
     # ------------------------------------------------------------------ #
     def __init__(
@@ -150,6 +162,21 @@ class Element1DBase(ABC):
         # Reference strain ``E_0`` (6,) from optional ``precurvature_per_element``; Voigt order ``FORMULATION_DOCSTRING_STANDARDS``.
         self._E_0_voigt = element_reference_strain_voigt(element_dictionary, element_id)
 
+        # Element frame: rotated (off the global x axis, [twist]) or curved (precurvature.txt)
+        from pre_processing.element_library.framed_element import setup_frame
+
+        setup_frame(self, element_dictionary, grid_dictionary, idx, dict(
+            element_id=element_id, element_dictionary=element_dictionary, grid_dictionary=grid_dictionary,
+            material_dictionary=material_dictionary, section_dictionary=section_dictionary,
+            point_load_array=point_load_array, distributed_load_array=distributed_load_array,
+            job_results_dir=job_results_dir))
+        if self._frame_on:
+            # the kernels work in the element's own axes: node 1 at the origin, node 2 on its x axis
+            L_chord = float(np.linalg.norm(self.grid_array[1] - self.grid_array[0]))
+            self.grid_array = np.array([[0.0, 0.0, 0.0], [L_chord, 0.0, 0.0]])
+        pretwist = element_dictionary.get("pretwist_rate")
+        self._pretwist_rate = 0.0 if pretwist is None else float(np.asarray(pretwist)[idx])
+
         # Thin-walled anisotropic section assigned through element_section.txt (None if absent).
         per_element = element_dictionary.get("section_analysis_per_element")
         self._assigned_section_analysis = None if per_element is None else per_element[idx]
@@ -180,6 +207,17 @@ class Element1DBase(ABC):
         one; otherwise built from ``section_array`` and ``material_array``
         (``kappa`` defaults to 5/6 when absent).
         """
+        base = self._base_section_analysis()
+        k = getattr(self, "_pretwist_rate", 0.0)
+        if not k:
+            return base
+        cached = self.__dict__.get("_pretwisted_section_analysis")
+        if cached is None:
+            cached = base.with_pretwist(k)
+            self._pretwisted_section_analysis = cached
+        return cached
+
+    def _base_section_analysis(self):
         if self._assigned_section_analysis is not None:
             return self._assigned_section_analysis
         cached = getattr(self, "_isotropic_section_analysis", None)

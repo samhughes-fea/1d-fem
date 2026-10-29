@@ -83,6 +83,7 @@ class LinearTimoshenkoBeamElement3D(GeometricStiffnessMixin, Element1DBase):
 
     #: Builds ``D`` from ``self.section_analysis`` (thin-walled anisotropic sections).
     supports_section_analysis = True
+    supports_element_frame = True
     #: Subclasses that give the seventh nodal DOF a thin-walled meaning (Benscoter) set this.
     _thin_walled_warping_dof = False
     
@@ -365,7 +366,7 @@ class LinearTimoshenkoBeamElement3D(GeometricStiffnessMixin, Element1DBase):
 
     def _D6(self) -> np.ndarray:
         """Section ``D`` (6, 6): the assigned thin-walled ``SectionAnalysis`` stiffness, else the isotropic operator."""
-        if self.has_thin_walled_section:
+        if self.has_thin_walled_section or self._pretwist_rate:
             return self.section_analysis.stiffness
         return self.material_stiffness_operator.assembly_form()
 
