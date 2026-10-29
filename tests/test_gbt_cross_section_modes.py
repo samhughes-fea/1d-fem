@@ -81,25 +81,39 @@ def test_open_section_has_four_rigid_modes_and_orthogonal_modes():
     assert np.all(np.diff(cm.eigenvalues) >= 0)
 
 
-def test_gbt_section_stiffness_extends_benscoter():
+def test_gbt_section_stiffness_layout_and_slicing():
     an = box(0.3, 0.15)
     cm = CrossSectionModes(an)
-    K = cm.stiffness(2)
-    assert K.shape == (14, 14)
-    np.testing.assert_allclose(K[:8, :8], an.benscoter_stiffness)
+    n_sv = cm.n_sv_warping
+    assert n_sv == 3  # shear warping of F_y, F_z and the torsional warping
+    K = cm.stiffness(2, 1)
+    p = n_sv + 1
+    assert K.shape == (6 + 2 * p + 6,) * 2
     np.testing.assert_allclose(K, K.T)
     assert np.linalg.eigvalsh(K).min() > -1e-9 * np.abs(K).max()
-    sa = SectionAnalysis.from_thin_walled(an, gbt_modes=2)
-    K1, M1 = sa.gbt_matrices(1)
-    assert K1.shape == (11, 11) and M1.shape == (9, 9)
-    np.testing.assert_allclose(K1[8:, 8:], sa.gbt_stiffness[np.ix_([8, 10, 12], [8, 10, 12])])
+    # plane-section block: the classical (unwarped) stiffness of the walls
+    S = np.diag([1.0, -1.0, 1, 1, 1, 1])
+    sa = SectionAnalysis.from_thin_walled(an, gbt_modes=2, gbt_shear_modes=1)
+    np.testing.assert_allclose(sa.gbt_stiffness[:6, :6], S @ K[:6, :6] @ S)
+    # condensing the warping out of a uniform state gives back Saint-Venant (up to the
+    # small shear-gradient term the uniform state leaves out)
+    w = np.r_[6 + p:6 + 2 * p]  # b rows (b' = 0 in a uniform state)
+    r = np.arange(6)
+    Ksv = K[np.ix_(r, r)] - K[np.ix_(r, w)] @ np.linalg.solve(K[np.ix_(w, w)], K[np.ix_(w, r)])
+    np.testing.assert_allclose(Ksv[3:, 3:], an.stiffness[3:, 3:], rtol=1e-3, atol=1e-6 * an.stiffness[3, 3])
+    K1, M1 = sa.gbt_matrices(1, 0)
+    assert K1.shape == (6 + 2 * n_sv + 3,) * 2 and M1.shape == (6 + n_sv + 2,) * 2
+    ik, _ = sa.gbt_indices(1, 0)
+    oa = 6 + 2 * p
+    np.testing.assert_array_equal(ik[6 + 2 * n_sv:], [oa, oa + 2, oa + 4])
 
 
 def test_gbt_mass_rigid_block_matches_section_mass():
     an = box(0.3, 0.15, rho=1600.0)
     sa = SectionAnalysis.from_thin_walled(an, gbt_modes=1)
     np.testing.assert_allclose(sa.gbt_mass[:6, :6], sa.mass_matrix(), rtol=1e-8, atol=1e-10 * sa.mass["m"])
-    assert sa.gbt_mass[6, 6] == pytest.approx(sa.warping_inertia, rel=1e-10)
+    np.testing.assert_allclose(sa.gbt_mass, sa.gbt_mass.T)
+    assert np.linalg.eigvalsh(sa.gbt_mass).min() > -1e-10 * np.abs(sa.gbt_mass).max()
 
 
 def test_modes_need_restrained_hoop():
@@ -113,28 +127,29 @@ def test_modes_need_restrained_hoop():
 # --------------------------------------------------------------------------- #
 
 
-def _ed(etype, n_el, modes):
+def _ed(etype, n_el, modes, sa=None, shear=0):
     o = {"axial": 2, "bending_y": 2, "bending_z": 2, "shear_y": 2, "shear_z": 2, "torsion": 2, "load": 2}
     ed = {
         "ids": np.arange(n_el),
         "connectivity": np.column_stack([np.arange(n_el), np.arange(1, n_el + 1)]),
         "types": np.array([etype] * n_el),
-        "warping": np.ones(n_el, dtype=np.int8),
+        "warping": np.full(n_el, 0 if "Timoshenko" in etype else 1, dtype=np.int8),
         "integration_orders": {k: np.full(n_el, v) for k, v in o.items()},
     }
-    if modes:
+    if etype == GBT:
         ed["gbt_modes"] = np.full(n_el, modes)
-        ed["extra_dofs"] = np.full(n_el, 1 + 2 * modes)
+        ed["gbt_shear_modes"] = np.full(n_el, shear)
+        ed["extra_dofs"] = np.full(n_el, sa.gbt_sv_modes + shear + 2 * modes)
     return ed
 
 
-def solve_cantilever(etype, sa, L, n_el, modes, tip_load, fixed_local=(), free_only=None):
-    """Direct assembly; root clamped with all extra DOFs fixed. Returns nodal U (n_nodes, stride)."""
+def solve_cantilever(etype, sa, L, n_el, modes, tip_load, fixed_local=(), free_only=None, root_free=(), shear=0):
+    """Direct assembly; root clamped with all extra DOFs fixed except ``root_free``. Returns nodal U (n_nodes, stride)."""
     from pre_processing.element_library.element_factory import ElementFactory
     import importlib
 
     Cls = getattr(importlib.import_module(ElementFactory.ELEMENT_CLASS_MAP[etype]), etype)
-    ed = _ed(etype, n_el, modes)
+    ed = _ed(etype, n_el, modes, sa, shear)
     ed["section_analysis_per_element"] = tuple([sa] * n_el)
     x = np.linspace(0.0, L, n_el + 1)
     coords = np.column_stack([x, 0 * x, 0 * x])
@@ -158,7 +173,7 @@ def solve_cantilever(etype, sa, L, n_el, modes, tip_load, fixed_local=(), free_o
         F = np.zeros(n)
         for local, val in tip_load.items():
             F[dpn * n_el + local] = val
-        fixed = set(range(dpn))
+        fixed = set(range(dpn)) - set(root_free)
         for i in range(n_el + 1):
             for local in fixed_local:
                 fixed.add(dpn * i + local)
@@ -188,38 +203,76 @@ def exact_mode_cantilever(C, D, B, K20, P, L, x):
 def test_single_mode_cantilever_matches_exact_gbt_solution():
     an = box(0.3, 0.15)
     sa = SectionAnalysis.from_thin_walled(an, gbt_modes=1)
+    n_sv = sa.gbt_sv_modes
     K, _ = sa.gbt_matrices(1)
-    C, D, B, K20 = K[8, 8], K[9, 9], K[10, 10], K[8, 10]
-    assert abs(K[8, 9]) < 1e-9 * C and abs(K[9, 10]) < 1e-9 * np.sqrt(D * B)
+    oa = 6 + 2 * n_sv
+    C, D, B, K20 = K[oa, oa], K[oa + 1, oa + 1], K[oa + 2, oa + 2], K[oa, oa + 2]
+    assert abs(K[oa, oa + 1]) < 1e-9 * C and abs(K[oa + 1, oa + 2]) < 1e-9 * np.sqrt(D * B)
     k = (B / C) ** 0.25
     L, P = 4.0 / k, 1.0e3
     x = np.linspace(0, L, 9)
     exact = exact_mode_cantilever(C, D, B, K20, P, L, x)
-    # only the mode DOFs (a, a' = local 7, 8) are free
+    ia = 6 + n_sv  # local DOFs of (a, a')
     errs = []
     for n_el in (8, 32):
-        U = solve_cantilever(GBT, sa, L, n_el, 1, {7: P}, free_only=(7, 8))
-        a = U[:, 7]
+        U = solve_cantilever(GBT, sa, L, n_el, 1, {ia: P}, free_only=(ia, ia + 1))
+        a = U[:, ia]
         errs.append(abs(a[-1] - exact[-1]) / abs(exact[-1]))
         if n_el == 32:
             np.testing.assert_allclose(a[::4], exact, atol=1e-6 * np.abs(exact).max())
     assert errs[1] < 1e-6 and errs[1] < errs[0]
 
 
-def test_gbt_with_modes_fixed_is_benscoter_and_freeing_them_softens():
+@pytest.mark.parametrize("local, load", [(1, 1e3), (2, 1e3), (3, 50.0)])
+def test_free_warping_gbt_is_the_saint_venant_beam(local, load):
+    """With ``b`` free at the root a tip load gives the Saint-Venant (Timoshenko) beam."""
+    sa = SectionAnalysis.from_thin_walled(box(0.4, 0.2, n_sub=2), gbt=True)
+    n_sv = sa.gbt_sv_modes
+    U_t = solve_cantilever("LinearTimoshenkoBeamElement3D", sa, 2.0, 64, 0, {local: load})
+    U_g = solve_cantilever(GBT, sa, 2.0, 64, 0, {local: load}, root_free=tuple(range(6, 6 + n_sv)))
+    np.testing.assert_allclose(U_g[-1, :6], U_t[-1, :6], rtol=0, atol=2e-5 * np.abs(U_t[-1, :6]).max())
+
+
+def test_restrained_warping_stiffens_and_shear_lag_modes_soften():
+    """``b = 0`` at the root keeps the section plane; shear-lag modes give part of that back."""
+    an = box(0.8, 0.15, n_sub=6)
+    sa = SectionAnalysis.from_thin_walled(an, gbt_shear_modes=16)
+    n_sv, L = sa.gbt_sv_modes, 1.5
+    free = solve_cantilever(GBT, sa, L, 48, 0, {2: 1e3}, root_free=tuple(range(6, 6 + n_sv)))[-1, 2]
+    tips = np.array([solve_cantilever(GBT, sa, L, 48, 0, {2: 1e3}, shear=p)[-1, 2] for p in (0, 4, 8, 16)])
+    assert tips[0] < free * (1 - 1e-2)              # plane root section: stiffer
+    assert np.all(np.diff(tips) > 0)                 # each set of shear-lag modes softens
+    assert tips[-1] < free                           # and stays below free warping
+
+
+def test_restrained_torsion_matches_benscoter():
+    sa = SectionAnalysis.from_thin_walled(i_beam(n_sub=2), gbt_shear_modes=4)
+    for shear in (0, 4):
+        U_b = solve_cantilever(BS, sa, 3.0, 16, 0, {3: 50.0})
+        U_g = solve_cantilever(GBT, sa, 3.0, 16, 0, {3: 50.0}, shear=shear)
+        assert U_g[-1, 3] == pytest.approx(U_b[-1, 3], rel=1e-8)
+
+
+def test_distortion_modes_soften_torsion_of_an_open_section():
     sa = SectionAnalysis.from_thin_walled(i_beam(), gbt_modes=2)
+    n_sv = sa.gbt_sv_modes
     L, T = 3.0, 50.0
-    U_b = solve_cantilever(BS, sa, L, 12, 0, {3: T})
-    U_fixed = solve_cantilever(GBT, sa, L, 12, 2, {3: T}, fixed_local=(7, 8, 9, 10))
-    np.testing.assert_allclose(U_fixed[:, :7], U_b, rtol=1e-10, atol=1e-14)
-    U_free = solve_cantilever(GBT, sa, L, 12, 2, {3: T}, fixed_local=())
-    assert U_free[-1, 3] >= U_b[-1, 3] * (1 - 1e-12)
+    U0 = solve_cantilever(GBT, sa, L, 12, 0, {3: T})
+    ia = 6 + n_sv
+    U_fixed = solve_cantilever(GBT, sa, L, 12, 2, {3: T}, fixed_local=range(ia, ia + 4))
+    np.testing.assert_allclose(U_fixed[:, :ia], U0, rtol=1e-10, atol=1e-14)
+    U_free = solve_cantilever(GBT, sa, L, 12, 2, {3: T})
+    assert U_free[-1, 3] >= U0[-1, 3] * (1 - 1e-12)
 
 
-def test_gbt_element_needs_modes():
-    sa = SectionAnalysis.from_thin_walled(box(0.3, 0.15), gbt_modes=1)
-    with pytest.raises(ValueError, match="mode"):
+def test_gbt_element_needs_gbt_matrices():
+    from dataclasses import replace
+
+    sa = SectionAnalysis.from_thin_walled(box(0.3, 0.15))
+    with pytest.raises(ValueError, match="extra_dofs"):
         solve_cantilever(GBT, sa, 1.0, 1, 0, {})
+    with pytest.raises(ValueError, match="no GBT matrices"):
+        solve_cantilever(GBT, replace(sa, gbt_sv_modes=3), 1.0, 1, 0, {})
 
 
 def test_gbt_mass_matrix_is_consistent():
@@ -228,8 +281,10 @@ def test_gbt_mass_matrix_is_consistent():
         LinearGBTBeamElement3D,
     )
 
-    ed = _ed(GBT, 1, 1)
+    ed = _ed(GBT, 1, 1, sa)
     ed["section_analysis_per_element"] = (sa,)
+    n_x = sa.gbt_sv_modes + 2
+    n = 2 * (6 + n_x)
     jr = os.path.join(tempfile.mkdtemp(), "job")
     for sub in ("element_stiffness_matrices", "element_force_vectors", "logs"):
         os.makedirs(os.path.join(jr, sub), exist_ok=True)
@@ -242,16 +297,18 @@ def test_gbt_mass_matrix_is_consistent():
             point_load_array=np.empty((0, 9)), distributed_load_array=np.empty((0, 9)), job_results_dir=jr)
         el.logger_operator = None
         M = el.element_mass_matrix().M_e
-        assert M.shape == (18, 18)
+        assert M.shape == (n, n)
         assert np.allclose(M, M.T) and np.linalg.eigvalsh(M).min() > -1e-12 * np.abs(M).max()
         # a rigid translation in y carries the section mass times the length
-        q = np.zeros(18)
+        q = np.zeros(n)
         q[[1, 7]] = 1.0
         assert q @ M @ q == pytest.approx(sa.mass["m"] * 2.0, rel=1e-10)
         # a uniform unit mode amplitude carries int rho_A |d|^2 ds times the length
-        q = np.zeros(18)
-        q[[13, 16]] = 1.0  # a_1 at node 1 and node 2 (after psi)
-        assert q @ M @ q == pytest.approx(sa.gbt_mass[7, 7] * 2.0, rel=1e-10)
+        ia = 12 + sa.gbt_sv_modes  # a_1 at node 1, after the warping amplitudes
+        q = np.zeros(n)
+        q[[ia, ia + n_x]] = 1.0
+        im = 6 + sa.gbt_sv_modes
+        assert q @ M @ q == pytest.approx(sa.gbt_mass[im, im] * 2.0, rel=1e-10)
     finally:
         shutil.rmtree(os.path.dirname(jr), ignore_errors=True)
 
@@ -283,7 +340,9 @@ def test_process_job_with_gbt_modes(tmp_path):
         + "\n".join(f"{e} 1e-3 0.0 1e-8 1e-8 1e-9 0.8333 0.0" for e in range(n_el)) + "\n",
         encoding="utf-8",
     )
-    dofs = ["UX", "UY", "UZ", "RX", "RY", "RZ", "W", "Q2", "Q3", "Q4", "Q5"]
+    sa = SectionAnalysis.from_thin_walled(i_beam(b, h, t), gbt_modes=2)
+    dpn = 6 + sa.gbt_sv_modes + 4
+    dofs = ["UX", "UY", "UZ", "RX", "RY", "RZ"] + [f"Q{k}" for k in range(1, dpn - 5)]
     (job / "prescribed_displacement.txt").write_text(
         "[Prescribed Displacement]\n[id] [node_id] [dof] [value] [type] [comment]\n"
         + "\n".join(f"{i} 0 {d} 0.0 displacement" for i, d in enumerate(dofs)) + "\n",
@@ -321,8 +380,7 @@ def test_process_job_with_gbt_modes(tmp_path):
     with open(os.path.join(res, "primary_results", "global", "U_global.csv"), newline="", encoding="utf-8") as f:
         rows = list(csv.reader(f))
     U = np.array([float(r[1]) for r in rows[1:]])
-    assert U.size == 11 * (n_el + 1)
-    sa = SectionAnalysis.from_thin_walled(i_beam(b, h, t), gbt_modes=2)
+    assert U.size == dpn * (n_el + 1)
     expected = solve_cantilever(GBT, sa, L, n_el, 2, {3: T})
-    np.testing.assert_allclose(U.reshape(n_el + 1, 11), expected, rtol=1e-9, atol=1e-12)
-    assert np.abs(expected[:, 7:]).max() > 0
+    np.testing.assert_allclose(U.reshape(n_el + 1, dpn), expected, rtol=1e-9, atol=1e-12)
+    assert np.abs(expected[:, 6 + sa.gbt_sv_modes:]).max() > 0

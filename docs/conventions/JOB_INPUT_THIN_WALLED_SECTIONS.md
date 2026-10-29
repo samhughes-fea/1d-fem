@@ -61,14 +61,34 @@ Parser: `pre_processing.parsing.section_geometry_parser.parse_section_geometry_f
 - Section coordinates \((y, z)\) are measured from the beam reference line through the element nodes, in the global \(y\) and \(z\) directions. The linear elements have no element frames yet, so the beam axis is global \(x\).
 - Unknown element or section ids are errors.
 - Element types that do not yet build their stiffness from a `SectionAnalysis` raise `NotImplementedError` when assigned a section, rather than silently using `section.txt`.
-- An optional third column `[modes]` sets how many cross-section distortional modes an element carries (`LinearGBTBeamElement3D`, with `[warping] = 1`). Each node then has `1 + 2 × modes` extra DOFs `Q1 … Qn`: `Q1` is the warping amplitude, and mode `k` has its amplitude on `Q(2k)` and its slope on `Q(2k+1)`. A diaphragm (rib) at a node is `Q2 = Q4 = … = 0`; also fixing the slopes stops the mode warping. See [../element_library/gbt_cross_section_modes.md](../element_library/gbt_cross_section_modes.md).
+- `LinearGBTBeamElement3D` rows carry the section's warping modes. Optional columns set how many distortional modes (`[modes]`) and extra shear-lag warping modes (`[shear_modes]`) they carry. Each node then has `n_sv + shear_modes + 2 × modes` extra DOFs `Q1 … Qn`. Here `n_sv` is the number of Saint-Venant warping modes of the section (3 for a rectangular box). The warping amplitudes come first (`Q1 … Q(n_sv + shear_modes)`), then each mode's amplitude and slope. Warping restraint is all warping amplitudes zero. A diaphragm (rib) is the mode amplitudes zero; also fixing the slopes stops the mode warping. See [../element_library/gbt_cross_section_modes.md](../element_library/gbt_cross_section_modes.md).
 
 ```text
 [Element_Section]
-[element_id] [section_id] [modes]
-0  1  2
-1  1  2
+[element_id] [section_id] [modes] [shear_modes]
+0  1  2  1
+1  1  2  1
 ```
+
+## `[Section_Mesh]` (optional, in `section_geometry.txt`)
+
+```text
+[Section_Mesh]
+[section_id] [n_sub]
+1  4
+```
+
+Sets how many cubic elements each wall of a section is split into (default 1). More elements give more warping and distortional modes.
+
+## `wall_load.txt` (optional)
+
+```text
+[Wall_Load]
+[element_id] [wall_id] [p_x] [p_s] [p_n]
+4  3  0.0  0.0  -2000.0
+```
+
+A uniform surface load (force per area) on a wall over an element: `p_x` along the beam axis, `p_s` along the wall direction and `p_n` along the wall normal. Rows for the same element and wall add up. GBT elements get the load on all their DOFs, so an eccentric load also drives distortion. Other elements get the resultant forces and moments (and the Benscoter warping load).
 
 The parsed result reaches every element as `element.section_analysis` (a `SectionAnalysis`, see [../element_library/section_analysis.md](../element_library/section_analysis.md)).
 

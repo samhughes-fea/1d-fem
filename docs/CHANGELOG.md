@@ -15,6 +15,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- **GBT warping modes, shear lag and wall loads:**
+  - The GBT element now uses plane-section beam kinematics with all warping in warping modes: the Saint-Venant warping span (always carried) plus optional shear-lag modes from a new `[shear_modes]` column. A support with the warping amplitudes fixed keeps the section plane, which gives shear lag and the warping-restraint end effect; with them free, tip loads give the Saint-Venant beam.
+  - **Breaking (unreleased element):** `LinearGBTBeamElement3D` is now a Timoshenko subclass and its nodal extras are `[b_1 .. b_p, a_1, a_1', ..]` instead of `[psi, a_1, a_1', ..]`. `SectionAnalysis` gains `gbt_sv_modes` and `gbt_shear_modes`; `gbt_matrices(m, p_extra)` uses the new strain order.
+  - Wall surface loads from a new optional `wall_load.txt` (`[element_id] [wall_id] [p_x] [p_s] [p_n]`): GBT elements get them on every DOF; Timoshenko and Benscoter elements get the resultant (`ThinWalledSectionAnalysis.wall_load_resultant`).
+  - `section_geometry.txt` takes an optional `[Section_Mesh]` block to set the wall subdivision per section.
 - **Cross-section modes and the GBT element:**
   - `CrossSectionModes` builds the conventional (Vlasov) distortional modes of any open, closed or multi-cell thin-walled section from its wall frame: a null space of the Vlasov constraints, then a generalised eigenproblem, ordered by transverse bending.
   - It also gives the coupled GBT section stiffness (Benscoter strains plus \(a''\), \(a'\), \(a\) of each mode) and the section mass.

@@ -194,6 +194,8 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
             )
         if not self.has_thin_walled_section:
             maybe_warn_timoshenko_default_kappa(self.section_array, element_id)
+        wl = element_dictionary.get("wall_load_per_element")
+        self._wall_load_q = None if wl is None else wl[idx]
 
     @classmethod
     def _nodal_dof_count(cls, element_dictionary: dict, idx: int, warp_mesh: bool) -> int:
@@ -530,6 +532,7 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
             self.logger_operator.log_text("force", f"\n=== Element {self.element_id} Force Vector Computation ===")
 
         Fe += self._precurvature_equivalent_load()
+        Fe += self._wall_load_vector()
 
         # Process distributed loads
         if self.distributed_load_array.size > 0:
@@ -684,6 +687,21 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
         )
 
 
+
+    def _wall_load_resultant(self):
+        """Generalised wall load per length of this element (``wall_load.txt``), or None."""
+        return self._wall_load_q
+
+    def _wall_load_vector(self) -> np.ndarray:
+        """``F_e = int N^T f dx`` for the uniform generalised wall load ``f`` (rigid fields linear)."""
+        Fe = np.zeros(self._n_dof, dtype=np.float64)
+        f = self._wall_load_resultant()
+        if f is None:
+            return Fe
+        # constant f on linear fields: half the element's resultant to each node
+        Fe[:6] += 0.5 * self.L * f[:6]
+        Fe[6:12] += 0.5 * self.L * f[:6]
+        return Fe
 
     def _section_mass_matrix(self) -> np.ndarray:
         """``M_e = sum N M_s N^T w_g detJ`` with the rigid-section mass ``M_s`` of the SectionAnalysis."""

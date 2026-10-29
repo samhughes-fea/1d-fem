@@ -12,6 +12,14 @@ File layout (comments start with ``#``)::
     [section_id] [wall_id] [point_start] [point_end] [laminate_id]
     1  1  1  2  1
 
+An optional block sets the number of wall elements per wall used by the section
+analysis and the cross-section modes (default 1; more resolves local plate modes
+and shear lag)::
+
+    [Section_Mesh]
+    [section_id] [n_sub]
+    1  4
+
 One file may hold several sections. See
 docs/conventions/JOB_INPUT_THIN_WALLED_SECTIONS.md.
 """
@@ -36,6 +44,28 @@ POINT_HEADER = "[section_point]"
 WALL_HEADER = "[section_wall]"
 POINT_SUBHEADER = ["[section_id]", "[point_id]", "[y]", "[z]"]
 WALL_SUBHEADER = ["[section_id]", "[wall_id]", "[point_start]", "[point_end]", "[laminate_id]"]
+MESH_HEADER = "[section_mesh]"
+MESH_SUBHEADER = ["[section_id]", "[n_sub]"]
+
+
+def parse_section_mesh(filepath: str) -> Dict[int, int]:
+    """Return ``{section_id: n_sub}`` from the optional ``[Section_Mesh]`` block (empty without it)."""
+    blocks = split_blocks(preprocess_lines(filepath), [POINT_HEADER, WALL_HEADER, MESH_HEADER])
+    if MESH_HEADER not in blocks:
+        return {}
+    sub, rows = blocks[MESH_HEADER]
+    if not tokens_match(sub, MESH_SUBHEADER):
+        raise ValueError(f"[Section_Mesh] sub-header must be: {' '.join(MESH_SUBHEADER)}")
+    out: Dict[int, int] = {}
+    for ln in rows:
+        parts = ln.split()
+        if len(parts) != 2:
+            raise ValueError(f"Malformed [Section_Mesh] row (expected 2 columns): {ln!r}")
+        sid, n = to_int(parts[0], "section_id", ln), to_int(parts[1], "n_sub", ln)
+        if n < 1:
+            raise ValueError(f"[Section_Mesh] n_sub must be >= 1: {ln!r}")
+        out[sid] = n
+    return out
 
 
 def parse_section_geometry_file(
@@ -49,7 +79,7 @@ def parse_section_geometry_file(
     laminate_ids : iterable of int, optional
         Known laminate ids (from ``laminate.txt``); walls naming others are rejected.
     """
-    blocks = split_blocks(preprocess_lines(filepath), [POINT_HEADER, WALL_HEADER])
+    blocks = split_blocks(preprocess_lines(filepath), [POINT_HEADER, WALL_HEADER, MESH_HEADER])
     for h in (POINT_HEADER, WALL_HEADER):
         if h not in blocks:
             raise ValueError(f"Missing {h} block in {filepath}")

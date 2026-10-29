@@ -1,9 +1,10 @@
 # Cross-section modes and the GBT element
 
 `CrossSectionModes` (`pre_processing/section_integration/thin_walled/cross_section_modes.py`)
-finds the conventional (Vlasov) deformation modes of any open, closed or multi-cell
-thin-walled section, and `LinearGBTBeamElement3D` adds the lowest `m` of them to the
-Benscoter beam.
+finds the conventional (Vlasov) deformation modes and the warping modes of any open,
+closed or multi-cell thin-walled section. `LinearGBTBeamElement3D` is a beam with
+plane-section kinematics, the warping modes (Saint-Venant warping plus optional
+shear-lag modes) and the lowest `m` distortional modes.
 
 ## Modes from the section frame
 
@@ -32,7 +33,7 @@ lowest \(\lambda\) first. \(\mathbf K\) is the 5 × 5 GBT wall law
 displacement. With `n_sub = 1` the modes are the "natural node" modes (for a box, the
 distortion mode first). With `n_sub > 1` local plate-bending modes follow.
 
-## Wall strains and section stiffness
+## Wall strains of a mode
 
 A mode with amplitude \(a(x)\) displaces the walls by \(u_x = u(s)\,a'\) and
 \((u_y, u_z) = (v t + w n)\,a\). In the order \([\varepsilon_{xx}, \gamma_{xs},
@@ -44,28 +45,78 @@ A mode with amplitude \(a(x)\) displaces the walls by \(u_x = u(s)\,a'\) and
 | \(a'\) | \([0, u_{,s} + v\ (=0), 0, 0, -2w_{,s}]\) |
 | \(a\) | \([0, 0, 0, -w_{,ss}, 0]\) |
 
-The section stiffness `CrossSectionModes.stiffness(m)` is
-\(\int \mathbf H^{\mathsf T}\mathbf K\,\mathbf H\,\mathrm ds\) over the strains
-\([\boldsymbol\varepsilon_8, a''_{1..m}, a'_{1..m}, a_{1..m}]\). Here \(\mathbf H\) stacks the
-Benscoter wall strains (with \(\kappa_{ss} = 0\), which is why the section must use
-`hoop="restrained"`) and the mode columns above. The leading 8 × 8 block is
-`benscoter_stiffness`. The mode-mode blocks are the classical GBT matrices \(C\), \(D\)
-and \(B\). The mode-beam blocks couple distortion to torsion, bending and extension; for
-anisotropic walls they come out of the same integral.
+## Warping modes
 
-`CrossSectionModes.mass(m)` is the section mass for
-\([u, v, w, \theta_x, \theta_y, \theta_z, \psi, a, a']\) from the wall displacement field.
-The element uses it with linear rigid fields and Hermite \(a\).
+In the element all out-of-plane warping is carried by warping modes \(\Omega_j(s)\) with
+their own amplitudes \(b_j(x)\): \(u_x \mathrel{+}= \Omega_j b_j\), so
+\(\varepsilon_{xx} \mathrel{+}= \Omega_j b_j'\) and \(\gamma_{xs} \mathrel{+}= \Omega_{j,s} b_j\).
+They use the warping mesh of the `ThinWalledSectionAnalysis` (`n_sub` cubic elements per wall).
+
+- The first \(n_{sv}\) modes span the Saint-Venant warping \(W_0, W_1\) of the six beam strains,
+  less its rigid part (\(1, y, z\)). They are always carried. For a rectangular box
+  \(n_{sv} = 3\) (shear warping for \(F_y\), \(F_z\), and torsional warping); for a square
+  box the torsional warping vanishes and \(n_{sv} = 2\).
+- Further shear-lag modes come from \(E\,x = \mu\,A\,x\) in the complement, with \(A\) the
+  axial warping stiffness and \(E\) the membrane shear stiffness. `[shear_modes]` adds the
+  first few.
+- All modes are \(A\)-orthogonal to \(1, y, z\) and to each other.
+
+Why plane-section kinematics: if the warping modes were added on top of the Saint-Venant
+warping, a uniform or linearly varying force state would not couple to them, and
+\(b = 0\) at a support would not restrain the Saint-Venant warping. Carrying all warping
+in \(b\) means a support with \(b = 0\) keeps the section plane, which gives shear lag and
+the warping-restraint end effect. With \(b\) free and tip loads, minimising over \(b\)
+gives back the Saint-Venant section. The small term of strains from \(\psi'\) in the
+Saint-Venant solution is left out, which is exact for tip loads.
+
+## Section stiffness
+
+`CrossSectionModes.stiffness(m, p_extra)` is \(\int \mathbf H^{\mathsf T}\mathbf K\,\mathbf H\,\mathrm ds\)
+over the strains \([\boldsymbol\psi_6, b'_{1..p}, b_{1..p}, a''_{1..m}, a'_{1..m}, a_{1..m}]\),
+\(p = n_{sv} + p_{extra}\):
+
+\[
+\begin{aligned}
+\varepsilon_{xx} &= Z_0\,\boldsymbol\psi_6 + \Omega\,b' + u_k a_k'' \\
+\gamma_{xs} &= Z_1\,\boldsymbol\psi_6 + \Omega_{,s}\,b \\
+\kappa_{xx} &= Z_2\,\boldsymbol\psi_6 - w_k a_k'' \\
+\kappa_{ss} &= -w_{k,ss}\,a_k \\
+\kappa_{xs} &= -2\phi - 2 w_{k,s}\,a_k'
+\end{aligned}
+\]
+
+\(Z\) is the plane-section map of the walls. \(\kappa_{ss}\) is only carried by the modes,
+which is why the section must use `hoop="restrained"`. The mode-mode blocks are the
+classical GBT matrices \(C\), \(D\) and \(B\). The mode-beam and mode-warping blocks couple
+distortion to torsion, bending, extension and warping; for anisotropic walls they come out
+of the same integral.
+
+`CrossSectionModes.mass(m, p_extra)` is the section mass for
+\([u, v, w, \theta_x, \theta_y, \theta_z, b, a, a']\) from the wall displacement field.
+`SectionAnalysis.from_thin_walled(..., gbt=True)` stores both, element-signed, and
+`gbt_matrices(m, p_extra)` slices the first modes.
+
+## Wall loads
+
+A surface load \(\mathbf p = p_x\mathbf e_x + p_s\mathbf t + p_n\mathbf n\) on a wall does work
+\(\int \mathbf p\cdot\mathbf u\,\mathrm ds\) per unit length. `CrossSectionModes.wall_load` gives
+the generalised load on \([u, v, w, \theta_x, \theta_y, \theta_z, b, a, a']\), so an eccentric
+flange load drives distortion as well as bending and torsion. Elements without modes use
+`ThinWalledSectionAnalysis.wall_load_resultant`: \([N, F_y, F_z, M_x, M_y, M_z]\) and the
+Benscoter \(\psi\) load \(\int \omega\,p_x\,\mathrm ds\). Loads come from `wall_load.txt`.
 
 ## Element
 
-- `LinearGBTBeamElement3D`: Benscoter element plus \(m\) modes. Nodal extras are
-  \([\psi, a_1, a_1', \dots, a_m, a_m']\).
-- Amplitudes are cubic Hermite in \(x\).
-- Integration: a full rule of at least 4 points, with the \(\{\gamma_{xy}, \gamma_{xz}, d\}\)
-  block reduced as in the Benscoter element.
-- Input: `[modes]` in `element_section.txt`, `[warping] = 1` in `element.txt`.
-- Supports: a diaphragm or rib is \(a_k = 0\); a fully fixed end also has \(a_k' = 0\).
+- `LinearGBTBeamElement3D` (a Timoshenko subclass). Nodal extras are
+  \([b_1, \dots, b_p, a_1, a_1', \dots, a_m, a_m']\).
+- \(b\) is linear in \(x\); the mode amplitudes are cubic Hermite.
+- Integration: a full rule of at least 4 points. The shear block
+  \(\{\gamma_{xy}, \gamma_{xz}, b\}\) uses the shear-block order (default 1), so the element
+  does not lock.
+- Input: element type `LinearGBTBeamElement3D`, and optional `[modes]` and `[shear_modes]`
+  columns in `element_section.txt`.
+- Supports: warping restraint is \(b_j = 0\); a diaphragm or rib is \(a_k = 0\); a fully
+  fixed end has all extras zero.
 
 ## Validation
 
@@ -79,11 +130,22 @@ The element uses it with linear rigid fields and Hermite \(a\).
   \(C a'''' - (D - 2K_{20})a'' + B a = 0\) (proof:
   [../proofs/gbt/single_mode_cantilever.md](../proofs/gbt/single_mode_cantilever.md)),
   converging as \(O(h^4)\).
-- **Element consistency.** With the modes fixed the element equals the Benscoter element, and
+- **Free warping is Saint-Venant.** With \(b\) free at the root, tip forces and torque give the
+  Timoshenko beam with the Saint-Venant section to \(2\times10^{-5}\).
+- **Restrained torsion.** An I-beam with \(b = 0\) at the root matches the Benscoter element to
+  \(10^{-8}\), with or without extra shear-lag modes.
+- **Shear lag.** A wide box (0.8 × 0.15 m, 1.5 m span) with a plane root section is about 1.7 %
+  stiffer than with free warping. Each added set of shear-lag modes softens it, and it stays
+  below the free case.
+- **Element consistency.** With the modes fixed the element is the warping-only element, and
   freeing them only softens it.
-- **End to end.** `process_job` runs with `[modes]` and the `Q` supports.
+- **End to end.** `process_job` runs with `[modes]`, `[shear_modes]`, `[Section_Mesh]`,
+  `wall_load.txt` and the `Q` supports.
+
+`tests/test_gbt_shear_modes_and_wall_loads.py` checks the warping modes (span and
+orthogonality), the wall-load resultants by hand, and the parsers.
 
 ## Not yet included
 
-Wall surface loads on the modes, shear (non-Vlasov) modes for closed-section shear
-lag, and transverse-extension modes. These are the next step of the plan.
+Transverse-extension modes (in-plane wall stretching, \(N_{ss} \neq 0\)). They need the full
+membrane wall law instead of the 5 × 5 GBT law and come with the 2D section work.
