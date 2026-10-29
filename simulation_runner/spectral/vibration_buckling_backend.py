@@ -27,7 +27,7 @@ from processing.boundary_supports import resolve_penalty_fixed_dofs
 from processing.common.primary_artifact_manifest import write_primary_artifact_manifest
 from processing.dynamic.assembly import assemble_global_force_vector
 from processing.eigen.metrics.directional_effective_mass import modal_effective_mass_fraction_z
-from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
+from pre_processing.element_library.dof_layout import mesh_dof_per_node
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +151,7 @@ class VibrationBucklingBackend:
 
     def _dof_per_node(self) -> int:
         ed = self.settings.get("element_dictionary")
-        return 7 if ed is not None and mesh_uses_warping_dof(ed) else 6
+        return mesh_dof_per_node(ed)
 
     def _total_dof(self) -> int:
         num_nodes = len(self.mesh_dictionary["node_ids"])
@@ -675,7 +675,7 @@ class VibrationBucklingBackend:
         self.secondary_results["global"]["modal_generalized_mass"] = masses
         self.secondary_results["global"]["modal_load_participation"] = participation
         ed = self.settings.get("element_dictionary")
-        dof_pn = 7 if ed is not None and mesh_uses_warping_dof(ed) else 6
+        dof_pn = mesh_dof_per_node(ed)
         mez = modal_effective_mass_fraction_z(M_mod, phi, dof_per_node=dof_pn)
         if mez is not None:
             self.secondary_results["global"]["modal_effective_mass_fraction_z"] = mez

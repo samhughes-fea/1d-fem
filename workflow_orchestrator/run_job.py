@@ -43,7 +43,7 @@ from pre_processing.parsing.simulation_settings_parser import parse_simulation_s
 from pre_processing.parsing.point_load_parser import parse_point_load
 from pre_processing.parsing.distributed_load_parser import parse_distributed_load
 from pre_processing.parsing.prescribed_displacement_parser import parse_prescribed_displacement
-from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
+from pre_processing.element_library.dof_layout import mesh_dof_per_node
 from pre_processing.section_integration.thin_walled.job_input import attach_section_analyses
 from pre_processing.parsing.precurvature_parser import parse_precurvature
 
@@ -284,7 +284,7 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
 
         prescribed_displacement_path = os.path.join(job_dir, "prescribed_displacement.txt")
         if os.path.exists(prescribed_displacement_path):
-            _dpn_mesh = 7 if mesh_uses_warping_dof(element_dictionary) else 6
+            _dpn_mesh = mesh_dof_per_node(element_dictionary)
             prescribed_displacement_dict = parse_prescribed_displacement(
                 prescribed_displacement_path,
                 dof_per_node=_dpn_mesh,
