@@ -27,6 +27,13 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- **Corotational large-displacement beams on anisotropic sections** ([element_library/corotational_section_beams.md](element_library/corotational_section_beams.md)): `CorotationalEulerBernoulliBeamElement3D`, `CorotationalTimoshenkoBeamElement3D` and `CorotationalBenscoterBeamElement3D`.
+  - They wrap the linear elements with their coupled `SectionAnalysis` in a corotational frame (Battini and Pacoste). Nodal rotations are total rotation vectors.
+  - The local energy adds the cubic second-order term (offsets, Wagner, bimoment) and the quartic large-twist term from `SectionAnalysis.axial_points`.
+  - The residual is exact (complex-step `dp/dU`).
+  - Checked against the elastica, the semicircle roll-up, Wagner torsional stiffening, the nonlinear Vlasov equation with restrained warping, and lateral-torsional stability loss with prebuckling deflection.
+  - Example `examples/thin_walled/large_twist`.
+
 - **Second-order geometric stiffness, P-delta and linear buckling for the linear beam elements** ([element_library/second_order.md](element_library/second_order.md)):
   - Euler-Bernoulli, Timoshenko, Benscoter, Reddy and Levinson elements build `K_σ` from the energy of a section that is rigid in its own plane, using its current stresses. The section terms `[N, S_y, S_z, W, V_y, V_z, Q_r]` (`ThinWalledSectionAnalysis.geometric_terms`, `SectionAnalysis.geometric_terms`) bring in the shear-centre and tension-centre offsets, the Wagner term and the bimoment for any reference axis.
   - P-delta static solves: `[Static] second_order = p_delta` (`processing/buckling/p_delta.py`).
