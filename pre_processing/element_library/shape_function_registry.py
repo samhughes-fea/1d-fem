@@ -62,6 +62,7 @@ SHAPE_FUNCTION_REGISTRY: dict[str, ShapeFunctionOperatorFactory] = {
     "LinearEulerBernoulliBeamElement3D": _eb_operator,
     "NonlinearEulerBernoulliBeamElement3D": _eb_operator,
     "LinearTimoshenkoBeamElement3D": _timoshenko_operator,
+    "LinearBenscoterBeamElement3D": _timoshenko_operator,
     "NonlinearTimoshenkoBeamElement3D": _timoshenko_operator,
     "GeometricallyExactShearDeformableBeam3D": _timoshenko_operator,
     "CorotationalBeamElement3D": _timoshenko_operator,

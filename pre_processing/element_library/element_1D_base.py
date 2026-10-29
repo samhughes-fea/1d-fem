@@ -302,7 +302,7 @@ class Element1DBase(ABC):
         Returns
         -------
         np.ndarray
-            Global DOF indices array of shape (2*dof_per_node,)
+            Global DOF indices array of shape (2*dof_per_node,), in the element's own DOF order.
 
         Raises
         ------
@@ -311,16 +311,25 @@ class Element1DBase(ABC):
 
         Notes
         -----
-        Assumes consecutive node numbering and fixed dof_per_node.
-        Index mapping formula: global_dof = node_id * dof_per_node + local_dof
+        Global numbering is node-major: ``global_dof = node_id * dof_per_node + local_dof``.
+        Element vectors put the six standard DOFs of both nodes first and, on a warping
+        mesh (``dof_per_node == 7``), the two warping DOFs last:
+        ``[n1 0..5, n2 0..5, n1 6, n2 6]``. This is the layout every 14-DOF beam element
+        builds ``K_e`` and ``F_e`` in.
         """
         eid, n1, n2 = self.element_array[:3]
-
-        dof_indices = []
         for nid in (n1, n2):
             if nid < 0:
                 raise ValueError(f"Invalid node ID {nid} in element {eid}")
-            start = nid * self.dof_per_node
-            dof_indices.extend(range(start, start + self.dof_per_node))
+
+        dpn = int(self.dof_per_node)
+        n_std = min(dpn, 6)
+        dof_indices = []
+        for nid in (n1, n2):
+            start = int(nid) * dpn
+            dof_indices.extend(range(start, start + n_std))
+        for nid in (n1, n2):
+            start = int(nid) * dpn
+            dof_indices.extend(range(start + n_std, start + dpn))
 
         return np.asarray(dof_indices, dtype=int)

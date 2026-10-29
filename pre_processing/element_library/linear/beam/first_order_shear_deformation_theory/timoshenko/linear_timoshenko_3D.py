@@ -82,6 +82,8 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
 
     #: Builds ``D`` from ``self.section_analysis`` (thin-walled anisotropic sections).
     supports_section_analysis = True
+    #: Subclasses that give the seventh nodal DOF a thin-walled meaning (Benscoter) set this.
+    _thin_walled_warping_dof = False
     
     # Element formulation identifier for tracking in multi-element meshes
     element_type_name = "Timoshenko-3D"
@@ -184,10 +186,11 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
                 element_id=element_id,
             )
 
-        if self.has_thin_walled_section and self._n_dof == 14:
+        if self.has_thin_walled_section and self._n_dof == 14 and not self._thin_walled_warping_dof:
             raise NotImplementedError(
                 f"Element {element_id}: a thin-walled SectionAnalysis with the warping DOF is not "
-                "supported by LinearTimoshenkoBeamElement3D; use [warping] = 0."
+                "supported by LinearTimoshenkoBeamElement3D; use LinearBenscoterBeamElement3D for "
+                "restrained warping, or [warping] = 0."
             )
         if not self.has_thin_walled_section:
             maybe_warn_timoshenko_default_kappa(self.section_array, element_id)
