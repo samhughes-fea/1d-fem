@@ -1,6 +1,6 @@
 # Job input: thin-walled anisotropic sections
 
-Three optional job files describe anisotropic thin-walled sections from their walls and plies and assign them to elements. They must be given together. A job with none of them runs exactly as before. `section.txt` is still required for every element and still supplies the properties of elements that are not assigned a thin-walled section.
+Three optional job files describe anisotropic thin-walled sections from their walls and plies and assign them to elements. They must be given together. Sections meshed in 2D come from `section_mesh_2d.txt` instead and are assigned in the same `element_section.txt`; `laminate.txt` is then optional and only supplies ply materials (see [../element_library/solid_section_analysis.md](../element_library/solid_section_analysis.md)). A job with none of them runs exactly as before. `section.txt` is still required for every element and still supplies the properties of elements that are not assigned a thin-walled section.
 
 ## `laminate.txt`
 

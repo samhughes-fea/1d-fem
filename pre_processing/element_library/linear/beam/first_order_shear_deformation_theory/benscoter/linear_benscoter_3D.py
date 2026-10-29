@@ -67,7 +67,8 @@ class LinearBenscoterBeamElement3D(LinearTimoshenkoBeamElement3D):
             )
         if self.section_analysis.benscoter_stiffness is None:
             raise ValueError(
-                f"Element {eid}: the section has no Benscoter stiffness (it cannot shear, e.g. a flat strip)."
+                f"Element {eid}: the section has no Benscoter stiffness (a 2D section mesh, or a thin-walled "
+                "section that cannot shear, e.g. a flat strip)."
             )
 
     # ------------------------------------------------------------------ #

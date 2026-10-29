@@ -1,7 +1,8 @@
 # 2D section meshes and 3D materials
 
-The 2D section solver (Giavotto, as in BECAS) works on a finite-element mesh of the
-cross-section. This page covers its inputs: the mesh and the materials. Code:
+The 2D section solver (Giavotto, as in BECAS; see `solid_section_analysis.md`) works on a
+finite-element mesh of the cross-section. This page covers its inputs: the mesh and the
+materials. Code:
 `pre_processing/section_integration/solid/`.
 
 ## Elements
