@@ -166,6 +166,15 @@ class LinearBenscoterBeamElement3D(LinearTimoshenkoBeamElement3D):
             f_e += B.T @ D @ E0 * w_g * detJ
         return f_e
 
+    def _wall_load_vector(self) -> np.ndarray:
+        Fe = super()._wall_load_vector()
+        f = self._wall_load_resultant()
+        if f is not None:
+            p1, p2 = self._psi_cols
+            Fe[p1] += 0.5 * self.L * f[6]
+            Fe[p2] += 0.5 * self.L * f[6]
+        return Fe
+
     def linear_geometric_stiffness_matrix(self, U_e: np.ndarray) -> np.ndarray:
         raise NotImplementedError("LinearBenscoterBeamElement3D is linear static only (second order arrives later).")
 
