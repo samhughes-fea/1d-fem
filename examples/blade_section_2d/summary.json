@@ -33,7 +33,7 @@
  "panel": {
   "y": 1.1693888634639895,
   "n_elements": 8,
-  "core_tau_xn_max_2d": 41.8899837623221,
-  "tau_xn_max_thin_walled": 74.37980945254517
+  "core_tau_xn_max_2d": 40.83892716473725,
+  "tau_xn_max_thin_walled": 74.37981040451808
  }
 }

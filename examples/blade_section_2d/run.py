@@ -84,26 +84,49 @@ def panel_column(mesh, sa, chord: float, pitch: float):
     return sorted(stack, key=lambda e: cen[e, 1])
 
 
-def panel_profile(sa, mesh, column, forces):
-    """Wall-axis stresses through the panel: rows (n, sigma_xx, tau_xs, tau_xn, material id),
-    ``n`` the height from the inner face."""
-    g = np.linspace(-1, 1, 5)
-    rows, base = [], 0.0
+def panel_profile(sa, mesh, column, forces, n_line: int = 21):
+    """Wall-axis stresses through the panel, from each element's Gauss points.
+
+    For each element of the column this takes the three Gauss points on its ``xi = 0`` line
+    (``point_stresses``; quadrature order ``3 i + j``, so ``i = 1``) and the projection of
+    the element's nine Gauss values along that line (``gauss_projection.element_line``).
+    Heights ``n`` are measured from the inner face through the skin.
+
+    Returns ``(gauss, lines)``: ``gauss`` rows ``(n, sigma_xx, tau_xs, tau_xn, material id)``;
+    ``lines`` one ``(n (n_line,), values (n_line, 3), material id)`` per element, values in
+    the order ``sigma_xx, tau_xs, tau_xn``.
+    """
+    from post_processing.solid.gauss_projection import GAUSS_1D, element_line
+    from pre_processing.section_integration.solid.elements import shape
+
+    by_el = {}
+    for p in sa.point_stresses(forces=forces):
+        by_el.setdefault(p.element, []).append(p)
+    gauss, lines = [], []
     for e in column:
-        c = mesh.elements[e]
-        lo, hi = mesh.nodes[c[:2]].mean(axis=0), mesh.nodes[c[2:4]].mean(axis=0)
-        h = float(np.linalg.norm(hi - lo))
-        flip = hi[1] < lo[1]                       # the element's eta runs outside-in
-        for eta in g:
-            p = sa.stress_at(e, 0.0, eta, forces=forces)
-            f = 0.5 * (1.0 + (-eta if flip else eta))
-            rows.append((base + f * h, p.stress_wall[0], p.stress_wall[5], p.stress_wall[4], int(mesh.material_ids[e])))
-        base += h
-    return rows
+        X = mesh.nodes[mesh.elements[e]]
+        mid = int(mesh.material_ids[e])
+        nine = np.array([[q.stress_wall[0], q.stress_wall[5], q.stress_wall[4]] for q in by_el[e]])
+        eta, vals = element_line(nine, xi=0.0, n=n_line)
+        lines.append((np.array([shape("Q8", 0.0, t)[0] @ X for t in eta]), vals, mid))
+        for j in range(3):
+            gauss.append((shape("Q8", 0.0, GAUSS_1D[j])[0] @ X, *nine[3 + j], mid))
+    # the suction-side skin: the inner face is the lowest point of the column, the outer the highest
+    ends = np.vstack([np.vstack([pos[0], pos[-1]]) for pos, _, _ in lines])
+    lo, hi = ends[np.argmin(ends[:, 1])], ends[np.argmax(ends[:, 1])]
+    nrm = (hi - lo) / np.linalg.norm(hi - lo)
+    gauss = [(float((q - lo) @ nrm), *v, m) for q, *v, m in gauss]
+    lines = [((pos - lo) @ nrm, vals, m) for pos, vals, m in lines]
+    return gauss, lines
 
 
-def thin_walled_panel(tw, gs, y_target: float, forces):
-    """Thin-walled ply stresses at the suction-side skin point nearest ``y_target``."""
+def thin_walled_panel(tw, gs, y_target: float, forces, points_per_ply: int = 21):
+    """Thin-walled ply stresses at the suction-side skin point nearest ``y_target``.
+
+    Returns the recovery and one ``(n, sigma_xx, tau_xs, tau_xn)`` array per ply, ``n`` from
+    the inner face. Within a ply the recovered stress is the laminate's own (linear in ``n``
+    for the membrane stresses), so each ply is sampled densely and drawn on its own.
+    """
     from pre_processing.section_integration.thin_walled.stress_recovery import SaintVenantRecovery
 
     sec = tw.section
@@ -118,10 +141,13 @@ def thin_walled_panel(tw, gs, y_target: float, forces):
             s = abs(y_target - a[0]) / abs(b[0] - a[0]) * np.linalg.norm(b - a)
             best = (w.wall_id, s)
             break
-    rec = SaintVenantRecovery(tw).at(best[0], best[1], forces, points_per_ply=5)
+    rec = SaintVenantRecovery(tw).at(best[0], best[1], forces, points_per_ply=points_per_ply)
     lam = tw.laminates[sec.wall(best[0]).laminate_id]
     h = sum(p.thickness for p in lam.plies)
-    return rec, [(pp.n + 0.5 * h, pp.stress_wall[0], pp.stress_wall[2], pp.tau_xn) for pp in rec.plies]
+    plies = {}
+    for pp in rec.plies:
+        plies.setdefault(pp.ply, []).append((pp.n + 0.5 * h, pp.stress_wall[0], pp.stress_wall[2], pp.tau_xn))
+    return rec, [np.array(v) for _, v in sorted(plies.items())]
 
 
 def cap_check(sa, mesh, tw, gs, forces):
@@ -178,20 +204,31 @@ def figures(ctx, out_dir):
     import matplotlib.pyplot as plt
     from matplotlib.collections import PolyCollection
 
+    from post_processing.solid.gauss_projection import element_patches
+
     mesh, sa, forces = ctx["mesh"], ctx["sa"], ctx["forces"]
     polys = [mesh.nodes[c[:4]] for c in mesh.elements]
-    sxx = np.array([sa.stress_at(e, 0.0, 0.0, forces=forces).stress[0] for e in range(len(mesh.elements))])
+    by_el = {}
+    for p in sa.point_stresses(forces=forces):
+        by_el.setdefault(p.element, []).append(p.stress[0])
 
-    # 1. axial stress
+    # 1. axial stress: each element's nine Gauss values, projected over it with the Q8
+    # Gauss-point Lagrange shapes (no averaging between elements)
+    sub, val = [], []
+    for e, conn in enumerate(mesh.elements):
+        P, v = element_patches(mesh.nodes, conn, np.array(by_el[e]), n_sub=3)
+        sub += P
+        val.append(v)
+    val = np.concatenate(val) / 1e6
     fig, ax = plt.subplots(figsize=(10, 3.6))
-    lim = np.abs(sxx).max() / 1e6
-    pc = PolyCollection(polys, array=sxx / 1e6, cmap="RdBu_r", edgecolors="none")
+    lim = np.abs(val).max()
+    pc = PolyCollection(sub, array=val, cmap="RdBu_r", edgecolors="face", linewidths=0.15)
     pc.set_clim(-lim, lim)
     ax.add_collection(pc)
     ax.autoscale_view()
     ax.set_aspect("equal")
     cb = fig.colorbar(pc, ax=ax, shrink=0.8)
-    cb.set_label("axial stress σxx, MPa", fontsize=8)
+    cb.set_label("axial stress σxx, MPa (Gauss values projected per element)", fontsize=8)
     ax.set_title(f"IEA 15 MW, r = {S.station(INDEX)['r']:.1f} m: σxx under a {P_FLAP / 1e3:.0f} kN flap load "
                  f"{ARM:.0f} m outboard and a {TORQUE / 1e3:.0f} kN m torque", fontsize=9, loc="left")
     _style(ax)
@@ -223,23 +260,28 @@ def figures(ctx, out_dir):
     fig.savefig(os.path.join(out_dir, "interface_shear.png"), dpi=150, bbox_inches="tight")
     plt.close(fig)
 
-    # 3. sandwich panel through-thickness
-    prof, twp = ctx["panel"], ctx["panel_tw"]
-    names = {mid: n for mid, n in _material_names(mesh).items()}
+    # 3. sandwich panel through-thickness: 2D Gauss points (dots) and their projection along
+    # each element (thin line, broken at element edges); thin-walled stresses per ply
+    gauss, lines, twp = ctx["panel"], ctx["panel_lines"], ctx["panel_tw"]
+    names = _material_names(mesh)
     fig, axes = plt.subplots(1, 2, figsize=(8, 3.6), sharey=True)
-    for ax, k, lab in zip(axes, (1, 2), ("axial stress σxx, MPa", "in-plane shear τxs, MPa")):
-        n = np.array([r[0] for r in prof]) * 1e3
-        v = np.array([r[k] for r in prof]) / 1e6
-        core = np.array(["foam" in names.get(r[4], "") for r in prof])
-        ax.plot(v[~core], n[~core], "o", ms=3, color=COL["face"], label="2D, faces")
-        ax.plot(v[core], n[core], "o", ms=3, color=COL["core"], label="2D, core")
-        ax.plot([r[k] / 1e6 for r in twp], [r[0] * 1e3 for r in twp], "-", color=COL["tw"], lw=1.2,
-                label="thin-walled")
+    for ax, k, lab in zip(axes, (0, 1), ("axial stress σxx, MPa", "in-plane shear τxs, MPa")):
+        for i, (n, vals, mid) in enumerate(lines):
+            ax.plot(vals[:, k] / 1e6, n * 1e3, "-", color="#0b0b0b", lw=0.6,
+                    label="2D, Gauss-point projection per element" if i == 0 else None)
+        for core in (False, True):
+            r = [g for g in gauss if ("foam" in names.get(g[4], "")) == core]
+            ax.plot([g[1 + k] / 1e6 for g in r], [g[0] * 1e3 for g in r], "o", ms=2.4,
+                    color=COL["core" if core else "face"], label=f"2D Gauss points, {'core' if core else 'faces'}",
+                    zorder=3)
+        for i, ply in enumerate(twp):
+            ax.plot(ply[:, 1 + k] / 1e6, ply[:, 0] * 1e3, "-", color=COL["tw"], lw=1.6, alpha=0.35,
+                    label="thin-walled, per ply" if i == 0 else None)
         ax.set_xlabel(lab, fontsize=8)
         ax.axvline(0, color="#c3c2b7", lw=0.6)
         _style(ax)
     axes[0].set_ylabel("height through the panel from the inner face, mm", fontsize=8)
-    axes[0].legend(fontsize=7, frameon=False)
+    axes[0].legend(fontsize=6.5, frameon=False)
     fig.suptitle(f"Suction-side sandwich panel at {100 * PANEL_X:.0f} % chord", fontsize=9, x=0.01, ha="left")
     fig.tight_layout()
     fig.savefig(os.path.join(out_dir, "sandwich_panel.png"), dpi=150)
@@ -267,13 +309,13 @@ def main(plot: bool = True, rows_per_ply: int = 2, element_size=None, out_dir: s
     forces = section_forces()
     interfaces, worst = junction_interfaces(sa, mesh, forces)
     column = panel_column(mesh, sa, m.chord, m.pitch_axis)
-    panel = panel_profile(sa, mesh, column, forces)
+    panel, panel_lines = panel_profile(sa, mesh, column, forces)
     y_panel = float(np.mean([r for r in element_centres(mesh)[column, 0]]))
     _, panel_tw = thin_walled_panel(tw, gs, y_panel, forces)
     cap = cap_check(sa, mesh, tw, gs, forces)
     names = _material_names(mesh)
     core_txn = [abs(r[3]) for r in panel if "foam" in names.get(r[4], "")]
-    tw_core_txn = [abs(r[3]) for r in panel_tw]
+    tw_core_txn = [abs(r[3]) for ply in panel_tw for r in ply]
     summary = {
         "station": INDEX, "r": S.station(INDEX)["r"], "section_forces": forces.tolist(),
         "n_elements": len(mesh.elements), "rows_per_ply": rows_per_ply,
@@ -286,7 +328,7 @@ def main(plot: bool = True, rows_per_ply: int = 2, element_size=None, out_dir: s
     }
     if plot:
         figures({"mesh": mesh, "sa": sa, "forces": forces, "interfaces": interfaces, "worst": worst,
-                 "panel": panel, "panel_tw": panel_tw}, out_dir)
+                 "panel": panel, "panel_lines": panel_lines, "panel_tw": panel_tw}, out_dir)
     with open(os.path.join(out_dir, "summary.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=1)
     return summary

@@ -25,6 +25,7 @@ from common import (  # noqa: E402
     Material,
     SectionSpec,
     bredt_multicell,
+    by_ply,
     build_analysis,
     contour,
     run,
@@ -109,6 +110,9 @@ def main(n_el: int = N_EL, plot: bool = True, work_dir: str = HERE) -> dict:
     F_mid = [0, P * (x_mid - L), 0, 0, P, T]
     cap = rec.at(3, B / 2, F_mid, points_per_ply=5)
     web = rec.at(2, H / 2, F_mid, points_per_ply=5)
+    # dense in each ply for the through-thickness figures, drawn ply by ply
+    cap_dense = rec.at(3, B / 2, F_mid, points_per_ply=21)
+    web_dense = rec.at(2, H / 2, F_mid, points_per_ply=21)
     summary["mid_span_top_cap"] = {
         "N_xx": float(cap.resultants[0]), "N_xs": float(cap.resultants[2]),
         "max_sigma_11": float(max(abs(q.stress_ply[0]) for q in cap.plies)),
@@ -125,24 +129,32 @@ def main(n_el: int = N_EL, plot: bool = True, work_dir: str = HERE) -> dict:
     with open(os.path.join(work_dir, "summary.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
     if plot:
-        _plots(results, cap, web, root, n_el)
+        _plots(results, {k: c.element_type for k, c in cases(n_el).items()}, cap_dense, web_dense, root, n_el)
     return summary
 
 
-def _plots(results, cap, web, root, n_el):
+def _plots(results, element_types, cap, web, root, n_el):
+    """Figures. Curves along the beam are each element's shape-function field (``beam_curve``),
+    nodal values are triangles; through-thickness curves are drawn per ply, and the root
+    contour values from the job's CSV are shown as the discrete points they are."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from post_processing.graphical_visualisers.beam_field_sampling import beam_curve
+
     x = np.linspace(0, L, n_el + 1)
     fig, ax = plt.subplots(1, 2, figsize=(10, 3.8))
-    for k, r in results.items():
-        ax[0].plot(x, r.U[:, 2] * 1e3, label=k, ls="--" if "free" in k else "-")
-        ax[1].plot(x, np.rad2deg(r.U[:, 3]), label=k, ls="--" if "free" in k else "-")
+    for i, (k, r) in enumerate(results.items()):
+        c = f"C{i}"
+        for a, comp, scale in ((ax[0], 2, 1e3), (ax[1], 3, np.rad2deg(1.0))):
+            xs, v = beam_curve(x, r.U, comp, element_types[k])
+            a.plot(xs, v * scale, color=c, lw=1.0, ls="--" if "free" in k else "-", label=k)
+            a.plot(x, r.U[:, comp] * scale, "^", color=c, ms=3, mfc=c)
     ax[0].set(xlabel="x (m)", ylabel="flapwise deflection w (mm)")
     ax[1].set(xlabel="x (m)", ylabel="twist (deg)")
-    ax[0].legend(fontsize=8)
+    ax[0].legend(fontsize=8, title="lines: element shape functions; ▲ nodes", title_fontsize=7)
     for a in ax:
         a.grid(alpha=0.3)
     fig.tight_layout()
@@ -151,13 +163,17 @@ def _plots(results, cap, web, root, n_el):
     fig, ax = plt.subplots(1, 2, figsize=(10, 3.8))
     for k, pts in root.items():
         s, n = np.array(pts).T
-        ax[0].plot(s, n / 1e3, "o-", label=k)
+        ax[0].plot(s, n / 1e3, "o", ms=4, label=k)
     ax[0].set(xlabel="s along the top cap (m)", ylabel="N_xx (kN/m)", title="Root element: shear lag in the cap")
     ax[0].legend()
-    for q, lab in ((cap, "top cap centre"), (web, "rear web centre")):
-        ax[1].plot([p.tau_xn / 1e3 for p in q.plies], [p.n * 1e3 for p in q.plies], label=f"tau_xn, {lab}")
-        ax[1].plot([p.tau_sn / 1e3 for p in q.plies], [p.n * 1e3 for p in q.plies], ls="--", label=f"tau_sn, {lab}")
-    ax[1].set(xlabel="interlaminar shear (kPa)", ylabel="n (mm)", title="Mid-span, through the thickness")
+    for i, (q, lab) in enumerate(((cap, "top cap centre"), (web, "rear web centre"))):
+        for j, ply in enumerate(by_ply(q.plies)):
+            n = [p.n * 1e3 for p in ply]
+            ax[1].plot([p.tau_xn / 1e3 for p in ply], n, color=f"C{2 * i}", lw=1.0,
+                       label=f"tau_xn, {lab}" if j == 0 else None)
+            ax[1].plot([p.tau_sn / 1e3 for p in ply], n, color=f"C{2 * i + 1}", lw=1.0, ls="--",
+                       label=f"tau_sn, {lab}" if j == 0 else None)
+    ax[1].set(xlabel="interlaminar shear (kPa)", ylabel="n (mm)", title="Mid-span, through the thickness, per ply")
     ax[1].legend(fontsize=7)
     for a in ax:
         a.grid(alpha=0.3)
@@ -165,13 +181,13 @@ def _plots(results, cap, web, root, n_el):
     fig.savefig(os.path.join(HERE, "cap_stresses.png"), dpi=150)
 
     fig, ax = plt.subplots(1, 3, figsize=(11, 3.8), sharey=True)
-    n = [p.n * 1e3 for p in cap.plies]
     for i, lab in enumerate(("sigma_11", "sigma_22", "tau_12")):
-        ax[i].plot([p.stress_ply[i] / 1e6 for p in cap.plies], n)
+        for ply in by_ply(cap.plies):
+            ax[i].plot([p.stress_ply[i] / 1e6 for p in ply], [p.n * 1e3 for p in ply], color="C0", lw=1.2)
         ax[i].set(xlabel=f"{lab} (MPa)")
         ax[i].grid(alpha=0.3)
     ax[0].set_ylabel("n through the top cap (mm)")
-    fig.suptitle("Ply-axis stresses at mid-span, top cap centre")
+    fig.suptitle("Ply-axis stresses at mid-span, top cap centre (each ply drawn on its own)")
     fig.tight_layout()
     fig.savefig(os.path.join(HERE, "ply_stresses.png"), dpi=150)
     plt.close("all")

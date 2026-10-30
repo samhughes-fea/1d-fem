@@ -94,6 +94,26 @@ The parsed result reaches every element as `element.section_analysis` (a `Sectio
 
 Theory: [../element_library/thin_walled_section_walls.md](../element_library/thin_walled_section_walls.md).
 
+## `section_taper.txt` (optional)
+
+The taper coupling of each element's section (`SectionTaper`), in right-handed section
+axes. A wall that changes position along the beam (`r' = dr/dx`) carries part of the
+transverse shear in its axial stress. With the fibre strain
+`eps_f = eps + z kappa_y - y kappa_z + y' gamma_xy + z' gamma_xz` the section stiffness
+gains the coupling `C = int A f r'^T ds` (rows `eps`, `kappa_y`, `kappa_z`; columns
+`gamma_xy`, `gamma_xz`; `f = (1, z, -y)`) and the shear term `Q = int A r' r'^T ds`
+(`A` the wall's axial membrane stiffness). `section_taper` computes both from two cuts a
+short step apart.
+
+```
+[Section_Taper]
+[element_id] [C_eps_y] [C_eps_z] [C_ky_y] [C_ky_z] [C_kz_y] [C_kz_z] [Q_yy] [Q_yz] [Q_zz]
+0 1.2e7 -3.4e8 ...
+```
+
+Every listed element must have a section; GBT sections are refused.
+`blade_beam_job(..., taper=True)` (the default) writes this file from the loft.
+
 ## Sections from implicit-geometry-kernel, and `region_laminate.txt`
 
 `pre_processing/section_integration/thin_walled/from_geometry.py` turns a blade section

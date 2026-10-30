@@ -263,3 +263,12 @@ def bredt_multicell(analysis, torque: float) -> Dict[int, float]:
         for wid, s in c.items():
             q[wid] += s * sol[i]
     return q
+
+
+def by_ply(points) -> List[list]:
+    """Stress recovery points grouped by ply, in order through the thickness, for drawing
+    each ply on its own (the recovered stresses are piecewise in ``n``, broken at ply faces)."""
+    out: Dict[int, list] = {}
+    for p in points:
+        out.setdefault(p.ply, []).append(p)
+    return [out[k] for k in sorted(out)]
