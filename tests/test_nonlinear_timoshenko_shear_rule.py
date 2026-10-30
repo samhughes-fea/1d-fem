@@ -8,7 +8,6 @@ came out at -16.6 times its exact tip deflection.
 
 from __future__ import annotations
 
-import logging
 import os
 import sys
 import tempfile
@@ -49,7 +48,6 @@ def _elements(warping: bool, L: float = 0.5):
 
 @pytest.mark.parametrize("warping", [False, True])
 def test_internal_force_is_consistent_with_the_linear_stiffness(warping):
-    logging.disable(logging.WARNING)
     lin, nl = _elements(warping)
     Ke = lin.element_stiffness_matrix().K_e
     n = Ke.shape[0]
@@ -62,7 +60,6 @@ def test_internal_force_is_consistent_with_the_linear_stiffness(warping):
 
 
 def test_tangent_is_the_derivative_of_the_internal_force():
-    logging.disable(logging.WARNING)
     _, nl = _elements(False)
     rng = np.random.default_rng(3)
     U = rng.normal(size=12) * 1e-3
