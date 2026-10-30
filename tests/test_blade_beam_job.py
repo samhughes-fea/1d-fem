@@ -240,3 +240,24 @@ def test_rejects_types_without_frames(tmp_path):
         blade_beam_job(str(tmp_path / "x"), geo, LAMS, 1, element_type="LinearGBTBeamElement3D")
     with pytest.raises(ValueError, match="no node"):
         blade_beam_job(str(tmp_path / "x"), geo, LAMS, 2, loads={0.3: [0, 0, 1.0, 0, 0, 0]})
+
+
+def test_corotational_prebent_blade(tmp_path):
+    """A prebent, swept and twisted blade with corotational Timoshenko elements through the
+    nonlinear runner: at a small load it is the linear blade; under a large flap load the
+    tip runs in towards the root, as it must on a bent cantilever."""
+    st = [Station(0.0, 1.0, AF, pitch_axis=0.3), Station(2.0, 1.0, AF, twist=6.0, pitch_axis=0.3, offset=(0.02, 0.05)),
+          Station(4.0, 1.0, AF, twist=12.0, pitch_axis=0.3, offset=(0.06, 0.20))]
+    geo = geometry(st)
+    small = {4.0: blade_to_job([0, 10.0, 0, 0, 0, 0])}
+    lin = run(blade_beam_job(str(tmp_path / "lin"), geo, LAMS, 4, loads=small), tmp_path)
+    cr = run(blade_beam_job(str(tmp_path / "cr"), geo, LAMS, 4, loads=small,
+                            element_type="CorotationalTimoshenkoBeamElement3D"), tmp_path)
+    # the linear pretwisted element is condensed from 8 straight sub-elements, so it is the more refined
+    # of the two: 4 corotational elements are 1.3 % stiffer in flap
+    np.testing.assert_allclose(cr[:, :6], lin[:, :6], rtol=0, atol=2e-2 * np.abs(lin[:, :6]).max())
+    big_load = blade_to_job([0, 1.0, 0, 0, 0, 0]) * 10.0 * (0.4 / abs(lin[-1, 2]))   # linear tip: 10 % of span
+    big = run(blade_beam_job(str(tmp_path / "big"), geo, LAMS, 4, loads={4.0: big_load},
+                             element_type="CorotationalTimoshenkoBeamElement3D"), tmp_path)
+    assert 0.25 < big[-1, 2] < 0.4            # the flap deflection, a little below the linear 0.4
+    assert big[-1, 0] < -1e-3                 # the tip runs in along the span

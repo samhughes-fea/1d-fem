@@ -166,7 +166,11 @@ job = blade_beam_job("jobs/my_blade", geometry, {"skin": skin, "cap": cap, "web"
   `LinearBenscoterBeamElement3D`). `loads` are nodal and `line_loads` per length of the
   axis (`distributed_load.txt`, sampled at span positions), both in job axes.
 - Element types: `LinearTimoshenkoBeamElement3D` (default),
-  `LinearEulerBernoulliBeamElement3D`, `LinearBenscoterBeamElement3D`.
+  `LinearEulerBernoulliBeamElement3D`, `LinearBenscoterBeamElement3D`, and their
+  corotational versions (`CorotationalTimoshenkoBeamElement3D` and so on) for large
+  deflection. With a corotational type the job is nonlinear static by default
+  (`NONLINEAR_SETTINGS`, ten load increments), and each element is straight with its
+  section frame at mid-length, so use about twice as many elements as a linear blade.
 
 Cuts lie in planes of constant `z`, not normal to a bent axis; the difference is second
 order in the axis slope.
