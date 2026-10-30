@@ -135,3 +135,38 @@ skin_suction_surface:bay_2    4
 
 `parse_region_laminate_file(path)` returns `{label: laminate_id}`, which
 `thin_walled_from_cut(cut, mapping, library)` takes with `library = parse_laminate_file(...)`.
+
+## Blade beam jobs from implicit-geometry-kernel
+
+`pre_processing/mesh_library/blade_beam_job.py` writes a whole cantilever job for a
+`BladeGeometry`:
+
+```python
+from pre_processing.mesh_library.blade_beam_job import blade_beam_job, blade_to_job
+
+job = blade_beam_job("jobs/my_blade", geometry, {"skin": skin, "cap": cap, "web": web},
+                     n_elements=24, kind="thin_walled",               # or kind="2d"
+                     loads={geometry.stations[-1].z: blade_to_job([0, 1e3, 0, 0, 0, 0])})
+```
+
+- **Axes.** Job axes are `X = z` (span), `Y = x` (chord), `Z = y` (flap) of the blade
+  frame, so a straight blade lies along `X` and its element axes are the section axes.
+  `blade_to_job` and `job_to_blade` convert vectors and force-moment 6-vectors.
+- **Reference axis.** Nodes lie on the pitch axis, at the station offsets (sweep,
+  prebend). A bent or swept blade is a chain of straight elements.
+- **Sections.** Element `e` takes the cut at its mid-span as section `e + 1`, written to
+  `laminate.txt` and `section_geometry.txt` (thin-walled; equal laminates share an id)
+  or to `section_mesh_2d.txt` (2D layered mesh).
+- **Twist.** The cuts are already twisted, so a layout's flapwise webs stay normal to
+  the rotor plane, and the `[twist]` column is not used. The twist gradient is each
+  element's pretwist rate in `precurvature.txt`: `k_x0 = -(t_1 - t_0) / L` (radians per
+  metre, twist nose up). Pretwisted elements are the twisting arcs of
+  [element_frames.md](../element_library/element_frames.md).
+- **Supports and loads.** The root node is clamped (and its warping, for
+  `LinearBenscoterBeamElement3D`). Loads are nodal, in job axes; distributed loads are
+  not taken yet on rotated or curved meshes.
+- Element types: `LinearTimoshenkoBeamElement3D` (default),
+  `LinearEulerBernoulliBeamElement3D`, `LinearBenscoterBeamElement3D`.
+
+Cuts lie in planes of constant `z`, not normal to a bent axis; the difference is second
+order in the axis slope.

@@ -167,3 +167,27 @@ def parse_ply_material_file(filepath: str) -> Dict[int, PlyMaterial]:
     if PLY_MATERIAL_HEADER not in blocks:
         raise ValueError(f"Missing {PLY_MATERIAL_HEADER} block in {filepath}")
     return parse_ply_materials(*blocks[PLY_MATERIAL_HEADER])
+
+
+def format_laminate_file(laminates: Dict[int, WallLaminate]) -> str:
+    """Text of a ``laminate.txt`` for ``{laminate_id: WallLaminate}``.
+
+    Ply materials are numbered from 1 in order of first use (equal materials share an
+    id). The file has no shear correction column, so every laminate must use the
+    default 5/6.
+    """
+    from pre_processing.section_integration.thin_walled.laminate import DEFAULT_SHEAR_CORRECTION
+
+    mat_id: Dict[PlyMaterial, int] = {}
+    rows = []
+    for lid, lam in laminates.items():
+        if abs(lam.shear_correction - DEFAULT_SHEAR_CORRECTION) > 1e-12:
+            raise ValueError(f"laminate {lid}: laminate.txt has no shear correction column (needs 5/6)")
+        for k, ply in enumerate(lam.plies, start=1):
+            mid = mat_id.setdefault(ply.material, len(mat_id) + 1)
+            rows.append(f"{lid} {k} {mid} {float(ply.angle_deg)!r} {float(ply.thickness)!r}\n")
+    mats = "".join(
+        f"{mid} " + " ".join(repr(float(v)) for v in (m.E1, m.E2, m.G12, m.nu12, m.G13, m.G23, m.rho)) + "\n"
+        for m, mid in mat_id.items())
+    return ("[Ply_Material]\n" + " ".join(PLY_MATERIAL_SUBHEADER_RHO) + "\n" + mats
+            + "\n[Laminate]\n" + " ".join(LAMINATE_SUBHEADER) + "\n" + "".join(rows))
