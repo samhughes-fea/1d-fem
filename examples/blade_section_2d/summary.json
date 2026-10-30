@@ -1,0 +1,39 @@
+{
+ "station": 20,
+ "r": 84.65965517246,
+ "section_forces": [
+  0.0,
+  -4000000.0,
+  0.0,
+  0.0,
+  200000.0,
+  100000.0
+ ],
+ "n_elements": 2196,
+ "rows_per_ply": 2,
+ "cap_sigma_xx": {
+  "solid_2d": -115370762.33181362,
+  "thin_walled": -121754952.43698402,
+  "difference": -0.0524347468204599
+ },
+ "max_interface_shear": {
+  "below": 1537,
+  "above": 1538,
+  "y": 0.3880955348990121,
+  "z": -0.30525890652467813,
+  "sigma_nn": 1183442.48157684,
+  "tau_sn": 633594.8330910547,
+  "tau_xn": 2357624.9921833533,
+  "labels": [
+   "skin_pressure_surface:bay_0",
+   "spar_cap_pressure_surface"
+  ]
+ },
+ "n_interface_points": 834,
+ "panel": {
+  "y": 1.1693888634639895,
+  "n_elements": 8,
+  "core_tau_xn_max_2d": 41.8899837623221,
+  "tau_xn_max_thin_walled": 74.37980945254517
+ }
+}
