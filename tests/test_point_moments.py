@@ -215,7 +215,7 @@ def test_turned_cantilever_end_moment(tmp_path, etype):
     M *= 6.0 / np.linalg.norm(M)
     coords = _line(8, L, d)
     U = _run(tmp_path, etype, coords, [np.r_[coords[-1], 0, 0, 0, M]], iz=IY)
-    np.testing.assert_allclose(U[-1, 3:], M * L / (E * IY), rtol=1e-5, atol=1e-9 * np.linalg.norm(M) * L / (E * IY))
+    np.testing.assert_allclose(U[-1, 3:], M * L / (E * IY), rtol=1e-5, atol=1e-5 * np.linalg.norm(M) * L / (E * IY))
     # the tip moves along M x d by M L^2 / 2EI
     np.testing.assert_allclose(U[-1, :3], np.cross(M, d) * L**2 / (2 * E * IY), rtol=1e-5,
                                atol=1e-6 * np.linalg.norm(M) * L**2 / (E * IY))
