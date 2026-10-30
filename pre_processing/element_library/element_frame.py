@@ -152,14 +152,22 @@ def arc_geometry(p0: npt.ArrayLike, p1: npt.ArrayLike, curvature: npt.ArrayLike,
     return ArcGeometry(R_chord @ S, k, float(length), chord)
 
 
-def node_dof_rotation(R0: np.ndarray, R1: np.ndarray, n_dof: int, blocks: Optional[list] = None) -> np.ndarray:
+def node_dof_rotation(R0: np.ndarray, R1: np.ndarray, n_dof: int, blocks: Optional[list] = None,
+                      pairs: Optional[list] = None) -> np.ndarray:
     """``T`` with ``u_local = T @ u_global`` for an element whose nodes carry frames ``R0``, ``R1``.
 
     ``blocks`` lists ``(start, node)``: three DOFs from ``start`` are a vector at that node
     (default: the translations and rotations of the standard 12, ``[0, 3]`` at node 0 and
-    ``[6, 9]`` at node 1). Every other DOF (warping) is a scalar and maps to itself.
+    ``[6, 9]`` at node 1). ``pairs`` lists ``(start, node, N)``: two DOFs from ``start``
+    are the cross-section (``y``, ``z``) components of a vector held at the node in the
+    frame ``N`` (the node's own frame), mapped to the element's by
+    ``[e_y, e_z]^T [n_y, n_z]``: a plane rotation when the frames share their ``x``.
+    Every other DOF (warping, mode amplitudes) is a scalar and maps to itself.
     """
     T = np.eye(n_dof)
     for start, node in (blocks or [(0, 0), (3, 0), (6, 1), (9, 1)]):
         T[start:start + 3, start:start + 3] = (R0 if node == 0 else R1).T
+    for start, node, N in (pairs or ()):
+        R = R0 if node == 0 else R1
+        T[start:start + 2, start:start + 2] = R[:, 1:3].T @ np.asarray(N)[:, 1:3]
     return T

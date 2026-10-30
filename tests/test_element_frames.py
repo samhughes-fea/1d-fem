@@ -31,6 +31,7 @@ from pre_processing.section_integration.section_analysis import SectionAnalysis
 from tests.test_second_order import E, G, NU, channel
 
 EB, TS, BS = "LinearEulerBernoulliBeamElement3D", "LinearTimoshenkoBeamElement3D", "LinearBenscoterBeamElement3D"
+RD, LV = "LinearReddyBeamElement3D", "LinearLevinsonBeamElement3D"
 
 
 class Mesh:
@@ -172,7 +173,8 @@ def _turned_cantilever(etype, sa, d, twist, n=8, L=1.5):
     return ref, turned, R, U_ref, U
 
 
-@pytest.mark.parametrize("etype,sa", [(EB, None), (TS, None), (TS, "channel"), (BS, "channel")])
+@pytest.mark.parametrize("etype,sa", [(EB, None), (TS, None), (TS, "channel"), (BS, "channel"), (RD, "channel"),
+                                      (LV, "channel")])
 @pytest.mark.parametrize("d,twist", [([0.0, 1.0, 0.0], 0.0), ([1.0, 2.0, -2.0], 35.0), ([0.0, 0.0, -1.0], -70.0)])
 def test_a_turned_beam_is_the_beam_turned(etype, sa, d, twist):
     sa = channel() if sa else None
@@ -184,7 +186,10 @@ def test_a_turned_beam_is_the_beam_turned(etype, sa, d, twist):
         u = U[turned.dof(node, 0):turned.dof(node, turned.dpn)]
         np.testing.assert_allclose(u[:3], R @ u_ref[:3], atol=1e-10 * np.abs(u_ref).max())
         np.testing.assert_allclose(u[3:6], R @ u_ref[3:6], atol=1e-10 * np.abs(u_ref).max())
-        np.testing.assert_allclose(u[6:], u_ref[6:], atol=1e-10 * np.abs(u_ref).max())   # warping is a scalar
+        extra_ref = u_ref[6:].copy()
+        if etype in (RD, LV):     # a framed mesh holds the slopes as shear strains (framed_element._slope_T)
+            extra_ref = extra_ref - np.array([u_ref[5], -u_ref[4]])
+        np.testing.assert_allclose(u[6:], extra_ref, atol=1e-10 * np.abs(u_ref).max())   # warping is a scalar
     # mass and geometric stiffness turn the same way
     T = np.kron(np.eye(2 * (n + 1)), R.T) if ref.dpn == 6 else None
     if T is not None:
@@ -218,7 +223,7 @@ def _quarter_circle(etype, n, curved, Rc=1.0):
     return m, props
 
 
-@pytest.mark.parametrize("etype", [EB, TS])
+@pytest.mark.parametrize("etype", [EB, TS, RD, LV])
 @pytest.mark.parametrize("curved,n,tol", [(False, 48, 2e-3), (True, 4, 2e-3)])
 def test_quarter_circle_cantilever_out_of_plane(etype, curved, n, tol):
     Rc, P = 1.0, 10.0
@@ -231,7 +236,7 @@ def test_quarter_circle_cantilever_out_of_plane(etype, curved, n, tol):
     assert U[m.dof(n, 2)] == pytest.approx(ref, rel=tol)
 
 
-@pytest.mark.parametrize("etype", [EB, TS])
+@pytest.mark.parametrize("etype", [EB, TS, RD, LV])
 def test_quarter_circle_cantilever_in_plane(etype):
     """Radial tip force on a quarter circle: ``delta = P R^3 pi / (4 EI)`` along the force (Roark)."""
     Rc, P, n = 1.0, 10.0, 4
@@ -307,7 +312,7 @@ def test_pretwist_coupling_in_the_section():
 
 
 def test_frames_are_refused_where_not_supported():
-    with pytest.raises(NotImplementedError, match="Euler-Bernoulli, Timoshenko and Benscoter"):
+    with pytest.raises(NotImplementedError, match="linear beams only"):
         Mesh("CorotationalTimoshenkoBeamElement3D", _line([0, 0, 0], [0, 1, 0], 1.0, 2))
 
 

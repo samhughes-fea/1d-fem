@@ -42,7 +42,7 @@ from typing import Any, Dict
 
 import numpy as np
 
-from pre_processing.element_library.beam_load_interpolation import distributed_load_vector
+from pre_processing.element_library.beam_load_interpolation import beam_field_interpolation
 from pre_processing.element_library.element_frame import arc_geometry, node_dof_rotation, straight_frame
 
 FRAMED_KERNELS = (
@@ -107,7 +107,7 @@ def _mesh_cache(element_dictionary: Dict[str, Any], grid_dictionary: Dict[str, A
         for n in conn[i]:
             if owner[n] < 0:
                 owner[n] = i
-    cache = {"framed": framed, "owner": owner, "n_nodes": xyz.shape[0]}
+    cache = {"framed": framed, "owner": owner, "n_nodes": xyz.shape[0], "node_frames": None}
     try:
         element_dictionary["_frame_cache"] = cache
     except TypeError:
@@ -115,10 +115,50 @@ def _mesh_cache(element_dictionary: Dict[str, Any], grid_dictionary: Dict[str, A
     return cache
 
 
+def _node_frames(element_dictionary: Dict[str, Any], grid_dictionary: Dict[str, Any]) -> np.ndarray:
+    """(n_nodes, 3, 3): each node's own frame, the frame there of the lowest-numbered element
+    at the node. Node vectors held in section components (the slopes of the third-order
+    beams) are written in it."""
+    cache = _mesh_cache(element_dictionary, grid_dictionary)
+    if cache.get("node_frames") is None:
+        conn = np.asarray(element_dictionary["connectivity"])
+        frames = np.tile(np.eye(3), (cache["n_nodes"], 1, 1))
+        done = set()
+        for i in range(conn.shape[0]):
+            R0, R1, _ = _element_frames(element_dictionary, grid_dictionary, i)
+            for n, R in zip(conn[i], (R0, R1)):
+                if int(n) not in done:
+                    frames[n] = R
+                    done.add(int(n))
+        cache["node_frames"] = frames
+    return cache["node_frames"]
+
+
+def _slope_T(element, R0, R1, N0, N1, n_dof: int) -> np.ndarray:
+    """``node_dof_rotation`` with the slopes of a third-order beam held as shear strains.
+
+    The element's slope DOFs ``[v', w']`` (``frame_slope_dofs``) are the slopes along its
+    own axis. Across a kink or twist the slopes of two elements differ, so the node holds
+    the section shear strains ``[gamma_xy, gamma_xz]`` in its own frame ``N`` instead and
+    each element recovers its slopes as ``v' = gamma_xy + theta_z`` and
+    ``w' = gamma_xz - theta_y`` (its own components of the node rotation). On an element
+    whose frame is the node's, ``gamma`` is the shear strain of the element there.
+    """
+    slopes = getattr(type(element), "frame_slope_dofs", ())
+    T = node_dof_rotation(R0, R1, n_dof, pairs=[(st, nd, N0 if nd == 0 else N1) for st, nd in slopes])
+    for st, nd in slopes:
+        R = R0 if nd == 0 else R1
+        rot = 3 if nd == 0 else 9
+        T[st, rot:rot + 3] = R[:, 2]        # + theta_z (element axes)
+        T[st + 1, rot:rot + 3] = -R[:, 1]   # - theta_y
+    return T
+
+
 def setup_frame(element, element_dictionary, grid_dictionary, idx: int, ctor_kwargs: Dict[str, Any]) -> None:
     """Set the element's frame attributes and, on a framed mesh, its nodal point loads."""
     R0, R1, arc = _element_frames(element_dictionary, grid_dictionary, idx)
     element._frame_R0, element._frame_R1, element._frame_arc = R0, R1, arc
+    element._frame_N0 = element._frame_N1 = None
     element._frame_on = arc is not None or not _is_identity(R0, R1)
     element._frame_mesh = _mesh_cache(element_dictionary, grid_dictionary)["framed"]
     element._frame_nodal_load = None
@@ -130,7 +170,7 @@ def setup_frame(element, element_dictionary, grid_dictionary, idx: int, ctor_kwa
         raise NotImplementedError(
             f"Element {element.element_id} ({type(element).__name__}): rotated or curved elements "
             "(a beam off the global x axis, a [twist] column or precurvature.txt) are supported by the "
-            "linear Euler-Bernoulli, Timoshenko and Benscoter beams only.")
+            "linear beams only: Euler-Bernoulli, Timoshenko and Benscoter, GBT, Reddy and Levinson.")
     # distributed loads: global components per length of the beam axis, sampled along global X;
     # spread here along the element's own geometry (the kernels would read them in local x)
     dl = np.asarray(element.distributed_load_array)
@@ -141,6 +181,10 @@ def setup_frame(element, element_dictionary, grid_dictionary, idx: int, ctor_kwa
         element.distributed_load_array = np.zeros((0, dl.shape[1]))
     element._frame_p0 = np.asarray(grid_dictionary["coordinates"], dtype=np.float64)[
         element_dictionary["connectivity"][idx][0]].copy()
+    if getattr(type(element), "frame_slope_dofs", ()):
+        nf = _node_frames(element_dictionary, grid_dictionary)
+        n0, n1 = element_dictionary["connectivity"][idx]
+        element._frame_N0, element._frame_N1 = nf[n0], nf[n1]
     # wall loads are section (local) loads: the kernel builds them in the element's axes
     # point loads at this element's nodes, if it owns them (global components)
     cache = _mesh_cache(element_dictionary, grid_dictionary)
@@ -194,19 +238,36 @@ def _load_table(dl: np.ndarray):
     return table
 
 
-def _segment_load(table, p0: np.ndarray, R: np.ndarray, L: float, kind: str, n_gauss: int = 6) -> np.ndarray:
-    """Global nodal loads (12,) of the line load ``table`` on the straight segment from ``p0`` along ``R[:, 0]``."""
+def _field(element, L: float):
+    """``N(xi)`` (6, n): the element's work-conjugate right-handed fields over a length ``L``."""
+    own = getattr(type(element), "frame_load_fields", None)
+    if own is not None:
+        return lambda xi: own(element, xi)
+    kind = _bending_kind(element)
+    return lambda xi: beam_field_interpolation(xi, L, kind)
+
+
+def _segment_load(table, p0: np.ndarray, R: np.ndarray, L: float, N_of, T: np.ndarray, n_gauss: int = 6) -> np.ndarray:
+    """Global nodal loads of the line load ``table`` on the straight segment from ``p0`` along ``R[:, 0]``.
+
+    ``N_of(xi)`` (6, n) are the segment's fields in its own axes and ``T`` (n, n) its DOF
+    rotation; the result has the ``n`` DOFs of ``N_of``.
+    """
     xg, wg = np.polynomial.legendre.leggauss(n_gauss)
     pts = p0[None, :] + (0.5 * (xg + 1.0) * L)[:, None] * R[:, 0][None, :]
     q = table(pts[:, 0])
     q_local = np.hstack([q[:, :3] @ R, q[:, 3:] @ R])        # R^T q per point
-    F_local = distributed_load_vector(xg, wg, q_local, L, kind)
-    return node_dof_rotation(R, R, 12).T @ F_local
+    F_local = sum(N_of(x).T @ qg * (w * L / 2) for x, w, qg in zip(xg, wg, q_local))
+    return T[:F_local.size, :F_local.size].T @ F_local
 
 
 # ---------------------------------------------------------------------- kernels
 def _T(element, n_dof: int, R0=None, R1=None) -> np.ndarray:
-    return node_dof_rotation(element._frame_R0 if R0 is None else R0, element._frame_R1 if R1 is None else R1, n_dof)
+    R0 = element._frame_R0 if R0 is None else R0
+    R1 = element._frame_R1 if R1 is None else R1
+    if element._frame_N0 is not None:
+        return _slope_T(element, R0, R1, element._frame_N0, element._frame_N1, n_dof)
+    return node_dof_rotation(R0, R1, n_dof)
 
 
 def _with_K(obj, K):
@@ -253,7 +314,8 @@ def _straight(self, name, fn, *args, **kwargs):
         F = T.T @ out.F_e
         if self._frame_distributed is not None:
             L = float(self.grid_array[1, 0])
-            F[:12] += _segment_load(self._frame_distributed, self._frame_p0, self._frame_R0, L, _bending_kind(self))
+            Fd = _segment_load(self._frame_distributed, self._frame_p0, self._frame_R0, L, _field(self, L), T)
+            F[:Fd.size] += Fd
         if self._frame_nodal_load is not None:
             F = F.astype(np.result_type(F, self._frame_nodal_load))
             F[:12] += self._frame_nodal_load
@@ -320,7 +382,13 @@ class _Chain:
         self.dpn = n_dof // 2
         self.n_ext = self.dpn - 6
         self.K_sub = np.asarray(self.sub.element_stiffness_matrix().K_e, dtype=np.float64)
-        self.T = [node_dof_rotation(R, R, n_dof) for R in self.frames]
+        slopes = getattr(type(element), "frame_slope_dofs", ())
+        if slopes:
+            # chain node frames: the element's node frames at its ends, the sub-element frames inside
+            nodes = [element._frame_N0] + list(self.frames[1:]) + [element._frame_N1]
+            self.T = [_slope_T(element, R, R, nodes[i], nodes[i + 1], n_dof) for i, R in enumerate(self.frames)]
+        else:
+            self.T = [node_dof_rotation(R, R, n_dof) for R in self.frames]
         self.maps = [self._map(i) for i in range(m)]
         n = (m + 1) * self.dpn
         K = np.zeros((n, n))
@@ -376,11 +444,12 @@ class _Chain:
             h = arc.length / self.m
             p_mid = element._frame_p0 - (arc.position(-0.5 * arc.length, np.zeros(3)))
             chord = arc.sub_chord(self.m)
-            kind = _bending_kind(element)
-            for i, (R, g) in enumerate(zip(self.frames, self.maps)):
+            N_of = _field(self.sub, chord)
+            for i, (R, T, g) in enumerate(zip(self.frames, self.T, self.maps)):
                 p0 = arc.position(-0.5 * arc.length + i * h, p_mid)
                 # per length of the arc: each chord carries its arc's share
-                F[g[:12]] += _segment_load(table, p0, R, chord, kind) * (h / chord)
+                Fd = _segment_load(table, p0, R, chord, N_of, T) * (h / chord)
+                F[g[:Fd.size]] += Fd
         return self.Phi.T @ F if any_load else np.zeros(self.n_dof)
 
     def sub_displacements(self, U_e: np.ndarray):

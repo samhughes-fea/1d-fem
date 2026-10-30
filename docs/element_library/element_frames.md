@@ -75,9 +75,13 @@ small for a slender beam.
   samples' `X` range, so a beam must not run backwards in `X` beyond them.
 - Wall loads (`wall_load.txt`) are section loads, built in the element's own axes (each
   sub-element's, on a curved element) and turned to global.
-- GBT, Reddy, Levinson and the nonlinear elements refuse rotated or curved geometry. On
-  those elements `precurvature.txt` keeps its older meaning, a reference strain on a
-  straight element.
+- GBT, Reddy and Levinson beams take frames too. GBT mode amplitudes belong to the
+  section, so they map to themselves under the frame rotation. The Reddy and Levinson
+  slope DOFs are held at each node as the shear strains `γ_xy`, `γ_xz` in one frame for
+  the node (that of its lowest-numbered element); each element recovers its own slopes as
+  `v' = γ_xy + θ_z` and `w' = γ_xz − θ_y`, so slopes stay continuous through a kink.
+- The nonlinear elements refuse rotated or curved geometry. On those elements
+  `precurvature.txt` keeps its older meaning, a reference strain on a straight element.
 
 ## Checks (`tests/test_element_frames.py`)
 
@@ -89,3 +93,7 @@ small for a slender beam.
 | Helical spring, 3 turns, α = 8°, 48 straight elements per turn or 8 curved | Timoshenko / Wahl: `2π n P R³ / cos α (cos² α / GJ + sin² α / EI)` | within 0.4 % |
 | Pretwisted strip under tension (90° over its length) | Rosen's coupled extension and twist | within 0.1 %; it untwists |
 | Curved cantilever through the job runner (`precurvature.txt`, tip point load at the node) | Roark | within 0.2 % |
+| Reddy and Levinson cantilever turned and twisted (channel section) | the unturned beam, turned; slopes as shear strains | equal to round-off |
+| Quarter-circle cantilever, Reddy and Levinson: 48 straight or 4 curved elements | Roark, as above | within 0.06 % |
+| GBT box cantilever turned and twisted, 2 modes, through the job runner (`tests/test_frames_gbt.py`) | the unturned beam, turned; mode amplitudes unchanged | equal to round-off |
+| Quarter-circle GBT box cantilever, 8 curved elements, through the job runner | 64 straight chords through the same arc points (each curved element is 8 condensed sub-elements) | equal to round-off, mode amplitudes included |

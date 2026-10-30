@@ -63,7 +63,7 @@ class LinearGBTBeamElement3D(LinearTimoshenkoBeamElement3D):
     ``n_sv + shear_modes + 2 modes`` for the row (``attach_section_analyses`` sets it).
     """
 
-    supports_element_frame = False   # rotated or curved elements: not yet
+    supports_element_frame = True    # mode amplitudes are scalars: they map to themselves
 
     element_type_name = "GBT-3D"
     _thin_walled_warping_dof = True
