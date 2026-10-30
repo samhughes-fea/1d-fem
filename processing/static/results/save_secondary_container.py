@@ -189,7 +189,7 @@ class SaveSecondaryResults:
         nodal_res = self.results.nodal_results
 
         # Save nodal strain (variable components: bar 2, truss 3, beam 6)
-        if nodal_res.strain is not None:
+        if nodal_res.strain is not None and np.size(nodal_res.strain):
             filename = self.nodal_dir / "nodal_strain.csv"
             n_comp = nodal_res.strain.shape[1] if nodal_res.strain.ndim > 1 else nodal_res.strain.size
             header = _strain_header(n_comp)
@@ -199,7 +199,7 @@ class SaveSecondaryResults:
             logger.info(f"   ✓ Nodal strain saved: {nodal_res.strain.shape}")
 
         # Save nodal stress (variable components: bar 2, truss 3, beam 6)
-        if nodal_res.stress is not None:
+        if nodal_res.stress is not None and np.size(nodal_res.stress):
             filename = self.nodal_dir / "nodal_stress.csv"
             stress_out = nodal_res.stress
             n_comp = stress_out.shape[1] if stress_out.ndim > 1 else stress_out.size
@@ -278,7 +278,8 @@ class SaveSecondaryResultsSummary:
         if gauss_res.stress:
             all_stresses = np.concatenate([
                 np.array(elem_stress) for elem_stress in gauss_res.stress
-            ])
+            ]) if any(len(e) for e in gauss_res.stress) else np.zeros(0)
+        if gauss_res.stress and all_stresses.size:
             summary['max_stress'] = np.max(np.abs(all_stresses))
             summary['min_stress'] = np.min(np.abs(all_stresses))
             summary['mean_stress'] = np.mean(np.abs(all_stresses))
@@ -286,7 +287,8 @@ class SaveSecondaryResultsSummary:
         if gauss_res.strain:
             all_strains = np.concatenate([
                 np.array(elem_strain) for elem_strain in gauss_res.strain
-            ])
+            ]) if any(len(e) for e in gauss_res.strain) else np.zeros(0)
+        if gauss_res.strain and all_strains.size:
             summary['max_strain'] = np.max(np.abs(all_strains))
             summary['min_strain'] = np.min(np.abs(all_strains))
             summary['mean_strain'] = np.mean(np.abs(all_strains))
@@ -298,11 +300,11 @@ class SaveSecondaryResultsSummary:
         nodal_res = self.results.nodal_results
         summary = {}
 
-        if nodal_res.stress is not None:
+        if nodal_res.stress is not None and np.size(nodal_res.stress):
             summary['max_nodal_stress'] = np.max(np.abs(nodal_res.stress))
             summary['min_nodal_stress'] = np.min(np.abs(nodal_res.stress))
 
-        if nodal_res.strain is not None:
+        if nodal_res.strain is not None and np.size(nodal_res.strain):
             summary['max_nodal_strain'] = np.max(np.abs(nodal_res.strain))
             summary['min_nodal_strain'] = np.min(np.abs(nodal_res.strain))
 

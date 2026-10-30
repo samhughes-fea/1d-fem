@@ -16,11 +16,13 @@ from __future__ import annotations
 
 import csv
 import os
-from typing import Iterable, List, Sequence
+from typing import Iterable, List, Optional, Sequence
 
 import numpy as np
 
 from pre_processing.section_integration.thin_walled.element_recovery import element_wall_stress
+
+MANY_WALLS = 64
 
 WALL_STRESS_COLUMNS = (
     "element_id", "x", "wall_id", "s", "y", "z",
@@ -51,9 +53,13 @@ def write_wall_stresses(
     elements: Sequence,
     analyses: Sequence,
     U_global: np.ndarray,
-    points_per_wall: int = 5,
+    points_per_wall: Optional[int] = None,
 ) -> str:
-    """Write ``wall_stresses.csv`` for the elements that have a thin-walled analysis; return its path."""
+    """Write ``wall_stresses.csv`` for the elements that have a thin-walled analysis; return its path.
+
+    ``points_per_wall`` defaults to 5, or to 2 (the wall ends) on sections of more than
+    ``MANY_WALLS`` walls, such as a blade cut whose curved skins are many short walls.
+    """
     out_dir = os.path.join(job_results_dir, "secondary_results", "wall_stresses")
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, "wall_stresses.csv")
@@ -65,8 +71,9 @@ def write_wall_stresses(
             if an is None:
                 continue
             U_e = U[el.assemble_global_dof_indices()]
+            n = points_per_wall or (2 if len(an.section.walls) > MANY_WALLS else 5)
             try:
-                wr.writerows(element_wall_rows(el, U_e, an, points_per_wall))
+                wr.writerows(element_wall_rows(el, U_e, an, n))
             except NotImplementedError:
                 continue  # element type without wall recovery
     return path

@@ -122,3 +122,19 @@ def parse_section_geometry_file(
         sid: ThinWalledSection(points[sid], walls[sid], laminate_ids=lam, section_id=sid)
         for sid in sorted(points)
     }
+
+
+def format_section_geometry(sections: Dict[int, ThinWalledSection], n_sub: Optional[Dict[int, int]] = None) -> str:
+    """Text of a ``section_geometry.txt`` for ``{section_id: ThinWalledSection}``.
+
+    ``n_sub`` (``{section_id: n_sub}``) adds a ``[Section_Mesh]`` block.
+    """
+    pts = ["[Section_Point]", " ".join(POINT_SUBHEADER)]
+    walls = ["[Section_Wall]", " ".join(WALL_SUBHEADER)]
+    for sid, sec in sections.items():
+        pts += [f"{sid} {pid} {float(y)!r} {float(z)!r}" for pid, (y, z) in sec.points.items()]
+        walls += [f"{sid} {w.wall_id} {w.start} {w.end} {w.laminate_id}" for w in sec.walls]
+    out = pts + [""] + walls
+    if n_sub:
+        out += ["", "[Section_Mesh]", " ".join(MESH_SUBHEADER)] + [f"{sid} {int(n)}" for sid, n in n_sub.items()]
+    return "\n".join(out) + "\n"
