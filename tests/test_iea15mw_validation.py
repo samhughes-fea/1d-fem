@@ -52,3 +52,16 @@ def test_summary_conventions(iea):
     K6 = np.diag([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
     out = iea.summary_1dfem(K6, (0.0, 0.0), (0.0, 0.0), 1.0)
     assert (out["EA"], out["EI_flap"], out["EI_edge"], out["GJ"]) == pytest.approx((1.0, 2.0, 3.0, 6.0))
+
+
+def test_seventy_percent_span_prism_end_restraint():
+    """The longer prism keeps EA and EI and loses most of its extra shear and torsion stiffness."""
+    import json
+
+    ref = os.path.join(ROOT, "post_processing", "validation_visualisers", "iea15mw_sections", "reference")
+    short, long = (np.linalg.inv(np.array(json.load(open(os.path.join(ref, f)))["K"]))
+                   for f in ("prism_20.json", "prism_20_4chords.json"))
+    ratio = np.diag(short) / np.diag(long)       # long-prism over short-prism effective stiffness
+    assert np.abs(ratio[:3] - 1.0).max() < 1e-3   # N, M_y, M_z
+    assert 0.80 < ratio[3] < 0.88                 # edgewise shear (V_y, y chordwise)
+    assert 0.83 < ratio[5] < 0.89                 # torsion
