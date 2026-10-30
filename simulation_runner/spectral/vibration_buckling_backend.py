@@ -24,6 +24,7 @@ from pre_processing.parsing.simulation_settings_resolution import (
     effective_eigen_config,
 )
 from processing.boundary_supports import resolve_penalty_fixed_dofs
+from pre_processing.element_library.rotating_frame import rotation_from_settings
 from processing.common.primary_artifact_manifest import write_primary_artifact_manifest
 from processing.dynamic.assembly import assemble_global_force_vector
 from processing.eigen.metrics.directional_effective_mass import modal_effective_mass_fraction_z
@@ -731,16 +732,69 @@ class VibrationBucklingBackend:
                 job_results_dir, ke_list, me_list
             )
         with monitor.stage("ModifySpectralGlobalSystem"):
-            K_mod, M_mod, _ = self.modify_spectral_global_system(
+            K_mod, M_mod, bc_dofs = self.modify_spectral_global_system(
                 K_global, M_global, job_results_dir
             )
-        with monitor.stage("SolveGeneralizedEigenproblem"):
-            frequencies, mode_shapes = self.solve_vibration_eigenpairs(
-                K_mod, M_mod, num_modes, job_results_dir, dense_threshold=dense_th
-            )
+        rot_cfg = self.simulation_settings.get("rotation") or {}
+        if rotation_from_settings(self.simulation_settings) is not None or rot_cfg.get("omega_sweep"):
+            with monitor.stage("RotatingFrameVibration"):
+                frequencies, mode_shapes = self._run_rotating_frame_vibration(
+                    K_global, M_global, bc_dofs, num_modes, rot_cfg
+                )
+        else:
+            with monitor.stage("SolveGeneralizedEigenproblem"):
+                frequencies, mode_shapes = self.solve_vibration_eigenpairs(
+                    K_mod, M_mod, num_modes, job_results_dir, dense_threshold=dense_th
+                )
         self.save_vibration_primary_results(frequencies, mode_shapes)
         self.finalize_vibration_secondary_or_post(frequencies, mode_shapes, M_mod)
         logger.info("Modal simulation completed successfully -> %s", self.results_root)
+
+    def _run_rotating_frame_vibration(self, K_global, M_global, bc_dofs, num_modes: int, rot_cfg: dict):
+        """Rotating-frame vibration (``processing.eigen.rotating_frame``); writes ``primary_results/rotation``.
+
+        Returns the frequencies (Hz) and the real part of the modes, each scaled so its largest
+        component is 1; the complex modes of a gyroscopic run are written in full as well.
+        """
+        from processing.eigen.rotating_frame import campbell, rotating_frame_vibration
+        from pre_processing.element_library.rotating_frame import Rotation
+
+        rotation = rotation_from_settings(self.simulation_settings)
+        base = rotation or Rotation(1.0, tuple(rot_cfg.get("axis", (0.0, 0.0, 1.0))),
+                                    tuple(rot_cfg.get("origin", (0.0, 0.0, 0.0))))
+        gyro = bool(rot_cfg.get("gyroscopic", True))
+        pre = bool(rot_cfg.get("prestress", True))
+        coords = self.settings["grid_dictionary"]["coordinates"]
+        conn = self.settings["element_dictionary"]["connectivity"]
+        elements = list(self.elements)
+        out_dir = os.path.join(self.primary_results_dir, "rotation")
+        os.makedirs(out_dir, exist_ok=True)
+        sweep = rot_cfg.get("omega_sweep")
+        if sweep:
+            rows = campbell(elements, coords, conn, K_global, M_global, bc_dofs, base, sweep, num_modes, gyro, pre)
+            header = "omega_rad_s," + ",".join(f"f{j + 1}_hz" for j in range(num_modes))
+            np.savetxt(os.path.join(out_dir, "campbell.csv"), rows, delimiter=",", header=header, comments="")
+        if rotation is None:
+            rotation = base.with_omega(float(sweep[-1]))
+        res = rotating_frame_vibration(elements, coords, conn, K_global, M_global, bc_dofs, rotation, num_modes,
+                                       gyro, pre)
+        self.rotating_frame_result = res
+        np.savetxt(os.path.join(out_dir, "U_centrifugal.csv"), res.U_centrifugal, delimiter=",")
+        np.savetxt(os.path.join(out_dir, "f_centrifugal.csv"), res.f_centrifugal, delimiter=",")
+        np.savetxt(os.path.join(out_dir, "modes_real.csv"), res.modes.real, delimiter=",")
+        np.savetxt(os.path.join(out_dir, "modes_imag.csv"), res.modes.imag, delimiter=",")
+        with open(os.path.join(out_dir, "rotating_frame_gauss.csv"), "w", encoding="utf-8") as f:
+            f.write("element_id,xi,weight,jacobian,point,mass,X,Y,Z,r_x,r_y,r_z,f_x,f_y,f_z\n")
+            for o in res.element_objects:
+                for g in o.gauss_data:
+                    for k in range(g.masses.size):
+                        f.write(",".join(str(v) for v in (
+                            o.element_id, g.xi, g.weight, g.jacobian, k, g.masses[k], *g.positions[k],
+                            *g.offsets[k], *g.forces[k])) + "\n")
+        with open(os.path.join(out_dir, "rotation.txt"), "w", encoding="utf-8") as f:
+            f.write(f"omega_rad_s = {rotation.omega!r}\naxis = {rotation.axis}\norigin = {rotation.origin}\n"
+                    f"gyroscopic = {gyro}\nprestress = {pre}\n")
+        return res.frequencies_hz, res.modes.real
 
     def _run_buckling_analysis(self) -> None:
         buck_cfg = effective_buckling_config(self.simulation_settings)

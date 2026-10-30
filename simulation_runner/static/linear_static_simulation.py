@@ -188,6 +188,7 @@ class LinearStaticSimulationRunner:
         
         # [static] options: second_order = none | p_delta
         self.static_config = dict(simulation_settings.get("static") or {})
+        self.rotation_config = dict(simulation_settings.get("rotation") or {})
 
         # General simulation settings (optional or future expansion)
         self.solver_name = self.solver_config.get("type", "cg")
@@ -769,7 +770,31 @@ class LinearStaticSimulationRunner:
         if force_scale != 1.0:
             self.F_global = self.F_global * float(force_scale)
 
+        self._add_rotating_frame_terms()
         return self._solve_assembled_system()
+
+    def _add_rotating_frame_terms(self) -> None:
+        """``[Rotation]``: add the centrifugal load and the spin-softening and rotation-load
+        stiffness (``pre_processing.element_library.rotating_frame``) to the assembled system.
+        The centrifugal stiffening of the deformed state is not included (a linear solve)."""
+        from pre_processing.element_library.rotating_frame import rotation_from_settings
+
+        rotation = rotation_from_settings({"rotation": self.rotation_config})
+        if rotation is None:
+            return
+        from processing.eigen.rotating_frame import assemble_rotating_frame
+
+        f_c, K_soft, K_rot, _, objs = assemble_rotating_frame(
+            list(self.elements), self.grid_dictionary["coordinates"], self.element_dictionary["connectivity"],
+            rotation, int(self.total_dof))
+        self.K_global = (self.K_global + K_soft + K_rot).tocsr()
+        self.F_global = np.asarray(self.F_global, dtype=np.float64) + f_c
+        self.rotating_frame_objects = objs
+        if getattr(self, "primary_results_set", None) is not None:
+            self.primary_results_set.global_results.F_global = self.F_global
+            self.primary_results_set.global_results.K_global = self.K_global
+        logger.info("Rotating frame: omega = %s rad/s about %s; centrifugal load added", rotation.omega,
+                    rotation.axis)
 
     def _solve_assembled_system(self) -> np.ndarray:
         """BC → condense → solve → reconstruct for the assembled ``K_global``, ``F_global``."""
