@@ -492,9 +492,13 @@ def _curved(self, name, fn, *args, **kwargs):
 def local_state(element, U_e, xi: float):
     """``(element, U_local, xi_local)`` for recovering the section state at ``xi`` of ``element``.
 
-    For a curved element, the straight sub-element at ``xi`` with its own displacements.
+    For a curved element, the straight sub-element at ``xi`` with its own displacements. For a
+    corotational element, its local deformation (the state of its linear core).
     """
     U_e = np.asarray(U_e, dtype=np.float64)
+    if hasattr(element, "local_deformation"):
+        # corotational: the core element's small local displacements, rigid motion taken out
+        return element, element.local_deformation(U_e), xi
     if not getattr(element, "_frame_mesh", False):
         return element, U_e, xi
     if element._frame_arc is None:
