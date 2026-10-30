@@ -395,11 +395,20 @@ class LinearTimoshenkoBeamElement3D(GeometricStiffnessMixin, Element1DBase):
             D = self._D_matrix_7x7()
             xi_full, w_full = np.polynomial.legendre.leggauss(self.quadrature_order)
             gauss_cache = []
+            # transverse shear on the reduced shear rule, as in ``assemble_timoshenko_K0``: with the
+            # full rule the linear two-node element locks in bending
+            D_shear = np.zeros_like(D)
+            D_shear[3:5, 3:5] = D[3:5, 3:5]
+            xi_s, w_s = np.polynomial.legendre.leggauss(self._timoshenko_orders.shear_block)
+            detJ = self.jacobian_determinant
+            for xi_g, w_g in zip(xi_s, w_s):
+                N_12, dN_dξ_12, d2N_dξ2_12 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                B = self._B_matrix_7x14(dN_dξ_12, d2N_dξ2_12, N_12)[0]
+                Ke += B.T @ D_shear @ B * w_g * detJ
             for g, (xi_g, w_g) in enumerate(zip(xi_full, w_full)):
                 N_12, dN_dξ_12, d2N_dξ2_12 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
                 B = self._B_matrix_7x14(dN_dξ_12, d2N_dξ2_12, N_12)[0]
-                detJ = self.jacobian_determinant
-                Ke += B.T @ D @ B * w_g * detJ
+                Ke += B.T @ (D - D_shear) @ B * w_g * detJ
                 gauss_cache.append(StiffnessGaussPointData(
                     xi=float(xi_g),
                     weight=float(w_g),
