@@ -50,9 +50,10 @@ difference is second order in the axis slope.
 (``section_mesh_from_cut``, a conforming layered mesh). Both write
 ``element_section.txt``, section ``e + 1`` for element ``e``.
 
-Loads on these meshes are nodal point loads (rotated and curved elements do not take
-distributed loads yet). The classical ``material.txt`` and ``section.txt`` rows the
-parsers need are placeholders: the sections replace them.
+Loads are nodal point loads (``loads``) and line loads per length of the axis
+(``line_loads``, written to ``distributed_load.txt`` against span position). The
+classical ``material.txt`` and ``section.txt`` rows the parsers need are placeholders:
+the sections replace them.
 """
 
 from __future__ import annotations
@@ -170,6 +171,7 @@ def blade_beam_job(
     n_sub: int = 1,
     mesh_options: Optional[Mapping[str, object]] = None,
     loads: Optional[Mapping[float, Sequence[float]]] = None,
+    line_loads: Optional[Mapping[float, Sequence[float]]] = None,
     thickness_tol: float = 0.01,
     settings: str = _SETTINGS,
 ) -> BladeBeamJob:
@@ -203,6 +205,10 @@ def blade_beam_job(
     loads : mapping z -> 6 floats, optional
         Nodal loads ``[F_X, F_Y, F_Z, M_X, M_Y, M_Z]`` in job axes at nodes ``z``
         (``blade_to_job`` turns blade-frame loads).
+    line_loads : mapping z -> 6 floats, optional
+        Distributed loads per length of the axis, ``[q_X, q_Y, q_Z, m_X, m_Y, m_Z]`` in job
+        axes, sampled at span positions ``z`` (linear between them; the samples must cover
+        the blade).
     thickness_tol : float
     settings : str
         ``simulation_settings.txt`` text (default linear static, direct solver).
@@ -302,6 +308,13 @@ def blade_beam_job(
         job.loads[i] = job.loads.get(i, np.zeros(6)) + f
     for i, f in sorted(job.loads.items()):
         rows.append(" ".join(repr(float(v)) for v in nodes[i]) + " " + " ".join(repr(float(v)) for v in f) + "\n")
+    if line_loads:
+        zs = sorted(float(k) for k in line_loads)
+        if zs[0] > z[0] + 1e-9 * max(1.0, float(np.ptp(z))) or zs[-1] < z[-1] - 1e-9 * max(1.0, float(np.ptp(z))):
+            raise ValueError(f"line_loads must cover the blade, z = {z[0]} to {z[-1]}; they cover {zs[0]} to {zs[-1]}")
+        write("distributed_load.txt", "[Distributed load]\n[x] [y] [z] [F_x] [F_y] [F_z] [M_x] [M_y] [M_z]\n"
+              + "".join(f"{zl!r} 0.0 0.0 " + " ".join(repr(float(v)) for v in np.asarray(line_loads[zl], float).reshape(6))
+                        + "\n" for zl in sorted(line_loads, key=float)))
     write("point_load.txt", "[Point load]\n[x] [y] [z] [F_x] [F_y] [F_z] [M_x] [M_y] [M_z]\n" + "".join(rows))
     write("simulation_settings.txt", settings)
     return job

@@ -23,8 +23,12 @@ Curved, twisted element (``precurvature.txt``)
 
 Loads on a mesh with rotated or curved elements
     Point loads must sit on nodes; they are global components and are added once, to the
-    lowest-numbered element at the node. Distributed loads, wall loads and the
-    equivalent precurvature load are not supported on such meshes.
+    lowest-numbered element at the node. Distributed loads are global components per
+    length of the beam axis, sampled along global ``X`` (``distributed_load.txt``); each
+    element spreads them along its own geometry (straight, or along the arc's
+    sub-elements) with its work-conjugate fields. Wall loads are section loads, built in
+    the element's (or each sub-element's) own axes. A precurvature makes no equivalent
+    load: the curvature is in the geometry.
 
 Public API
 ----------
@@ -38,6 +42,7 @@ from typing import Any, Dict
 
 import numpy as np
 
+from pre_processing.element_library.beam_load_interpolation import distributed_load_vector
 from pre_processing.element_library.element_frame import arc_geometry, node_dof_rotation, straight_frame
 
 FRAMED_KERNELS = (
@@ -126,14 +131,17 @@ def setup_frame(element, element_dictionary, grid_dictionary, idx: int, ctor_kwa
             f"Element {element.element_id} ({type(element).__name__}): rotated or curved elements "
             "(a beam off the global x axis, a [twist] column or precurvature.txt) are supported by the "
             "linear Euler-Bernoulli, Timoshenko and Benscoter beams only.")
+    # distributed loads: global components per length of the beam axis, sampled along global X;
+    # spread here along the element's own geometry (the kernels would read them in local x)
     dl = np.asarray(element.distributed_load_array)
+    element._frame_distributed = None
     if dl.size and np.any(np.asarray(dl, dtype=np.float64)[:, 3:9] != 0.0):
-        raise NotImplementedError(
-            "distributed loads are not supported on a mesh with rotated or curved elements; "
-            "use point loads at the nodes")
-    wl = element_dictionary.get("wall_load_per_element")
-    if wl is not None and np.any(np.asarray(wl[idx], dtype=np.float64) != 0.0):
-        raise NotImplementedError("wall loads are not supported on a mesh with rotated or curved elements")
+        element._frame_distributed = _load_table(np.asarray(dl, dtype=np.float64))
+    if dl.size:
+        element.distributed_load_array = np.zeros((0, dl.shape[1]))
+    element._frame_p0 = np.asarray(grid_dictionary["coordinates"], dtype=np.float64)[
+        element_dictionary["connectivity"][idx][0]].copy()
+    # wall loads are section (local) loads: the kernel builds them in the element's axes
     # point loads at this element's nodes, if it owns them (global components)
     cache = _mesh_cache(element_dictionary, grid_dictionary)
     xyz = np.asarray(grid_dictionary["coordinates"], dtype=np.float64)
@@ -158,6 +166,42 @@ def setup_frame(element, element_dictionary, grid_dictionary, idx: int, ctor_kwa
     element._E_0_voigt = np.zeros_like(element._E_0_voigt)   # the curvature is in the geometry now
     if arc is not None:
         element._frame_ctor = ctor_kwargs
+
+
+# --------------------------------------------------------------- line loads on framed elements
+def _bending_kind(element) -> str:
+    """Field interpolation the element's loads are spread with (``beam_load_interpolation``)."""
+    return "hermite" if "EulerBernoulli" in type(element).__name__ else "linear"
+
+
+def _load_table(dl: np.ndarray):
+    """``q(X)``: the six global load components, linear in the global ``X`` of the samples."""
+    x = np.asarray(dl[:, 0], dtype=np.float64)
+    order = np.argsort(x, kind="stable")
+    xs, q = x[order], np.asarray(dl[order, 3:9])
+    span = max(float(xs[-1] - xs[0]), 1.0)
+
+    def table(X):
+        X = np.atleast_1d(np.asarray(X, dtype=np.float64))
+        if np.any(X < xs[0] - 1e-9 * span) or np.any(X > xs[-1] + 1e-9 * span):
+            raise ValueError(
+                f"distributed load samples cover X = {xs[0]:g} to {xs[-1]:g}; the element reaches "
+                f"X = {X.min():g} to {X.max():g}")
+        if xs.size == 1:
+            return np.repeat(q[:1], X.size, axis=0)
+        return np.column_stack([np.interp(X, xs, q[:, j]) for j in range(6)])
+
+    return table
+
+
+def _segment_load(table, p0: np.ndarray, R: np.ndarray, L: float, kind: str, n_gauss: int = 6) -> np.ndarray:
+    """Global nodal loads (12,) of the line load ``table`` on the straight segment from ``p0`` along ``R[:, 0]``."""
+    xg, wg = np.polynomial.legendre.leggauss(n_gauss)
+    pts = p0[None, :] + (0.5 * (xg + 1.0) * L)[:, None] * R[:, 0][None, :]
+    q = table(pts[:, 0])
+    q_local = np.hstack([q[:, :3] @ R, q[:, 3:] @ R])        # R^T q per point
+    F_local = distributed_load_vector(xg, wg, q_local, L, kind)
+    return node_dof_rotation(R, R, 12).T @ F_local
 
 
 # ---------------------------------------------------------------------- kernels
@@ -207,6 +251,9 @@ def _straight(self, name, fn, *args, **kwargs):
     elif name == "element_force_vector":
         T = _T(self, out.F_e.shape[0])
         F = T.T @ out.F_e
+        if self._frame_distributed is not None:
+            L = float(self.grid_array[1, 0])
+            F[:12] += _segment_load(self._frame_distributed, self._frame_p0, self._frame_R0, L, _bending_kind(self))
         if self._frame_nodal_load is not None:
             F = F.astype(np.result_type(F, self._frame_nodal_load))
             F[:12] += self._frame_nodal_load
@@ -313,6 +360,29 @@ class _Chain:
             K[np.ix_(g, g)] += T.T @ Ks @ T
         return self.Phi.T @ K @ self.Phi
 
+    def line_load(self, element) -> np.ndarray:
+        """Nodal loads of the element's distributed and wall loads, condensed from the sub-elements."""
+        F = np.zeros((self.m + 1) * self.dpn)
+        any_load = False
+        F_wall = np.asarray(self.sub.element_force_vector().F_e, dtype=np.float64)   # wall loads, local
+        if np.any(F_wall != 0.0):
+            any_load = True
+            for T, g in zip(self.T, self.maps):
+                F[g] += T.T @ F_wall
+        table = element._frame_distributed
+        if table is not None:
+            any_load = True
+            arc = element._frame_arc
+            h = arc.length / self.m
+            p_mid = element._frame_p0 - (arc.position(-0.5 * arc.length, np.zeros(3)))
+            chord = arc.sub_chord(self.m)
+            kind = _bending_kind(element)
+            for i, (R, g) in enumerate(zip(self.frames, self.maps)):
+                p0 = arc.position(-0.5 * arc.length + i * h, p_mid)
+                # per length of the arc: each chord carries its arc's share
+                F[g[:12]] += _segment_load(table, p0, R, chord, kind) * (h / chord)
+        return self.Phi.T @ F if any_load else np.zeros(self.n_dof)
+
     def sub_displacements(self, U_e: np.ndarray):
         """Each sub-element's displacements in its own axes."""
         U = self.Phi @ np.asarray(U_e, dtype=np.float64)
@@ -337,6 +407,7 @@ def _curved(self, name, fn, *args, **kwargs):
     if name == "element_force_vector":
         F = np.zeros(c.n_dof, dtype=np.result_type(float, self._frame_nodal_load))
         F[:12] += self._frame_nodal_load
+        F += c.line_load(self)
         return ForceObject(element_id=self.element_id, element_type=type(self).__name__, F_e=F, gauss_data=[])
     if name == "element_mass_matrix":
         M_sub = np.asarray(c.sub.element_mass_matrix().M_e, dtype=np.float64)

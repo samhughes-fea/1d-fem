@@ -67,7 +67,14 @@ small for a slender beam.
 
 - On a mesh with any rotated or curved element, point loads must sit on nodes. They are
   global components, located by their `x`, `y`, `z` and applied once at the node.
-- Distributed loads and wall loads are not supported on such meshes.
+- Distributed loads (`distributed_load.txt`) are global components per length of the
+  beam axis, sampled along global `X`: each element interpolates them at points along its
+  own geometry, turns them into its axes and spreads them with its work-conjugate fields
+  (Hermite for Euler-Bernoulli, linear otherwise). A curved element does this on each of
+  its sub-elements before condensing. Every point of the axis must lie inside the
+  samples' `X` range, so a beam must not run backwards in `X` beyond them.
+- Wall loads (`wall_load.txt`) are section loads, built in the element's own axes (each
+  sub-element's, on a curved element) and turned to global.
 - GBT, Reddy, Levinson and the nonlinear elements refuse rotated or curved geometry. On
   those elements `precurvature.txt` keeps its older meaning, a reference strain on a
   straight element.
