@@ -552,6 +552,14 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
                 )
             if prescribed_displacement_dict is not None:
                 runner.prescribed_displacements = prescribed_displacement_dict
+            from processing.static.follower_loads import FOLLOWER_LOAD_FILE, parse_follower_load
+
+            follower_path = os.path.join(job_dir, FOLLOWER_LOAD_FILE)
+            if os.path.exists(follower_path):
+                if resolved != "nonlinear":
+                    raise ValueError(f"{FOLLOWER_LOAD_FILE} needs a nonlinear static job (a follower load "
+                                     "turns with the structure)")
+                runner.follower_load_rows = parse_follower_load(follower_path)
 
         elif solver_type == "eigen":
             from simulation_runner.eigen.eigen_simulation import EigenSimulationRunner
