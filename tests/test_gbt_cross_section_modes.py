@@ -116,10 +116,13 @@ def test_gbt_mass_rigid_block_matches_section_mass():
     assert np.linalg.eigvalsh(sa.gbt_mass).min() > -1e-10 * np.abs(sa.gbt_mass).max()
 
 
-def test_modes_need_restrained_hoop():
+def test_modes_use_restrained_hoop():
+    """A free-hoop analysis is rebuilt restrained: the modes carry the hoop bending."""
     an = box()
-    with pytest.raises(ValueError, match="restrained"):
-        CrossSectionModes(ThinWalledSectionAnalysis(an.section, an.laminates, hoop="free"))
+    free = CrossSectionModes(ThinWalledSectionAnalysis(an.section, an.laminates, hoop="free"))
+    assert free.analysis.hoop == "restrained"
+    ref = CrossSectionModes(ThinWalledSectionAnalysis(an.section, an.laminates, hoop="restrained"))
+    np.testing.assert_allclose(free.eigenvalues, ref.eigenvalues, rtol=1e-12)
 
 
 # --------------------------------------------------------------------------- #
