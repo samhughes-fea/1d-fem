@@ -18,6 +18,7 @@ import logging
 from typing import List, Tuple
 
 import numpy as np
+from pre_processing.element_library.beam_load_interpolation import beam_field_interpolation
 
 from pre_processing.element_library.beam_warping import (
     beam_warping_policy,
@@ -779,7 +780,7 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
             )
             q_gauss = interpolator.interpolate(x_gauss)
             N = np.stack([
-                self.shape_function_operator.natural_coordinate_form(np.array([xi]))[0][0]
+                beam_field_interpolation(xi, self.L, "linear").T
                 for xi in xi_gauss
             ])
             Fe_dist = np.einsum("gij,gj,g->i", N, q_gauss, weights) * (self.L / 2)
@@ -811,7 +812,7 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
             if not self._is_point_in_element(x_p):
                 continue
             xi_p = 2 * (x_p - self.x_start) / self.L - 1
-            N_p = self.shape_function_operator.natural_coordinate_form(np.array([xi_p]))[0][0]
+            N_p = beam_field_interpolation(xi_p, self.L, "linear").T   # (12, 6), right-handed
             Fe_trans = np.einsum("ij,j->i", N_p[[0, 1, 2, 6, 7, 8], :3], F_p[:3])
             Fe_rot = np.einsum("ij,j->i", N_p[[3, 4, 5, 9, 10, 11], 3:], F_p[3:])
             inc = np.zeros(12, dtype=np.float64)

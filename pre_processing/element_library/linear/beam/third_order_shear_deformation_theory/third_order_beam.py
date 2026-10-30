@@ -247,7 +247,7 @@ class ThirdOrderShearBeamElement3D(LinearTimoshenkoBeamElement3D):
                 n_gauss_points=len(xi_g),
             ).interpolate(x_g)
             for k, (xi, w) in enumerate(zip(xi_g, w_g)):
-                Nq = self._field_interpolation(xi)
+                Nq = self._field_interpolation(xi, element_signs=False)
                 Fe += Nq.T @ q_g[k] * w * detJ
                 gauss_cache.append(ForceGaussPointData(
                     xi=float(xi), weight=float(w), shape_functions=Nq.T.copy(), jacobian=float(detJ),
@@ -260,7 +260,7 @@ class ThirdOrderShearBeamElement3D(LinearTimoshenkoBeamElement3D):
                 if not self._is_point_in_element(x_p):
                     continue
                 xi_p = 2 * (x_p - self.x_start) / self.L - 1
-                inc = self._field_interpolation(xi_p).T @ load[3:9].astype(np.float64)
+                inc = self._field_interpolation(xi_p, element_signs=False).T @ load[3:9].astype(np.float64)
                 Fe = add_phased_increment(Fe, inc, point_load_phase_rad(load))
             point_cache = self.point_load_array.copy()
         if self.logger_operator:

@@ -104,6 +104,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- **Point moments and line loads on beams** (`pre_processing/element_library/beam_load_interpolation.py`). Loads are now spread with each element's own displacement and rotation fields, so they do work-conjugate virtual work. Before, Euler-Bernoulli elements (linear and nonlinear) dropped nodal `M_y` and `M_z` and gave line loads no end moments, and the Timoshenko, Benscoter, GBT, Reddy and Levinson elements applied `M_y` with the wrong sign. All loads are global and right-handed, like the nodal DOFs. The nonlinear Euler-Bernoulli element also counted a load at a node shared by two elements twice. Checked by end loads in all six directions on every linear beam type, interior and turned-beam moments, and the exact nodal response of Hermite elements under a uniform line load (`tests/test_point_moments.py`).
 - **Warping meshes (7 DOF per node):** `Element1DBase.assemble_global_dof_indices` now returns indices in the element's own order `[n1 0..5, n2 0..5, n1 W, n2 W]`. Before, it returned them node-major while every 14-DOF beam builds `K_e` with the two warping DOFs last, so `process_job` mixed the warping DOF of node 1 with `u_x` of node 2. Element-level results were unaffected.
 
 ### Changed

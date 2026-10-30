@@ -26,6 +26,7 @@ for that element even if the section defines Γ.
 """
 
 import numpy as np
+from pre_processing.element_library.beam_load_interpolation import beam_field_interpolation
 from pre_processing.element_library.linear.beam.second_order import GeometricStiffnessMixin
 from typing import Optional, Tuple
 
@@ -644,8 +645,7 @@ class LinearEulerBernoulliBeamElement3D(GeometricStiffnessMixin, Element1DBase):
                 n_gauss_points=self.quadrature_order
             )
             q_gauss = interpolator.interpolate(x_gauss)
-            N = np.stack([self.shape_function_operator.natural_coordinate_form(xi)[0][0]
-                        for xi in xi_gauss])
+            N = np.stack([beam_field_interpolation(xi, self.L, "hermite").T for xi in xi_gauss])
             Fe_dist = np.einsum("gij,gj,g->i", N, q_gauss, weights) * (self.L / 2)
             
             # Cache Gauss point data
@@ -682,13 +682,11 @@ class LinearEulerBernoulliBeamElement3D(GeometricStiffnessMixin, Element1DBase):
                 continue
 
             xi_p = 2 * (x_p - self.x_start) / self.L - 1
-            N_p = self.shape_function_operator.natural_coordinate_form(np.array([xi_p]))[0][0]
+            N_p = beam_field_interpolation(xi_p, self.L, "hermite").T   # (12, 6), right-handed
 
-            Fe_trans = np.einsum("ij,j->i", N_p[[0, 1, 2, 6, 7, 8], :3], F_p[:3])
-            Fe_rot = np.einsum("ij,j->i", N_p[[3, 4, 5, 9, 10, 11], 3:], F_p[3:])
-            inc = np.zeros(12, dtype=np.float64)
-            inc[[0, 1, 2, 6, 7, 8]] = Fe_trans
-            inc[[3, 4, 5, 9, 10, 11]] = Fe_rot
+            inc = N_p @ F_p
+            Fe_trans = inc[[0, 1, 2, 6, 7, 8]]
+            Fe_rot = inc[[3, 4, 5, 9, 10, 11]]
             Fe_point = add_phased_increment(Fe_point, inc, point_load_phase_rad(load))
 
             if self.logger_operator:
