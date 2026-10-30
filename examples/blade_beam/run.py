@@ -128,6 +128,12 @@ def run_static(work, n) -> dict:
 
             job = _job(f"{model}_{case}", work, model, n, loads={G.LENGTH: blade_to_job(load)})
             out[model][case] = _tip(_run(job, work), job).tolist()
+    out["untapered"] = {}
+    for case, (load, _) in STATIC.items():
+        from pre_processing.mesh_library.blade_beam_job import blade_to_job
+
+        job = _job(f"untapered_{case}", work, TW, n, taper=False, loads={G.LENGTH: blade_to_job(load)})
+        out["untapered"][case] = _tip(_run(job, work), job).tolist()
     out["prismatic"] = {}
     for case, (load, _) in STATIC.items():
         from pre_processing.mesh_library.blade_beam_job import blade_to_job
@@ -165,6 +171,8 @@ def compare(static, modal, nonlinear, ref) -> dict:
     out = {"static": {}, "static_prismatic": {}, "modal": {}, "nonlinear": {}}
     for model in MODELS:
         out["static"][model] = {case: static[model][case][k] / s_ref[case][k] - 1.0 for case, (_, k) in STATIC.items()}
+    out["static_untapered"] = {TW: {case: static["untapered"][case][k] / s_ref[case][k] - 1.0
+                                    for case, (_, k) in STATIC.items()}}
     sp = ref["static_prismatic"]["tip"]
     out["static_prismatic"][TW] = {case: static["prismatic"][case][k] / sp[case][k] - 1.0 for case, (_, k) in STATIC.items()}
     # shell modes, classified the same way; beam modes matched in order within each kind
@@ -236,9 +244,10 @@ def figures(result, ref, out_dir):
     cases = list(STATIC)
     x = np.arange(len(cases))
     series = [(m, cmp_["static"][m], NAMES[m]) for m in MODELS]
+    series.insert(0, ("untapered", cmp_["static_untapered"][TW], "Timoshenko, thin-walled, no taper coupling"))
     series.append(("prismatic", cmp_["static_prismatic"][TW], "Timoshenko, thin-walled, prismatic segment"))
     w = 0.8 / len(series)
-    cols = dict(COLOURS, prismatic="#6250d6")
+    cols = dict(COLOURS, prismatic="#6250d6", untapered="#a3a29b")
     for j, (key, vals, lab) in enumerate(series):
         xs = x - 0.4 + w * (j + 0.5)
         v = [100 * vals[c] for c in cases]
@@ -248,7 +257,7 @@ def figures(result, ref, out_dir):
     ax.axhline(0, color="#8b8a83", lw=0.8)
     ax.set_xticks(x, ["flap tip deflection", "edge tip deflection", "tip twist"])
     ax.set_ylabel("beam against shell, %", fontsize=8)
-    ax.set_ylim(-4, 8)
+    ax.set_ylim(-6, 8)
     ax.legend(fontsize=7, frameon=False, loc="upper center", ncol=2)
     ax.set_title("Static tip response (grey: 3 % target)", fontsize=9, loc="left")
     _style(ax)
@@ -285,18 +294,19 @@ def figures(result, ref, out_dir):
     lin_s = ref["static"]["tip"]["flap"][1] / 1e4
     nl = np.array(result["nonlinear"]["rows"], dtype=float)
     ax = axes[0]
-    ax.plot(sh[:, 0] * P / 1e6, sh[:, 2], "-", color=COLOURS["shell"], lw=1.2, label="CLM shell, CalculiX NLGEOM")
-    ax.plot(nl[:, 0] * P / 1e6, nl[:, 2], "o", color=COLOURS[TW], ms=5, label="corotational Timoshenko")
+    ax.plot(sh[:, 0] * P / 1e6, sh[:, 2], "s", color=COLOURS["shell"], ms=4, mfc="none",
+            label="CLM shell, CalculiX NLGEOM increments")
+    ax.plot(nl[:, 0] * P / 1e6, nl[:, 2], "o", color=COLOURS[TW], ms=5, label="corotational Timoshenko load steps")
     f = np.linspace(0, 0.5, 2)
-    ax.plot(f * P / 1e6, lin * f * P, "--", color=COLOURS[TW], lw=0.8, label="linear Timoshenko")
-    ax.plot(f * P / 1e6, lin_s * f * P, "--", color=COLOURS["shell"], lw=0.8, label="linear shell")
+    ax.plot(f * P / 1e6, lin * f * P, "--", color=COLOURS[TW], lw=0.8, label="linear Timoshenko (exactly linear in load)")
+    ax.plot(f * P / 1e6, lin_s * f * P, "--", color=COLOURS["shell"], lw=0.8, label="linear shell (exactly linear in load)")
     ax.set_xlabel("flapwise tip force, MN", fontsize=8)
     ax.set_ylabel("flap tip deflection, m", fontsize=8)
     ax.legend(fontsize=7, frameon=False)
     _style(ax)
     ax = axes[1]
-    ax.plot(sh[:, 2], -sh[:, 3], "-", color=COLOURS["shell"], lw=1.2, label="shell")
-    ax.plot(nl[:, 2], -nl[:, 3], "o", color=COLOURS[TW], ms=5, label="corotational beam")
+    ax.plot(sh[:, 2], -sh[:, 3], "s", color=COLOURS["shell"], ms=4, mfc="none", label="shell increments")
+    ax.plot(nl[:, 2], -nl[:, 3], "o", color=COLOURS[TW], ms=5, label="corotational beam load steps")
     ax.set_xlabel("flap tip deflection, m", fontsize=8)
     ax.set_ylabel("tip shortening, m", fontsize=8)
     _style(ax)

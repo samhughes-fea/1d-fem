@@ -33,22 +33,25 @@ layered `Q8` elements.
 
 | Beam against shell | Flap tip deflection | Edge tip deflection | Tip twist |
 |---|---|---|---|
-| Timoshenko, thin-walled | +5.5 % | +0.9 % | +4.1 % |
-| Benscoter, thin-walled | +5.5 % | +0.9 % | +1.5 % |
-| Timoshenko, 2D sections | −0.3 % | −1.8 % | −0.2 % |
+| Timoshenko, thin-walled | +0.5 % | +0.2 % | +4.1 % |
+| Benscoter, thin-walled | +0.5 % | +0.2 % | +1.5 % |
+| Timoshenko, thin-walled, no taper coupling | +5.5 % | +0.9 % | +4.1 % |
 | Timoshenko, thin-walled, prismatic segment | +0.5 % | +0.4 % | +4.1 % |
+| Timoshenko, 2D sections | −4.7 % | −2.5 % | −0.2 % |
 
-- **Flap on the tapered blade is 5.5 % soft, because of taper.** On a prismatic segment
-  with the tip section all along, the same beam is within 0.5 %. The beam elements are
-  prismatic. In a tapered blade the inclined caps carry part of the shear (the Resal
-  effect), which the elements leave out.
+- **Flap and edge agree within 0.5 % once the taper coupling is in.** `blade_beam_job`
+  writes `section_taper.txt` from the change of each section along the element
+  (`section_taper_from_geometry`). In a tapered blade the inclined caps carry part of
+  the shear (the Resal effect); without that coupling the beam is 5.5 % soft in flap. On a
+  prismatic segment, where there is no taper, the beam is within 0.5 % either way.
 - **Torsion is 4 % stiff with Timoshenko elements and 1.5 % with Benscoter.** The 4 %
-  stays on the prismatic segment, so it is not taper. Most of it is warping restraint at
-  the clamp, which only Benscoter models. The remaining 1.5 % is open.
-- **The 2D sections agree within 2 % for a different reason.** Their caps hold 6.5 % more
-  carbon than the thin-walled caps (see
-  `post_processing/validation_visualisers/iea15mw_sections`). That stiffens them by about
-  the amount the taper softens them, so the match is partly a cancellation.
+  stays on the prismatic segment and with the taper coupling, so it is not taper. Most of
+  it is warping restraint at the clamp, which only Benscoter models. The remaining 1.5 % is
+  open.
+- **The 2D sections are 2–5 % stiff in bending** because their caps hold 6.5 % more carbon
+  than the thin-walled caps (see `post_processing/validation_visualisers/iea15mw_sections`).
+  Before the taper coupling this cancelled the taper softening and the 2D model looked
+  within 2 %.
 
 ## Modal
 
@@ -56,16 +59,16 @@ layered `Q8` elements.
 
 | Mode | Shell | Timoshenko | Benscoter |
 |---|---|---|---|
-| 1 flap | 3.64 Hz | −3.3 % | −3.2 % |
-| 2 edge | 4.68 Hz | −0.8 % | −0.8 % |
-| 3 torsion | 10.02 Hz | +6.9 % | +10.4 % |
-| 4 torsion with flap | 12.10 Hz | +6.7 % | +6.9 % |
+| 1 flap | 3.64 Hz | −0.3 % | −0.2 % |
+| 2 edge | 4.68 Hz | −0.3 % | −0.3 % |
+| 3 torsion | 10.02 Hz | +6.8 % | +10.2 % |
+| 4 torsion with flap | 12.10 Hz | +7.4 % | +7.6 % |
 
-Flap and edge agree within the 3 % target, with flap low for the same taper reason as in
-the static case. The torsion modes are 7 to 10 % high, which is more than the static
-stiffness accounts for (a 4 % stiffness difference moves a frequency by about 2 %). The
-rest is probably the polar mass inertia of the thin-walled section against the shell's
-distributed mass, and is not yet explained.
+Flap and edge agree within 0.3 % (they were 3.3 % and 0.8 % low before the taper coupling).
+The torsion modes are 7 to 10 % high, which is more than the static stiffness accounts for
+(a 4 % stiffness difference moves a frequency by about 2 %). The rest is probably the
+polar mass inertia of the thin-walled section against the shell's distributed mass, and
+is not yet explained.
 
 Above 13 Hz the shell has local panel modes that a beam cannot have, so only the first
 four modes are compared.
@@ -77,8 +80,10 @@ deflects the tip 1.41 m, or 7 % of the span.
 
 ![Nonlinear](nonlinear.png)
 
-- The beam stays within 5 % of the CalculiX `NLGEOM` shell all along the load path. That
-  is the same gap as in the linear flap case.
+The shell increments and beam load steps are shown as the discrete points they are; the
+dashed lines are the linear solutions, which are exactly linear in the load.
+
+- The beam stays within 0.6 % of the CalculiX `NLGEOM` shell all along the load path.
 - Both models are close to linear at this deflection: the ratio to the linear solution is
   0.995 for the beam and 1.008 for the shell.
 - The beam's tip shortening follows the shell's.
