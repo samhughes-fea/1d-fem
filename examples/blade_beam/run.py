@@ -308,7 +308,16 @@ def figures(result, ref, out_dir):
 
 def main(n_elements: int = 20, plot: bool = True, work_dir: Optional[str] = None, parts=("static", "modal", "nonlinear"),
          out_dir: str = HERE) -> dict:
+    """Run the example (see the module docstring); logging below warnings is off while it runs."""
     logging.disable(logging.WARNING)
+    try:
+        return _main(n_elements=n_elements, plot=plot, work_dir=work_dir, parts=parts, out_dir=out_dir)
+    finally:
+        logging.disable(logging.NOTSET)
+
+
+def _main(n_elements: int = 20, plot: bool = True, work_dir: Optional[str] = None, parts=("static", "modal", "nonlinear"),
+          out_dir: str = HERE) -> dict:
     work = work_dir or HERE
     for d in ("jobs", "results"):
         shutil.rmtree(os.path.join(work, d), ignore_errors=True)
