@@ -147,9 +147,27 @@ def _reference_frame(d: np.ndarray) -> np.ndarray:
 class CorotationalMixin:
     """Corotational large-displacement behaviour on top of a linear element core."""
 
-    supports_element_frame = False   # rotated or curved elements: not yet
+    supports_element_frame = True
 
     supports_section_analysis = True
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        arc = getattr(self, "_frame_arc", None)
+        if arc is not None:
+            k = np.asarray(arc.curvature, dtype=np.float64)
+            if np.any(np.abs(k[1:]) > 0.0):
+                raise NotImplementedError(
+                    f"Element {self.element_id} ({type(self).__name__}): corotational elements are straight. "
+                    "Give a curved or prebent axis as nodes along it (the kinks between elements carry the "
+                    "curvature); precurvature.txt may only hold the pretwist rate k_x0 for them.")
+            # pretwist only: a straight element with its section frame at mid-length and the
+            # helical-fibre coupling of the twist rate in its section
+            self._frame_R0 = self._frame_R1 = arc.R_mid
+            self._frame_arc = None
+            self._frame_ctor = None
+            self._pretwist_rate = float(k[0])
+            self.__dict__.pop("_pretwisted_section_analysis", None)
 
     # ------------------------------------------------------------------ #
     def _cr_setup(self) -> None:
@@ -158,17 +176,27 @@ class CorotationalMixin:
         if np.any(self._E_0_voigt):
             raise NotImplementedError(f"Element {self.element_id}: precurvature is not supported by the corotational elements yet")
         X = np.asarray(self.node_coords, dtype=np.float64)
-        self._X1, self._X2 = X[0].copy(), X[1].copy()
-        self._E0 = _reference_frame(self._X2 - self._X1)
+        if getattr(self, "_frame_mesh", False):
+            # framed mesh: the kernels work in the element's axes; the frame gives the geometry
+            l0 = float(X[1, 0])
+            self._E0 = np.asarray(self._frame_R0, dtype=np.float64).copy()
+            self._X1 = np.asarray(self._frame_p0, dtype=np.float64).copy()
+            self._X2 = self._X1 + l0 * self._E0[:, 0]
+        else:
+            self._X1, self._X2 = X[0].copy(), X[1].copy()
+            self._E0 = _reference_frame(self._X2 - self._X1)
         self._l0 = float(np.linalg.norm(self._X2 - self._X1))
         n = self._n_dof
         logger, self.logger_operator = self.logger_operator, None
+        depth = self.__dict__.get("_frame_depth", 0)
+        self._frame_depth = 1        # the core's own (local) matrices, not turned to global
         try:
             self._K_core = np.asarray(self.element_stiffness_matrix().K_e, dtype=np.float64)
+            eye = np.eye(n)
+            self._C = np.array([self.linear_geometric_stiffness_matrix(eye[j]) for j in range(n)])
         finally:
             self.logger_operator = logger
-        eye = np.eye(n)
-        self._C = np.array([self.linear_geometric_stiffness_matrix(eye[j]) for j in range(n)])
+            self._frame_depth = depth
         pts = self.section_analysis.axial_points
         self._axial_pts = None if pts is None else np.asarray(pts, dtype=np.float64)
         self._G_gauss = [self._geometric_state(float(x), np.zeros(n))[0] for x in _GAUSS_X]

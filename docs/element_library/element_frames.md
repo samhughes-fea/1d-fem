@@ -80,7 +80,16 @@ small for a slender beam.
   slope DOFs are held at each node as the shear strains `γ_xy`, `γ_xz` in one frame for
   the node (that of its lowest-numbered element); each element recovers its own slopes as
   `v' = γ_xy + θ_z` and `w' = γ_xz − θ_y`, so slopes stay continuous through a kink.
-- The nonlinear elements refuse rotated or curved geometry. On those elements
+- The corotational Euler-Bernoulli, Timoshenko and Benscoter beams take rotated and
+  twisted elements, and kinked lines of them: each element's frame is its undeformed
+  frame `E_0`, so a curved, prebent or swept axis is given as nodes along it and the
+  kinks between the straight elements carry its curvature, stress-free. In
+  `precurvature.txt` they take only the pretwist rate `k_x0`: the element stays straight,
+  with its section frame at mid-length and the pretwist coupling in its section. A
+  bending curvature (`k_y0`, `k_z0`) is refused. One corotational element is one straight
+  element, while a linear pretwisted element is condensed from 8 sub-elements, so a
+  corotational blade needs a finer mesh for the same accuracy.
+- The other nonlinear elements refuse rotated or curved geometry. On those elements
   `precurvature.txt` keeps its older meaning, a reference strain on a straight element.
 
 ## Checks (`tests/test_element_frames.py`)
@@ -97,3 +106,8 @@ small for a slender beam.
 | Quarter-circle cantilever, Reddy and Levinson: 48 straight or 4 curved elements | Roark, as above | within 0.06 % |
 | GBT box cantilever turned and twisted, 2 modes, through the job runner (`tests/test_frames_gbt.py`) | the unturned beam, turned; mode amplitudes unchanged | equal to round-off |
 | Quarter-circle GBT box cantilever, 8 curved elements, through the job runner | 64 straight chords through the same arc points (each curved element is 8 condensed sub-elements) | equal to round-off, mode amplitudes included |
+| Corotational cantilever turned and twisted (EB, Timoshenko, Benscoter), tip deflection up to 0.3 L (`tests/test_corotational_frames.py`) | the unturned path, turned | to 1e-8 L |
+| Quarter circle of 48 chords under the tip moment `EI / R` (corotational EB, Timoshenko) | exact: a semicircle of radius `R / 2`, tip at `(0, R)` | within 0.2 % of `R` |
+| Prebent corotational cantilever, `P L² / EI = 1`, prebend 0.04, 0.02, 0.01 L | the straight path (Bisshopp and Drucker) | the gap halves with the prebend |
+| Bent, swept, twisted corotational line at rest | the linear stiffness of the same mesh | equal to round-off |
+| Prebent, swept, pretwisted blade with corotational Timoshenko elements through the nonlinear runner (`tests/test_blade_beam_job.py`) | the linear blade at small load | within 1.3 % (finer linear sub-elements); under a large flap load the tip runs in |

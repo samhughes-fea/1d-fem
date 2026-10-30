@@ -65,11 +65,18 @@ from typing import Dict, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
-__all__ = ["BladeBeamJob", "blade_beam_job", "blade_to_job", "job_to_blade"]
+__all__ = ["BladeBeamJob", "blade_beam_job", "blade_to_job", "job_to_blade", "NONLINEAR_SETTINGS"]
 
 STANDARD_DOFS = ("UX", "UY", "UZ", "RX", "RY", "RZ")
-FRAMED_TYPES = ("LinearEulerBernoulliBeamElement3D", "LinearTimoshenkoBeamElement3D", "LinearBenscoterBeamElement3D")
+FRAMED_TYPES = ("LinearEulerBernoulliBeamElement3D", "LinearTimoshenkoBeamElement3D", "LinearBenscoterBeamElement3D",
+                "CorotationalEulerBernoulliBeamElement3D", "CorotationalTimoshenkoBeamElement3D",
+                "CorotationalBenscoterBeamElement3D")
 _SETTINGS = "[Simulation]\n[Type]\nstatic\n\n[Solver]\ntype = direct\ntolerance = 1e-12\nmax_iterations = 500\n"
+#: default settings of a corotational blade: nonlinear static, the load in ten increments
+NONLINEAR_SETTINGS = ("[Simulation]\n[Type]\nstatic_nonlinear\n\n[Newton]\ntolerance = 1e-6\n"
+                      "relative_tolerance = 1e-8\nrelative_reference = first_residual\nmax_iterations = 40\n"
+                      "tolerance_delta_u = 1e-12\n\n[Solver]\ntype = direct\ntolerance = 1e-12\n\n"
+                      "[Nonlinear]\nnum_increments = 10\nline_search = false\n")
 
 
 def blade_to_job(v: Sequence[float]) -> np.ndarray:
@@ -173,7 +180,7 @@ def blade_beam_job(
     loads: Optional[Mapping[float, Sequence[float]]] = None,
     line_loads: Optional[Mapping[float, Sequence[float]]] = None,
     thickness_tol: float = 0.01,
-    settings: str = _SETTINGS,
+    settings: Optional[str] = None,
 ) -> BladeBeamJob:
     """Write a cantilever beam job for ``geometry`` into ``job_dir`` (replaced).
 
@@ -193,7 +200,8 @@ def blade_beam_job(
     element_type : str
         A beam type that takes rotated and curved elements: ``LinearTimoshenkoBeamElement3D``
         (default), ``LinearEulerBernoulliBeamElement3D`` or ``LinearBenscoterBeamElement3D``
-        (thin-walled sections; the root warping is held).
+        (thin-walled sections; the root warping is held), or their corotational versions
+        (``CorotationalTimoshenkoBeamElement3D`` and so on) for large deflection.
     pretwist : bool
         Write the twist gradient as each element's pretwist rate (default). Off, each
         element keeps its mid-span section along its length.
@@ -210,8 +218,9 @@ def blade_beam_job(
         axes, sampled at span positions ``z`` (linear between them; the samples must cover
         the blade).
     thickness_tol : float
-    settings : str
-        ``simulation_settings.txt`` text (default linear static, direct solver).
+    settings : str, optional
+        ``simulation_settings.txt`` text. Default: linear static with a direct solver, or
+        ``NONLINEAR_SETTINGS`` (nonlinear static, ten increments) for corotational types.
 
     Returns
     -------
@@ -316,5 +325,7 @@ def blade_beam_job(
               + "".join(f"{zl!r} 0.0 0.0 " + " ".join(repr(float(v)) for v in np.asarray(line_loads[zl], float).reshape(6))
                         + "\n" for zl in sorted(line_loads, key=float)))
     write("point_load.txt", "[Point load]\n[x] [y] [z] [F_x] [F_y] [F_z] [M_x] [M_y] [M_z]\n" + "".join(rows))
+    if settings is None:
+        settings = NONLINEAR_SETTINGS if element_type.startswith("Corotational") else _SETTINGS
     write("simulation_settings.txt", settings)
     return job
