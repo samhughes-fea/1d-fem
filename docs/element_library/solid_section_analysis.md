@@ -90,9 +90,29 @@ shear and interlaminar stresses of the bending gradient are therefore in the sta
 `from_thin_walled` mesh `η` runs through the thickness, so a ply interface is `η = +1` of
 one row and `η = −1` of the next.
 
+### Ply interfaces
+
+The raw stresses of a quadratic element on its edge are its least accurate values: with two
+element rows per ply, `τ_xn` on a cross-ply interface is up to 15 % off, and six rows are
+needed for 2 %. `interface_stresses(forces=F)` (or `benscoter=e8`) recovers them instead.
+On a layered `Q8` mesh (`from_thin_walled`, `section_mesh_from_cut`) `ply_interfaces()`
+lists the element pairs whose shared edge changes material, ply angle or wall direction.
+On each side, the interlaminar stresses at the Gauss lines of the ply's two rows nearest
+the interface are fitted by a quadratic in the distance from it. With one row per ply the
+fit is linear. Each fit is taken to the interface, and the two sides are averaged.
+`interface_stress(below, above, ξ)` gives one point. Two rows per ply are then exact for
+the quadratic shear of a layered beam.
+
 From a solved beam, `solid/element_recovery.py` takes the section state from Euler-Bernoulli,
-Timoshenko or Benscoter elements. A static linear job writes
-`secondary_results/section_stresses/section_stresses.csv` at every element's mid-point.
+Timoshenko or Benscoter elements, corotational ones included. Linear static jobs,
+nonlinear static jobs whose elements are all corotational, and eigen jobs (one block of
+rows per mode, column `mode`) write `secondary_results/section_stresses/section_stresses.csv`
+and `interface_stresses.csv`. They are written at every element's mid-point, or at the
+stations of `stress_stations.txt` (`post_processing/stations.py`): a row `[x]` is where the
+axis crosses the plane `X = x`, and a row `[x] [y] [z]` is the nearest point of the axis.
+The `x` column is the global `X` of the axis point, and `xi` is its element coordinate.
+A linear Timoshenko element's shear strain is exact only at its mid-point, so put
+stations for shear and interlaminar stresses at element mid-points.
 
 ## Checks (`tests/test_solid_section_analysis.py`)
 

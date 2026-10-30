@@ -205,6 +205,47 @@ def setup_job_results_directory(case_name: str) -> str:
     return job_results_dir
 
 
+
+def _write_stress_files(job_dir, job_results_dir, element_dictionary, elements, runner, solver_type,
+                        simulation_settings) -> None:
+    """Wall and section stress files of a solved job (thin-walled or 2D sections).
+
+    Linear static jobs, nonlinear static jobs whose elements are all corotational (the
+    stresses of each element's local deformation) and eigen jobs (one block of rows per
+    mode shape, as the solver normalises them), at the element mid-points or at the
+    stations of ``stress_stations.txt``.
+    """
+    tw = element_dictionary.get("thin_walled_analysis_per_element")
+    solid = element_dictionary.get("solid_analysis_per_element")
+    if tw is None and solid is None:
+        return
+    U, modes = None, None
+    if solver_type == "static":
+        nonlinear = simulation_settings.get("_resolved_static_kind", "linear") == "nonlinear"
+        if nonlinear and not all(hasattr(el, "local_deformation") for el in elements):
+            return          # total-Lagrangian elements: no small-strain recovery
+        U = getattr(runner, "U_global", None)
+        if U is None:
+            return
+    elif solver_type == "eigen":
+        modes = getattr(runner, "vibration_mode_shapes", None)
+        if modes is None:
+            return
+        U = np.zeros(np.asarray(modes).shape[0])
+    else:
+        return
+    from post_processing.stations import read_stress_stations
+
+    stations = read_stress_stations(job_dir)
+    if tw is not None:
+        from post_processing.thin_walled.wall_stresses import write_wall_stresses
+
+        write_wall_stresses(job_results_dir, elements, tw, U, stations=stations, modes=modes)
+    if solid is not None:
+        from post_processing.solid.section_stresses import write_section_stresses
+
+        write_section_stresses(job_results_dir, elements, solid, U, stations=stations, modes=modes)
+
 def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_serial=False, max_processes_per_job=None):
     """Processes a single FEM simulation job.
 
@@ -621,26 +662,8 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
             raise ValueError(f"Unknown simulation type: '{solver_type}'")
 
         runner.run()
-        tw = element_dictionary.get("thin_walled_analysis_per_element")
-        if (
-            tw is not None
-            and solver_type == "static"
-            and simulation_settings.get("_resolved_static_kind", "linear") != "nonlinear"
-            and getattr(runner, "U_global", None) is not None
-        ):
-            from post_processing.thin_walled.wall_stresses import write_wall_stresses
-
-            write_wall_stresses(job_results_dir, all_elements, tw, runner.U_global)
-        solid = element_dictionary.get("solid_analysis_per_element")
-        if (
-            solid is not None
-            and solver_type == "static"
-            and simulation_settings.get("_resolved_static_kind", "linear") != "nonlinear"
-            and getattr(runner, "U_global", None) is not None
-        ):
-            from post_processing.solid.section_stresses import write_section_stresses
-
-            write_section_stresses(job_results_dir, all_elements, solid, runner.U_global)
+        _write_stress_files(job_dir, job_results_dir, element_dictionary, all_elements, runner,
+                            solver_type, simulation_settings)
         simulation_time = time.time() - step_start
         performance_data.append(["Full Simulation", simulation_time, *track_usage().values()])
 
