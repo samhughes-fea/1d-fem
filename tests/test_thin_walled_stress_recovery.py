@@ -296,12 +296,13 @@ def test_process_job_writes_wall_stresses(tmp_path):
         rows = list(csv.DictReader(f))
     assert len(rows) == n_el * 4 * 5 * 4 * 2  # elements x walls x points x plies x faces
     # top flange, element 1 mid-point, centre of the wall: N_xx against the section forces
-    an = composite_box()
+    an = composite_box(hoop="free")   # the job default
     x = 0.75
     exact = SaintVenantRecovery(an).at(3, b / 2, [0, P * (x - L), 0, 0, P, 0])
     r = [r for r in rows if r["element_id"] == "1" and r["wall_id"] == "3" and abs(float(r["s"]) - b / 2) < 1e-12][0]
     assert float(r["N_xx"]) == pytest.approx(exact.resultants[0], rel=1e-6)
-    assert float(r["N_xs"]) == pytest.approx(exact.resultants[2], rel=1e-5)
+    # N_xs is zero here by symmetry: compare on the scale of N_xx
+    assert float(r["N_xs"]) == pytest.approx(exact.resultants[2], rel=1e-5, abs=1e-9 * abs(exact.resultants[0]))
 
 
 @pytest.mark.parametrize("example", ["box_spar", "three_cell_blade"])

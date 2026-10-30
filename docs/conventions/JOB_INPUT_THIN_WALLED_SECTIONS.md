@@ -93,3 +93,45 @@ A uniform surface load (force per area) on a wall over an element: `p_x` along t
 The parsed result reaches every element as `element.section_analysis` (a `SectionAnalysis`, see [../element_library/section_analysis.md](../element_library/section_analysis.md)).
 
 Theory: [../element_library/thin_walled_section_walls.md](../element_library/thin_walled_section_walls.md).
+
+## Sections from implicit-geometry-kernel, and `region_laminate.txt`
+
+`pre_processing/section_integration/thin_walled/from_geometry.py` turns a blade section
+cut by [implicit-geometry-kernel](https://github.com/samhughes-fea/implicit-geometry-kernel)
+(`BladeGeometry.section_at(z)`, an optional dependency that needs Python 3.11 or later)
+into a `ThinWalledSection` and its laminates:
+
+```python
+from implicit_geometry_kernel import Airfoil, BladeGeometry, Station
+from pre_processing.section_integration.thin_walled.from_geometry import thin_walled_from_cut
+
+cut = BladeGeometry(stations, "2D-F", skin_thickness=0.003, spar_cap_thickness=0.008,
+                    shear_web_thickness=0.002).section_at(z)
+geo = thin_walled_from_cut(cut, {"skin": skin, "cap": cap, "web": web})
+analysis = geo.analysis()          # ThinWalledSectionAnalysis, hoop="free"
+```
+
+- Each straight segment of the cut's mid-surface becomes a wall. A spar cap is merged
+  with its skin along the bond: the wall is the cap and skin stacked, cap plies inside.
+- Walls find their laminate by full label (`skin_suction_surface:bay_0`), then region
+  (`skin_suction_surface`), then kind (`skin`, `cap`, `web`).
+- Laminates list their plies from the inside of the section out on skins and caps, and
+  from the leading-edge face to the trailing-edge face on webs.
+- Skin and cap laminates must match the geometry's wall thickness within 1 %
+  (`thickness_tol`), since the thicknesses place the walls.
+- Section coordinates are `(y, z) = (x, y)` of the blade frame (chord, thickness),
+  measured from the pitch-axis point. The beam axis is the span.
+
+`region_laminate.txt` gives the same binding as a file, by `laminate.txt` id:
+
+```text
+[Region_Laminate]
+[region] [laminate_id]
+skin                          1
+cap                           2
+web                           3
+skin_suction_surface:bay_2    4
+```
+
+`parse_region_laminate_file(path)` returns `{label: laminate_id}`, which
+`thin_walled_from_cut(cut, mapping, library)` takes with `library = parse_laminate_file(...)`.

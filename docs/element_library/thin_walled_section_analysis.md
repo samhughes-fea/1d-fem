@@ -48,10 +48,18 @@ On a straight wall with tangent \(\mathbf t\), normal \(\mathbf n = (-t_z, t_y)\
 
 | `hoop` | Hoop force \(N_{ss}\) | Hoop curvature \(\kappa_{ss}\) | Use |
 |---|---|---|---|
-| `"restrained"` (default) | 0 | 0 | the section keeps its shape, so walls do not bend in \(s\); plate stiffnesses such as \(Et^3/12(1-\nu^2)\) |
-| `"free"` | 0 | free (\(M_{ss}=0\)) | the textbook thin-wall values such as \(Et^3/12\); softer for unsymmetric walls |
+| `"free"` (default) | 0 | free (\(M_{ss}=0\)) | Saint-Venant: walls bend freely in \(s\); the textbook thin-wall values such as \(Et^3/12\) |
+| `"restrained"` | 0 | 0 | the section keeps its shape, so walls do not bend in \(s\); plate stiffnesses such as \(Et^3/12(1-\nu^2)\). GBT sections always use it |
 
-The default follows the anisotropic-section-model result. There, letting unsymmetric walls bend freely read GJ 16% low on the IEA 15 MW blade.
+The default is `"free"` because it is the Saint-Venant answer: the 2D section solver
+(`SolidSectionAnalysis`), which solves the in-plane deformation exactly, matches it
+(0.2 % on a CFRP I-section, 0.8 % on a CAS box), while `"restrained"` reads `D26`
+stiff and on a ±45° I-section gives a GJ 30 % higher. Until 2026-10 the default was
+`"restrained"`, after the anisotropic-section-model comparison where a finite shell
+segment of the IEA 15 MW blade, whose end constraints hold the section's shape, read
+GJ 16 % above `"free"`. Choose `"restrained"` for a section held in shape by
+diaphragms, ribs or close end constraints. GBT cross-section modes carry the hoop
+bending themselves, so sections used by GBT elements are analysed restrained.
 
 ## Discretisation
 
