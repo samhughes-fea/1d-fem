@@ -176,7 +176,7 @@ def test_section_analysis_from_solid(cas_box):
     assert sa.source == "solid" and sa.section_id == 7
     np.testing.assert_allclose(sa.stiffness, ELEMENT_SIGN @ so.stiffness @ ELEMENT_SIGN)
     assert sa.is_coupled
-    assert sa.benscoter_stiffness is None and sa.gbt_stiffness is None
+    assert sa.benscoter_stiffness.shape == (8, 8) and sa.gbt_stiffness is None
     assert sa.geometric_terms.shape == (7, 6)
     assert sa.mass_matrix()[0, 0] == pytest.approx(so.mass_properties["m"])
     # pretwist needs the axial quadrature: sum k r^2 is int E_x r^2

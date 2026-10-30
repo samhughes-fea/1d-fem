@@ -15,8 +15,9 @@ signs:
 - `mass_properties`, `geometric_terms` (second-order terms), `axial_points`.
 
 `SectionAnalysis.from_solid` maps them to element signs, so every element that takes a
-thin-walled section also takes a 2D one. Benscoter, third-order and GBT data are not
-built from 2D sections yet.
+thin-walled section also takes a 2D one, the Benscoter element included (restrained
+warping, below). Third-order and GBT data are not built from 2D sections; cross-section
+distortion stays in GBT.
 
 ## Kinematics
 
@@ -52,9 +53,46 @@ in-plane rotation `(0, −z, y)`, and `g_x = z`, `g_x = −y`. `T` gives the for
 (where a thin-walled strip's end joins another wall) are eliminated before the solve. The
 systems are sparse and solved by LU.
 
-`E Γ` uses the axial modulus `E_x`: `C_xx` with the in-plane stresses
-`σ_yy, σ_zz, τ_yz` free and the shear strains held. This matches the axial term of the
-thin-walled wall law. The same modulus weights `axial_points` (pretwist coupling).
+`axial_points` (pretwist coupling) use the axial modulus `E_x`: `C_xx` with the in-plane
+stresses `σ_yy, σ_zz, τ_yz` free and the shear strains held, as the axial term of the
+thin-walled wall law.
+
+## Restrained warping (the 7th DOF)
+
+`benscoter_stiffness` (8 × 8, order `[ψ6, d, ψ']` as the thin-walled one) adds the torsional
+warping amplitude `ψ`. The warping is the Saint-Venant warping of `ψ6` plus
+`ω (ψ − φ)`, with `ω` the torsional warping (all three components, about the shear centre,
+its extension and bending parts removed):
+
+- `d = ψ − φ` strains the section in shear, `ε = B ω d`;
+- `ψ'` stretches it, `ε = N_x ω ψ' + B h ψ'`, where `h` lets the section relax in its own
+  plane (Poisson contraction). Without `h` the axial stiffness of a ±45 ply would be the
+  laterally constrained `C_xx`, 7 % too stiff on the CFRP I-section below.
+
+`warping_constant` is `K[7, 7]`. `warping_inertia` is `∫ρ ω_x² dA`, and
+`benscoter_geometric_terms` gives the bimoment's second-order terms.
+
+The 2D warping also varies through the wall thickness and follows `ψ`, so `K[6, 6]` (warping
+shear) is higher than the Kirchhoff walls' value, by 30 % on the I-sections below. Kirchhoff
+walls cannot shear through their thickness. `K[7, 7]` agrees.
+
+## 3D stresses
+
+`point_stresses(forces=F)` (or `benscoter=e8`) gives a `PointStress` at every quadrature
+point, and `stress_at(element, ξ, η, ...)` gives one anywhere in an element. Each holds:
+
+- the strain and stress in section axes `[xx, yy, zz, yz, xz, xy]`;
+- `stress_material`: ply or core axes `[11, 22, 33, 23, 13, 12]`;
+- `stress_wall`: wall axes `[xx, ss, nn, sn, xn, xs]`; `interlaminar` is `(σ_nn, τ_sn, τ_xn)`.
+
+For section forces, the forces vary along the beam as with no distributed load. The transverse
+shear and interlaminar stresses of the bending gradient are therefore in the state. On a
+`from_thin_walled` mesh `η` runs through the thickness, so a ply interface is `η = +1` of
+one row and `η = −1` of the next.
+
+From a solved beam, `solid/element_recovery.py` takes the section state from Euler-Bernoulli,
+Timoshenko or Benscoter elements. A static linear job writes
+`secondary_results/section_stresses/section_stresses.csv` at every element's mid-point.
 
 ## Checks (`tests/test_solid_section_analysis.py`)
 
@@ -66,6 +104,18 @@ thin-walled wall law. The same modulus weights `axial_points` (pretwist coupling
 | CFRP I-section, `[0/45/−45/0]` flanges, `[45/−45]s` web | `EA`, `EI`, `GJ` within 0.2 % of thin-walled; `E Γ` within 2 %; flange-direction shear stiffer by 6 % (the 2D web shears through its thickness, Kirchhoff walls cannot) |
 | CAS box `[30]₄` | the whole 6 × 6, couplings included, within 0.8 % of thin-walled |
 | Timoshenko cantilever job on a coupled 2D section | tip deflection and twist from the section flexibility to 0.05 % |
+
+Stresses and restrained warping (`tests/test_solid_section_stresses.py`):
+
+| Case | Result |
+|---|---|
+| Rectangle, `M_y` and `V_z` (`ν = 0`) | `σ_xx = M z / I` exact; `τ_xz` the parabola to 1 % of its peak |
+| Laminated I-section | the stresses integrate back to all six section forces |
+| `[0/90/0/90]` strip under `V_z` | interlaminar `τ_xn` at each interface, from both plies, within 2 % of layered-beam theory |
+| Sandwich, aluminium faces on a soft core | core shear uniform at `V / (b d)` within 3 %; face stress `M / (b t_f d)` |
+| Isotropic I-section | `K[7, 7]` is Vlasov's `E t_f b³ h² / 24` to 0.1 % |
+| CFRP I-section | `K[7, 7]` within 0.2 % of thin-walled; warping-shear coupling within 10 % |
+| Benscoter cantilever under tip torque | tip twist within 2 % of the thin-walled section |
 
 ## Job input
 
