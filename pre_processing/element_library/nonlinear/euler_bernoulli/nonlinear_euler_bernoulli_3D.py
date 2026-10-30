@@ -19,6 +19,7 @@ import logging
 from typing import List, Optional, Tuple
 
 import numpy as np
+from pre_processing.element_library.beam_load_interpolation import beam_field_interpolation
 
 from pre_processing.element_library.beam_warping import (
     beam_warping_policy,
@@ -739,7 +740,7 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
                 x_gauss = (xi + 1) * (self.L / 2) + x_start
                 q_gauss = interpolator.interpolate(x_gauss)
                 N = np.stack([
-                    self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))[0][0]
+                    beam_field_interpolation(xi_g, self.L, "hermite").T
                     for xi_g in xi
                 ])
                 Fe_dist = np.einsum("gij,gj,g->i", N, q_gauss, w) * (self.L / 2)
@@ -762,9 +763,9 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
                 for load in self.point_load_array:
                     x_p = float(load[0])
                     F_p = load[3:9].astype(np.float64)
-                    if x_start <= x_p <= x_start + self.L:
+                    if self._owns_point(x_p):
                         xi_p = 2 * (x_p - x_start) / self.L - 1
-                        N_p = self.shape_function_operator.natural_coordinate_form(np.array([xi_p]))[0][0]
+                        N_p = beam_field_interpolation(xi_p, self.L, "hermite").T   # (12, 6), right-handed
                         Fe_trans = N_p[[0, 1, 2, 6, 7, 8], :3] @ F_p[:3]
                         Fe_rot = N_p[[3, 4, 5, 9, 10, 11], 3:] @ F_p[3:]
                         inc = np.zeros_like(Fe)
@@ -799,7 +800,7 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
             x_gauss = (xi + 1) * (self.L / 2) + x_start
             q_gauss = interpolator.interpolate(x_gauss)
             N = np.stack([
-                self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))[0][0]
+                beam_field_interpolation(xi_g, self.L, "hermite").T
                 for xi_g in xi
             ])
             Fe_dist = np.einsum("gij,gj,g->i", N, q_gauss, w) * (self.L / 2)
@@ -822,9 +823,9 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
             for load in self.point_load_array:
                 x_p = float(load[0])
                 F_p = load[3:9].astype(np.float64)
-                if x_start <= x_p <= x_start + self.L:
+                if self._owns_point(x_p):
                     xi_p = 2 * (x_p - x_start) / self.L - 1
-                    N_p = self.shape_function_operator.natural_coordinate_form(np.array([xi_p]))[0][0]
+                    N_p = beam_field_interpolation(xi_p, self.L, "hermite").T   # (12, 6), right-handed
                     Fe_trans = N_p[[0, 1, 2, 6, 7, 8], :3] @ F_p[:3]
                     Fe_rot = N_p[[3, 4, 5, 9, 10, 11], 3:] @ F_p[3:]
                     inc = np.zeros_like(Fe)
@@ -976,3 +977,12 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
         self.logger_operator.log_matrix("force", N, {**metadata, "name": f"Shape Functions {N.shape}"})
         self.logger_operator.log_matrix("force", trans.reshape(-1, 1), {**metadata, "name": "Translations [6×1]"})
         self.logger_operator.log_matrix("force", rot.reshape(-1, 1), {**metadata, "name": "Rotations [6×1]"})
+
+    def _owns_point(self, x: float) -> bool:
+        """Half-open ``[x_start, x_end)``, closed at the global end, so a load at a shared node counts once."""
+        tol = 1e-12 * self.L
+        x0, x1 = float(self.x_start), float(self.x_start) + self.L
+        if np.isclose(x1, self.x_global_end):
+            return x0 - tol <= x <= x1 + tol
+        return x0 - tol <= x < x1 - tol
+
