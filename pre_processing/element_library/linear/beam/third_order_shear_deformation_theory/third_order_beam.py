@@ -72,7 +72,12 @@ _N_GAUSS = 4
 class ThirdOrderShearBeamElement3D(LinearTimoshenkoBeamElement3D):
     """Shared Reddy / Levinson element (see module docstring). Subclasses set ``variational``."""
 
-    supports_element_frame = False   # rotated or curved elements: not yet
+    supports_element_frame = True
+    # the slopes v', w' (Q1, Q2) are section components of a node vector (framed_element)
+    frame_slope_dofs = ((12, 0), (14, 1))
+
+    def frame_load_fields(self, xi):
+        return self._field_interpolation(xi, element_signs=False)
 
     element_type_name = "ThirdOrder-3D"
     variational = True
