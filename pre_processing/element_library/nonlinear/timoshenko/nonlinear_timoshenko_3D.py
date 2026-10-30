@@ -369,6 +369,38 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         return N, dN_dξ, d2N_dξ2, B, E, dN_dx
 
     # K_0 / tangent / nonlinear stress path -----------------------------------
+    def _geometric_stiffness_at(
+        self, dN_dx: np.ndarray, d2N_dx2: np.ndarray, N: np.ndarray, S: np.ndarray
+    ) -> np.ndarray:
+        """
+        ``sum_k S_k d²E_k/dU²`` at one point (12, 12): the exact geometric stiffness of ``B_nlᵀ S``.
+
+        ``E_nl`` is quadratic in ``U``, so ``B_nl`` is linear and its columns for unit vectors give
+        the Hessians. ``D`` couplings with the warping strain are left out (row 6 of ``B_nl`` is zero).
+        """
+        G = np.zeros((12, 12), dtype=np.float64)
+        op = self.green_lagrange_strain_operator
+        for j in range(12):
+            e = np.zeros(12, dtype=np.float64)
+            e[j] = 1.0
+            G[:, j] = op.nonlinear_strain_displacement_gradient(dN_dx, d2N_dx2, e, N).T @ S[:6]
+        return G
+
+    def _material_rules(self, D: np.ndarray) -> List[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+        """
+        Gauss rules for the material terms: ``[(xi, w, D_rest), (xi_s, w_s, D_shear)]``.
+
+        The transverse-shear block ``D[3:5, 3:5]`` is integrated with the reduced shear rule of
+        ``K_0`` and every other term with the loop rule, so that ``F_int`` and ``K_delta`` follow
+        the same strain energy as ``K_0``. With the full rule on the shear block the linear
+        two-node element locks in bending.
+        """
+        D_shear = np.zeros_like(D)
+        D_shear[3:5, 3:5] = D[3:5, 3:5]
+        xi, w = self.integration_points
+        xi_s, w_s = np.polynomial.legendre.leggauss(self._timoshenko_orders.shear_block)
+        return [(xi, w, D - D_shear), (xi_s, w_s, D_shear)]
+
     def _get_K_0(self) -> np.ndarray:
         """Material stiffness ``K_0``: selective Timoshenko (12) or full Gauss (14, warping)."""
         if self._K_0 is not None:
@@ -376,12 +408,12 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         if self._n_dof == _NL_TS_W_DOF:
             D = self._D_matrix_7x7()
             detJ = self.jacobian_determinant
-            xi, w = np.polynomial.legendre.leggauss(self.quadrature_order)
             Ke = np.zeros((_NL_TS_W_DOF, _NL_TS_W_DOF), dtype=np.float64)
-            for xi_g, w_g in zip(xi, w):
-                N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-                B = self._B_matrix_7x14(dN_dξ, d2N_dξ2, N)[0]
-                Ke += B.T @ D @ B * w_g * detJ
+            for xi, w, D_part in self._material_rules(D):
+                for xi_g, w_g in zip(xi, w):
+                    N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                    B = self._B_matrix_7x14(dN_dξ, d2N_dξ2, N)[0]
+                    Ke += B.T @ D_part @ B * w_g * detJ
             self._K_0 = Ke
             return self._K_0
         D = self.material_stiffness_operator.assembly_form()
@@ -446,37 +478,24 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
 
         K_0 = self._get_K_0()
         D = self.material_stiffness_operator.assembly_form()
-        xi, w = self.integration_points
         detJ = self.jacobian_determinant
-        n_g = len(xi)
-        N_gp = np.zeros(n_g, dtype=np.float64)
-        M_y_gp = np.zeros(n_g, dtype=np.float64)
-        M_z_gp = np.zeros(n_g, dtype=np.float64)
-        dN_dx_list = []
-        for k, (xi_g, w_g) in enumerate(zip(xi, w)):
-            _, _, _, _, E, dN_dx_row = self._gp_tl_kinematics(U_e, xi_g)
-            N_i, M_y_i, M_z_i = self.stress_resultant_operator.section_forces_from_strain(
-                E - self._E_0_voigt, D
-            )
-            N_gp[k] = N_i
-            M_y_gp[k] = M_y_i
-            M_z_gp[k] = M_z_i
-            dN_dx_list.append(dN_dx_row)
-        dN_dx_arr = np.stack(dN_dx_list, axis=0)
-        K_sigma = self.geometric_stiffness_operator.assemble_K_sigma(
-            N_gp, M_y_gp, M_z_gp, w, dN_dx_arr, detJ
-        )
+        U_e = np.asarray(U_e, dtype=np.float64).reshape(12)
+        K_sigma = np.zeros((12, 12), dtype=np.float64)
         K_delta = np.zeros((12, 12), dtype=np.float64)
-        for xi_g, w_g in zip(xi, w):
-            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-            B_lin = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
-            dN_dx = dN_dξ[0] * self.dxi_dx
-            d2N_dx2 = d2N_dξ2[0] * (self.dxi_dx**2)
-            B_nl = self.green_lagrange_strain_operator.nonlinear_strain_displacement_gradient(
-                dN_dx, d2N_dx2, U_e, N[0]
-            )
-            B_tot = B_lin + B_nl
-            K_delta += (B_tot.T @ D @ B_tot - B_lin.T @ D @ B_lin) * w_g * detJ
+        for xi_r, w_r, D_part in self._material_rules(D):
+            for xi_g, w_g in zip(xi_r, w_r):
+                N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                B_lin = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
+                dN_dx = dN_dξ[0] * self.dxi_dx
+                d2N_dx2 = d2N_dξ2[0] * (self.dxi_dx**2)
+                B_nl = self.green_lagrange_strain_operator.nonlinear_strain_displacement_gradient(
+                    dN_dx, d2N_dx2, U_e, N[0]
+                )
+                B_tot = B_lin + B_nl
+                K_delta += (B_tot.T @ D_part @ B_tot - B_lin.T @ D_part @ B_lin) * w_g * detJ
+                E = self._tl_voigt_strain_at_gauss(U_e, xi_g)
+                S = D_part @ (E - self._E_0_voigt)
+                K_sigma += self._geometric_stiffness_at(dN_dx, d2N_dx2, N[0], S) * w_g * detJ
         return K_0 + K_delta + K_sigma
 
     def _tangent_stiffness_matrix_warping(self, U_e: np.ndarray) -> np.ndarray:
@@ -486,42 +505,27 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         K_0 = self._get_K_0()
         D7 = self._D_matrix_7x7()
         D6 = D7[:6, :6]
-        xi, w = self.integration_points
         detJ = self.jacobian_determinant
-
-        n_g = len(xi)
-        N_gp = np.zeros(n_g, dtype=np.float64)
-        M_y_gp = np.zeros(n_g, dtype=np.float64)
-        M_z_gp = np.zeros(n_g, dtype=np.float64)
-        dN_dx_list = []
-        for k, (xi_g, _w_g) in enumerate(zip(xi, w)):
-            _, _, _, _, E6, dN_dx_row = self._gp_tl_kinematics(U12, xi_g)
-            N_i, M_y_i, M_z_i = self.stress_resultant_operator.section_forces_from_strain(
-                E6 - self._E_0_voigt, D6
-            )
-            N_gp[k] = N_i
-            M_y_gp[k] = M_y_i
-            M_z_gp[k] = M_z_i
-            dN_dx_list.append(dN_dx_row)
-        dN_dx_arr = np.stack(dN_dx_list, axis=0)
-        K_sigma_12 = self.geometric_stiffness_operator.assemble_K_sigma(
-            N_gp, M_y_gp, M_z_gp, w, dN_dx_arr, detJ
-        )
         K_sigma = np.zeros((_NL_TS_W_DOF, _NL_TS_W_DOF), dtype=np.float64)
-        K_sigma[:_NL_TS_W_STD, :_NL_TS_W_STD] = K_sigma_12
 
         K_delta = np.zeros((_NL_TS_W_DOF, _NL_TS_W_DOF), dtype=np.float64)
-        for xi_g, w_g in zip(xi, w):
-            N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-            B_lin_7 = self._B_matrix_7x14(dN_dξ, d2N_dξ2, N)[0]
-            dN_dx = dN_dξ[0] * self.dxi_dx
-            d2N_dx2 = d2N_dξ2[0] * (self.dxi_dx**2)
-            B_nl_12 = self.green_lagrange_strain_operator.nonlinear_strain_displacement_gradient(
-                dN_dx, d2N_dx2, U12, N[0]
-            )
-            B_nl_7 = _B_nl_6x12_to_7x14(B_nl_12)
-            B_tot = B_lin_7 + B_nl_7
-            K_delta += (B_tot.T @ D7 @ B_tot - B_lin_7.T @ D7 @ B_lin_7) * w_g * detJ
+        for xi_r, w_r, D_part in self._material_rules(D7):
+            for xi_g, w_g in zip(xi_r, w_r):
+                N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                B_lin_7 = self._B_matrix_7x14(dN_dξ, d2N_dξ2, N)[0]
+                dN_dx = dN_dξ[0] * self.dxi_dx
+                d2N_dx2 = d2N_dξ2[0] * (self.dxi_dx**2)
+                B_nl_12 = self.green_lagrange_strain_operator.nonlinear_strain_displacement_gradient(
+                    dN_dx, d2N_dx2, U12, N[0]
+                )
+                B_nl_7 = _B_nl_6x12_to_7x14(B_nl_12)
+                B_tot = B_lin_7 + B_nl_7
+                K_delta += (B_tot.T @ D_part @ B_tot - B_lin_7.T @ D_part @ B_lin_7) * w_g * detJ
+                E6 = self._tl_voigt_strain_at_gauss(U12, xi_g)
+                S6 = D_part[:6, :6] @ (E6 - self._E_0_voigt)
+                K_sigma[:_NL_TS_W_STD, :_NL_TS_W_STD] += (
+                    self._geometric_stiffness_at(dN_dx, d2N_dx2, N[0], S6) * w_g * detJ
+                )
         return K_0 + K_delta + K_sigma
 
     def internal_force_vector(self, U_e: np.ndarray) -> np.ndarray:
@@ -537,15 +541,16 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         xi, w = self.integration_points
         detJ = self.jacobian_determinant
         F_int = np.zeros(12, dtype=np.float64)
-        for xi_g, w_g in zip(xi, w):
-            N, dN_dξ, d2N_dξ2, B_lin, E, dN_dx = self._gp_tl_kinematics(U_e, xi_g)
-            d2N_dx2 = d2N_dξ2[0] * (self.dxi_dx**2)
-            B_nl = self.green_lagrange_strain_operator.nonlinear_strain_displacement_gradient(
-                dN_dx, d2N_dx2, U_e, N[0]
-            )
-            B_tot = B_lin + B_nl
-            S = D @ (E - self._E_0_voigt)
-            F_int += (B_tot.T @ S) * w_g * detJ
+        for xi_r, w_r, D_part in self._material_rules(D):
+            for xi_g, w_g in zip(xi_r, w_r):
+                N, dN_dξ, d2N_dξ2, B_lin, E, dN_dx = self._gp_tl_kinematics(U_e, xi_g)
+                d2N_dx2 = d2N_dξ2[0] * (self.dxi_dx**2)
+                B_nl = self.green_lagrange_strain_operator.nonlinear_strain_displacement_gradient(
+                    dN_dx, d2N_dx2, U_e, N[0]
+                )
+                B_tot = B_lin + B_nl
+                S = D_part @ (E - self._E_0_voigt)
+                F_int += (B_tot.T @ S) * w_g * detJ
         return F_int
 
     def _internal_force_vector_warping(self, U_e: np.ndarray) -> np.ndarray:
@@ -556,19 +561,20 @@ class NonlinearTimoshenkoBeamElement3D(Element1DBase):
         xi, w = self.integration_points
         detJ = self.jacobian_determinant
         F_int = np.zeros(_NL_TS_W_DOF, dtype=np.float64)
-        for xi_g, w_g in zip(xi, w):
-            N, dN_dξ, d2N_dξ2, B_lin, E6, dN_dx = self._gp_tl_kinematics(U12, xi_g)
-            d2N_dx2 = d2N_dξ2[0] * (self.dxi_dx**2)
-            B_nl_12 = self.green_lagrange_strain_operator.nonlinear_strain_displacement_gradient(
-                dN_dx, d2N_dx2, U12, N[0]
-            )
-            B_lin_7 = self._B_matrix_7x14(dN_dξ, d2N_dξ2, N)[0]
-            B_nl_7 = _B_nl_6x12_to_7x14(B_nl_12)
-            B_tot = B_lin_7 + B_nl_7
-            E_warp = float(np.dot(B_lin_7[6], U_e))
-            E = np.concatenate([E6, np.array([E_warp], dtype=np.float64)])
-            S = D7 @ (E - E0_7)
-            F_int += (B_tot.T @ S) * w_g * detJ
+        for xi_r, w_r, D_part in self._material_rules(D7):
+            for xi_g, w_g in zip(xi_r, w_r):
+                N, dN_dξ, d2N_dξ2, B_lin, E6, dN_dx = self._gp_tl_kinematics(U12, xi_g)
+                d2N_dx2 = d2N_dξ2[0] * (self.dxi_dx**2)
+                B_nl_12 = self.green_lagrange_strain_operator.nonlinear_strain_displacement_gradient(
+                    dN_dx, d2N_dx2, U12, N[0]
+                )
+                B_lin_7 = self._B_matrix_7x14(dN_dξ, d2N_dξ2, N)[0]
+                B_nl_7 = _B_nl_6x12_to_7x14(B_nl_12)
+                B_tot = B_lin_7 + B_nl_7
+                E_warp = float(np.dot(B_lin_7[6], U_e))
+                E = np.concatenate([E6, np.array([E_warp], dtype=np.float64)])
+                S = D_part @ (E - E0_7)
+                F_int += (B_tot.T @ S) * w_g * detJ
         return F_int
 
     def strain_at_gauss_points(self, U_e: np.ndarray) -> List[np.ndarray]:

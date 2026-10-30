@@ -24,6 +24,10 @@ All notable changes to this project are documented in this file. The format foll
 
 - **Shell validation of the second-order and corotational beams** ([post_processing/validation_visualisers/abaqus/shell_validation](../post_processing/validation_visualisers/abaqus/shell_validation/README.md)). Five cases written as Abaqus S4R decks from the same section description the beam uses: channel flexural-torsional buckling, I-beam lateral-torsional buckling, the I-beam's prebuckling path near that moment (NLGEOM), large twist of an I-beam with restrained warping (NLGEOM) and a bend-twist coupled CFRP box under large tip deflection (NLGEOM). `run.py` writes the decks, runs Abaqus, extracts the ODB (`extract_odb.py`), reduces each station to beam displacements by a rigid section fit and compares with cached 1d-fem results against a 3 % target. The same decks run in CalculiX (`--solver calculix`, S8R), which checks the buckling cases and, linearly, the nonlinear decks.
 
+### Fixed
+
+- **`NonlinearTimoshenkoBeamElement3D` bending.** Its internal force and tangent integrated the transverse shear strain on the full Gauss rule, while its `K_0` used the reduced one-point rule. The linear two-node element then locks in `F_int` but not in `K_0`, so Newton converged to a wrong equilibrium: a slender cantilever came out at −16.6 times its exact tip deflection. The shear block now uses the reduced rule throughout. The geometric stiffness is the exact second derivative of the Green–Lagrange strain energy, so the tangent is now the true derivative of `F_int`. `LinearTimoshenkoBeamElement3D` with a warping DOF used the full rule for shear as well and gets the same fix.
+
 ### Removed
 
 - **`simulation_runner.modal`** — deprecated import shim (`_vibration_buckling_backend`, `modal_diagnostic`) **deleted**. Use **`simulation_runner.spectral.vibration_buckling_backend.VibrationBucklingBackend`** and **`simulation_runner.spectral.spectral_diagnostics.log_spectral_diagnostics`** instead.
