@@ -163,8 +163,8 @@ job = blade_beam_job("jobs/my_blade", geometry, {"skin": skin, "cap": cap, "web"
   metre, twist nose up). Pretwisted elements are the twisting arcs of
   [element_frames.md](../element_library/element_frames.md).
 - **Supports and loads.** The root node is clamped (and its warping, for
-  `LinearBenscoterBeamElement3D`). Loads are nodal, in job axes; distributed loads are
-  not taken yet on rotated or curved meshes.
+  `LinearBenscoterBeamElement3D`). `loads` are nodal and `line_loads` per length of the
+  axis (`distributed_load.txt`, sampled at span positions), both in job axes.
 - Element types: `LinearTimoshenkoBeamElement3D` (default),
   `LinearEulerBernoulliBeamElement3D`, `LinearBenscoterBeamElement3D`.
 

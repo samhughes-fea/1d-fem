@@ -36,7 +36,7 @@ EB, TS, BS = "LinearEulerBernoulliBeamElement3D", "LinearTimoshenkoBeamElement3D
 class Mesh:
     """Elements of one type on arbitrary nodes, assembled directly."""
 
-    def __init__(self, etype, coords, conn=None, twist=None, curvature=None, sa=None, props=None):
+    def __init__(self, etype, coords, conn=None, twist=None, curvature=None, sa=None, props=None, dl=None, wall=None):
         coords = np.asarray(coords, dtype=float)
         n_el = coords.shape[0] - 1 if conn is None else len(conn)
         conn = np.array([[i, i + 1] for i in range(n_el)] if conn is None else conn, dtype=np.int64)
@@ -52,6 +52,8 @@ class Mesh:
             ed["precurvature_per_element"] = np.broadcast_to(np.asarray(curvature, float), (n_el, 3)).copy()
         if sa is not None:
             ed["section_analysis_per_element"] = tuple([SectionAnalysis.from_thin_walled(sa)] * n_el)
+        if wall is not None:      # one generalised wall load per length for every element
+            ed["wall_load_per_element"] = tuple([np.asarray(wall, float)] * n_el)
         p = dict(A=1e-3, I_x=2e-7, I_y=1e-7, I_z=1e-7, J_t=2e-7, kappa=0.9, alpha=0.0, y_sc=0.0, z_sc=0.0,
                  Gamma=1e-12)
         p.update(props or {})
@@ -70,14 +72,18 @@ class Mesh:
         self.K = np.zeros((self.n, self.n))
         self.M = np.zeros((self.n, self.n))
         self.elements, self.maps = [], []
+        self.F = np.zeros(self.n)
         for e in range(n_el):
             el = Cls(element_id=e, element_dictionary=ed, grid_dictionary={"coordinates": coords},
                      material_dictionary=mat, section_dictionary=sec, point_load_array=np.empty((0, 9)),
-                     distributed_load_array=np.empty((0, 9)), job_results_dir=jr)
+                     distributed_load_array=np.empty((0, 9)) if dl is None else np.asarray(dl, float),
+                     job_results_dir=jr)
             el.logger_operator = None
             g = np.asarray(el.assemble_global_dof_indices())
             self.K[np.ix_(g, g)] += el.element_stiffness_matrix().K_e
             self.M[np.ix_(g, g)] += el.element_mass_matrix().M_e
+            if dl is not None or wall is not None:
+                self.F[g] += np.real(el.element_force_vector().F_e)
             self.elements.append(el)
             self.maps.append(g)
         shutil.rmtree(tmp, ignore_errors=True)

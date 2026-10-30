@@ -202,6 +202,22 @@ def test_tapered_twisted_wing_against_the_shell(tmp_path):
     assert 1.0 < flap[1] / ref["flap"][1] < 1.045
 
 
+def test_line_load_on_a_bent_blade(tmp_path):
+    """A flapwise line load: a blade bent by a micrometre (rotated elements, line loads spread
+    along them) gives the straight blade's tip deflection."""
+    straight = [Station(0.0, 1.0, AF, pitch_axis=0.3), Station(4.0, 1.0, AF, pitch_axis=0.3)]
+    bent = [Station(0.0, 1.0, AF, pitch_axis=0.3), Station(4.0, 1.0, AF, pitch_axis=0.3, offset=(0.0, 1e-6))]
+    q = {0.0: blade_to_job([0, 400.0, 0, 0, 0, 0]), 4.0: blade_to_job([0, 100.0, 0, 0, 0, 0])}
+    tips = []
+    for name, st in (("straight", straight), ("bent", bent)):
+        job = blade_beam_job(str(tmp_path / name), geometry(st), LAMS, 4, line_loads=q)
+        tips.append(run(job, tmp_path)[-1, :6])
+    assert tips[0][2] > 0.0
+    np.testing.assert_allclose(tips[1], tips[0], rtol=1e-4, atol=1e-4 * abs(tips[0][2]))
+    with pytest.raises(ValueError, match="cover the blade"):
+        blade_beam_job(str(tmp_path / "short"), geometry(straight), LAMS, 4, line_loads={0.0: [0] * 6, 3.0: [0] * 6})
+
+
 def test_two_d_sections(tmp_path):
     """``kind="2d"`` writes layered 2D section meshes; the stiffness is the thin-walled one's within 1.5 %."""
     from pre_processing.section_integration.solid.mesh import parse_section_mesh_2d
