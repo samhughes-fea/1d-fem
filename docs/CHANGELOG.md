@@ -31,6 +31,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- **2D section mesher at thick trailing edges** (`section_mesh_from_cut`). Where the skins close on each other, each side now fills only up to the medial axis (the points equidistant from both outer faces), and the tip station is no deeper than its neighbours. Before, each side took half of its own ray gap, so the two sides crossed: the IEA 15 MW max-chord section (62 mm skins) inverted an element, and at 70 % span the skins overlapped near the tip, which made the 2D edge EI 0.6 % and GJ 0.6 % too high. The max-chord section now meshes and, with the cap carbon matched, agrees with the thin-walled section within 1.2 %. `examples/blade_section_2d` reports the interface stresses at the sharp trailing-edge tip apart, since they grow with refinement there.
 - **`NonlinearTimoshenkoBeamElement3D` bending.** Its internal force and tangent integrated the transverse shear strain on the full Gauss rule, while its `K_0` used the reduced one-point rule. The linear two-node element then locks in `F_int` but not in `K_0`, so Newton converged to a wrong equilibrium: a slender cantilever came out at −16.6 times its exact tip deflection. The shear block now uses the reduced rule throughout. The geometric stiffness is the exact second derivative of the Green–Lagrange strain energy, so the tangent is now the true derivative of `F_int`. `LinearTimoshenkoBeamElement3D` with a warping DOF used the full rule for shear as well and gets the same fix.
 
 ### Removed

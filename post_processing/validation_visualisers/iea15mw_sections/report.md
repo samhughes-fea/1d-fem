@@ -19,18 +19,22 @@ CalculiX prism against the 2D section (same mesh): EA +0.00 %, EI flap +0.00 %, 
 | Model | EA | EI flap | EI edge | GJ | TC offset | SC offset |
 |---|---|---|---|---|---|---|
 | thin-walled (value) | 1.581e+10 | 1.602e+10 | 1.277e+10 | 2.039e+09 | | |
+| 1d-fem 2D | +6.14 % | +6.83 % | -0.59 % | -0.11 % | 0.17 % | 0.18 % |
 | CLM shell | -0.12 % | -0.14 % | -0.02 % | +0.38 % | 0.00 % | 0.11 % |
 | PreComp | +1.16 % | +0.80 % | +6.52 % | -3.88 % | 0.15 % |  |
 
-The 2D mesher could not mesh this section: `element 3 is inverted or degenerate (order its corners counter-clockwise)`.
+Carbon area: 2D mesh 0.1132 m², thin-walled caps 0.1042 m² (2D is 8.6 % wider). With the 2D cap stiffness scaled to the same carbon: EA -0.37 %, EI flap -0.48 %, EI edge -1.15 %, GJ -0.27 %.
 
 ## 70 % span (station 20, chord 3.27 m)
 
 | Model | EA | EI flap | EI edge | GJ | TC offset | SC offset |
 |---|---|---|---|---|---|---|
 | thin-walled (value) | 1.24e+10 | 1.161e+09 | 1.476e+09 | 6.107e+07 | | |
-| 1d-fem 2D | +5.79 % | +5.28 % | +3.82 % | +5.07 % | 0.21 % | 0.22 % |
+| 1d-fem 2D | +5.78 % | +5.28 % | +3.26 % | +4.47 % | 0.22 % | 0.31 % |
 | CLM shell | -0.02 % | -0.02 % | -0.01 % | +0.43 % | 0.00 % | 0.07 % |
 | PreComp | +1.50 % | +1.40 % | +6.00 % | -25.49 % | 0.07 % |  |
+| CalculiX prism | +5.79 % | +5.30 % | +3.29 % | +24.93 % |  |  |
 
-Carbon area: 2D mesh 0.1074 m², thin-walled caps 0.1009 m² (2D is 6.5 % wider). With the 2D cap stiffness scaled to the same carbon: EA -0.22 %, EI flap -0.85 %, EI edge +1.30 %, GJ +4.57 %.
+Carbon area: 2D mesh 0.1074 m², thin-walled caps 0.1009 m² (2D is 6.5 % wider). With the 2D cap stiffness scaled to the same carbon: EA -0.23 %, EI flap -0.85 %, EI edge +0.74 %, GJ +3.97 %.
+
+CalculiX prism against the 2D section (same mesh): EA +0.01 %, EI flap +0.02 %, EI edge +0.03 %, GJ +19.59 %; largest 6 x 6 term difference 22.60 % of the geometric mean of its diagonals.

@@ -44,6 +44,11 @@ interlaminar shear, 2.4 MPa (τxn) with σnn = 1.2 MPa, is on the skin-to-cap in
 of the pressure-side cap where the rear web meets it. A thin-walled section cannot
 resolve it: its walls meet at a point on their mid-lines.
 
+The sharp trailing edge is drawn apart (open red rings). There the skin plies close on
+each other at a zero-radius corner, so the interface stresses of the last elements grow
+with refinement (3.4 MPa on this mesh). They are a property of the idealised geometry,
+not a result; the largest value is taken more than 2 % of the chord from the tip.
+
 ![Sandwich panel](sandwich_panel.png)
 
 Through the suction-side panel at 65 % chord, the faces carry the axial stress and the

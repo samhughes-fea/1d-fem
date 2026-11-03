@@ -185,16 +185,33 @@ def cap_check(sa, mesh, tw, gs, forces):
     return {"solid_2d": float(s2d), "thin_walled": float(stw), "difference": float(s2d / stw - 1.0)}
 
 
-def junction_interfaces(sa, mesh, forces):
-    """Interface stresses on all ply interfaces, and the largest interlaminar shear among them."""
+def trailing_edge(mesh):
+    """The trailing-edge tip (the node farthest from the centroid) and the chord."""
+    X = np.asarray(mesh.nodes, float)
+    tip = X[np.argmax(np.linalg.norm(X - X.mean(axis=0), axis=1))]
+    return tip, float(np.linalg.norm(X - tip, axis=1).max())
+
+
+def junction_interfaces(sa, mesh, forces, te_radius=0.02):
+    """Interface stresses on all ply interfaces, and the largest interlaminar shear among them.
+
+    The sharp trailing edge is a zero-radius corner where the skin plies close on each
+    other: its interface stresses grow with mesh refinement, so the largest value is taken
+    outside ``te_radius`` (fraction of the chord) of the tip and the tip's is reported apart.
+    """
     res = sa.interface_stresses(forces=forces, xi=(0.0,))
     lab = mesh.labels
+    tip, chord = trailing_edge(mesh)
     out = []
     for e, f, y, z, s in res:
         out.append({"below": int(e), "above": int(f), "y": y, "z": z, "sigma_nn": float(s[0]),
-                    "tau_sn": float(s[1]), "tau_xn": float(s[2]), "labels": [lab[e], lab[f]]})
-    worst = max(out, key=lambda r: np.hypot(r["tau_xn"], r["tau_sn"])) if out else None
-    return out, worst
+                    "tau_sn": float(s[1]), "tau_xn": float(s[2]), "labels": [lab[e], lab[f]],
+                    "at_trailing_edge": bool(np.hypot(y - tip[0], z - tip[1]) < te_radius * chord)})
+    key = lambda r: np.hypot(r["tau_xn"], r["tau_sn"])
+    away = [r for r in out if not r["at_trailing_edge"]]
+    worst = max(away, key=key) if away else None
+    at_te = [r for r in out if r["at_trailing_edge"]]
+    return out, worst, (max(at_te, key=key) if at_te else None)
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +261,16 @@ def figures(ctx, out_dir):
     fig, axes = plt.subplots(1, 2, figsize=(11, 3.8), gridspec_kw={"width_ratios": [2.2, 1]})
     for ax, zoom in zip(axes, (False, True)):
         ax.add_collection(PolyCollection(polys, facecolors="#e9e8e3", edgecolors="#fcfcfb", linewidths=0.2))
-        sc = ax.scatter(Y, Z, c=T, s=6 if not zoom else 22, cmap="viridis", vmin=0, vmax=T.max(), zorder=3)
+        # the colour scale ends at the largest value away from the sharp trailing edge;
+        # trailing-edge points above it are drawn as open red rings
+        te = np.array([r["at_trailing_edge"] for r in rows])
+        vmax = T[~te].max() if (~te).any() else T.max()
+        sc = ax.scatter(Y, Z, c=np.minimum(T, vmax), s=6 if not zoom else 22, cmap="viridis", vmin=0, vmax=vmax, zorder=3)
+        over = te & (T > vmax)
+        if over.any() and not zoom:
+            ax.scatter(Y[over], Z[over], s=40, facecolors="none", edgecolors="#c0392b", lw=0.8, zorder=4,
+                       label=f"sharp trailing edge, up to {T[over].max():.1f} MPa (mesh dependent)")
+            ax.legend(fontsize=7, loc="upper left", bbox_to_anchor=(0.0, -0.12), frameon=False)
         ax.set_aspect("equal")
         if zoom and worst is not None:
             h = 0.12
@@ -307,7 +333,7 @@ def main(plot: bool = True, rows_per_ply: int = 2, element_size=None, out_dir: s
     cut, mesh, sa, gs, tw = build(rows_per_ply, element_size)
     m = S.station_model(INDEX)
     forces = section_forces()
-    interfaces, worst = junction_interfaces(sa, mesh, forces)
+    interfaces, worst, worst_te = junction_interfaces(sa, mesh, forces)
     column = panel_column(mesh, sa, m.chord, m.pitch_axis)
     panel, panel_lines = panel_profile(sa, mesh, column, forces)
     y_panel = float(np.mean([r for r in element_centres(mesh)[column, 0]]))
@@ -321,6 +347,7 @@ def main(plot: bool = True, rows_per_ply: int = 2, element_size=None, out_dir: s
         "n_elements": len(mesh.elements), "rows_per_ply": rows_per_ply,
         "cap_sigma_xx": cap,
         "max_interface_shear": None if worst is None else worst,
+        "max_interface_shear_trailing_edge": worst_te,
         "n_interface_points": len(interfaces),
         "panel": {"y": y_panel, "n_elements": len(column),
                   "core_tau_xn_max_2d": float(max(core_txn)) if core_txn else None,

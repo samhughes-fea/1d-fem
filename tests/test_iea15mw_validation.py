@@ -65,3 +65,14 @@ def test_seventy_percent_span_prism_end_restraint():
     assert np.abs(ratio[:3] - 1.0).max() < 1e-3   # N, M_y, M_z
     assert 0.80 < ratio[3] < 0.88                 # edgewise shear (V_y, y chordwise)
     assert 0.83 < ratio[5] < 0.89                 # torsion
+
+
+def test_max_chord_2d_section_meshes_and_matches_thin_walled(iea, tmp_path):
+    """The 62 mm skins close on each other at the max-chord trailing edge; the 2D mesher
+    fills each side up to the medial axis, and with the cap carbon matched the 2D section
+    agrees with the thin-walled one."""
+    s = iea.main(stations=(6,), plot=False, out_dir=str(tmp_path))["stations"]["6"]
+    assert "solid_2d" in s["ratios"]
+    m = s["carbon"]["matched_ratios"]
+    for q, tol in (("EA", 0.01), ("EI_flap", 0.01), ("EI_edge", 0.015), ("GJ", 0.01)):
+        assert abs(m[q]) < tol, q
