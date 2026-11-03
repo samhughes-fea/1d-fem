@@ -16,8 +16,9 @@ signs:
 
 `SectionAnalysis.from_solid` maps them to element signs, so every element that takes a
 thin-walled section also takes a 2D one, the Benscoter element included (restrained
-warping, below). Third-order and GBT data are not built from 2D sections; cross-section
-distortion stays in GBT.
+warping, below), and GBT elements (`[modes]` in `element_section.txt`; see
+[gbt_cross_section_modes.md](gbt_cross_section_modes.md#gbt-on-2d-sections)). Third-order data
+are not built from 2D sections.
 
 ## Kinematics
 
@@ -142,5 +143,5 @@ Stresses and restrained warping (`tests/test_solid_section_stresses.py`):
 `section_mesh_2d.txt` (format in `solid_section_mesh.md`) defines the 2D sections and
 `element_section.txt` assigns them, alongside thin-walled sections if there are any (the
 section ids must differ). Material ids not in its `[Solid_Material]` block come from the
-`[Ply_Material]` block of `laminate.txt`. GBT elements and wall loads need thin-walled
-sections.
+`[Ply_Material]` block of `laminate.txt`. GBT elements take 2D sections with `[modes]` but
+not `[shear_modes]`; wall loads need thin-walled sections.

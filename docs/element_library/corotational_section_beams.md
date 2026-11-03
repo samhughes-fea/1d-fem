@@ -1,7 +1,8 @@
 # Corotational beams on anisotropic sections (large displacement)
 
-`CorotationalEulerBernoulliBeamElement3D`, `CorotationalTimoshenkoBeamElement3D` and
-`CorotationalBenscoterBeamElement3D`
+`CorotationalEulerBernoulliBeamElement3D`, `CorotationalTimoshenkoBeamElement3D`,
+`CorotationalBenscoterBeamElement3D`, `CorotationalGBTBeamElement3D`,
+`CorotationalReddyBeamElement3D` and `CorotationalLevinsonBeamElement3D`
 (`pre_processing/element_library/nonlinear/large_rotations/corotational/corotational_section.py`)
 take any linear element with its `SectionAnalysis` as a local core. They give large
 displacements and rotations with the coupled section stiffness, shear-centre and
@@ -41,8 +42,16 @@ The local force `f = ∂Π/∂p` and Hessian `H` are exact. The global force is 
 with `B = ∂p/∂U` from the complex step, so the residual is exact to round-off. The tangent
 is `Bᵀ H B + Σ f_i ∂²p_i/∂U²`, with the second derivatives from central differences.
 
-Not covered yet: precurvature (prebend, presweep and pretwist come in the next PR), GBT,
-and the quartic terms of the shear strains.
+Extra DOFs. Benscoter warping and the GBT warping and mode amplitudes are scalars of the
+section and pass through. The Reddy and Levinson nodes carry the section shear strains in
+the node frame (as on rotated meshes, [element_frames.md](element_frames.md)); the local core
+needs slopes, so they are mapped to `v' = γ_xy + θ̄_z` and `w' = γ_xz − θ̄_y` with the nodal
+rotations relative to the element frame. `p` is linear in the extras with constant
+coefficients, so `∂²p/∂U²` is only needed on the twelve standard DOFs. For GBT the
+second-order terms are those of its beam strains; the distortional modes have no geometric
+stiffness of their own (see [gbt_cross_section_modes.md](gbt_cross_section_modes.md#corotational-gbt)).
+
+Not covered yet: the quartic terms of the shear strains.
 
 ## 3. Checks (`tests/test_large_displacement.py`)
 

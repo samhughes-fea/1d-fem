@@ -171,7 +171,7 @@ def setup_frame(element, element_dictionary, grid_dictionary, idx: int, ctor_kwa
             f"Element {element.element_id} ({type(element).__name__}): rotated or curved elements "
             "(a beam off the global x axis, a [twist] column or precurvature.txt) are supported by the "
             "linear beams only: Euler-Bernoulli, Timoshenko and Benscoter, GBT, Reddy and Levinson; and by the "
-            "corotational Euler-Bernoulli, Timoshenko and Benscoter beams.")
+            "corotational Euler-Bernoulli, Timoshenko, Benscoter, GBT, Reddy and Levinson beams.")
     # distributed loads: global components per length of the beam axis, sampled along global X;
     # spread here along the element's own geometry (the kernels would read them in local x)
     dl = np.asarray(element.distributed_load_array)

@@ -6,8 +6,12 @@ stiffness) is the local core. The corotational frame takes out the rigid motion 
 element, and the element is left with small local displacements ``p``:
 
 - ``p`` holds the stretch ``l - l0`` of the chord and the two nodal rotations relative to
-  the frame, ``theta_i = log(R_r^T R_i)``. Extra DOFs (the Benscoter warping amplitude) are
-  scalars of the section and pass through unchanged.
+  the frame, ``theta_i = log(R_r^T R_i)``. Extra DOFs that are scalars of the section (the
+  Benscoter warping amplitude, the GBT warping and distortional mode amplitudes) pass
+  through unchanged. The third-order beams (Reddy, Levinson) hold the section shear
+  strains ``[gamma_xy, gamma_xz]`` at the nodes, in the node's own rotating frame, and
+  their local slopes are ``v' = gamma_xy + theta_z`` and ``w' = gamma_xz - theta_y`` with
+  the local nodal rotations (``_local_extras``).
 - The frame ``R_r`` has its first axis along the current chord. Its second axis is the
   mean of the nodal second axes made orthogonal to the chord (Battini and Pacoste 2002).
 
@@ -34,7 +38,8 @@ differences, and ``f`` and ``H`` are exact.
 Public API
 ----------
 CorotationalEulerBernoulliBeamElement3D, CorotationalTimoshenkoBeamElement3D,
-CorotationalBenscoterBeamElement3D, rotation_exp, rotation_log.
+CorotationalBenscoterBeamElement3D, CorotationalGBTBeamElement3D,
+CorotationalReddyBeamElement3D, CorotationalLevinsonBeamElement3D, rotation_exp, rotation_log.
 """
 
 from __future__ import annotations
@@ -45,6 +50,16 @@ import numpy as np
 
 from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_benscoter_3D import (
     LinearBenscoterBeamElement3D,
+)
+from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
+    LinearGBTBeamElement3D,
+)
+from pre_processing.element_library.linear.beam.second_order import GeometricStiffnessMixin, _linear_rows
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.linear_levinson_3D import (
+    LinearLevinsonBeamElement3D,
+)
+from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.linear_reddy_3D import (
+    LinearReddyBeamElement3D,
 )
 from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
     LinearTimoshenkoBeamElement3D,
@@ -227,8 +242,12 @@ class CorotationalMixin:
         p[:, 3:6] = _log_batch(RrT @ R1)
         p[:, 6] = l - self._l0
         p[:, 9:12] = _log_batch(RrT @ R2)
-        p[:, 12:] = U[:, 12:]
+        p[:, 12:] = self._local_extras(U, p)
         return p
+
+    def _local_extras(self, U: np.ndarray, p: np.ndarray) -> np.ndarray:
+        """Core-element extra DOFs from the global ones (scalars of the section: unchanged)."""
+        return U[:, 12:]
 
     def _steps(self, h: float) -> np.ndarray:
         s = np.full(12, h)
@@ -239,15 +258,13 @@ class CorotationalMixin:
         """``B = dp/dU`` by the complex step (exact to round-off)."""
         n = self._n_dof
         h = 1e-30
-        Z = np.tile(U_e.astype(np.complex128), (12, 1))
-        Z[np.arange(12), np.arange(12)] += 1j * h
-        B = np.zeros((n, n))
-        B[:, :12] = (self._local_dofs_batch(Z).imag / h).T
-        B[12:, 12:] = np.eye(n - 12)
-        return B
+        Z = np.tile(U_e.astype(np.complex128), (n, 1))
+        Z[np.arange(n), np.arange(n)] += 1j * h
+        return (self._local_dofs_batch(Z).imag / h).T
 
     def _local_hessian_contraction(self, U_e: np.ndarray, f: np.ndarray) -> np.ndarray:
-        """``sum_i f_i d2p_i/dU2`` on the twelve standard DOFs (``p`` is linear in the extras)."""
+        """``sum_i f_i d2p_i/dU2`` on the twelve standard DOFs (``p`` is linear in the extras,
+        with coefficients that do not depend on the standard DOFs)."""
         n = self._n_dof
         hs = self._steps(_H2)
         j, k = np.triu_indices(12)
@@ -334,3 +351,72 @@ class CorotationalBenscoterBeamElement3D(CorotationalMixin, LinearBenscoterBeamE
     """Corotational Benscoter beam: restrained warping and large twist on thin-walled sections."""
 
     element_type_name = "Corotational-Benscoter-3D"
+
+
+class CorotationalGBTBeamElement3D(CorotationalMixin, LinearGBTBeamElement3D):
+    """Corotational GBT beam: large rotations of the section, with its warping and
+    distortional modes linear in the element's own frame.
+
+    The second-order terms are those of the global section forces (``_geometric_state``):
+    the corotational frame carries the large rotations, and the cubic and quartic terms
+    the Wagner, offset and stretch effects of moderate local rotation. The distortional
+    modes have no wall-level geometric stiffness, so local and distortional buckling are
+    not captured; ``LinearGBTBeamElement3D`` still refuses ``linear_geometric_stiffness_matrix``.
+    """
+
+    element_type_name = "Corotational-GBT-3D"
+
+    linear_geometric_stiffness_matrix = GeometricStiffnessMixin.linear_geometric_stiffness_matrix
+
+    def _geometric_state(self, xi: float, U_e: np.ndarray):
+        """Timoshenko rows of ``[v', w', phi', phi]`` and the terms of the GBT section forces.
+
+        The section forces are the first six rows of ``D (B U_e - E_0)``: the resultants on
+        the plane-section strains, with the warping amplitudes' part. The shear strains are
+        taken at the centre, as the reduced shear rule sees them.
+        """
+        U_e = np.asarray(U_e, dtype=np.float64).ravel()
+        e = self._B_at(float(xi))[0] @ U_e
+        r = self._reduced_rows
+        e[r] = (self._B_at(0.0)[0] @ U_e)[r]
+        e[:6] -= self._E_0_voigt
+        F = self._D_gbt[:6] @ e
+        return _linear_rows(self.L, float(xi), self._n_dof), self._geometric_terms_matrix() @ F
+
+
+class _CorotationalThirdOrder(CorotationalMixin):
+    """Third-order beams: nodal shear strains in the node's own frame give the local slopes."""
+
+    def _cr_setup(self) -> None:
+        if getattr(self, "_cr_ready", False):
+            return
+        super()._cr_setup()
+        # shear strains are held in the node frame N (kinked or twisted meshes); the
+        # element's section axes at the node are its own frame E0 there
+        Q = []
+        for N in (getattr(self, "_frame_N0", None), getattr(self, "_frame_N1", None)):
+            Q.append(np.eye(2) if N is None else (self._E0.T @ np.asarray(N, dtype=np.float64))[1:, 1:])
+        self._slope_Q = Q
+
+    def _local_extras(self, U: np.ndarray, p: np.ndarray) -> np.ndarray:
+        Q0, Q1 = self._slope_Q
+        g0 = U[:, 12:14] @ Q0.T
+        g1 = U[:, 14:16] @ Q1.T
+        out = U[:, 12:].copy()
+        out[:, 0] = g0[:, 0] + p[:, 5]
+        out[:, 1] = g0[:, 1] - p[:, 4]
+        out[:, 2] = g1[:, 0] + p[:, 11]
+        out[:, 3] = g1[:, 1] - p[:, 10]
+        return out
+
+
+class CorotationalReddyBeamElement3D(_CorotationalThirdOrder, LinearReddyBeamElement3D):
+    """Corotational Reddy beam: third-order shear (shear lag of the slaved warping) at large rotation."""
+
+    element_type_name = "Corotational-Reddy-3D"
+
+
+class CorotationalLevinsonBeamElement3D(_CorotationalThirdOrder, LinearLevinsonBeamElement3D):
+    """Corotational Levinson beam (non-variational third-order shear; unsymmetric tangent)."""
+
+    element_type_name = "Corotational-Levinson-3D"

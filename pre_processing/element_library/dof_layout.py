@@ -35,7 +35,8 @@ STANDARD_DOFS_PER_NODE = 6
 STANDARD_DOF_NAMES = ("UX", "UY", "UZ", "RX", "RY", "RZ")
 WARPING_ALIASES = ("W", "CHI")
 #: element types that always carry extra nodal DOFs, and how many
-TYPE_EXTRA_DOFS = {"LinearReddyBeamElement3D": 2, "LinearLevinsonBeamElement3D": 2}
+TYPE_EXTRA_DOFS = {"LinearReddyBeamElement3D": 2, "LinearLevinsonBeamElement3D": 2,
+                   "CorotationalReddyBeamElement3D": 2, "CorotationalLevinsonBeamElement3D": 2}
 
 
 def row_extra_dofs(element_dictionary: Dict[str, Any], idx: int) -> int:

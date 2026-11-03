@@ -232,11 +232,16 @@ def test_job_with_2d_sections(tmp_path):
     out = attach_section_analyses(str(tmp_path), ed)
     assert [s.source for s in out["section_analysis_per_element"][:2]] == ["solid", "thin_walled"]
     assert out["thin_walled_analysis_per_element"][0] is None
-    # GBT needs thin walls
+    # GBT runs on 2D sections, but without extra shear-lag modes
     ed_gbt = {**ed, "types": np.array(["LinearGBTBeamElement3D", "LinearTimoshenkoBeamElement3D",
                                         "LinearTimoshenkoBeamElement3D"])}
-    with pytest.raises(ValueError, match="GBT needs a thin-walled section"):
+    out = attach_section_analyses(str(tmp_path), ed_gbt)
+    assert out["section_analysis_per_element"][0].source == "solid"
+    _write(tmp_path, "element_section.txt",
+           "[Element_Section]\n[element_id] [section_id] [modes] [shear_modes]\n0 2 1 1\n1 1 0 0\n")
+    with pytest.raises(ValueError, match="no extra shear-lag modes"):
         attach_section_analyses(str(tmp_path), ed_gbt)
+    _write(tmp_path, "element_section.txt", "[Element_Section]\n[element_id] [section_id]\n0 2\n1 1\n")
     # a section id in both files is refused
     _write(tmp_path, "section_mesh_2d.txt", MESH_2D.replace("\n2 ", "\n1 "))
     with pytest.raises(ValueError, match="both"):

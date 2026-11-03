@@ -145,7 +145,55 @@ Benscoter \(\psi\) load \(\int \omega\,p_x\,\mathrm ds\). Loads come from `wall_
 `tests/test_gbt_shear_modes_and_wall_loads.py` checks the warping modes (span and
 orthogonality), the wall-load resultants by hand, and the parsers.
 
+## GBT on 2D sections
+
+`SolidCrossSectionModes` (`pre_processing/section_integration/solid/cross_section_modes.py`)
+gives the same generalised strains, stiffness and mass for a section meshed in 2D, so
+`LinearGBTBeamElement3D` takes either kind of section. Each section point moves as
+
+\[
+u_x = u - y\theta_z + z\theta_y + \Omega_j b_j + u_k a_k', \qquad
+(u_y, u_z) = (v - z\theta_x,\; w + y\theta_x) + S\,\psi + d_k a_k .
+\]
+
+- \(\Omega_j\): the axial part of the Saint-Venant warping of the six beam strains and their
+  rates, less \(1, y, z\), made orthonormal.
+- \(S\psi\): the in-plane (Poisson) Saint-Venant warping per unit beam strain, slaved to the
+  beam strains (without it EA is held in plane strain).
+- \(d_k\): the lowest in-plane eigenmodes of the section's plane-strain stiffness against its
+  area, rigid in-plane motions removed. They include transverse wall extension and local
+  plate modes of each wall, which the thin-walled basis cannot show.
+- \(u_k\): the axial warping that minimises the out-of-plane shear energy of \(a_k'\), with
+  zero mean, cleared of the rigid-motion parts (the translations paired with \(-y, -z\) and the
+  rotation paired with the Saint-Venant torsion warping) so that \(a_k\) does not duplicate
+  bending or torsion.
+
+The stiffness is \(\int H^T C H\,\mathrm dA\) with the 3D material law, so anisotropy and
+Poisson coupling between distortion and the beam strains are kept. Extra shear-lag modes are
+not offered for 2D sections.
+
+`tests/test_gbt_2d_sections.py`, on a 0.3 × 0.12 m aluminium box with 2 mm walls (1.5 m
+cantilever, 16 elements):
+
+- Statics: the 2D section with 0 or 6 modes gives the thin-walled GBT tip response within
+  0.8 % (largest on the torsion-coupled lateral rotation).
+- Free vibration against a CalculiX `C3D20R` model of the same box
+  ([gbt_2d_box](../../post_processing/validation_visualisers/gbt_2d_box/make_reference.py)):
+  the lowest eight 2D GBT frequencies (6 modes) are each within 1.5 % of a CalculiX mode,
+  the first flange mode within 0.4 % (44.50 vs 44.33 Hz). The thin-walled GBT with 6 modes
+  starts at 58.1 Hz and misses the flange modes.
+
+## Corotational GBT
+
+`CorotationalGBTBeamElement3D` puts the GBT element in the corotational frame of
+[corotational_section_beams.md](corotational_section_beams.md). The mode amplitudes pass
+through as local DOFs. The second-order terms come from the section forces of the beam
+strains, so the distortional modes carry no wall-level geometric stiffness. Checked at element
+level (tangent, objectivity) and as a job: at small load it is the linear GBT element, and at
+a tip deflection of 14 % of the span it stiffens as the corotational Timoshenko beam does.
+
 ## Not yet included
 
-Transverse-extension modes (in-plane wall stretching, \(N_{ss} \neq 0\)). They need the full
-membrane wall law instead of the 5 × 5 GBT law and come with the 2D section work.
+Transverse-extension modes on thin-walled sections (in-plane wall stretching,
+\(N_{ss} \neq 0\)); use a 2D section, whose modes include them. Wall-level geometric
+stiffness of the distortional modes (local buckling).
