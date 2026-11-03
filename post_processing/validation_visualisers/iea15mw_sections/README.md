@@ -52,7 +52,14 @@ Differences are relative to the thin-walled section. Bending is about the tensio
 | 70 % span | shell | −0.02 % | −0.02 % | −0.01 % | +0.43 % | SC 0.07 % chord |
 | 70 % span | PreComp | +1.50 % | +1.40 % | +6.00 % | −25.5 % | TC 0.07 % chord |
 
-`report.md` has the full tables, and the 70 % span prism once its reference is in.
+`report.md` has the full tables.
+
+The 70 % span prism against the 2D section, as effective stiffnesses (one over each compliance diagonal):
+
+| Prism | EA | EI flap | EI edge | GA edge | GA flap | GJ |
+|---|---|---|---|---|---|---|
+| 2 chords (`prism_20.json`) | +0.01 % | +0.02 % | +0.03 % | +23.0 % | +0.26 % | +19.3 % |
+| 4 chords (`prism_20_4chords.json`) | 0.00 % | 0.00 % | −0.02 % | +3.2 % | −0.21 % | +2.4 % |
 
 ### Findings
 
@@ -60,6 +67,7 @@ Differences are relative to the thin-walled section. Bending is about the tensio
 - **2D against thin-walled: passes at the root, fails at 70 % span, for a geometric reason.** The 2D mesh follows the true outlines, so its spar caps run out to the outer faces of the webs. That gives them 6.5 % more carbon than the thin-walled caps, which end at the web mid-lines.
   - With the 2D cap stiffness scaled to the same carbon, EA is −0.2 %, flap EI −0.9 % and edge EI +1.3 %.
   - GJ is still 4.6 % high. That is the corner and thickness effect of 70 mm caps on 0.7 m wide cells (t/b ≈ 0.1). The plan expected effects of this order where walls are not thin.
-- **2D against the CalculiX prism: equal at the root.** All 6×6 terms agree within 0.01 % of their diagonal scale, so the 2D Saint-Venant solution is the 3D solution of the prism. The 70 % span prism is a longer run and its reference is added separately.
+- **2D against the CalculiX prism: equal at the root.** All 6×6 terms agree within 0.01 % of their diagonal scale, so the 2D Saint-Venant solution is the 3D solution of the prism.
+- **2D against the CalculiX prism at 70 % span: equal in EA and EI; shear and torsion converge to it as the prism gets longer.** The two-chord prism is 23 % stiffer in edgewise shear and 19 % in torsion. Doubling its length cuts that to 3.2 % and 2.4 %, so the excess is the restraint of warping at the prism's ends, which in the three-cell section decays over about 0.8 m (a Benscoter beam of the prism gives half of it). The 2D section assumes free warping and is the long-prism limit. Only the compliance diagonals of the four-chord fit are used: its shear coupling terms are small differences of large bending energies and are not resolved.
 - **PreComp:** EA and flap EI are 1–2 % high. PreComp measures wall areas along the outer mould line, which overstates them by about t/(2R): 2 % for the root tube. Edge EI is 6 % high outboard, which is not explained here. GJ is 25 % low at 70 % span, the known PreComp shortfall for multi-cell sections.
 - **Max chord has no 2D section.** The layered mesher inverts an element at the blunt trailing edge when the 56 mm sandwich skin closes on itself. The thin-walled, shell and PreComp models are compared there.
