@@ -1,7 +1,9 @@
 """PreComp on the idealised IEA 15 MW sections (the layups every 1d-fem model here uses).
 
 Needs WISDEM (``pip install wisdem``), which 1d-fem does not depend on, so the output,
-``reference/precomp_idealised.json``, is committed. To regenerate it::
+``reference/precomp_idealised.json``, is committed, with
+``reference/precomp_idealised_te_clipped.json`` (trailing-edge skins clipped, see
+``precomp_inputs``). To regenerate it::
 
     python post_processing/validation_visualisers/iea15mw_sections/make_precomp_reference.py
 
@@ -25,7 +27,16 @@ sys.path.insert(0, os.path.join(REPO, "examples", "iea15mw"))
 import stations as S  # noqa: E402
 
 
-def precomp_inputs(index: int):
+def precomp_inputs(index: int, te_clip: bool = False, n_te: int = 40):
+    """PreComp inputs of one station.
+
+    PreComp stacks every lamina inward from the outer surface at its full thickness. Near a
+    sharp trailing edge, where the two skins are thicker than the gap between the outer
+    surfaces, the upper and lower laminae then overlap and the overlap is counted twice.
+    ``te_clip=True`` splits the skin aft of the rear web into ``n_te`` sectors and scales
+    each sector's laminae to at most half the local section thickness, as the 2D mesher
+    does, to measure that double count.
+    """
     m = S.station_model(index)
     names = list(S.DATA["materials"])
     idx = {n: k + 1 for k, n in enumerate(names)}          # 1-based for PreComp
@@ -40,6 +51,19 @@ def precomp_inputs(index: int):
         loc, sectors = [0.0, w0, w1, 1.0], [skin, cap, skin]
     else:
         loc, sectors = [0.0, 1.0], [skin]
+    if te_clip and m.web_positions:
+        pts = S.airfoil_points(index)
+        n_up = int(np.argmin(pts[:, 0]))
+        up, lo = pts[:n_up + 1][::-1], pts[n_up:]
+        ts = sum(t for _, t in skin)
+        f = np.linspace(w1, 1.0, n_te + 1)
+        loc, sectors = [0.0, w0, w1], [skin, cap]
+        for a, b in zip(f[:-1], f[1:]):
+            c = 0.5 * (a + b)
+            gap = (np.interp(c, up[:, 0], up[:, 1]) - np.interp(c, lo[:, 0], lo[:, 1])) * m.chord
+            scale = min(1.0, 0.5 * gap / ts)
+            sectors.append([(k, t * scale) for k, t in skin])
+            loc.append(float(b))
 
     def fmt(secs):
         n_lam = [len(s) for s in secs]
@@ -66,10 +90,10 @@ def precomp_inputs(index: int):
                 U=fmt(sectors), L=fmt(sectors), nweb=nweb, W=W)
 
 
-def run(index: int) -> dict:
+def run(index: int, te_clip: bool = False) -> dict:
     from wisdem.precomp import properties
 
-    p = precomp_inputs(index)
+    p = precomp_inputs(index, te_clip=te_clip)
     m = p["mats"]
     out = properties.properties(
         p["chord"], 0.0, 0.0, p["le_loc"], p["xnode"], p["ynode"],
@@ -82,11 +106,12 @@ def run(index: int) -> dict:
 
 
 def main():
-    res = {str(i): run(i) for i in (0, 6, 20)}
     os.makedirs(os.path.join(HERE, "reference"), exist_ok=True)
-    with open(os.path.join(HERE, "reference", "precomp_idealised.json"), "w", encoding="utf-8") as f:
-        json.dump(res, f, indent=1)
-    print(json.dumps(res, indent=1))
+    for name, clip in (("precomp_idealised", False), ("precomp_idealised_te_clipped", True)):
+        res = {str(i): run(i, te_clip=clip) for i in (0, 6, 20)}
+        with open(os.path.join(HERE, "reference", f"{name}.json"), "w", encoding="utf-8") as f:
+            json.dump(res, f, indent=1)
+        print(name, json.dumps(res, indent=1))
 
 
 if __name__ == "__main__":
