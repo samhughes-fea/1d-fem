@@ -252,6 +252,26 @@ def _write_stress_files(job_dir, job_results_dir, element_dictionary, elements, 
 
         write_ply_failure(job_dir, job_results_dir, elements, element_objects, U, thin_walled=tw, solid=solid)
 
+def _write_layup_sensitivity(job_dir, job_results_dir, element_dictionary, elements, runner, solver_type,
+                             simulation_settings) -> None:
+    """``layup_sensitivity.csv`` of a linear static or eigen job with ``layup_sensitivity.txt``
+    (``post_processing/sensitivity/layup_sensitivity.py``)."""
+    from pre_processing.element_library.rotating_frame import rotation_from_settings
+    from pre_processing.parsing.layup_sensitivity_parser import LAYUP_SENSITIVITY_FILE
+
+    if not os.path.exists(os.path.join(job_dir, LAYUP_SENSITIVITY_FILE)):
+        return
+    static_kind = simulation_settings.get("_resolved_static_kind", "linear")
+    second_order = str((simulation_settings.get("static") or {}).get("second_order", "none")).lower()
+    if (solver_type not in ("static", "eigen") or (solver_type == "static" and static_kind != "linear")
+            or second_order != "none" or rotation_from_settings(simulation_settings) is not None):
+        raise ValueError(f"{LAYUP_SENSITIVITY_FILE} needs a linear static or eigen job without second-order "
+                         "or rotation terms")
+    from post_processing.sensitivity.layup_sensitivity import write_layup_sensitivity
+
+    write_layup_sensitivity(job_dir, job_results_dir, element_dictionary, elements, runner, solver_type)
+
+
 def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_serial=False, max_processes_per_job=None):
     """Processes a single FEM simulation job.
 
@@ -678,6 +698,8 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
         runner.run()
         _write_stress_files(job_dir, job_results_dir, element_dictionary, all_elements, runner,
                             solver_type, simulation_settings, element_objects=element_objects)
+        _write_layup_sensitivity(job_dir, job_results_dir, element_dictionary, all_elements, runner,
+                                 solver_type, simulation_settings)
         simulation_time = time.time() - step_start
         performance_data.append(["Full Simulation", simulation_time, *track_usage().values()])
 

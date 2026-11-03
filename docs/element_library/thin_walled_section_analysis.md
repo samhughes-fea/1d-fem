@@ -105,3 +105,5 @@ All checks are in `tests/test_thin_walled_section_analysis.py`.
 - Thin walls only: walls are Kirchhoff plates, and the wall transverse shear stiffness \(\mathbf H\) is not used here. A wall's own transverse shear would add boundary layers about \(t/3\) wide at free edges and junctions, which would need graded meshes. Thick walls and through-thickness stresses are left to the 2D section solver (PRs 14–16).
 - Straight walls. Curvature within a wall is represented by splitting it.
 - Saint-Venant level: free warping. Restrained warping (Benscoter, Vlasov) and section distortion (GBT) come in later PRs and build on `torsion_warping`.
+
+Sensitivities of beam responses to ply angles and thicknesses: [layup_sensitivity.md](layup_sensitivity.md).
