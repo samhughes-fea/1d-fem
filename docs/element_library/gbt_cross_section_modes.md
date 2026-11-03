@@ -203,17 +203,37 @@ mitres the corners of a closed section like this one (see below):
 - With more than about 8 modes the 2D GBT eigenproblem becomes ill-conditioned and gives
   spurious frequencies. Use up to 6.
 
-**Corners.** `SectionMesh.from_thin_walled(..., junctions=...)` meshes wall junctions in two
-ways. With `"mitre"`, each wall's strip runs between the lines that bisect its corners, so
-the ply rows of neighbouring walls meet there and share nodes: the mesh is conforming. That
-needs a closed section of two-wall corners with equal ply thicknesses. With `"tie"`, strips
-end on the mid-line points and later walls' end edges are tied into earlier walls' strips.
-Part of a tied end edge lies outside the master strip and is pinned to its end, which stops
-the edge rotating with the master wall. That stiffens the corner: tied distortional modes
-come out too stiff (2D GBT found no distortional mode below 124 Hz on the tied box), and a
-tied 3D extrusion of a 0.1 m CFRP box was 1.6 times too stiff in bending and 3 times in
-torsion over 3 m. `"auto"`, the default,
-mitres when it can. Open sections and T-junctions still use ties.
+**Junctions.** `SectionMesh.from_thin_walled(..., junctions=...)` joins walls in one of
+three ways.
+
+- **Mitre.** At a point where two walls meet, one ending and the next starting there, with
+  the same ply thicknesses, both strips end on the line that bisects the corner. Each ply
+  row meets the same row of the other wall there, and the two share nodes: the mesh is
+  conforming.
+- **Embedded tie.** At a T-junction, the joining wall's end edge lies inside the through
+  wall's strip, and each of its nodes moves with that strip at its own position.
+- **Butt joint.** At a two-wall corner that cannot be mitred (different thicknesses, or
+  walls running against each other), the first wall runs on past the corner by half the
+  other wall's thickness. The other wall's end edge is then tied inside it, as at a T.
+
+`"auto"`, the default, uses all three, so no tied node is ever pinned. `"mitre"` refuses a
+section with a junction it cannot mitre. `"tie"` is the old meshing: strips end on their
+mid-line points, and the part of a corner's end edge that lies outside the master strip is
+pinned to the strip's end, so the edge cannot rotate with the master wall. That stiffens
+the corner:
+
+- tied distortional modes come out too stiff (2D GBT found no distortional mode below
+  124 Hz on the tied box);
+- tied 3D extrusions are too stiff, as the table below shows.
+
+| 3 m `C3D20R` prism, tip rotation / free-warping beam | `"tie"` | `"auto"` |
+|---|---|---|
+| 0.1 m CAS CFRP box: torsion, flap bending | 0.55, 0.65 | 1.01, 0.99 |
+| Two-cell box with a middle web: torsion, flap, edge | 0.92, 0.77, 0.89 | 1.00, 0.97, 0.99 |
+| L of 8 mm and 4 mm walls: torsion, bending y, bending z | 0.04, 0.90, 0.58 | 0.95, 0.99, 1.00 |
+
+The rest of the `"auto"` difference is end restraint: the clamped root and the rigid tip
+hold the warping that the free-warping beam lets go.
 
 An earlier version of this check compared tied boxes. The 1.5 % agreement it first reported
 came from boxes that had lost their ties, and the 2.4 % and 4.2 % that replaced it came from
