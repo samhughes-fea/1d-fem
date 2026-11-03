@@ -1,0 +1,207 @@
+{
+ "section": {
+  "web": 0.1,
+  "flange": 0.06,
+  "lip": 0.01,
+  "t": 0.002,
+  "E": 70000000000.0,
+  "nu": 0.3,
+  "n_sub": 2,
+  "modes": 10,
+  "mode_kinds": [
+   "distortional",
+   "distortional",
+   "local",
+   "local",
+   "local",
+   "local",
+   "local",
+   "local",
+   "local",
+   "local"
+  ]
+ },
+ "rows": [
+  {
+   "length": 0.04,
+   "elements": 16,
+   "gbt": 224249975.0,
+   "fsm": 223376837.3006185,
+   "fsm_half_waves": 1,
+   "benscoter": 5615498083.333333,
+   "gbt_over_fsm": 1.0039088103759228,
+   "share": {
+    "global": 0.0002204647944830672,
+    "distortional": 0.0023192231223859196,
+    "local": 0.997460312083131
+   },
+   "governs": "local"
+  },
+  {
+   "length": 0.06,
+   "elements": 16,
+   "gbt": 149166407.08333334,
+   "fsm": 147921911.13451767,
+   "fsm_half_waves": 1,
+   "benscoter": 5258828104.166667,
+   "gbt_over_fsm": 1.008413195443939,
+   "share": {
+    "global": 0.00012469689829705297,
+    "distortional": 0.0053637299412830205,
+    "local": 0.9945115731604199
+   },
+   "governs": "local"
+  },
+  {
+   "length": 0.08,
+   "elements": 16,
+   "gbt": 134231421.25,
+   "fsm": 132778225.28814553,
+   "fsm_half_waves": 1,
+   "benscoter": 4819576104.166666,
+   "gbt_over_fsm": 1.010944535210505,
+   "share": {
+    "global": 0.00013667244702702765,
+    "distortional": 0.015862606727844907,
+    "local": 0.9840007208251281
+   },
+   "governs": "local"
+  },
+  {
+   "length": 0.12,
+   "elements": 16,
+   "gbt": 149175775.41666666,
+   "fsm": 147661621.85691828,
+   "fsm_half_waves": 1,
+   "benscoter": 3862872854.1666665,
+   "gbt_over_fsm": 1.0102542118981706,
+   "share": {
+    "global": 0.00012414342465685447,
+    "distortional": 0.00535741646816997,
+    "local": 0.9945184401071732
+   },
+   "governs": "local"
+  },
+  {
+   "length": 0.2,
+   "elements": 20,
+   "gbt": 138429116.04166666,
+   "fsm": 136632567.17132187,
+   "fsm_half_waves": 2,
+   "benscoter": 2315671875.0,
+   "gbt_over_fsm": 1.0131487602665923,
+   "share": {
+    "global": 0.0001980581508090624,
+    "distortional": 0.05202328563327252,
+    "local": 0.9477786562159184
+   },
+   "governs": "local"
+  },
+  {
+   "length": 0.3,
+   "elements": 30,
+   "gbt": 112735819.58333333,
+   "fsm": 111903207.37797605,
+   "fsm_half_waves": 1,
+   "benscoter": 1284900143.75,
+   "gbt_over_fsm": 1.0074404677476756,
+   "share": {
+    "global": 8.757211003994643e-05,
+    "distortional": 0.998008299548945,
+    "local": 0.0019041283410150302
+   },
+   "governs": "distortional"
+  },
+  {
+   "length": 0.4,
+   "elements": 40,
+   "gbt": 110783427.29166667,
+   "fsm": 110471116.31611814,
+   "fsm_half_waves": 1,
+   "benscoter": 791084987.5,
+   "gbt_over_fsm": 1.0028270826435286,
+   "share": {
+    "global": 0.00014641118305148634,
+    "distortional": 0.9993028604925608,
+    "local": 0.0005507283243876859
+   },
+   "governs": "distortional"
+  },
+  {
+   "length": 0.6,
+   "elements": 60,
+   "gbt": 112735819.58333333,
+   "fsm": 111903207.37797605,
+   "fsm_half_waves": 2,
+   "benscoter": 379104295.8333333,
+   "gbt_over_fsm": 1.0074404677476756,
+   "share": {
+    "global": 8.757210984045059e-05,
+    "distortional": 0.9980082995460603,
+    "local": 0.001904128344099324
+   },
+   "governs": "distortional"
+  },
+  {
+   "length": 0.9,
+   "elements": 90,
+   "gbt": 112735819.58333333,
+   "fsm": 111903207.37797605,
+   "fsm_half_waves": 3,
+   "benscoter": 177367363.125,
+   "gbt_over_fsm": 1.0074404677476756,
+   "share": {
+    "global": 8.757210978214442e-05,
+    "distortional": 0.9980082995538179,
+    "local": 0.0019041283363999673
+   },
+   "governs": "distortional"
+  },
+  {
+   "length": 1.4,
+   "elements": 120,
+   "gbt": 77643636.87499999,
+   "fsm": 77668501.28926048,
+   "fsm_half_waves": 1,
+   "benscoter": 78304193.54166667,
+   "gbt_over_fsm": 0.9996798648892697,
+   "share": {
+    "global": 0.9990438685791705,
+    "distortional": 0.0009556434821875854,
+    "local": 4.879386418948133e-07
+   },
+   "governs": "global"
+  },
+  {
+   "length": 2.0,
+   "elements": 120,
+   "gbt": 41963979.166666664,
+   "fsm": 41997469.802451454,
+   "fsm_half_waves": 1,
+   "benscoter": 41970748.75,
+   "gbt_over_fsm": 0.9992025558696197,
+   "share": {
+    "global": 0.9999610184458549,
+    "distortional": 3.894268972431989e-05,
+    "local": 3.88644207368463e-08
+   },
+   "governs": "global"
+  },
+  {
+   "length": 3.0,
+   "elements": 120,
+   "gbt": 22341295.833333332,
+   "fsm": 22361292.112670332,
+   "fsm_half_waves": 1,
+   "benscoter": 22324580.0,
+   "gbt_over_fsm": 0.9991057636903875,
+   "share": {
+    "global": 0.999999485886073,
+    "distortional": 5.113290023165345e-07,
+    "local": 2.7849246986505456e-09
+   },
+   "governs": "global"
+  }
+ ],
+ "max_gbt_error": 0.013148760266592285
+}
