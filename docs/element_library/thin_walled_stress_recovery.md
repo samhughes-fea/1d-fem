@@ -108,3 +108,5 @@ The worked examples in `examples/thin_walled/` compare against Saint-Venant tip
 deflections and multi-cell Bredt-Batho shear flows. A comparison against a
 shell model (the plan's 3 % check) needs a shell solver and is not in this
 repository.
+
+Ply failure criteria and margins built on these stresses: [ply_failure.md](ply_failure.md).

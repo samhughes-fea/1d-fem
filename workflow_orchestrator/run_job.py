@@ -207,13 +207,15 @@ def setup_job_results_directory(case_name: str) -> str:
 
 
 def _write_stress_files(job_dir, job_results_dir, element_dictionary, elements, runner, solver_type,
-                        simulation_settings) -> None:
+                        simulation_settings, element_objects=None) -> None:
     """Wall and section stress files of a solved job (thin-walled or 2D sections).
 
     Linear static jobs, nonlinear static jobs whose elements are all corotational (the
     stresses of each element's local deformation) and eigen jobs (one block of rows per
     mode shape, as the solver normalises them), at the element mid-points or at the
-    stations of ``stress_stations.txt``.
+    stations of ``stress_stations.txt``. Static jobs with ``ply_strength.txt`` also write
+    the ply failure exposures and margins at every element's Gauss points
+    (``post_processing/failure/ply_failure.py``).
     """
     tw = element_dictionary.get("thin_walled_analysis_per_element")
     solid = element_dictionary.get("solid_analysis_per_element")
@@ -245,6 +247,10 @@ def _write_stress_files(job_dir, job_results_dir, element_dictionary, elements, 
         from post_processing.solid.section_stresses import write_section_stresses
 
         write_section_stresses(job_results_dir, elements, solid, U, stations=stations, modes=modes)
+    if modes is None and element_objects is not None:
+        from post_processing.failure.ply_failure import write_ply_failure
+
+        write_ply_failure(job_dir, job_results_dir, elements, element_objects, U, thin_walled=tw, solid=solid)
 
 def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_serial=False, max_processes_per_job=None):
     """Processes a single FEM simulation job.
@@ -671,7 +677,7 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
 
         runner.run()
         _write_stress_files(job_dir, job_results_dir, element_dictionary, all_elements, runner,
-                            solver_type, simulation_settings)
+                            solver_type, simulation_settings, element_objects=element_objects)
         simulation_time = time.time() - step_start
         performance_data.append(["Full Simulation", simulation_time, *track_usage().values()])
 
