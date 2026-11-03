@@ -64,6 +64,7 @@ Not covered yet: the quartic terms of the shear strains.
 | I-beam, uniform twist, free warping | `T = GJk + ½E(I_rr − I_p²/A)k³` | 1e-6 |
 | I-beam, warping restrained, 6 kN m | nonlinear Vlasov equation (collocation) | +0.25 % (Benscoter warping shear) |
 | I-beam LTB, uniform moment | Trahair 6.24 with prebuckling deflection | < 1 % (EB and Benscoter) |
+| CAS CFRP box cantilever, dead tip force to 35 % span deflection | CalculiX `C3D20R` `NLGEOM` solid | 1.3 % deflection, 2 % twist (Timoshenko) |
 
 The LTB check follows the nonlinear path with a small lateral imperfection and finds the
 load where the tangent stops being positive definite. That load is above the classical
@@ -72,3 +73,7 @@ value is the linear buckling of [second_order.md](second_order.md).
 
 The example [examples/thin_walled/large_twist](../../examples/thin_walled/large_twist/README.md)
 runs the restrained large-twist case through the nonlinear job runner.
+
+The composite box check is
+[nonlinear_solid_box](../../post_processing/validation_visualisers/nonlinear_solid_box/README.md).
+Beyond 35 % of the span the solid's flanges flatten (Brazier): at 49 % the beam is 5 % stiff.

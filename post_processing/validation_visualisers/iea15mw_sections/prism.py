@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import Dict, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -41,11 +41,25 @@ def _fmt(v: float) -> str:
     return f"{v:.10e}"
 
 
-def tie_equations(ties, nid, corner, n_along: int) -> list:
+def _midside_edges(elements) -> Dict[int, Tuple[int, int]]:
+    """The two corner nodes on each side of every ``Q8`` midside node."""
+    out = {}
+    for conn in elements:
+        for m, (a, b) in zip(conn[4:8], ((0, 1), (1, 2), (2, 3), (3, 0))):
+            out[int(m)] = (int(conn[a]), int(conn[b]))
+    return out
+
+
+def tie_equations(ties, nid, corner, n_along: int, elements=None) -> list:
     """``*EQUATION`` cards for the junction ties of a ``SectionMesh`` (``mesh.ties``) at every
     level of the prism but the clamped root. A tied node moves as its masters' interpolation.
-    Odd levels hold only corner nodes, so a master without one there is taken as the mean of
-    its two neighbouring even levels."""
+
+    Odd levels hold only the 2D corner nodes. There a master that is a 2D midside node
+    sits at the centre of a brick face, and its motion is that face's 8-node interpolation:
+    half the four face midside nodes (the master at the two even levels, the edge's corner
+    nodes at this level) less a quarter of the four face corners. Without ``elements``
+    the master is taken as the mean of its two even levels instead."""
+    edges = _midside_edges(elements) if elements is not None else {}
     out = []
     for k in range(1, 2 * n_along + 1):
         for n, row in ties.items():
@@ -55,21 +69,32 @@ def tie_equations(ties, nid, corner, n_along: int) -> list:
             for m, c in row:
                 if (k, m) in nid:
                     terms.append((nid[(k, m)], c))
+                elif m in edges:
+                    a, b = edges[m]
+                    terms += [(nid[(k - 1, m)], 0.5 * c), (nid[(k + 1, m)], 0.5 * c),
+                              (nid[(k, a)], 0.5 * c), (nid[(k, b)], 0.5 * c)]
+                    terms += [(nid[(j, q)], -0.25 * c) for j in (k - 1, k + 1) for q in (a, b)]
                 else:
                     terms += [(nid[(k - 1, m)], 0.5 * c), (nid[(k + 1, m)], 0.5 * c)]
+            merged: Dict[int, float] = {}
+            for node, c in terms:
+                merged[node] = merged.get(node, 0.0) + c
             for dof in (1, 2, 3):
-                eq = [(nid[(k, n)], dof, 1.0)] + [(node, dof, -c) for node, c in terms]
+                eq = [(nid[(k, n)], dof, 1.0)] + [(node, dof, -c) for node, c in merged.items() if c != 0.0]
                 out += ["*EQUATION", str(len(eq))]
                 for a in range(0, len(eq), 4):
                     out.append(", ".join(f"{i}, {d}, {_fmt(c)}" for i, d, c in eq[a:a + 4]) + ",")
     return out
 
 
-def write_deck(mesh: SectionMesh, length: float, n_along: int, path: str, stations: Tuple[int, int]) -> Dict:
+def write_deck(mesh: SectionMesh, length: float, n_along: int, path: str, stations: Tuple[int, int],
+               steps: Optional[List[str]] = None) -> Dict:
     """Write the ``.inp`` deck; return the node bookkeeping needed to read the results.
 
     ``stations`` are two element layer indices (0..n_along) bounding the elements whose
-    energy is printed.
+    energy is printed. ``steps``, when given, replaces the unit load steps with these deck
+    lines (the tip reference node is ``REF`` and its rotation node ``ROT`` in them; the
+    returned ids say which nodes those are).
     """
     nodes2d = mesh.nodes
     n2 = nodes2d.shape[0]
@@ -139,13 +164,16 @@ def write_deck(mesh: SectionMesh, length: float, n_along: int, path: str, statio
     tip = [nid[(2 * n_along, i)] for i in range(n2) if i not in ties]   # tied nodes follow their masters
     out += nset("ROOT", root) + nset("TIP", tip)
     out += ["*RIGID BODY, NSET=TIP, REF NODE=%d, ROT NODE=%d" % (ref, rot)]
-    out += tie_equations(ties, nid, corner, n_along)
+    out += tie_equations(ties, nid, corner, n_along, mesh.elements)
     out += ["*BOUNDARY", "ROOT, 1, 3, 0.0"]
     mid = [e_ for key, e_, c in elem_lines if stations[0] <= (e_ - 1) % n_along < stations[1]]
     out.append("*ELSET, ELSET=MID")
     for a in range(0, len(mid), 12):
         out.append(", ".join(map(str, mid[a:a + 12])) + ",")
-    for case, F in enumerate(load_cases()):
+    out += nset("REF", [ref]) + nset("ROT", [rot])
+    if steps is not None:
+        out += list(steps)
+    for case, F in enumerate(load_cases() if steps is None else []):
         N, My, Mz, Vy, Vz, T = F
         out += ["*STEP", "*STATIC", "*CLOAD"]
         out += [f"{ref}, 1, {_fmt(N)}", f"{ref}, 2, {_fmt(Vy)}", f"{ref}, 3, {_fmt(Vz)}",
@@ -154,7 +182,7 @@ def write_deck(mesh: SectionMesh, length: float, n_along: int, path: str, statio
         out += ["*END STEP"]
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
-    return {"nid": nid, "n2": n2}
+    return {"nid": nid, "n2": n2, "ref": ref, "rot": rot}
 
 
 def read_energies(path: str) -> np.ndarray:
