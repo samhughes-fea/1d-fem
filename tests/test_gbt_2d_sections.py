@@ -2,9 +2,9 @@
 
 With the cross-section modes held at zero both are the same Benscoter-type beam; with
 modes free, the 2D section's distortional modes (in-plane eigenmodes of the meshed
-walls) catch the local flange modes of the box, which the thin-walled GBT basis
-(a few nodes per wall) is too coarse to show. The reference is a CalculiX C3D20R
-model of the same box (``post_processing/validation_visualisers/gbt_2d_box``).
+walls) catch the local flange modes of the box. The 2D mesh has mitred corners (no ties).
+The reference is a CalculiX C3D20R model of the same box
+(``post_processing/validation_visualisers/gbt_2d_box``).
 """
 
 from __future__ import annotations
@@ -35,12 +35,12 @@ def _box_section():
     return common.SectionSpec(pts, walls, mat, {1: [(1, 0.0, t)]}, n_sub=4)
 
 
-def box_mesh():
-    """The box as a 2D section mesh (Q8 elements, 12 along each wall)."""
+def box_mesh(junctions="auto"):
+    """The box as a 2D section mesh (Q8 elements, 12 along each wall; mitred corners)."""
     from pre_processing.section_integration.solid.mesh import SectionMesh
 
     tw = common.build_analysis(_box_section())
-    return SectionMesh.from_thin_walled(tw.section, tw.laminates, elements_along=12)
+    return SectionMesh.from_thin_walled(tw.section, tw.laminates, elements_along=12, junctions=junctions)
 
 
 def _run(tmp_path, kind, modes, eigen=False):
@@ -78,7 +78,7 @@ def test_section_mesh_2d_file_keeps_junction_ties(tmp_path):
     from pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
     from pre_processing.section_integration.solid.mesh import parse_section_mesh_2d
 
-    mesh = box_mesh()
+    mesh = box_mesh("tie")
     assert mesh.ties
     write_section_mesh_2d(str(tmp_path / "m.txt"), {1: mesh})
     back = parse_section_mesh_2d(str(tmp_path / "m.txt"), {})[1]
@@ -96,12 +96,23 @@ def test_2d_gbt_statics_match_thin_walled_gbt(tmp_path, modes):
     np.testing.assert_allclose(d2, tw, rtol=3e-2, atol=1e-2 * np.abs(tw).max())
 
 
+def test_box_mesh_has_mitred_corners():
+    mesh = box_mesh()
+    assert not mesh.ties
+    assert mesh.nodes[:, 0].min() == pytest.approx(-0.15 - 1e-3)       # the outer corner is filled
+
+
 def test_2d_gbt_beam_frequencies_match_calculix_box(tmp_path):
-    """Without distortional modes, the first flap and edge frequencies are within 3 % and
-    5 % of the CalculiX box (64.0 Hz flap, 135.9 Hz edge; its second mode, 90.4 Hz, is a
-    torsion-distortion mode)."""
+    """Without distortional modes, edge bending is within 1.5 % of the CalculiX box. With
+    four modes the lowest eight frequencies are within 5 % (flap within 2 %), except the
+    torsion-distortion mode, which is 8 % high (83.0 Hz against 76.9 Hz)."""
     with open(REFERENCE, encoding="utf-8") as f:
         ref = json.load(f)
-    f2d = _run(tmp_path, "2d", 0, eigen=True)
-    assert f2d[0] == pytest.approx(ref["flap_hz"], rel=0.03)
-    assert f2d[1] == pytest.approx(ref["edge_hz"], rel=0.05)
+    f0 = _run(tmp_path, "2d", 0, eigen=True)
+    assert f0[1] == pytest.approx(ref["edge_hz"], rel=0.015)
+    f4 = _run(tmp_path, "2d", 4, eigen=True)
+    fc = np.array(ref["frequencies_hz"][:8])
+    err = f4[:8] / fc - 1.0
+    assert abs(err[0]) < 0.02
+    assert 0.0 < err[1] < 0.10
+    assert np.all(np.abs(err[2:]) < 0.05)
