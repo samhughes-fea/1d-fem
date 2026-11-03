@@ -164,9 +164,14 @@ def test_cas_box_couplings_match_thin_walled(cas_box):
     tw, so = cas_box
     Kt, Ks = tw.stiffness, so.stiffness
     assert abs(Kt[0, 5]) > 0.1 * np.sqrt(Kt[0, 0] * Kt[5, 5])          # strongly coupled
-    np.testing.assert_allclose(_scaled(Ks, Kt), 0.0, atol=8e-3)
-    # the overlapping junctions of the 2D strips are tied one way round: a 0.1 % asymmetry
-    np.testing.assert_allclose(so.shear_centre, 0.0, atol=2e-3 * 0.1)
+    D = _scaled(Ks, Kt)
+    # the mitred corners carry the 2D walls' through-thickness shear round the corner:
+    # transverse shear 1.4 % stiffer than the mid-line walls, everything else within 0.8 %
+    assert np.all(np.abs(np.diag(D)[3:5] - 0.014) < 3e-3)
+    D[3, 3] = D[4, 4] = 0.0
+    np.testing.assert_allclose(D, 0.0, atol=8e-3)
+    # the mitred mesh is symmetric, so is its shear centre
+    np.testing.assert_allclose(so.shear_centre, 0.0, atol=1e-10)
 
 
 # ------------------------------------------------------------------ SectionAnalysis and jobs

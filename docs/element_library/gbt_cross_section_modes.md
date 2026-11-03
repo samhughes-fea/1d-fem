@@ -173,25 +173,44 @@ Poisson coupling between distortion and the beam strains are kept. Extra shear-l
 not offered for 2D sections.
 
 `tests/test_gbt_2d_sections.py`, on a 0.3 × 0.12 m aluminium box with 2 mm walls (1.5 m
-cantilever, 16 elements):
+cantilever, 16 elements). The 2D mesh comes from `SectionMesh.from_thin_walled`, which
+mitres the corners of a closed section like this one (see below):
 
 - Statics: with 0 or 6 modes, the 2D section gives the thin-walled GBT tip response within
-  3 %. The twist differs most, because the 2D walls overlap at the tied corners.
-- Free vibration against a CalculiX `C3D20R` model of the same box
-  ([gbt_2d_box](../../post_processing/validation_visualisers/gbt_2d_box/make_reference.py)),
-  with the walls tied at the corners as in the 2D mesh:
-  - Without distortional modes, the first flap (65.6 Hz) and edge (130.2 Hz) frequencies
-    are within 2.4 % and 4.2 % of CalculiX (64.0 and 135.9 Hz).
-  - CalculiX's second mode (90.4 Hz) is torsion with cross-section distortion.
-    - Thin-walled GBT with 2 to 6 modes puts it at 75–76 Hz (−16 %).
-    - 2D GBT does not show it among its lowest eight modes. Its lowest distortional modes
-      (from 124 Hz) are local wall modes, near CalculiX's 120–130 Hz local modes, but they
-      have not been matched mode by mode.
-  - With more than about 8 modes the 2D GBT eigenproblem becomes ill-conditioned and
-    gives spurious frequencies. Use up to 6.
-  - An earlier version of this check reported agreement within 1.5 %. That was against a
-    CalculiX deck that dropped the corner ties, and against 2D sections that lost their
-    ties in `section_mesh_2d.txt`: both boxes had hinged corners. Both are now fixed.
+  3 %.
+- Free vibration against a CalculiX `C3D20R` model of the same mitred box
+  ([gbt_2d_box](../../post_processing/validation_visualisers/gbt_2d_box/make_reference.py)).
+  CalculiX gives flap bending at 59.1 Hz, torsion with cross-section distortion at 76.9 Hz,
+  local wall modes from 83.9 Hz, and edge bending at 128.9 Hz.
+
+| Lowest eight modes (Hz) | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|
+| CalculiX `C3D20R` | 59.1 | 76.9 | 83.9 | 87.5 | 94.7 | 105.8 | 106.0 | 113.9 |
+| 2D GBT, 4 modes | 59.7 | 83.3 | 85.8 | 89.3 | 96.6 | 108.2 | 110.5 | 118.8 |
+| Thin-walled GBT, 4 modes | 58.2 | 76.4 | 82.2 | 85.6 | 92.6 | 100.8 | 103.6 | 108.5 |
+
+- Both GBT models find the local wall modes within 5 %. 2D GBT puts the torsion-distortion
+  mode 8 % high; thin-walled GBT gets it within 1 %.
+- Without distortional modes, edge bending (130.1 Hz) is within 1 % of CalculiX. Flap
+  bending is then 11 % high (65.5 Hz), because the wide flanges' shear lag needs the modes.
+- With more than about 8 modes the 2D GBT eigenproblem becomes ill-conditioned and gives
+  spurious frequencies. Use up to 6.
+
+**Corners.** `SectionMesh.from_thin_walled(..., junctions=...)` meshes wall junctions in two
+ways. With `"mitre"`, each wall's strip runs between the lines that bisect its corners, so
+the ply rows of neighbouring walls meet there and share nodes: the mesh is conforming. That
+needs a closed section of two-wall corners with equal ply thicknesses. With `"tie"`, strips
+end on the mid-line points and later walls' end edges are tied into earlier walls' strips.
+Part of a tied end edge lies outside the master strip and is pinned to its end, which stops
+the edge rotating with the master wall. That stiffens the corner: tied distortional modes
+come out too stiff (2D GBT found no distortional mode below 124 Hz on the tied box), and a
+tied 3D extrusion of a 0.1 m CFRP box was 1.6 times too stiff in bending and 3 times in
+torsion over 3 m. `"auto"`, the default,
+mitres when it can. Open sections and T-junctions still use ties.
+
+An earlier version of this check compared tied boxes. The 1.5 % agreement it first reported
+came from boxes that had lost their ties, and the 2.4 % and 4.2 % that replaced it came from
+tied boxes. Both are withdrawn.
 
 ## Corotational GBT
 
