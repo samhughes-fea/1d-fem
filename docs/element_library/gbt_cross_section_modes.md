@@ -175,13 +175,23 @@ not offered for 2D sections.
 `tests/test_gbt_2d_sections.py`, on a 0.3 × 0.12 m aluminium box with 2 mm walls (1.5 m
 cantilever, 16 elements):
 
-- Statics: the 2D section with 0 or 6 modes gives the thin-walled GBT tip response within
-  0.8 % (largest on the torsion-coupled lateral rotation).
+- Statics: with 0 or 6 modes, the 2D section gives the thin-walled GBT tip response within
+  3 %. The twist differs most, because the 2D walls overlap at the tied corners.
 - Free vibration against a CalculiX `C3D20R` model of the same box
-  ([gbt_2d_box](../../post_processing/validation_visualisers/gbt_2d_box/make_reference.py)):
-  the lowest eight 2D GBT frequencies (6 modes) are each within 1.5 % of a CalculiX mode,
-  the first flange mode within 0.4 % (44.50 vs 44.33 Hz). The thin-walled GBT with 6 modes
-  starts at 58.1 Hz and misses the flange modes.
+  ([gbt_2d_box](../../post_processing/validation_visualisers/gbt_2d_box/make_reference.py)),
+  with the walls tied at the corners as in the 2D mesh:
+  - Without distortional modes, the first flap (65.6 Hz) and edge (130.2 Hz) frequencies
+    are within 2.4 % and 4.2 % of CalculiX (64.0 and 135.9 Hz).
+  - CalculiX's second mode (90.4 Hz) is torsion with cross-section distortion.
+    - Thin-walled GBT with 2 to 6 modes puts it at 75–76 Hz (−16 %).
+    - 2D GBT does not show it among its lowest eight modes. Its lowest distortional modes
+      (from 124 Hz) are local wall modes, near CalculiX's 120–130 Hz local modes, but they
+      have not been matched mode by mode.
+  - With more than about 8 modes the 2D GBT eigenproblem becomes ill-conditioned and
+    gives spurious frequencies. Use up to 6.
+  - An earlier version of this check reported agreement within 1.5 %. That was against a
+    CalculiX deck that dropped the corner ties, and against 2D sections that lost their
+    ties in `section_mesh_2d.txt`: both boxes had hinged corners. Both are now fixed.
 
 ## Corotational GBT
 

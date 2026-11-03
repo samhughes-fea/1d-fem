@@ -41,6 +41,30 @@ def _fmt(v: float) -> str:
     return f"{v:.10e}"
 
 
+def tie_equations(ties, nid, corner, n_along: int) -> list:
+    """``*EQUATION`` cards for the junction ties of a ``SectionMesh`` (``mesh.ties``) at every
+    level of the prism but the clamped root. A tied node moves as its masters' interpolation.
+    Odd levels hold only corner nodes, so a master without one there is taken as the mean of
+    its two neighbouring even levels."""
+    out = []
+    for k in range(1, 2 * n_along + 1):
+        for n, row in ties.items():
+            if (k, n) not in nid:
+                continue
+            terms = []
+            for m, c in row:
+                if (k, m) in nid:
+                    terms.append((nid[(k, m)], c))
+                else:
+                    terms += [(nid[(k - 1, m)], 0.5 * c), (nid[(k + 1, m)], 0.5 * c)]
+            for dof in (1, 2, 3):
+                eq = [(nid[(k, n)], dof, 1.0)] + [(node, dof, -c) for node, c in terms]
+                out += ["*EQUATION", str(len(eq))]
+                for a in range(0, len(eq), 4):
+                    out.append(", ".join(f"{i}, {d}, {_fmt(c)}" for i, d, c in eq[a:a + 4]) + ",")
+    return out
+
+
 def write_deck(mesh: SectionMesh, length: float, n_along: int, path: str, stations: Tuple[int, int]) -> Dict:
     """Write the ``.inp`` deck; return the node bookkeeping needed to read the results.
 
@@ -104,7 +128,6 @@ def write_deck(mesh: SectionMesh, length: float, n_along: int, path: str, statio
                 ", ".join(_fmt(v) for v in (*a, *b))]
         out += [f"*SOLID SECTION, ELSET=G{g}, MATERIAL=M{mid}, ORIENTATION=O{g}"]
     root = [nid[(0, i)] for i in range(n2)]
-    tip = [nid[(2 * n_along, i)] for i in range(n2)]
 
     def nset(name, ids):
         res = [f"*NSET, NSET={name}"]
@@ -112,8 +135,11 @@ def write_deck(mesh: SectionMesh, length: float, n_along: int, path: str, statio
             res.append(", ".join(map(str, ids[a:a + 12])) + ",")
         return res
 
+    ties = getattr(mesh, "ties", None) or {}
+    tip = [nid[(2 * n_along, i)] for i in range(n2) if i not in ties]   # tied nodes follow their masters
     out += nset("ROOT", root) + nset("TIP", tip)
     out += ["*RIGID BODY, NSET=TIP, REF NODE=%d, ROT NODE=%d" % (ref, rot)]
+    out += tie_equations(ties, nid, corner, n_along)
     out += ["*BOUNDARY", "ROOT, 1, 3, 0.0"]
     mid = [e_ for key, e_, c in elem_lines if stations[0] <= (e_ - 1) % n_along < stations[1]]
     out.append("*ELSET, ELSET=MID")
