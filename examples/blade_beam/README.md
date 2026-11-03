@@ -44,10 +44,20 @@ layered `Q8` elements.
   (`section_taper_from_geometry`). In a tapered blade the inclined caps carry part of
   the shear (the Resal effect); without that coupling the beam is 5.5 % soft in flap. On a
   prismatic segment, where there is no taper, the beam is within 0.5 % either way.
-- **Torsion is 4 % stiff with Timoshenko elements and 1.5 % with Benscoter.** The 4 %
-  stays on the prismatic segment and with the taper coupling, so it is not taper. Most of
-  it is warping restraint at the clamp, which only Benscoter models. The remaining 1.5 % is
-  open.
+- **Torsion is 4 % soft with Timoshenko elements and 1.5 % soft with Benscoter** (the
+  beam twists more than the shell). The 4 % stays on the prismatic segment and with the
+  taper coupling, so it is not taper. Most of it is warping restraint at the clamp, which
+  only Benscoter models. The remaining 1.5 % comes from the section idealisation and is not
+  a missing beam effect:
+  - On 2D sections, whose caps hold 6.5 % more carbon (GJ +4.5 % at 70 % span), the
+    free-warping Timoshenko beam twists 0.4 % less than the shell.
+  - A GBT beam on the same 2D sections, with the warping restrained at the clamp, twists
+    3.4 % less than the shell. Adding 4 or 8 distortional modes (cross-section distortion,
+    which the unstiffened shell allows) brings this to 2.0 % and 1.9 %. Distortion is
+    therefore a real effect but a small one, about 1.5 %. Because it softens the beam, it
+    does not account for the thin-walled beams being soft.
+  - These checks use untapered elements without pretwist (GBT sections do not take
+    pretwist yet). The scripts are not part of the example.
 - **The 2D sections are 2–5 % stiff in bending** because their caps hold 6.5 % more carbon
   than the thin-walled caps (see `post_processing/validation_visualisers/iea15mw_sections`).
   Before the taper coupling this cancelled the taper softening and the 2D model looked
@@ -66,9 +76,13 @@ layered `Q8` elements.
 
 Flap and edge agree within 0.3 % (they were 3.3 % and 0.8 % low before the taper coupling).
 The torsion modes are 7 to 10 % high, which is more than the static stiffness accounts for
-(a 4 % stiffness difference moves a frequency by about 2 %). The rest is probably the
-polar mass inertia of the thin-walled section against the shell's distributed mass, and
-is not yet explained.
+(a 4 % stiffness difference moves a frequency by about 2 %). The gap is in the inertia, not
+the stiffness. A Timoshenko beam on 2D sections twists within 0.4 % of the shell under a
+static tip torque, yet its first torsion frequency is still 10 % high (11.06 Hz against
+10.02 Hz). That means the shell's torsion mode carries about 20 % more rotary inertia
+than the beam's polar mass inertia. A likely cause is in-plane motion of the large
+unsupported trailing-edge panels in the shell mode. The shell's own panel modes start at
+13 Hz. This is not yet confirmed.
 
 Above 13 Hz the shell has local panel modes that a beam cannot have, so only the first
 four modes are compared.
