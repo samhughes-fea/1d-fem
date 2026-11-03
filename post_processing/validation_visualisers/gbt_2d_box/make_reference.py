@@ -1,11 +1,10 @@
 """CalculiX reference for GBT on 2D sections: free vibration of a thin box cantilever.
 
 The box (0.3 m x 0.12 m, 2 mm aluminium walls, 1.5 m long) is the 2D section mesh of
-``tests/test_gbt_2d_sections.py`` extruded into ``C3D20R`` bricks (``iea15mw_sections/prism.py``),
-with the walls tied at the corners as in the 2D mesh (``*EQUATION``),
-clamped at the root (all translations) and free at the tip. Its modes are
-the flap bending mode (64.0 Hz), a torsion-distortion mode (90.4 Hz), local
-distortion modes from 120 Hz and edge bending (135.9 Hz). Writes
+``tests/test_gbt_2d_sections.py`` (mitred corners, no ties) extruded into ``C3D20R`` bricks
+(``iea15mw_sections/prism.py``), clamped at the root (all translations) and free at the
+tip. Its modes are flap bending (59.1 Hz), a torsion-distortion mode (76.9 Hz), local
+distortion modes from 83.9 Hz, and edge bending (128.9 Hz, the eleventh). Writes
 ``reference.json`` here. Needs ``ccx`` on the PATH (about a minute)::
 
     python post_processing/validation_visualisers/gbt_2d_box/make_reference.py
@@ -43,7 +42,7 @@ def main(work_dir: str = "") -> dict:
     work_dir = work_dir or tempfile.mkdtemp(prefix="gbt_box_")
     deck = os.path.join(work_dir, "box.inp")
     prism.write_deck(mesh, 1.5, N_ALONG, deck, (0, 1))
-    # keep the mesh and the junction ties (*EQUATION); drop the rigid tip and the load steps
+    # keep the mesh; drop the rigid tip and the load steps
     head, rest = open(deck, encoding="utf-8").read().split("*RIGID BODY", 1)
     text = head + rest.split("\n", 1)[1].split("*BOUNDARY")[0]
     for mid, m in mesh.materials.items():
@@ -56,10 +55,10 @@ def main(work_dir: str = "") -> dict:
     block = dat.split("E I G E N V A L U E   O U T P U T")[1]
     freqs = [float(ln.split()[3]) for ln in block.splitlines()
              if re.match(r"\s+\d+\s+[-\d.E+]+\s+[-\d.E+]+\s+[-\d.E+]+", ln)][:N_MODES]
-    # modes 1 and 8 are the first flap and edge bending modes (tip motion fitted as a rigid
-    # section: mode 1 is flapwise, mode 2 torsion with distortion, 3-7 local distortion)
+    # tip motion fitted as a rigid section: mode 1 is flapwise, mode 2 torsion with
+    # distortion, 3-10 and 12 local distortion, 11 edgewise
     out = {"element": "C3D20R", "n_along": N_ALONG, "frequencies_hz": freqs,
-           "flap_hz": freqs[0], "edge_hz": freqs[7]}
+           "flap_hz": freqs[0], "torsion_distortion_hz": freqs[1], "edge_hz": freqs[10]}
     with open(os.path.join(HERE, "reference.json"), "w", encoding="utf-8") as f:
         json.dump(out, f, indent=1)
     return out
