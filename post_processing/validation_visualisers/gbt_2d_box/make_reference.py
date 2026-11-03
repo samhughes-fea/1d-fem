@@ -2,8 +2,10 @@
 
 The box (0.3 m x 0.12 m, 2 mm aluminium walls, 1.5 m long) is the 2D section mesh of
 ``tests/test_gbt_2d_sections.py`` extruded into ``C3D20R`` bricks (``iea15mw_sections/prism.py``),
-clamped at the root (all translations) and free at the tip. Its lowest modes are local
-flange modes, which the 2D section's distortional modes must reproduce. Writes
+with the walls tied at the corners as in the 2D mesh (``*EQUATION``),
+clamped at the root (all translations) and free at the tip. Its modes are
+the flap bending mode (64.0 Hz), a torsion-distortion mode (90.4 Hz), local
+distortion modes from 120 Hz and edge bending (135.9 Hz). Writes
 ``reference.json`` here. Needs ``ccx`` on the PATH (about a minute)::
 
     python post_processing/validation_visualisers/gbt_2d_box/make_reference.py
@@ -41,7 +43,9 @@ def main(work_dir: str = "") -> dict:
     work_dir = work_dir or tempfile.mkdtemp(prefix="gbt_box_")
     deck = os.path.join(work_dir, "box.inp")
     prism.write_deck(mesh, 1.5, N_ALONG, deck, (0, 1))
-    text = open(deck, encoding="utf-8").read().split("*RIGID BODY")[0]
+    # keep the mesh and the junction ties (*EQUATION); drop the rigid tip and the load steps
+    head, rest = open(deck, encoding="utf-8").read().split("*RIGID BODY", 1)
+    text = head + rest.split("\n", 1)[1].split("*BOUNDARY")[0]
     for mid, m in mesh.materials.items():
         text = text.replace(f"*MATERIAL, NAME=M{mid}\n", f"*MATERIAL, NAME=M{mid}\n*DENSITY\n{m.rho!r}\n")
     text += f"*BOUNDARY\nROOT, 1, 3, 0.0\n*STEP\n*FREQUENCY\n{N_MODES}\n*END STEP\n"
@@ -52,7 +56,10 @@ def main(work_dir: str = "") -> dict:
     block = dat.split("E I G E N V A L U E   O U T P U T")[1]
     freqs = [float(ln.split()[3]) for ln in block.splitlines()
              if re.match(r"\s+\d+\s+[-\d.E+]+\s+[-\d.E+]+\s+[-\d.E+]+", ln)][:N_MODES]
-    out = {"element": "C3D20R", "n_along": N_ALONG, "frequencies_hz": freqs}
+    # modes 1 and 8 are the first flap and edge bending modes (tip motion fitted as a rigid
+    # section: mode 1 is flapwise, mode 2 torsion with distortion, 3-7 local distortion)
+    out = {"element": "C3D20R", "n_along": N_ALONG, "frequencies_hz": freqs,
+           "flap_hz": freqs[0], "edge_hz": freqs[7]}
     with open(os.path.join(HERE, "reference.json"), "w", encoding="utf-8") as f:
         json.dump(out, f, indent=1)
     return out
