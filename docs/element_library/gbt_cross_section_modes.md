@@ -137,6 +137,13 @@ Benscoter \(\psi\) load \(\int \omega\,p_x\,\mathrm ds\). Loads come from `wall_
 - **Shear lag.** A wide box (0.8 × 0.15 m, 1.5 m span) with a plane root section is about 1.7 %
   stiffer than with free warping. Each added set of shear-lag modes softens it, and it stays
   below the free case.
+- **GBT against Benscoter.** With no distortional modes, a box cantilever (0.3 × 0.12 m)
+  equals the Benscoter cantilever in torsion to round-off. In flap bending it is 0.11 %
+  stiffer, because the plane root section also restrains the shear warping. Holding the
+  flap shear-warping amplitude at every node makes the box 2.18 % stiffer in flap with the
+  same tip rotation. The section then cannot warp under transverse shear, so its shear
+  stiffness is the plane-section value, not the Saint-Venant one. This is the 2.2 %
+  difference first seen when the curved GBT element was checked.
 - **Element consistency.** With the modes fixed the element is the warping-only element, and
   freeing them only softens it.
 - **End to end.** `process_job` runs with `[modes]`, `[shear_modes]`, `[Section_Mesh]`,
