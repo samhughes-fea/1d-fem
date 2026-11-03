@@ -7,3 +7,4 @@ psutil>=5.9
 pandas>=2.0
 pathvalidate>=3.2
 matplotlib>=3.7
+pytest-xdist>=3.5

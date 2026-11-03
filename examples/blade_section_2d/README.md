@@ -11,7 +11,7 @@ a web meets a spar cap, and the through-thickness state of a sandwich panel.
 python examples/blade_section_2d/run.py
 ```
 
-It needs implicit-geometry-kernel (`pip install -e .[geometry]`) and takes about 30 s.
+It needs implicit-geometry-kernel (`pip install -r requirements-geometry.txt`, Python 3.11 or later) and takes about 30 s.
 The figures and `summary.json` are written here.
 
 ## Model

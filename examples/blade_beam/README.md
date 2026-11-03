@@ -13,7 +13,7 @@ mid-point, and takes the reference axis, element frames, twist and pretwist from
 python examples/blade_beam/run.py
 ```
 
-It needs implicit-geometry-kernel (`pip install -e .[geometry]`). It takes about 40
+It needs implicit-geometry-kernel (`pip install -r requirements-geometry.txt`, Python 3.11 or later). It takes about 40
 minutes, mostly writing wall stresses, and writes the figures and `summary.json` here.
 The shell results are committed in `data/shell_reference.json`. They come from
 `make_shell_reference.py`, which needs composite-laminate-model and CalculiX:
