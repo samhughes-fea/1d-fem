@@ -111,8 +111,13 @@ Benscoter \(\psi\) load \(\int \omega\,p_x\,\mathrm ds\). Loads come from `wall_
   \([b_1, \dots, b_p, a_1, a_1', \dots, a_m, a_m']\).
 - \(b\) is linear in \(x\); the mode amplitudes are cubic Hermite.
 - Integration: a full rule of at least 4 points. The shear block
-  \(\{\gamma_{xy}, \gamma_{xz}, b\}\) uses the shear-block order (default 1), so the element
-  does not lock.
+  \(\{\gamma_{xy}, \gamma_{xz}, b\}\) is an assumed strain: its projection on polynomials
+  of degree shear-block order − 1 (default order 1, the centre value), so the element does
+  not lock. The energy is \(\int \bar B^T D \bar B\,dx\) on the full rule, which stays
+  positive when the section couples the shear block with the cubic mode amplitudes. (Taking
+  \(D\)'s shear block on one point and the rest on the full rule did not: on the IEA blade's
+  2D sections it gave a spurious 5.2 Hz distortional mode.) Stress recovery and the
+  corotational element use the same \(\bar B\).
 - Input: element type `LinearGBTBeamElement3D`, and optional `[modes]` and `[shear_modes]`
   columns in `element_section.txt`.
 - Supports: warping restraint is \(b_j = 0\); a diaphragm or rib is \(a_k = 0\); a fully

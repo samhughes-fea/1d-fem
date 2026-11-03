@@ -17,9 +17,11 @@ beam strains act on plane sections; all warping is carried by ``b``. With free w
 (Timoshenko) beam; ``b = 0`` at a support keeps the section plane there and gives shear
 lag and the warping-restraint end effect.
 
-**Quadrature:** a full rule of at least 4 points (``a_k^2`` is degree 6); the block of
-the linear shear strains ``{gamma_xy, gamma_xz, b}`` is integrated at the shear-block order
-(default 1), as for the Timoshenko element, so the element does not lock.
+**Quadrature:** a full rule of at least 4 points (``a_k^2`` is degree 6). The linear
+shear strains ``{gamma_xy, gamma_xz, b}`` are assumed strains: their projection on
+polynomials of degree ``shear_block - 1`` (default 1, the centre value, as the reduced
+shear rule of the Timoshenko element), so the element does not lock and its energy
+``int Bbar^T D Bbar dx`` stays positive with the coupled cubic mode amplitudes.
 
 **Mass:** ``int N_q^T M_s N_q dx`` with the coupled section mass ``M_s`` for
 ``[u, v, w, theta_x, theta_y, theta_z, b(p), a(m), a'(m)]``.
@@ -136,7 +138,37 @@ class LinearGBTBeamElement3D(LinearTimoshenkoBeamElement3D):
         return max(self._timoshenko_orders.max_full_order, 4)
 
     def _B_at(self, xi_g: float):
-        """B (n_strain, n_dof) at ``xi_g``, with the shape functions for the Gauss cache."""
+        """B (n_strain, n_dof) at ``xi_g`` as the element uses it, with the shape functions.
+
+        The rows of the reduced shear block (``gamma_xy``, ``gamma_xz``, ``b``) are their
+        projection onto polynomials of degree ``shear_block - 1`` (the centre value for the
+        default one-point block): an assumed-strain (B-bar) form. The whole energy is then
+        ``int Bbar^T D Bbar dx`` on the full rule, which is positive and keeps the coupling
+        of the shear block with the cubic mode amplitudes consistent. (Splitting ``D`` into
+        a reduced block on one rule and the rest on another is not: its cross terms with
+        ``a``, ``a'``, ``a''`` gave spurious soft distortional modes.)
+        """
+        B, N, dN = self._B_raw_at(xi_g)
+        r = self._reduced_rows
+        B[r] = self._reduced_projection(float(xi_g))
+        return B, N, dN
+
+    def _reduced_projection(self, xi: float) -> np.ndarray:
+        """Rows ``_reduced_rows`` of B at ``xi``, projected on degree ``shear_block - 1``."""
+        q = int(self._timoshenko_orders.shear_block)
+        r = self._reduced_rows
+        xs, ws = np.polynomial.legendre.leggauss(q)
+        Br = np.array([self._B_raw_at(float(x))[0][r] for x in xs])        # (q, nr, n_dof)
+        # Legendre projection: c_k = (2k+1)/2 sum_g w_g P_k(x_g) B(x_g), exact for linear rows when q >= 2
+        out = np.zeros_like(Br[0])
+        for k in range(q):
+            Pk = np.polynomial.legendre.Legendre.basis(k)
+            ck = 0.5 * (2 * k + 1) * np.einsum("g,gij->ij", ws * Pk(xs), Br)
+            out += ck * Pk(xi)
+        return out
+
+    def _B_raw_at(self, xi_g: float):
+        """B (n_strain, n_dof) at ``xi_g`` from the shape functions, no shear-block projection."""
         N, dN, d2N = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
         B6 = self.strain_displacement_operator.physical_coordinate_form(dN, d2N, N)[0]
         m, p = self.n_modes, self.n_warping
@@ -164,22 +196,16 @@ class LinearGBTBeamElement3D(LinearTimoshenkoBeamElement3D):
 
         self._assert_logging_ready()
         D = self._D_gbt
-        r = self._reduced_rows
-        D_red = np.zeros_like(D)
-        D_red[np.ix_(r, r)] = D[np.ix_(r, r)]
         detJ = self.jacobian_determinant
         Ke = np.zeros((self._n_dof, self._n_dof))
         gauss_cache = []
         for xi_g, w_g in zip(*np.polynomial.legendre.leggauss(self._full_order())):
             B, N, dN = self._B_at(xi_g)
-            Ke += B.T @ (D - D_red) @ B * w_g * detJ
+            Ke += B.T @ D @ B * w_g * detJ
             gauss_cache.append(StiffnessGaussPointData(
                 xi=float(xi_g), weight=float(w_g), B_matrix=B.copy(), D_matrix=D.copy(),
                 jacobian=float(detJ), shape_functions=N.copy(), shape_derivatives=dN.copy(),
             ))
-        for xi_g, w_g in zip(*np.polynomial.legendre.leggauss(self._timoshenko_orders.shear_block)):
-            B, _, _ = self._B_at(xi_g)
-            Ke += B.T @ D_red @ B * w_g * detJ
         Ke = 0.5 * (Ke + Ke.T)
         if self.logger_operator:
             self.logger_operator.log_text("stiffness", f"\n=== Element {self.element_id} {self.element_type_name} K_e {Ke.shape} ===")
@@ -190,7 +216,7 @@ class LinearGBTBeamElement3D(LinearTimoshenkoBeamElement3D):
             element_type=self.element_type_name,
             K_e=Ke,
             gauss_data=gauss_cache,
-            integration_scheme="Gauss-Legendre (Selective)",
+            integration_scheme="Gauss-Legendre (assumed shear strain)",
         )
 
     def _precurvature_equivalent_load(self) -> np.ndarray:

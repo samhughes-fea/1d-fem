@@ -387,3 +387,49 @@ def test_process_job_with_gbt_modes(tmp_path):
     expected = solve_cantilever(GBT, sa, L, n_el, 2, {3: T})
     np.testing.assert_allclose(U.reshape(n_el + 1, dpn), expected, rtol=1e-9, atol=1e-12)
     assert np.abs(expected[:, 6 + sa.gbt_sv_modes:]).max() > 0
+
+
+def test_gbt_element_energy_stays_positive_with_coupled_modes():
+    """The shear block (gamma, b) is an assumed strain, so its coupling with the cubic mode
+    amplitudes cannot make the element energy negative (with the old split rule, a strong
+    b-a coupling on the full rule against b^2 on one point gave spurious soft modes)."""
+    from dataclasses import replace
+
+    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
+        LinearGBTBeamElement3D,
+    )
+
+    sa = SectionAnalysis.from_thin_walled(box(0.3, 0.15), gbt_modes=2)
+    K = sa.gbt_stiffness.copy()
+    p, m = sa.gbt_sv_modes + sa.gbt_shear_modes, sa.gbt_modes
+    ib = 6 + p + np.arange(p)                     # b rows
+    ia = 6 + 2 * p + 2 * m + np.arange(m)         # a rows
+    for i, k in zip(ib, ia):                      # a strong b-a coupling: K += v v^T, so K stays positive
+        v = np.zeros(K.shape[0])
+        v[i], v[k] = np.sqrt(K[i, i]), -np.sqrt(K[k, k])
+        K += 3.0 * np.outer(v, v)
+    assert np.linalg.eigvalsh(K).min() > -1e-9 * np.abs(K).max()
+    sa = replace(sa, gbt_stiffness=K)
+    ed = _ed(GBT, 1, 2, sa)
+    ed["section_analysis_per_element"] = (sa,)
+    jr = os.path.join(tempfile.mkdtemp(), "job")
+    for sub in ("element_stiffness_matrices", "element_force_vectors", "logs"):
+        os.makedirs(os.path.join(jr, sub), exist_ok=True)
+    try:
+        el = LinearGBTBeamElement3D(
+            element_id=0, element_dictionary=ed, grid_dictionary={"coordinates": np.array([[0.0, 0, 0], [0.5, 0, 0]])},
+            material_dictionary={k: np.array([v]) for k, v in dict(E=E, G=G, nu=NU, rho=0.0).items()},
+            section_dictionary={k: np.array([v]) for k, v in dict(A=1e-3, I_x=0.0, I_y=1e-8, I_z=1e-8, J_t=1e-9,
+                                                                   kappa=5 / 6, alpha=0.0, y_sc=0.0, z_sc=0.0, Gamma=1e-9).items()},
+            point_load_array=np.empty((0, 9)), distributed_load_array=np.empty((0, 9)), job_results_dir=jr)
+        el.logger_operator = None
+        Ke = el.element_stiffness_matrix().K_e
+        lam = np.linalg.eigvalsh(Ke)
+        assert lam.min() > -1e-9 * lam.max()
+        # the shear block is constant along the element (one-point default), the rest is not
+        B0, _, _ = el._B_at(-0.7)
+        B1, _, _ = el._B_at(0.4)
+        r = el._reduced_rows
+        np.testing.assert_allclose(B0[r], B1[r], atol=1e-14)
+    finally:
+        shutil.rmtree(os.path.dirname(jr), ignore_errors=True)

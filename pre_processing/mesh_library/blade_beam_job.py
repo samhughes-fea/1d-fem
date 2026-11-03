@@ -78,7 +78,7 @@ __all__ = ["BladeBeamJob", "blade_beam_job", "blade_to_job", "job_to_blade", "NO
 STANDARD_DOFS = ("UX", "UY", "UZ", "RX", "RY", "RZ")
 FRAMED_TYPES = ("LinearEulerBernoulliBeamElement3D", "LinearTimoshenkoBeamElement3D", "LinearBenscoterBeamElement3D",
                 "CorotationalEulerBernoulliBeamElement3D", "CorotationalTimoshenkoBeamElement3D",
-                "CorotationalBenscoterBeamElement3D")
+                "CorotationalBenscoterBeamElement3D", "LinearGBTBeamElement3D")
 _SETTINGS = "[Simulation]\n[Type]\nstatic\n\n[Solver]\ntype = direct\ntolerance = 1e-12\nmax_iterations = 500\n"
 #: default settings of a corotational blade: nonlinear static, the load in ten increments
 NONLINEAR_SETTINGS = ("[Simulation]\n[Type]\nstatic_nonlinear\n\n[Newton]\ntolerance = 1e-6\n"
@@ -193,6 +193,7 @@ def blade_beam_job(
     line_loads: Optional[Mapping[float, Sequence[float]]] = None,
     thickness_tol: float = 0.01,
     settings: Optional[str] = None,
+    gbt_modes: int = 0,
 ) -> BladeBeamJob:
     """Write a cantilever beam job for ``geometry`` into ``job_dir`` (replaced).
 
@@ -213,7 +214,9 @@ def blade_beam_job(
         A beam type that takes rotated and curved elements: ``LinearTimoshenkoBeamElement3D``
         (default), ``LinearEulerBernoulliBeamElement3D`` or ``LinearBenscoterBeamElement3D``
         (thin-walled sections; the root warping is held), or their corotational versions
-        (``CorotationalTimoshenkoBeamElement3D`` and so on) for large deflection.
+        (``CorotationalTimoshenkoBeamElement3D`` and so on) for large deflection, or
+        ``LinearGBTBeamElement3D`` with ``gbt_modes`` cross-section modes (all its extra
+        DOFs held at the root; needs ``pretwist=False`` and ``taper=False``).
     pretwist : bool
         Write the twist gradient as each element's pretwist rate (default). Off, each
         element keeps its mid-span section along its length.
@@ -238,6 +241,9 @@ def blade_beam_job(
     settings : str, optional
         ``simulation_settings.txt`` text. Default: linear static with a direct solver, or
         ``NONLINEAR_SETTINGS`` (nonlinear static, ten increments) for corotational types.
+    gbt_modes : int
+        Distortional modes of each section for ``LinearGBTBeamElement3D`` (the ``[modes]``
+        column of ``element_section.txt``).
 
     Returns
     -------
@@ -251,6 +257,11 @@ def blade_beam_job(
     benscoter = "Benscoter" in element_type
     if benscoter and kind != "thin_walled":
         raise ValueError("LinearBenscoterBeamElement3D needs thin-walled sections")
+    gbt = "GBT" in element_type
+    if gbt and (pretwist or taper):
+        raise ValueError("LinearGBTBeamElement3D takes neither pretwist nor taper: pass pretwist=False, taper=False")
+    if gbt_modes and not gbt:
+        raise ValueError("gbt_modes needs element_type='LinearGBTBeamElement3D'")
     z = _span_nodes(geometry, n_elements, z_nodes)
     n = z.size - 1
     stations = [geometry.station_at(float(zi)) for zi in z]
@@ -311,7 +322,7 @@ def blade_beam_job(
 
     write("grid.txt", "[Grid]\n[node_id] [x] [y] [z]\n"
           + "".join(f"{i} {x!r} {y!r} {zz!r}\n" for i, (x, y, zz) in enumerate(nodes.tolist())))
-    warp_col, warp = (" [warping]", " 1") if benscoter else ("", "")
+    warp_col, warp = (" [warping]", " 1") if benscoter or gbt else ("", "")
     write("element.txt",
           "[Element]\n[element_id] [node1] [node2] [element_type] [axial_order] [bending_y_order] "
           f"[bending_z_order] [shear_y_order] [shear_z_order] [torsion_order] [load_order]{warp_col}\n"
@@ -322,8 +333,10 @@ def blade_beam_job(
     write("material.txt", "[Material]\n[element_id] [E] [G] [nu] [rho]\n" + "".join(f"{e} 7e10 2.7e10 0.3 0\n" for e in range(n)))
     write("section.txt", "[Section]\n[element_id] [A] [I_x] [I_y] [I_z] [J_t] [kappa] [alpha]\n"
           + "".join(f"{e} 1e-3 0.0 1e-8 1e-8 1e-9 0.8333 0.0\n" for e in range(n)))
-    write("element_section.txt", "[Element_Section]\n[element_id] [section_id]\n" + "".join(f"{e} {e + 1}\n" for e in range(n)))
-    dofs = list(STANDARD_DOFS) + (["Q1"] if benscoter else [])
+    modes_col, modes = (" [modes]", f" {int(gbt_modes)}") if gbt else ("", "")
+    write("element_section.txt", f"[Element_Section]\n[element_id] [section_id]{modes_col}\n"
+          + "".join(f"{e} {e + 1}{modes}\n" for e in range(n)))
+    dofs = list(STANDARD_DOFS) + (["Q1"] if benscoter else ["Q*"] if gbt else [])
     write("prescribed_displacement.txt", "[Prescribed Displacement]\n[id] [node_id] [dof] [value] [type] [comment]\n"
           + "".join(f"{i} 0 {d} 0.0 displacement\n" for i, d in enumerate(dofs)))
     tapers: Dict[int, object] = {}

@@ -20,7 +20,7 @@ then the element's extra DOFs of node 1, then those of node 2 (see
 mesh uses the first ones of each node; the rest are not touched by it.
 
 DOF names in ``prescribed_displacement.txt``: the six standard names, ``Q1 … Qn`` for the
-extra DOFs, and ``W`` / ``CHI`` as aliases of ``Q1``.
+extra DOFs, ``W`` / ``CHI`` as aliases of ``Q1``, and ``Q*`` for all the extra DOFs of a node.
 """
 
 from __future__ import annotations

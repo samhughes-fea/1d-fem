@@ -13,7 +13,7 @@ mid-point, and takes the reference axis, element frames, twist and pretwist from
 python examples/blade_beam/run.py
 ```
 
-It needs implicit-geometry-kernel (`pip install -e .[geometry]`). It takes about 25
+It needs implicit-geometry-kernel (`pip install -e .[geometry]`). It takes about 40
 minutes, mostly writing wall stresses, and writes the figures and `summary.json` here.
 The shell results are committed in `data/shell_reference.json`. They come from
 `make_shell_reference.py`, which needs composite-laminate-model and CalculiX:
@@ -37,7 +37,7 @@ layered `Q8` elements.
 | Benscoter, thin-walled | +0.5 % | +0.2 % | +1.5 % |
 | Timoshenko, thin-walled, no taper coupling | +5.5 % | +0.9 % | +4.1 % |
 | Timoshenko, thin-walled, prismatic segment | +0.5 % | +0.4 % | +4.1 % |
-| Timoshenko, 2D sections | −4.7 % | −2.5 % | −0.2 % |
+| Timoshenko, 2D sections | −4.7 % | −2.0 % | +0.4 % |
 
 - **Flap and edge agree within 0.5 % once the taper coupling is in.** `blade_beam_job`
   writes `section_taper.txt` from the change of each section along the element
@@ -50,11 +50,11 @@ layered `Q8` elements.
   only Benscoter models. The remaining 1.5 % comes from the section idealisation and is not
   a missing beam effect:
   - On 2D sections, whose caps hold 6.5 % more carbon (GJ +4.5 % at 70 % span), the
-    free-warping Timoshenko beam twists 0.4 % less than the shell.
+    free-warping Timoshenko beam twists 0.4 % more than the shell.
   - A GBT beam on the same 2D sections, with the warping restrained at the clamp, twists
     3.4 % less than the shell. Adding 4 or 8 distortional modes (cross-section distortion,
-    which the unstiffened shell allows) brings this to 2.0 % and 1.9 %. Distortion is
-    therefore a real effect but a small one, about 1.5 %. Because it softens the beam, it
+    which the unstiffened shell allows) brings this to 1.8 % and 1.7 %. Distortion is
+    therefore a real effect but a small one in statics, about 1.5 %. Because it softens the beam, it
     does not account for the thin-walled beams being soft.
   - These checks use untapered elements without pretwist (GBT sections do not take
     pretwist yet). The scripts are not part of the example.
@@ -67,22 +67,39 @@ layered `Q8` elements.
 
 ![Frequencies](modes.png)
 
-| Mode | Shell | Timoshenko | Benscoter |
-|---|---|---|---|
-| 1 flap | 3.64 Hz | −0.3 % | −0.2 % |
-| 2 edge | 4.68 Hz | −0.3 % | −0.3 % |
-| 3 torsion | 10.02 Hz | +6.8 % | +10.2 % |
-| 4 torsion with flap | 12.10 Hz | +7.4 % | +7.6 % |
+| Mode | Shell | Timoshenko | Benscoter | Timoshenko 2D, untapered | GBT 2D, 4 modes, untapered |
+|---|---|---|---|---|---|
+| 1 flap | 3.64 Hz | −0.3 % | −0.2 % | −1.3 % | −1.0 % |
+| 2 edge | 4.68 Hz | −0.3 % | −0.3 % | −0.6 % | −0.5 % |
+| 3 torsion | 10.02 Hz | +6.8 % | +10.2 % | +10.3 % | −4.2 % |
+| 4 torsion with flap | 12.10 Hz | +7.4 % | +7.6 % | +10.3 % | −8.0 % |
 
 Flap and edge agree within 0.3 % (they were 3.3 % and 0.8 % low before the taper coupling).
-The torsion modes are 7 to 10 % high, which is more than the static stiffness accounts for
-(a 4 % stiffness difference moves a frequency by about 2 %). The gap is in the inertia, not
-the stiffness. A Timoshenko beam on 2D sections twists within 0.4 % of the shell under a
-static tip torque, yet its first torsion frequency is still 10 % high (11.06 Hz against
-10.02 Hz). That means the shell's torsion mode carries about 20 % more rotary inertia
-than the beam's polar mass inertia. A likely cause is in-plane motion of the large
-unsupported trailing-edge panels in the shell mode. The shell's own panel modes start at
-13 Hz. This is not yet confirmed.
+
+**Plane-section beams put the torsion modes 7 to 10 % high, and the gap is inertia.** A
+4 % stiffness difference moves a frequency by about 2 %, and the Timoshenko beam on 2D
+sections twists within 0.4 % of the shell under a static tip torque, yet its first torsion
+frequency is 10 % high (11.05 Hz against 10.02 Hz). The shell's torsion mode moves its
+sections out of their plane shape: about 10 % of the mode's in-plane kinetic energy is
+distortion, mostly of the large unsupported trailing-edge panels.
+
+**GBT on the 2D sections carries that inertia.** Its distortional modes (the sections' own
+in-plane modes, `solid.cross_section_modes`) come with their mass, coupled with the
+rotation (`gbt_mass`). Four modes take the first torsion frequency from +10.3 % to −4.2 %,
+on the same untapered beam with the same static stiffness. Eight modes give 9.57 Hz
+(−4.4 %), so four are converged. The GBT beam also gains the shell's denser set of
+torsion-distortion modes between 11 and 13 Hz, which the plane-section beams do not have.
+It now overshoots: the second torsion mode is 8 % low. Two things are not like for like
+here:
+
+- GBT takes neither taper nor pretwist yet, so both 2D beams are untapered and
+  unpretwisted, while the shell is tapered and twisted.
+- GBT with the thin-walled sections' modes (not shown) leaves the first torsion frequency
+  where the Timoshenko beam has it (10.66 Hz with 4 modes on 6 elements). The two mode
+  sets are built differently (the thin-walled modes are orthogonal to the rigid-section
+  modes in the warping stiffness, the 2D modes against the section area before they are
+  decoupled from the beam strains), so they share the section rotation differently. Which
+  is closer to the shell is open.
 
 Above 13 Hz the shell has local panel modes that a beam cannot have, so only the first
 four modes are compared.

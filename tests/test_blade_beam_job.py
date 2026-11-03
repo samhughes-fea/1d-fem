@@ -234,10 +234,36 @@ def test_two_d_sections(tmp_path):
         assert K2[i, i] == pytest.approx(Kt[i, i], rel=0.015)
 
 
+def test_gbt_blade_job_files(tmp_path):
+    """GBT on a blade: the modes in ``element_section.txt``, the warping column, and every
+    extra DOF held at the root with ``Q*`` (the example runs it; the cross-section modes of
+    airfoil sections take minutes, too long here)."""
+    geo = geometry([Station(0.0, 1.0, AF, pitch_axis=0.3), Station(2.0, 1.0, AF, pitch_axis=0.3)])
+    job = blade_beam_job(str(tmp_path / "g"), geo, LAMS, 2, element_type="LinearGBTBeamElement3D", gbt_modes=3,
+                         pretwist=False, taper=False)
+
+    def read(name):
+        with open(os.path.join(job.job_dir, name), encoding="utf-8") as f:
+            return f.read().splitlines()
+
+    sec = read("element_section.txt")
+    assert sec[1].endswith("[modes]") and sec[2:] == ["0 1 3", "1 2 3"]
+    el = read("element.txt")
+    assert el[1].endswith("[warping]") and all(r.split()[3] == "LinearGBTBeamElement3D" for r in el[2:])
+    held = [r.split()[2] for r in read("prescribed_displacement.txt")[2:]]
+    assert held == ["UX", "UY", "UZ", "RX", "RY", "RZ", "Q*"]
+    assert not os.path.exists(os.path.join(job.job_dir, "section_taper.txt"))
+    assert not os.path.exists(os.path.join(job.job_dir, "precurvature.txt"))
+
+
 def test_rejects_types_without_frames(tmp_path):
     geo = geometry([Station(0.0, 1.0, AF), Station(1.0, 1.0, AF)])
     with pytest.raises(ValueError, match="element_type"):
+        blade_beam_job(str(tmp_path / "x"), geo, LAMS, 1, element_type="LinearReddyBeamElement3D")
+    with pytest.raises(ValueError, match="neither pretwist nor taper"):
         blade_beam_job(str(tmp_path / "x"), geo, LAMS, 1, element_type="LinearGBTBeamElement3D")
+    with pytest.raises(ValueError, match="gbt_modes needs"):
+        blade_beam_job(str(tmp_path / "x"), geo, LAMS, 1, gbt_modes=2)
     with pytest.raises(ValueError, match="no node"):
         blade_beam_job(str(tmp_path / "x"), geo, LAMS, 2, loads={0.3: [0, 0, 1.0, 0, 0, 0]})
 

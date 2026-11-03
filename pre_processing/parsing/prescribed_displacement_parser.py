@@ -30,7 +30,8 @@ def parse_prescribed_displacement(file_path, dof_per_node: int = 6):
     dof_per_node : int
         Mesh nodal stride from ``dof_layout.mesh_dof_per_node``: 6 (default), 7 with a
         warping DOF, more with cross-section mode DOFs. Extra DOFs are named ``Q1 … Qn``;
-        ``W`` and ``CHI`` are aliases of ``Q1``.
+        ``W`` and ``CHI`` are aliases of ``Q1``, and ``Q*`` stands for all of them (a row
+        for each, with the same id), for a clamp that need not count a GBT section's modes.
         
     Returns
     -------
@@ -117,6 +118,18 @@ def parse_prescribed_displacement(file_path, dof_per_node: int = 6):
                         phase_row = float(parts[5])
                     except ValueError:
                         phase_row = 0.0
+
+                if dof_name == "Q*":
+                    extras = sorted((n for n in dof_map if n.startswith("Q")), key=lambda n: int(n[1:]))
+                    for name in extras:
+                        ids.append(condition_id)
+                        node_ids.append(node_id)
+                        dofs.append(name)
+                        dof_indices.append(dof_map[name])
+                        values.append(value)
+                        types.append(condition_type)
+                        phases.append(phase_row)
+                    continue
 
                 # Validate DOF name
                 if dof_name not in dof_map:

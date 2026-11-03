@@ -42,3 +42,19 @@ def test_parse_prescribed_displacement_invalid_dof_per_node(tmp_path: Path) -> N
     )
     with pytest.raises(ValueError, match="dof_per_node"):
         parse_prescribed_displacement(str(p), dof_per_node=5)
+
+
+def test_q_star_holds_every_extra_dof(tmp_path: Path) -> None:
+    """``Q*`` writes a row for each extra DOF of the node (a GBT clamp without counting modes)."""
+    p = tmp_path / "prescribed_displacement.txt"
+    p.write_text(
+        "[Prescribed Displacement]\n"
+        "[id] [node_id] [dof] [value] [type]\n"
+        "0 0 UX 0.0 displacement\n"
+        "1 0 Q* 0.0 displacement\n",
+        encoding="utf-8",
+    )
+    d = parse_prescribed_displacement(str(p), dof_per_node=10)
+    assert list(d["dof"]) == ["UX", "Q1", "Q2", "Q3", "Q4"]
+    np.testing.assert_array_equal(d["global_dof"], [0, 6, 7, 8, 9])
+    np.testing.assert_array_equal(d["id"], [0, 1, 1, 1, 1])
