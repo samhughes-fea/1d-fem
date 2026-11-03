@@ -36,7 +36,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
-- **CI runs about three times faster.** Tests run in parallel (`pytest -n auto`, `pytest-xdist` added to `requirements-ci.txt`): the suite takes about 9 minutes on four workers instead of 30. Each commit is tested once (pull requests, and pushes to `main`) instead of once per push and once per pull request, a newer push cancels the run it supersedes, and pip downloads are cached. `--durations=20` lists the slowest tests.
+- **CI takes about half the time.** Tests run in parallel (`pytest -n auto`, `pytest-xdist` added to `requirements-ci.txt`): on GitHub, Python 3.10 takes 17 minutes instead of 32 and Python 3.11 (with the geometry kernel tests) 30 minutes instead of 41 to 53. Each commit is tested once (pull requests, and pushes to `main`) instead of once per push and once per pull request, a newer push cancels the run it supersedes, and pip downloads are cached. `--durations=20` lists the slowest tests.
 
 ### Fixed
 
