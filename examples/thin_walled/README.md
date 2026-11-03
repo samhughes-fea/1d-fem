@@ -9,6 +9,7 @@ deflections and then back down to wall, ply and interlaminar stresses.
 | [channel_buckling](channel_buckling/README.md) | Channel column with offset shear and tension centres: flexural-torsional buckling and P-delta through the job runners |
 | [large_twist](large_twist/README.md) | I-beam with restrained warping under large twist: corotational Benscoter elements through the nonlinear job runner against the nonlinear Vlasov equation |
 | [ply_failure](ply_failure/README.md) | The box spar's ply failure margins at every Gauss point: maximum stress, Tsai-Wu, Hashin and Puck, on thin-walled and 2D sections |
+| [gbt_buckling](gbt_buckling/README.md) | Lipped channel column from 40 mm to 3 m: local, distortional and global buckling with GBT elements, against a finite strip model |
 | [three_cell_blade](three_cell_blade/README.md) | Three-cell blade section with spar caps and two webs: offset shear centre, multi-cell Bredt-Batho shear flows, cap and web stresses |
 
 Run each from the repository root, for example:

@@ -230,11 +230,76 @@ class LinearGBTBeamElement3D(LinearTimoshenkoBeamElement3D):
             f_e += B.T @ self._D_gbt @ E0 * w_g * self.jacobian_determinant
         return f_e
 
+    def _geometric_rows(self, xi: float) -> np.ndarray:
+        """``G`` (2(3 + m), n_dof): ``[q', q]`` with ``q = [v, w, theta_x, a(m)]`` at ``xi``.
+
+        ``v'`` and ``w'`` are the linked slopes of the Timoshenko family (``_linear_rows``).
+        """
+        from pre_processing.element_library.linear.beam.second_order import _linear_rows
+
+        m = self.n_modes
+        nq = 3 + m
+        G = np.zeros((2 * nq, self._n_dof))
+        R = _linear_rows(self.L, xi, _N_STD)               # [v', w', phi', phi]
+        G[:3, :_N_STD] = R[:3]
+        G[nq + 2, :_N_STD] = R[3]
+        L1, L2 = 0.5 * (1.0 - xi), 0.5 * (1.0 + xi)
+        G[nq, [1, 7]] = [L1, L2]
+        G[nq + 1, [2, 8]] = [L1, L2]
+        H, dH, _ = _hermite_x(xi, self.L)
+        for k in range(m):
+            c = list(self._mode_cols(k))
+            G[3 + k, c] = dH
+            G[nq + 3 + k, c] = H
+        return G
+
+    def _geometric_section_matrix(self, E: np.ndarray) -> np.ndarray:
+        """``S`` (2(3 + m), 2(3 + m)) on ``[q', q]`` for the element-signed GBT strains ``E``."""
+        TX, TY = self._gbt_geometric
+        X, Y = TX @ E, TY @ E
+        Z = np.zeros_like(X)
+        return np.block([[X, Y], [Y.T, Z]])
+
+    @property
+    def _E0_gbt(self) -> np.ndarray:
+        """Precurvature (and pretwist) strains on the GBT strain vector."""
+        E0 = np.zeros(self._D_gbt.shape[0])
+        E0[:6] = self._E_0_voigt
+        return E0
+
+    @property
+    def _gbt_geometric(self):
+        if not hasattr(self, "_gbt_geometric_cache"):
+            self._gbt_geometric_cache = self.section_analysis.gbt_geometric_terms(self.n_modes, self.n_shear)
+        return self._gbt_geometric_cache
+
     def linear_geometric_stiffness_matrix(self, U_e: np.ndarray) -> np.ndarray:
-        raise NotImplementedError(
-            "LinearGBTBeamElement3D has no geometric stiffness: its distortional modes need a wall-level "
-            "K_sigma (local and distortional buckling). Use LinearBenscoterBeamElement3D for global buckling."
-        )
+        """Geometric stiffness ``K_sigma`` (n_dof, n_dof) about the state ``U_e``.
+
+        The prebuckling stresses are the wall (or 2D) stresses of the element's own GBT
+        strains ``Bbar U_e``, so shear lag, warping restraint and distortion of the
+        prebuckling state are in it. They act on the quadratic strains of the in-plane
+        motion ``[v, w, theta_x, a]``: the rigid rows are those of the beam elements
+        (``second_order.py``), the mode rows give local and distortional buckling.
+        ``K_sigma = int G^T S G dx`` on the full rule. See ``docs/element_library/gbt_buckling.md``.
+        """
+        U_e = np.asarray(U_e, dtype=np.float64).ravel()
+        if U_e.size != self._n_dof:
+            raise ValueError(f"expected {self._n_dof} element DOFs, got {U_e.size}")
+        detJ = self.jacobian_determinant
+        K = np.zeros((self._n_dof, self._n_dof))
+        for xi_g, w_g in zip(*np.polynomial.legendre.leggauss(self._full_order())):
+            B, _, _ = self._B_at(float(xi_g))
+            G = self._geometric_rows(float(xi_g))
+            K += G.T @ self._geometric_section_matrix(B @ U_e - self._E0_gbt) @ G * (w_g * detJ)
+        return 0.5 * (K + K.T)
+
+    def section_geometric_terms(self, U_e: np.ndarray, xi: float = 0.0) -> np.ndarray:
+        """Beam section terms ``[N, S_y, S_z, W, V_y, V_z, Q_r]`` at ``xi`` from the GBT stresses."""
+        B, _, _ = self._B_at(float(xi))
+        S = self._geometric_section_matrix(B @ np.asarray(U_e, dtype=np.float64).ravel() - self._E0_gbt)
+        nq = 3 + self.n_modes
+        return np.array([S[0, 0], S[1, 2], -S[0, 2], S[2, 2], S[1, nq + 2], -S[0, nq + 2], S[2, nq + 2]])
 
     # ------------------------------------------------------------------ #
     # Fields, wall loads and mass

@@ -402,13 +402,17 @@ def test_k_sigma_symmetric_and_linear_in_state(etype):
     np.testing.assert_allclose(K12, K1 + 2 * K2, atol=1e-9 * np.abs(K12).max())
 
 
-def test_gbt_has_no_geometric_stiffness_yet():
+def test_gbt_geometric_stiffness_checks_the_dof_count():
+    """GBT has its own geometric stiffness (tests/test_gbt_buckling.py); it checks its input."""
     from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
         LinearGBTBeamElement3D,
     )
 
-    with pytest.raises(NotImplementedError, match="Benscoter"):
-        LinearGBTBeamElement3D.linear_geometric_stiffness_matrix(None, np.zeros(1))
+    class _Stub:
+        _n_dof = 30
+
+    with pytest.raises(ValueError, match="expected 30 element DOFs"):
+        LinearGBTBeamElement3D.linear_geometric_stiffness_matrix(_Stub(), np.zeros(1))
 
 
 def test_processing_buckling_path_matches_direct_eigensolve():

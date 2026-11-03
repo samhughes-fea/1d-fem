@@ -253,8 +253,12 @@ strains, so the distortional modes carry no wall-level geometric stiffness. Chec
 level (tangent, objectivity) and as a job: at small load it is the linear GBT element, and at
 a tip deflection of 14 % of the span it stiffens as the corotational Timoshenko beam does.
 
+## Buckling
+
+The element's geometric stiffness takes the wall stresses of the GBT strains, so the
+distortional and local modes buckle: see [gbt_buckling.md](gbt_buckling.md).
+
 ## Not yet included
 
 Transverse-extension modes on thin-walled sections (in-plane wall stretching,
-\(N_{ss} \neq 0\)); use a 2D section, whose modes include them. Wall-level geometric
-stiffness of the distortional modes (local buckling).
+\(N_{ss} \neq 0\)); use a 2D section, whose modes include them.

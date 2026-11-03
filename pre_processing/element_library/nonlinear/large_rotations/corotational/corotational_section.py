@@ -361,7 +361,7 @@ class CorotationalGBTBeamElement3D(CorotationalMixin, LinearGBTBeamElement3D):
     the corotational frame carries the large rotations, and the cubic and quartic terms
     the Wagner, offset and stretch effects of moderate local rotation. The distortional
     modes have no wall-level geometric stiffness, so local and distortional buckling are
-    not captured; ``LinearGBTBeamElement3D`` still refuses ``linear_geometric_stiffness_matrix``.
+    not captured here (``LinearGBTBeamElement3D.linear_geometric_stiffness_matrix`` has them).
     """
 
     element_type_name = "Corotational-GBT-3D"

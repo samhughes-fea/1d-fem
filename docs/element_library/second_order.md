@@ -1,6 +1,6 @@
 # Second-order geometric stiffness, P-delta and linear buckling
 
-Every linear beam element except GBT has a geometric stiffness
+Every linear beam element has a geometric stiffness
 `linear_geometric_stiffness_matrix(U_e)` built from its current section forces
 (`pre_processing/element_library/linear/beam/second_order.py`). It drives two analyses:
 
@@ -72,8 +72,8 @@ elements).
 
 Euler-Bernoulli elements have no shear strains, so they cannot place the shear centre off
 the reference axis. Use Timoshenko or Benscoter elements for such sections. GBT elements
-raise `NotImplementedError`, because their distortional modes need a wall-level `K_σ`
-(local and distortional buckling).
+build theirs from the wall stresses, so their section modes buckle too (local and
+distortional buckling): see [gbt_buckling.md](gbt_buckling.md).
 
 ## 2. P-delta
 

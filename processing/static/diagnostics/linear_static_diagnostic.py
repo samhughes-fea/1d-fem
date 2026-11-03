@@ -25,6 +25,7 @@ class DiagnoseLinearStaticSystem:
     """
 
     EIG_LIMIT = 400      # eigen-based extras only for ‘small’ matrices
+    DENSE_LIMIT = 1500   # dense SVD (rank, condition number) only up to this size
 
     # ─────────────────────────────────────────────────────── init ──
     def __init__(
@@ -132,20 +133,24 @@ class DiagnoseLinearStaticSystem:
         else:
             d["Bandwidth"] = "0"
 
-        # optional expensive diagnostics
-        try:
-            dense  = A.toarray() if is_sp else A
-            d["Symmetric"] = "yes" if np.allclose(dense, dense.T) else "no"
-            s = np.linalg.svd(dense, compute_uv=False)
-            rank = int((s > 1e-12 * s[0]).sum())
-            d["Rank"]    = str(rank)
-            d["Cond-no"] = f"{np.linalg.cond(dense):.1e}"
-        except Exception:
-            d["Rank"] = d["Cond-no"] = "n/a"
-            d.setdefault("Symmetric", "n/a")
+        # optional expensive diagnostics (dense SVD: skipped for large systems)
+        dense = None
+        if n <= self.DENSE_LIMIT:
+            try:
+                dense  = A.toarray() if is_sp else A
+                d["Symmetric"] = "yes" if np.allclose(dense, dense.T) else "no"
+                s = np.linalg.svd(dense, compute_uv=False)
+                rank = int((s > 1e-12 * s[0]).sum())
+                d["Rank"]    = str(rank)
+                d["Cond-no"] = f"{s[0] / s[-1]:.1e}" if s[-1] > 0 else "inf"
+            except Exception:
+                d["Rank"] = d["Cond-no"] = "n/a"
+                d.setdefault("Symmetric", "n/a")
+        else:
+            d["Symmetric"] = d["Rank"] = d["Cond-no"] = f"— (n > {self.DENSE_LIMIT})"
 
         # eigen statistics only for small systems
-        if n <= self.EIG_LIMIT and nnz:
+        if n <= self.EIG_LIMIT and nnz and dense is not None:
             try:
                 w = np.linalg.eigvalsh(dense)
                 d["λmin/λmax"] = f"{w.min():.1e}/{w.max():.1e}"
