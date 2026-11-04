@@ -1,0 +1,46 @@
+{
+ "layup": [
+  [
+   "glass_triax",
+   0.002
+  ],
+  [
+   "medium_density_foam",
+   0.013669950738916255
+  ],
+  [
+   "glass_triax",
+   0.002
+  ],
+  [
+   "Gelcoat",
+   0.001
+  ]
+ ],
+ "rows": [
+  {
+   "span": 0.5,
+   "shell_s8r": 126.6072,
+   "bricks_c3d20": 116.2754,
+   "beam_no_core_shear": 127.15014000075207,
+   "sandwich_beam": 116.30895776041598,
+   "shell_over_bricks": 0.08885628430433257
+  },
+  {
+   "span": 1.0,
+   "shell_s8r": 31.75359,
+   "bricks_c3d20": 31.04849,
+   "beam_no_core_shear": 31.78753500018802,
+   "sandwich_beam": 31.039537754997795,
+   "shell_over_bricks": 0.022709639019482086
+  },
+  {
+   "span": 2.0,
+   "shell_s8r": 7.944806,
+   "bricks_c3d20": 7.89977,
+   "beam_no_core_shear": 7.946883750047005,
+   "sandwich_beam": 7.898869151465489,
+   "shell_over_bricks": 0.005700925469982021
+  }
+ ]
+}

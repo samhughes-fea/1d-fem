@@ -14,9 +14,11 @@ blade meshed from the same loft (``data/shell_reference.json``, ``make_shell_ref
 1. **Static:** flap and edge tip forces and a tip torque, for Timoshenko and Benscoter
    elements on thin-walled sections and Timoshenko elements on 2D sections, tapered and
    prismatic.
-2. **Modal:** the first frequencies of the cantilever, Timoshenko and Benscoter; and GBT
-   on 2D sections with four distortional modes, whose inertia brings the torsion modes
-   down to the shell's (against the same untapered beam without the modes).
+2. **Modal:** the first frequencies of the cantilever, Timoshenko and Benscoter on
+   thin-walled sections, Timoshenko on 2D sections, and GBT on 2D sections with four
+   distortional modes, whose inertia brings the torsion modes down to the shell's. A
+   second GBT beam has its sandwich cores made stiff in transverse shear, as the shell's
+   single brick through the wall makes them (``sandwich_strip_check.py``).
 3. **Nonlinear:** corotational Timoshenko elements under a growing flapwise tip force,
    against CalculiX ``NLGEOM`` shells.
 
@@ -53,18 +55,21 @@ MODELS = {TW: ("thin_walled", "LinearTimoshenkoBeamElement3D"),
 NAMES = {TW: "Timoshenko, thin-walled", BENSCOTER: "Benscoter, thin-walled", TS_2D: "Timoshenko, 2D sections",
          "shell": "CLM shell"}
 # torsion modes with the sections' own distortion: GBT on the 2D sections, against the same
-# beam without the modes. Both are untapered, unpretwisted beams of the elements'
-# mid-span sections
-TS_2D_PLAIN, GBT_2D = "timoshenko_2d_untapered", "gbt_2d_untapered"
+# beam without the modes, and GBT with the sandwich cores stiff in transverse shear (the
+# shell's kinematics through the wall, see sandwich_strip_check.py)
+GBT_2D, GBT_2D_STIFF = "gbt_2d", "gbt_2d_stiff_core"
 GBT_MODES = 4
-MODAL_MODELS = {TW: {}, BENSCOTER: {},
-                TS_2D_PLAIN: dict(model=TS_2D, taper=False, pretwist=False),
-                GBT_2D: dict(model=TS_2D, taper=False, pretwist=False, element_type="LinearGBTBeamElement3D",
-                             gbt_modes=GBT_MODES)}
-NAMES.update({TS_2D_PLAIN: "Timoshenko, 2D sections, untapered",
-              GBT_2D: f"GBT, 2D sections, {GBT_MODES} distortional modes, untapered"})
+#: transverse shear moduli of the core material are multiplied by this in GBT_2D_STIFF
+STIFF_CORE = 100.0
+CORE = "medium_density_foam"
+MODAL_MODELS = {TW: {}, BENSCOTER: {}, TS_2D: {},
+                GBT_2D: dict(model=TS_2D, element_type="LinearGBTBeamElement3D", gbt_modes=GBT_MODES),
+                GBT_2D_STIFF: dict(model=TS_2D, element_type="LinearGBTBeamElement3D", gbt_modes=GBT_MODES,
+                                   stiff_core=True)}
+NAMES.update({GBT_2D: f"GBT, 2D sections, {GBT_MODES} distortional modes",
+              GBT_2D_STIFF: f"GBT, 2D sections, {GBT_MODES} modes, cores stiff in transverse shear"})
 COLOURS = {TW: "#2a78d6", BENSCOTER: "#eb6834", TS_2D: "#1baf7a", "shell": "#0b0b0b",
-           TS_2D_PLAIN: "#a3a29b", GBT_2D: "#6250d6"}
+           GBT_2D: "#6250d6", GBT_2D_STIFF: "#a3a29b"}
 # blade frame: x chordwise, y flapwise, z spanwise; loads [F_x, F_y, F_z, M_x, M_y, M_z]
 STATIC = {"flap": ([0, 1e4, 0, 0, 0, 0], 1), "edge": ([1e4, 0, 0, 0, 0, 0], 0), "torque": ([0, 0, 0, 0, 0, 1e4], 5)}
 NONLINEAR_FRACTIONS = (0.1, 0.25, 0.45)
@@ -80,13 +85,32 @@ def _job(name, work, model, n, prismatic=False, **kw):
     from pre_processing.mesh_library.blade_beam_job import blade_beam_job
 
     kind, et = MODELS[model]
-    job = blade_beam_job(os.path.join(work, "jobs", name), G.geometry(prismatic), S.laminates(20), n,
+    laminates = _stiff_core_laminates() if kw.pop("stiff_core", False) else S.laminates(20)
+    job = blade_beam_job(os.path.join(work, "jobs", name), G.geometry(prismatic), laminates, n,
                          kind=kind, element_type=kw.pop("element_type", et), **kw)
     # stresses at one station only (the root element's mid-point): the stress files of a
     # blade job with hundreds of walls per section are large and slow to write
     with open(os.path.join(job.job_dir, "stress_stations.txt"), "w", encoding="utf-8") as f:
         f.write(f"[Stress_Station]\n[x]\n{0.5 * job.nodes[1, 0]:.10g}\n")
     return job
+
+
+def _stiff_core_laminates() -> dict:
+    """The station laminates with the core's transverse shear moduli times ``STIFF_CORE``."""
+    import dataclasses
+
+    from pre_processing.section_integration.thin_walled import Ply, WallLaminate
+
+    out = {}
+    for k, lam in S.laminates(20).items():
+        plies = []
+        for p in lam.plies:
+            m = p.material
+            if p.material == S.ply_materials()[CORE]:
+                m = dataclasses.replace(m, G13=STIFF_CORE * m.G13, G23=STIFF_CORE * m.G23)
+            plies.append(dataclasses.replace(p, material=m))
+        out[k] = WallLaminate(plies)
+    return out
 
 
 def _run(job, work) -> str:
@@ -295,8 +319,8 @@ def figures(result, ref, out_dir):
             ax.plot([1.9 + j, 2.45 + j], [f, f], color=COLOURS[model], lw=1.2)
             ax.text(2.5 + j, f, k, fontsize=6, va="center", color="#52514e")
     ax.set_xticks([0.975] + [2.175 + j for j in range(len(columns))],
-                  ["CLM shell\n(CalculiX)", "Timoshenko", "Benscoter", "Timoshenko 2D\nuntapered",
-                   f"GBT 2D, {GBT_MODES} modes\nuntapered"])
+                  ["CLM shell\n(CalculiX)", "Timoshenko", "Benscoter", "Timoshenko 2D",
+                   f"GBT 2D, {GBT_MODES} modes", "GBT 2D, cores stiff\nin transverse shear"])
     ax.tick_params(axis="x", labelsize=6)
     ax.set_ylabel("frequency, Hz", fontsize=8)
     ax.set_xlim(0.4, 2.0 + len(columns) + 0.2)

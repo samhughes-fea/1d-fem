@@ -56,8 +56,9 @@ layered `Q8` elements.
     which the unstiffened shell allows) brings this to 1.8 % and 1.7 %. Distortion is
     therefore a real effect but a small one in statics, about 1.5 %. Because it softens the beam, it
     does not account for the thin-walled beams being soft.
-  - These checks use untapered elements without pretwist (GBT sections do not take
-    pretwist yet). The scripts are not part of the example.
+  - These checks use untapered elements without pretwist (GBT took neither when they
+    were made; with the modes held, the tapered, pretwisted GBT beam twists 3.7 % less
+    than the Timoshenko beam on 2D sections). The scripts are not part of the example.
 - **The 2D sections are 2–5 % stiff in bending** because their caps hold 6.5 % more carbon
   than the thin-walled caps (see `post_processing/validation_visualisers/iea15mw_sections`).
   Before the taper coupling this cancelled the taper softening and the 2D model looked
@@ -67,41 +68,57 @@ layered `Q8` elements.
 
 ![Frequencies](modes.png)
 
-| Mode | Shell | Timoshenko | Benscoter | Timoshenko 2D, untapered | GBT 2D, 4 modes, untapered |
-|---|---|---|---|---|---|
-| 1 flap | 3.64 Hz | −0.3 % | −0.2 % | −1.3 % | −1.0 % |
-| 2 edge | 4.68 Hz | −0.3 % | −0.3 % | −0.6 % | −0.5 % |
-| 3 torsion | 10.02 Hz | +6.8 % | +10.2 % | +10.3 % | −4.2 % |
-| 4 torsion with flap | 12.10 Hz | +7.4 % | +7.6 % | +10.3 % | −8.0 % |
+| Mode | Shell | Timoshenko | Benscoter | Timoshenko 2D | GBT 2D, 4 modes | GBT 2D, cores stiff in shear |
+|---|---|---|---|---|---|---|
+| 1 flap | 3.64 Hz | −0.3 % | −0.2 % | +1.5 % | +1.7 % | +1.8 % |
+| 2 edge | 4.68 Hz | −0.3 % | −0.3 % | −0.2 % | −0.1 % | 0.0 % |
+| 3 torsion | 10.02 Hz | +6.8 % | +10.2 % | +10.1 % | −4.0 % | +0.3 % |
+| 4 torsion with flap | 12.10 Hz | +7.4 % | +7.6 % | +10.8 % | −8.4 % | −2.8 % |
 
-Flap and edge agree within 0.3 % (they were 3.3 % and 0.8 % low before the taper coupling).
+All beams are tapered and pretwisted, as the shell is. Flap and edge agree within 0.3 % on
+the thin-walled sections (they were 3.3 % and 0.8 % low before the taper coupling); the
+2D sections are 1.5 % high in flap because their caps hold 6.5 % more carbon.
 
-**Plane-section beams put the torsion modes 7 to 10 % high, and the gap is inertia.** A
+**Plane-section beams put the torsion modes 7 to 11 % high, and the gap is inertia.** A
 4 % stiffness difference moves a frequency by about 2 %, and the Timoshenko beam on 2D
 sections twists within 0.4 % of the shell under a static tip torque, yet its first torsion
-frequency is 10 % high (11.05 Hz against 10.02 Hz). The shell's torsion mode moves its
+frequency is 10 % high (11.03 Hz against 10.02 Hz). The shell's torsion mode moves its
 sections out of their plane shape: about 10 % of the mode's in-plane kinetic energy is
 distortion, mostly of the large unsupported trailing-edge panels.
 
 **GBT on the 2D sections carries that inertia.** Its distortional modes (the sections' own
 in-plane modes, `solid.cross_section_modes`) come with their mass, coupled with the
-rotation (`gbt_mass`). Four modes take the first torsion frequency from +10.3 % to −4.2 %,
-on the same untapered beam with the same static stiffness. Eight modes give 9.57 Hz
-(−4.4 %), so four are converged. The GBT beam also gains the shell's denser set of
-torsion-distortion modes between 11 and 13 Hz, which the plane-section beams do not have.
-It now overshoots: the second torsion mode is 8 % low. Two things are not like for like
-here:
+rotation (`gbt_mass`). Four modes take the first torsion frequency from +10.1 % to −4.0 %.
+It is converged: eight modes give 9.611 Hz and 40 elements 9.613 Hz, against 9.621 Hz. The
+GBT beam also gains the shell's denser set of torsion-distortion modes between 11 and 13 Hz,
+which the plane-section beams do not have.
 
-- Both 2D beams here are untapered and unpretwisted, while the shell is tapered and
-  twisted. GBT now takes both (its bases are aligned from section to section,
-  `gbt_alignment`); with the modes held it gives the tapered, pretwisted Timoshenko 2D
-  tip deflections within 0.3 % in flap and edge.
-- GBT with the thin-walled sections' modes (not shown) leaves the first torsion frequency
-  where the Timoshenko beam has it (10.66 Hz with 4 modes on 6 elements). The two mode
-  sets are built differently (the thin-walled modes are orthogonal to the rigid-section
-  modes in the warping stiffness, the 2D modes against the section area before they are
-  decoupled from the beam strains), so they share the section rotation differently. Which
-  is closer to the shell is open.
+**The rest of the gap is the shell's, not the beam's.** The shell reference writes composite
+`S8R` shells, which CalculiX expands into one `C3D20R` brick through the wall. Through a
+sandwich panel that is one quadratic displacement, so the faces cannot slide over the foam
+and the core's transverse shear costs nothing. The 2D sections mesh every ply, so their
+panels bend with the core's shear, and the distortion of the panels is what lowers the
+torsion modes. `sandwich_strip_check.py` bends a strip of the 70 % span skin (gelcoat,
+triax, 13.7 mm foam, triax) in CalculiX ([data/sandwich_strip.json](data/sandwich_strip.json)):
+
+| Span | Composite `S8R` | `C3D20` bricks, 2 per ply | Beam, no core shear | Sandwich beam | `S8R` over bricks |
+|---|---|---|---|---|---|
+| 0.5 m | 126.6 Hz | 116.3 Hz | 127.2 Hz | 116.3 Hz | +8.9 % |
+| 1 m | 31.75 Hz | 31.05 Hz | 31.79 Hz | 31.04 Hz | +2.3 % |
+| 2 m | 7.94 Hz | 7.90 Hz | 7.95 Hz | 7.90 Hz | +0.6 % |
+
+The bricks follow sandwich theory with the core's shear; the composite shell follows it
+without. GBT with the foam made 100 times stiffer in transverse shear (`G13`, `G23`), as the
+shell has it, puts the first torsion frequency within 0.3 % of the shell and the second
+within 2.8 %. So the GBT beam on 2D sections, with the cores' shear, is the closer of the
+two models to the blade; the shell's torsion frequencies are a few per cent high. A
+layerwise or solid shell reference would settle it.
+
+GBT with the thin-walled sections' modes (not shown) leaves the first torsion frequency
+where the Timoshenko beam has it (10.66 Hz with 4 modes on 6 elements, untapered). The
+thin-walled modes are built from the wall's bending as a Kirchhoff plate, without the
+cores' shear, and orthogonal to the rigid-section modes in the warping stiffness, so they
+share the section rotation differently from the 2D modes.
 
 Above 13 Hz the shell has local panel modes that a beam cannot have, so only the first
 four modes are compared.
@@ -131,4 +148,5 @@ CalculiX stopped converging at 45 % of the planned 1.8 MN load, so the plan's ch
 | `run.py` | builds and runs every job, compares and plots |
 | `make_shell_reference.py` | the shell blade runs (composite-laminate-model, CalculiX) |
 | `data/shell_reference.json` | shell results at the tip |
+| `sandwich_strip_check.py`, `data/sandwich_strip.json` | the skin strip in CalculiX: composite shell against bricks and sandwich theory |
 | `summary.json` | the beam results and the comparisons |
