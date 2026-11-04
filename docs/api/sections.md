@@ -2,9 +2,9 @@
 
 Thin-walled and 2D (solid) cross-section analysis: stiffness, mass, warping, GBT modes, stress recovery, ply failure and layup sensitivities.
 
-### `pre_processing.section_integration`
+### `onedfem.pre_processing.section_integration`
 
-[pre_processing/section_integration/__init__.py](../../pre_processing/section_integration/__init__.py)
+[src/onedfem/pre_processing/section_integration/__init__.py](../../src/onedfem/pre_processing/section_integration/__init__.py)
 
 Section integration: geometry to A, I_y, I_z, J_t, kappa, shear centre (y_sc, z_sc), optional Gamma.
 
@@ -17,9 +17,9 @@ Section integration: geometry to A, I_y, I_z, J_t, kappa, shear centre (y_sc, z_
 - **`section_properties_from_geometry(section_type: str, **kwargs: float) -> Dict[str, float]`**
   Compute section properties from geometry (closed-form).
 
-### `pre_processing.section_integration.gbt_alignment`
+### `onedfem.pre_processing.section_integration.gbt_alignment`
 
-[pre_processing/section_integration/gbt_alignment.py](../../pre_processing/section_integration/gbt_alignment.py)
+[src/onedfem/pre_processing/section_integration/gbt_alignment.py](../../src/onedfem/pre_processing/section_integration/gbt_alignment.py)
 
 Consistent GBT bases on a beam whose sections change along it.
 
@@ -33,9 +33,9 @@ Consistent GBT bases on a beam whose sections change along it.
 - **`rotate_gbt_basis(sa, Rw: np.ndarray, Rm: np.ndarray)`**
   ``sa`` with its warping basis turned by ``Rw`` and its mode basis by ``Rm``.
 
-### `pre_processing.section_integration.ply_failure`
+### `onedfem.pre_processing.section_integration.ply_failure`
 
-[pre_processing/section_integration/ply_failure.py](../../pre_processing/section_integration/ply_failure.py)
+[src/onedfem/pre_processing/section_integration/ply_failure.py](../../src/onedfem/pre_processing/section_integration/ply_failure.py)
 
 Ply failure criteria: maximum stress, Tsai-Wu, Hashin and Puck, as exposures.
 
@@ -53,9 +53,9 @@ Ply failure criteria: maximum stress, Tsai-Wu, Hashin and Puck, as exposures.
 - **`exposures(s, st: PlyStrength) -> Dict[str, np.ndarray]`**
   Every criterion's exposure and mode: ``{"max_stress": f, "max_stress_mode": ..., ..., "puck_angle": degrees, "exposure": max over criteria, "margin": 1 / exposure - 1}``.
 
-### `pre_processing.section_integration.section_analysis`
+### `onedfem.pre_processing.section_integration.section_analysis`
 
-[pre_processing/section_integration/section_analysis.py](../../pre_processing/section_integration/section_analysis.py)
+[src/onedfem/pre_processing/section_integration/section_analysis.py](../../src/onedfem/pre_processing/section_integration/section_analysis.py)
 
 Section constitutive data shared by every beam element: ``SectionAnalysis``.
 
@@ -64,9 +64,9 @@ Section constitutive data shared by every beam element: ``SectionAnalysis``.
 - **class `SectionAnalysis(stiffness: npt.NDArray[np.float64], classical_stiffness: npt.NDArray[np.float64], warping_stiffness: float = 0.0, shear_centre: Tuple[float, float] = (0.0, 0.0), tension_centre: Tuple[float, float] = (0.0, 0.0), mass: Dict[str, float] = <factory>, source: str = 'isotropic', section_id: Optional[int] = None, benscoter_stiffness: Optional[npt.NDArray[np.float64]] = None, warping_inertia: float = 0.0, gbt_modes: int = 0, gbt_stiffness: Optional[npt.NDArray[np.float64]] = None, gbt_mass: Optional[npt.NDArray[np.float64]] = None, gbt_shear_modes: int = 0, gbt_sv_modes: int = 0, third_order_stiffness: Optional[npt.NDArray[np.float64]] = None, third_order_rate: Optional[npt.NDArray[np.float64]] = None, geometric_terms: Optional[npt.NDArray[np.float64]] = None, benscoter_geometric_terms: Optional[npt.NDArray[np.float64]] = None, third_order_geometric_terms: Optional[npt.NDArray[np.float64]] = None, axial_points: Optional[npt.NDArray[np.float64]] = None, gbt_geometric: Optional[Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]] = None, gbt_moments: Optional[npt.NDArray[np.float64]] = None, tapered: bool = False, taper_parts: Optional[Dict[int, npt.NDArray[np.float64]]] = None, gbt_brazier: Optional[Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]] = None) -> None`**
   Section stiffness and properties in the element convention.
 
-### `pre_processing.section_integration.solid`
+### `onedfem.pre_processing.section_integration.solid`
 
-[pre_processing/section_integration/solid/__init__.py](../../pre_processing/section_integration/solid/__init__.py)
+[src/onedfem/pre_processing/section_integration/solid/__init__.py](../../src/onedfem/pre_processing/section_integration/solid/__init__.py)
 
 2D finite-element analysis of beam cross-sections (thick, solid and laminated sections).
 
@@ -85,18 +85,18 @@ Section constitutive data shared by every beam element: ``SectionAnalysis``.
 - **class `SolidSectionAnalysis(mesh: SectionMesh) -> None`**
   Saint-Venant stiffness and properties of a section meshed in 2D.
 
-### `pre_processing.section_integration.solid.cross_section_modes`
+### `onedfem.pre_processing.section_integration.solid.cross_section_modes`
 
-[pre_processing/section_integration/solid/cross_section_modes.py](../../pre_processing/section_integration/solid/cross_section_modes.py)
+[src/onedfem/pre_processing/section_integration/solid/cross_section_modes.py](../../src/onedfem/pre_processing/section_integration/solid/cross_section_modes.py)
 
 Cross-section deformation modes of sections meshed in 2D: GBT on a continuum section.
 
 - **class `SolidCrossSectionModes(analysis, max_modes: int = 12) -> None`**
   GBT modes, stiffness and mass of a ``SolidSectionAnalysis`` (right-handed).
 
-### `pre_processing.section_integration.solid.element_recovery`
+### `onedfem.pre_processing.section_integration.solid.element_recovery`
 
-[pre_processing/section_integration/solid/element_recovery.py](../../pre_processing/section_integration/solid/element_recovery.py)
+[src/onedfem/pre_processing/section_integration/solid/element_recovery.py](../../src/onedfem/pre_processing/section_integration/solid/element_recovery.py)
 
 3D stresses over a 2D-meshed section at a point of a beam element.
 
@@ -105,9 +105,9 @@ Cross-section deformation modes of sections meshed in 2D: GBT on a continuum sec
 - **`element_section_stresses(element, U_e: npt.ArrayLike, xi: float, analysis) -> List`**
   ``PointStress`` at every quadrature point of the section at ``xi`` of an element.
 
-### `pre_processing.section_integration.solid.elements`
+### `onedfem.pre_processing.section_integration.solid.elements`
 
-[pre_processing/section_integration/solid/elements.py](../../pre_processing/section_integration/solid/elements.py)
+[src/onedfem/pre_processing/section_integration/solid/elements.py](../../src/onedfem/pre_processing/section_integration/solid/elements.py)
 
 Quadratic 2D section elements: 6-node triangles (``T6``) and 8-node quadrilaterals (``Q8``).
 
@@ -117,9 +117,9 @@ Quadratic 2D section elements: 6-node triangles (``T6``) and 8-node quadrilatera
 - **`quadrature(kind: str) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]`**
   Points ``(m, 2)`` and weights ``(m,)``: 3 x 3 Gauss on ``Q8``, 7-point (degree 5) on ``T6``.
 
-### `pre_processing.section_integration.solid.from_geometry`
+### `onedfem.pre_processing.section_integration.solid.from_geometry`
 
-[pre_processing/section_integration/solid/from_geometry.py](../../pre_processing/section_integration/solid/from_geometry.py)
+[src/onedfem/pre_processing/section_integration/solid/from_geometry.py](../../src/onedfem/pre_processing/section_integration/solid/from_geometry.py)
 
 Conforming 2D section meshes of an implicit-geometry-kernel blade section.
 
@@ -128,9 +128,9 @@ Conforming 2D section meshes of an implicit-geometry-kernel blade section.
 - **`write_section_mesh_2d(path: str, meshes: Mapping[int, SectionMesh]) -> None`**
   Write ``section_mesh_2d.txt`` for ``{section_id: SectionMesh}``, with its materials.
 
-### `pre_processing.section_integration.solid.layup_sensitivity`
+### `onedfem.pre_processing.section_integration.solid.layup_sensitivity`
 
-[pre_processing/section_integration/solid/layup_sensitivity.py](../../pre_processing/section_integration/solid/layup_sensitivity.py)
+[src/onedfem/pre_processing/section_integration/solid/layup_sensitivity.py](../../src/onedfem/pre_processing/section_integration/solid/layup_sensitivity.py)
 
 Exact derivatives of a 2D-meshed section's properties with respect to ply angles.
 
@@ -139,9 +139,9 @@ Exact derivatives of a 2D-meshed section's properties with respect to ply angles
 - **`solid_section_derivative(an, param: LayupParameter, benscoter: bool = False, geometric: bool = False) -> SectionDerivative`**
   Exact derivatives of a ``SolidSectionAnalysis`` for a ply-angle ``param``.
 
-### `pre_processing.section_integration.solid.material`
+### `onedfem.pre_processing.section_integration.solid.material`
 
-[pre_processing/section_integration/solid/material.py](../../pre_processing/section_integration/solid/material.py)
+[src/onedfem/pre_processing/section_integration/solid/material.py](../../src/onedfem/pre_processing/section_integration/solid/material.py)
 
 Three-dimensional orthotropic materials for 2D section meshes, and their rotation to section axes.
 
@@ -152,9 +152,9 @@ Three-dimensional orthotropic materials for 2D section meshes, and their rotatio
 - **`bond_matrix(R: npt.ArrayLike) -> npt.NDArray[np.float64]`**
   Stress transformation ``sigma_section = T sigma_material`` for the rotation ``R`` (columns: material axes in section axes), Voigt order ``VOIGT``.
 
-### `pre_processing.section_integration.solid.mesh`
+### `onedfem.pre_processing.section_integration.solid.mesh`
 
-[pre_processing/section_integration/solid/mesh.py](../../pre_processing/section_integration/solid/mesh.py)
+[src/onedfem/pre_processing/section_integration/solid/mesh.py](../../src/onedfem/pre_processing/section_integration/solid/mesh.py)
 
 2D finite-element meshes of beam cross-sections, with a material and orientation per element.
 
@@ -167,9 +167,9 @@ Three-dimensional orthotropic materials for 2D section meshes, and their rotatio
 - **`read_gmsh(path: str)`**
   Nodes ``(n, 2)`` and ``[(physical tag, physical name, kind, connectivity)]`` of a Gmsh 4.1 ASCII mesh's ``T6`` and ``Q8`` elements on physical surfaces.
 
-### `pre_processing.section_integration.solid.section_analysis`
+### `onedfem.pre_processing.section_integration.solid.section_analysis`
 
-[pre_processing/section_integration/solid/section_analysis.py](../../pre_processing/section_integration/solid/section_analysis.py)
+[src/onedfem/pre_processing/section_integration/solid/section_analysis.py](../../src/onedfem/pre_processing/section_integration/solid/section_analysis.py)
 
 Saint-Venant analysis of beam sections meshed in 2D: ``SolidSectionAnalysis``.
 
@@ -179,9 +179,9 @@ Saint-Venant analysis of beam sections meshed in 2D: ``SolidSectionAnalysis``.
   3D state at a point of the section.
 - **`BENSCOTER_STRAINS`** (constant)
 
-### `pre_processing.section_integration.thin_walled`
+### `onedfem.pre_processing.section_integration.thin_walled`
 
-[pre_processing/section_integration/thin_walled/__init__.py](../../pre_processing/section_integration/thin_walled/__init__.py)
+[src/onedfem/pre_processing/section_integration/thin_walled/__init__.py](../../src/onedfem/pre_processing/section_integration/thin_walled/__init__.py)
 
 Thin-walled anisotropic sections: wall laminates, condensed wall laws, mid-line geometry, Saint-Venant analysis.
 
@@ -215,18 +215,18 @@ Thin-walled anisotropic sections: wall laminates, condensed wall laws, mid-line 
 - **`gbt_wall_stiffness(laminate: WallLaminate) -> WallStiffness`**
   Wall law for cross-section distortion modes: ``N_ss = 0``, (5, 5).
 
-### `pre_processing.section_integration.thin_walled.cross_section_modes`
+### `onedfem.pre_processing.section_integration.thin_walled.cross_section_modes`
 
-[pre_processing/section_integration/thin_walled/cross_section_modes.py](../../pre_processing/section_integration/thin_walled/cross_section_modes.py)
+[src/onedfem/pre_processing/section_integration/thin_walled/cross_section_modes.py](../../src/onedfem/pre_processing/section_integration/thin_walled/cross_section_modes.py)
 
 Cross-section deformation modes of thin-walled sections (conventional GBT modes).
 
 - **class `CrossSectionModes(analysis: ThinWalledSectionAnalysis) -> None`**
   Conventional (Vlasov) cross-section modes and the GBT section matrices.
 
-### `pre_processing.section_integration.thin_walled.element_recovery`
+### `onedfem.pre_processing.section_integration.thin_walled.element_recovery`
 
-[pre_processing/section_integration/thin_walled/element_recovery.py](../../pre_processing/section_integration/thin_walled/element_recovery.py)
+[src/onedfem/pre_processing/section_integration/thin_walled/element_recovery.py](../../src/onedfem/pre_processing/section_integration/thin_walled/element_recovery.py)
 
 Wall and ply stresses at a point of a beam element with a thin-walled section.
 
@@ -235,9 +235,9 @@ Wall and ply stresses at a point of a beam element with a thin-walled section.
 - **`element_wall_stress(element, U_e: npt.ArrayLike, xi: float, analysis, wall_id: int, s: float, points_per_ply: int = 3) -> WallPointStress`**
   Recovered wall and ply state at ``xi`` of an element and ``s`` along a wall.
 
-### `pre_processing.section_integration.thin_walled.from_geometry`
+### `onedfem.pre_processing.section_integration.thin_walled.from_geometry`
 
-[pre_processing/section_integration/thin_walled/from_geometry.py](../../pre_processing/section_integration/thin_walled/from_geometry.py)
+[src/onedfem/pre_processing/section_integration/thin_walled/from_geometry.py](../../src/onedfem/pre_processing/section_integration/thin_walled/from_geometry.py)
 
 Thin-walled sections cut from an implicit-geometry-kernel blade.
 
@@ -248,9 +248,9 @@ Thin-walled sections cut from an implicit-geometry-kernel blade.
 - **`laminate_lookup(wall, laminates: LaminateMap, library: Optional[Mapping[int, WallLaminate]] = None) -> WallLaminate`**
   The laminate of a ``SectionWall``: by label, then region, then kind.
 
-### `pre_processing.section_integration.thin_walled.laminate`
+### `onedfem.pre_processing.section_integration.thin_walled.laminate`
 
-[pre_processing/section_integration/thin_walled/laminate.py](../../pre_processing/section_integration/thin_walled/laminate.py)
+[src/onedfem/pre_processing/section_integration/thin_walled/laminate.py](../../src/onedfem/pre_processing/section_integration/thin_walled/laminate.py)
 
 Classical laminate theory for the walls of a thin-walled beam section.
 
@@ -265,9 +265,9 @@ Classical laminate theory for the walls of a thin-walled beam section.
 - **class `WallLaminate(plies: Sequence[Ply], shear_correction: float = 0.8333333333333334)`**
   A wall laminate: plies stacked from bottom to top about the mid-surface.
 
-### `pre_processing.section_integration.thin_walled.layup_sensitivity`
+### `onedfem.pre_processing.section_integration.thin_walled.layup_sensitivity`
 
-[pre_processing/section_integration/thin_walled/layup_sensitivity.py](../../pre_processing/section_integration/thin_walled/layup_sensitivity.py)
+[src/onedfem/pre_processing/section_integration/thin_walled/layup_sensitivity.py](../../src/onedfem/pre_processing/section_integration/thin_walled/layup_sensitivity.py)
 
 Exact derivatives of thin-walled section properties with respect to ply angles and thicknesses.
 
@@ -286,9 +286,9 @@ Exact derivatives of thin-walled section properties with respect to ply angles a
 - **`element_section_derivative(sa, d: SectionDerivative)`**
   A ``SectionAnalysis`` like ``sa`` whose stiffness and mass matrix are the derivatives ``d`` (element signs).
 
-### `pre_processing.section_integration.thin_walled.section_analysis`
+### `onedfem.pre_processing.section_integration.thin_walled.section_analysis`
 
-[pre_processing/section_integration/thin_walled/section_analysis.py](../../pre_processing/section_integration/thin_walled/section_analysis.py)
+[src/onedfem/pre_processing/section_integration/thin_walled/section_analysis.py](../../src/onedfem/pre_processing/section_integration/thin_walled/section_analysis.py)
 
 Saint-Venant analysis of anisotropic thin-walled sections.
 
@@ -301,9 +301,9 @@ Saint-Venant analysis of anisotropic thin-walled sections.
 - **`stiffness_about(K: npt.ArrayLike, y0: float, z0: float) -> npt.NDArray[np.float64]`**
   Stiffness (6, 6) about the point ``(y0, z0)`` from a stiffness about the origin.
 
-### `pre_processing.section_integration.thin_walled.stress_recovery`
+### `onedfem.pre_processing.section_integration.thin_walled.stress_recovery`
 
-[pre_processing/section_integration/thin_walled/stress_recovery.py](../../pre_processing/section_integration/thin_walled/stress_recovery.py)
+[src/onedfem/pre_processing/section_integration/thin_walled/stress_recovery.py](../../src/onedfem/pre_processing/section_integration/thin_walled/stress_recovery.py)
 
 Wall and ply stresses of a thin-walled section from its beam solution.
 
@@ -322,9 +322,9 @@ Wall and ply stresses of a thin-walled section from its beam solution.
 - **class `SaintVenantRecovery(analysis) -> None`**
   Wall and ply stresses of a ``ThinWalledSectionAnalysis`` under section forces.
 
-### `pre_processing.section_integration.thin_walled.taper`
+### `onedfem.pre_processing.section_integration.thin_walled.taper`
 
-[pre_processing/section_integration/thin_walled/taper.py](../../pre_processing/section_integration/thin_walled/taper.py)
+[src/onedfem/pre_processing/section_integration/thin_walled/taper.py](../../src/onedfem/pre_processing/section_integration/thin_walled/taper.py)
 
 Taper coupling of a thin-walled section: the Resal effect.
 
@@ -335,9 +335,9 @@ Taper coupling of a thin-walled section: the Resal effect.
 - **`section_taper_from_geometry(geometry, z: float, laminates, step: float, library: Optional[Mapping[int, WallLaminate]] = None, thickness_tol: float = 0.01) -> SectionTaper`**
   Taper coupling at span ``z`` of an implicit-geometry-kernel blade, from cuts at ``z -+ step``.
 
-### `pre_processing.section_integration.thin_walled.thin_walled_geometry`
+### `onedfem.pre_processing.section_integration.thin_walled.thin_walled_geometry`
 
-[pre_processing/section_integration/thin_walled/thin_walled_geometry.py](../../pre_processing/section_integration/thin_walled/thin_walled_geometry.py)
+[src/onedfem/pre_processing/section_integration/thin_walled/thin_walled_geometry.py](../../src/onedfem/pre_processing/section_integration/thin_walled/thin_walled_geometry.py)
 
 Mid-line geometry of a thin-walled beam section.
 
@@ -346,9 +346,9 @@ Mid-line geometry of a thin-walled beam section.
 - **class `ThinWalledSection(points: Mapping[int, Tuple[float, float]], walls: Iterable[Wall], laminate_ids: Optional[Iterable[int]] = None, section_id: int = 0) -> None`**
   Validated mid-line geometry of a thin-walled section.
 
-### `pre_processing.section_integration.thin_walled.wall_stiffness`
+### `onedfem.pre_processing.section_integration.thin_walled.wall_stiffness`
 
-[pre_processing/section_integration/thin_walled/wall_stiffness.py](../../pre_processing/section_integration/thin_walled/wall_stiffness.py)
+[src/onedfem/pre_processing/section_integration/thin_walled/wall_stiffness.py](../../src/onedfem/pre_processing/section_integration/thin_walled/wall_stiffness.py)
 
 Condensed wall stiffness for beam and cross-section-mode theories.
 

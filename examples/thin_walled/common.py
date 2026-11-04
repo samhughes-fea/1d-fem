@@ -112,7 +112,7 @@ def n_extra_dofs(spec: CantileverSpec) -> int:
         return 2
     if "GBT" not in spec.element_type:
         return 1 if spec.warping else 0
-    from pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
+    from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
 
     return CrossSectionModes(build_analysis(spec.section)).n_sv_warping + spec.shear_modes + 2 * spec.modes
 
@@ -125,13 +125,13 @@ def write_supports(job_dir: str, spec: CantileverSpec) -> None:
 
 
 def build_analysis(sec: SectionSpec):
-    from pre_processing.section_integration.thin_walled import (
+    from onedfem.pre_processing.section_integration.thin_walled import (
         ThinWalledSection,
         ThinWalledSectionAnalysis,
         Wall,
         WallLaminate,
     )
-    from pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
+    from onedfem.pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
 
     mats = {i: PlyMaterial(m.E1, m.E2, m.G12, m.nu12, m.G13, m.G23, m.rho) for i, m in sec.materials.items()}
     lams = {lid: WallLaminate([Ply(mats[mid], a, t) for mid, a, t in plies]) for lid, plies in sec.laminates.items()}
@@ -159,7 +159,7 @@ def run(spec: CantileverSpec, work_dir: str, name: str) -> JobResult:
     """Write, run and read one job under ``work_dir/name``."""
     import logging
 
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     job_dir = os.path.join(work_dir, "jobs", name)
     write_job(job_dir, spec)

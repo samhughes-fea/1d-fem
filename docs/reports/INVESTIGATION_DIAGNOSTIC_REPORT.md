@@ -99,8 +99,8 @@ After implementing integration order fixes:
 
 1. `jobs/job_0001/element.txt` - Updated shear integration orders
 2. `jobs/job_0002/element.txt` - Updated shear integration orders
-3. `pre_processing/element_library/timoshenko/timoshenko_3D.py` - Added integration order logic
-4. `pre_processing/element_library/levinson/levinson_3D.py` - Added integration order logic
+3. `src/onedfem/pre_processing/element_library/timoshenko/timoshenko_3D.py` - Added integration order logic
+4. `src/onedfem/pre_processing/element_library/levinson/levinson_3D.py` - Added integration order logic
 
 ## Verification Scripts Created
 

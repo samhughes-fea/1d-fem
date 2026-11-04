@@ -60,7 +60,7 @@ layered `Q8` elements.
     were made; with the modes held, the tapered, pretwisted GBT beam twists 3.7 % less
     than the Timoshenko beam on 2D sections). The scripts are not part of the example.
 - **The 2D sections are 2–5 % stiff in bending** because their caps hold 6.5 % more carbon
-  than the thin-walled caps (see `post_processing/validation_visualisers/iea15mw_sections`).
+  than the thin-walled caps (see `validation/iea15mw_sections`).
   Before the taper coupling this cancelled the taper softening and the 2D model looked
   within 2 %.
 

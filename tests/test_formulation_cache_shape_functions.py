@@ -16,16 +16,16 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.linear_levinson_3D import (
+from onedfem.pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.linear_levinson_3D import (
     LinearLevinsonBeamElement3D,
 )
-from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.linear_reddy_3D import (
+from onedfem.pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.linear_reddy_3D import (
     LinearReddyBeamElement3D,
 )
-from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
     LinearTimoshenkoBeamElement3D,
 )
-from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
     LinearEulerBernoulliBeamElement3D,
 )
 
@@ -148,11 +148,11 @@ def test_euler_bernoulli_force_object_shape_functions_populated():
 def test_nodal_result_projector_with_shape_functions_cache():
     """NodalResultProjector runs with formulation cache that has shape_functions and returns correct shapes."""
     import shutil
-    from processing.static.results.containers import (
+    from onedfem.processing.static.results.containers import (
         GaussianResults,
         FormulationResultSet,
     )
-    from processing.static.results.compute_secondary.nodal_result_projector import (
+    from onedfem.processing.static.results.compute_secondary.nodal_result_projector import (
         NodalResultProjector,
     )
 

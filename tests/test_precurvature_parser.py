@@ -6,7 +6,7 @@ import tempfile
 import numpy as np
 import pytest
 
-from pre_processing.parsing.precurvature_parser import (
+from onedfem.pre_processing.parsing.precurvature_parser import (
     element_reference_strain_voigt,
     parse_precurvature,
     reference_strain_voigt,

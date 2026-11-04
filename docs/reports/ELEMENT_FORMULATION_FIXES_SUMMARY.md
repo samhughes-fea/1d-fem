@@ -38,9 +38,9 @@ This document summarizes the verification and validation of beam element formula
 - Shear stiffness: D[3,3] = D[4,4] = κ*G*A
 
 **Implementation Details**:
-- File: `pre_processing/element_library/timoshenko/timoshenko_3D.py`
+- File: `src/onedfem/pre_processing/element_library/timoshenko/timoshenko_3D.py`
 - Line 201: Correctly passes N to B-matrix: `B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]`
-- D-matrix: `pre_processing/element_library/timoshenko/utilities/D_matrix.py` includes κ*G*A
+- D-matrix: `src/onedfem/pre_processing/element_library/timoshenko/utilities/D_matrix.py` includes κ*G*A
 
 ### Levinson Element
 
@@ -60,10 +60,10 @@ This document summarizes the verification and validation of beam element formula
 - Shear stiffness: D[3,3] = D[4,4] = G*A (no κ)
 
 **Implementation Details**:
-- File: `pre_processing/element_library/levinson/levinson_3D.py`
+- File: `src/onedfem/pre_processing/element_library/levinson/levinson_3D.py`
 - Line 93: Alpha coefficient computed: `alpha_coeff = self.I_z / self.A`
 - Line 99: Alpha passed to B-matrix operator
-- D-matrix: `pre_processing/element_library/levinson/utilities/D_matrix.py` includes GA (no κ)
+- D-matrix: `src/onedfem/pre_processing/element_library/levinson/utilities/D_matrix.py` includes GA (no κ)
 
 ## Validation Tests
 

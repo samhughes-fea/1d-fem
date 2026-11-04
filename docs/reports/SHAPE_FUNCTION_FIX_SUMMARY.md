@@ -9,8 +9,8 @@
 
 ### 1. Fixed Shape Functions
 **Files Modified:**
-- `pre_processing/element_library/euler_bernoulli/utilities/shape_functions.py`
-- `pre_processing/element_library/timoshenko/utilities/shape_functions.py`
+- `src/onedfem/pre_processing/element_library/euler_bernoulli/utilities/shape_functions.py`
+- `src/onedfem/pre_processing/element_library/timoshenko/utilities/shape_functions.py`
 
 **Changes:**
 - Replaced incorrect shape functions with standard Hermite cubic formulation:
@@ -67,8 +67,8 @@
 ## Files Created/Modified
 
 **Modified:**
-- `pre_processing/element_library/euler_bernoulli/utilities/shape_functions.py`
-- `pre_processing/element_library/timoshenko/utilities/shape_functions.py`
+- `src/onedfem/pre_processing/element_library/euler_bernoulli/utilities/shape_functions.py`
+- `src/onedfem/pre_processing/element_library/timoshenko/utilities/shape_functions.py`
 - `analytical_benchmark.py` (updated for verification)
 
 **Created:**

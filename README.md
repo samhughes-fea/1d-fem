@@ -22,26 +22,37 @@ displacements down to ply stresses and failure margins at every Gauss point.
 
 ## Install
 
-Python 3.10 or later. From the repository root:
+Python 3.10 or later. 1d-fem is the `onedfem` package (`src/onedfem`). There is no release
+on PyPI yet; install it from GitHub:
 
 ```bash
-pip install -r requirements-ci.txt
-pip install -r requirements-geometry.txt   # optional, Python 3.11+: blade geometry
+pip install "onedfem @ git+https://github.com/samhughes-fea/1d-fem"
+pip install "onedfem[geometry] @ git+https://github.com/samhughes-fea/1d-fem"   # Python 3.11+: blade geometry
 ```
 
-There is no package on PyPI yet; run scripts from the repository root so the packages
-(`pre_processing`, `processing`, `post_processing`, ...) import.
+or, to run the examples, validation and tests, from a clone:
+
+```bash
+pip install -e ".[test]"
+pip install -e ".[geometry]"   # optional, Python 3.11+
+```
+
+The repository keeps the code in `src/onedfem` and, outside the package, the examples, the
+validation and verification cases with their reference data (`validation/`,
+`verification/`), the tracked result trees (`results/`) and the job directories (`jobs/`).
 
 ## Running a job
 
 ```python
-from workflow_orchestrator.run_job import process_job, setup_job_results_directory
+from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
-results = setup_job_results_directory("my_job")    # under post_processing/results/
+results = setup_job_results_directory("my_job")    # under results/
 process_job("path/to/my_job", results, {}, {})
 ```
 
-`python workflow_orchestrator/run_job.py` runs every `jobs/job_*` directory. A job
+`onedfem-run-jobs` (or `python -m onedfem.workflow_orchestrator.run_job`) runs every
+`jobs/job_*` directory of the project root: the repository in a clone, otherwise the working
+directory or `ONEDFEM_PROJECT_ROOT`. A job
 directory holds:
 
 | File | Content |
@@ -87,7 +98,7 @@ the beam, Gauss-point values and their shape-function projections on sections.
 ## Testing
 
 ```bash
-pip install -r requirements-ci.txt pytest-xdist
+pip install -e ".[test]"
 python -m pytest tests -q -n auto
 ```
 

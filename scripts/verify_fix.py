@@ -6,11 +6,11 @@ import numpy as np
 
 # Load results
 data_old = np.genfromtxt(
-    'post_processing/results/job_0000_2025-11-16_17-00-46-814529_pid7088_4840d006/primary_results/global/U_global.csv',
+    'results/job_0000_2025-11-16_17-00-46-814529_pid7088_4840d006/primary_results/global/U_global.csv',
     delimiter=',', skip_header=1, usecols=1
 )
 data_new = np.genfromtxt(
-    'post_processing/results/job_0000_2025-11-16_17-40-08-750345_pid16416_f1cd8117/primary_results/global/U_global.csv',
+    'results/job_0000_2025-11-16_17-40-08-750345_pid16416_f1cd8117/primary_results/global/U_global.csv',
     delimiter=',', skip_header=1, usecols=1
 )
 

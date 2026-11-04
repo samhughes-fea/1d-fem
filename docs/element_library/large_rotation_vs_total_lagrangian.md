@@ -30,7 +30,7 @@ Verification tests live under `tests/test_large_rotation_beam_kinematics.py`.
 
 ## Co-rotational tangent: `finite_difference` vs `elastic_material`
 
-[`CorotationalBeamElement3D`](../../pre_processing/element_library/nonlinear/large_rotations/corotational/corotational_3D.py) exposes `tangent_stiffness_mode` (constructor / optional job setting `simulation_settings["nonlinear"]["corotational_tangent_mode"]`).
+[`CorotationalBeamElement3D`](../../src/onedfem/pre_processing/element_library/nonlinear/large_rotations/corotational/corotational_3D.py) exposes `tangent_stiffness_mode` (constructor / optional job setting `simulation_settings["nonlinear"]["corotational_tangent_mode"]`).
 
 | Mode | Mechanism | When to use |
 |------|-----------|-------------|

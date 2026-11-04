@@ -103,11 +103,11 @@ Comprehensive verification of 3D Timoshenko and 3D Levinson beam element formula
 
 ## Files Requiring Changes
 
-1. `pre_processing/element_library/timoshenko/utilities/B_matrix.py` - Add shear terms
-2. `pre_processing/element_library/timoshenko/utilities/D_matrix.py` - Add shear stiffness
-3. `pre_processing/element_library/levinson/utilities/shape_functions.py` - Fix shape functions
-4. `pre_processing/element_library/levinson/utilities/B_matrix.py` - Verify/add shear terms
-5. `pre_processing/element_library/levinson/utilities/D_matrix.py` - Verify/add shear stiffness
+1. `src/onedfem/pre_processing/element_library/timoshenko/utilities/B_matrix.py` - Add shear terms
+2. `src/onedfem/pre_processing/element_library/timoshenko/utilities/D_matrix.py` - Add shear stiffness
+3. `src/onedfem/pre_processing/element_library/levinson/utilities/shape_functions.py` - Fix shape functions
+4. `src/onedfem/pre_processing/element_library/levinson/utilities/B_matrix.py` - Verify/add shear terms
+5. `src/onedfem/pre_processing/element_library/levinson/utilities/D_matrix.py` - Verify/add shear stiffness
 
 ## Test Cases Created
 

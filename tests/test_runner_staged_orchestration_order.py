@@ -40,7 +40,7 @@ def _assert_needles_monotonic(source: str, needles: list[str]) -> None:
 
 
 def test_harmonic_runner_run_self_stage_order() -> None:
-    path = PROJECT_ROOT / "simulation_runner" / "harmonic" / "harmonic_simulation.py"
+    path = PROJECT_ROOT / "src" / "onedfem" / "simulation_runner" / "harmonic" / "harmonic_simulation.py"
     src = _function_source_lines(path, "HarmonicSimulationRunner", "run")
     _assert_needles_monotonic(
         src,
@@ -63,7 +63,7 @@ def test_harmonic_runner_run_self_stage_order() -> None:
 
 
 def test_dynamic_runner_run_self_stage_order() -> None:
-    path = PROJECT_ROOT / "simulation_runner" / "transient" / "dynamic_simulation.py"
+    path = PROJECT_ROOT / "src" / "onedfem" / "simulation_runner" / "transient" / "dynamic_simulation.py"
     src = _function_source_lines(path, "TransientSimulationRunner", "run")
     _assert_needles_monotonic(
         src,
@@ -81,7 +81,7 @@ def test_dynamic_runner_run_self_stage_order() -> None:
 
 
 def test_vibration_buckling_backend_vibration_pipeline_order() -> None:
-    path = PROJECT_ROOT / "simulation_runner" / "spectral" / "vibration_buckling_backend.py"
+    path = PROJECT_ROOT / "src" / "onedfem" / "simulation_runner" / "spectral" / "vibration_buckling_backend.py"
     src = _function_source_lines(path, "VibrationBucklingBackend", "_run_vibration_analysis")
     _assert_needles_monotonic(
         src,
@@ -97,7 +97,7 @@ def test_vibration_buckling_backend_vibration_pipeline_order() -> None:
 
 
 def test_vibration_buckling_backend_buckling_pipeline_order() -> None:
-    path = PROJECT_ROOT / "simulation_runner" / "spectral" / "vibration_buckling_backend.py"
+    path = PROJECT_ROOT / "src" / "onedfem" / "simulation_runner" / "spectral" / "vibration_buckling_backend.py"
     src = _function_source_lines(path, "VibrationBucklingBackend", "_run_buckling_analysis")
     _assert_needles_monotonic(
         src,

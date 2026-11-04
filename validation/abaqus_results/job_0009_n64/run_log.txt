@@ -1,0 +1,6 @@
+Field output request (U, UR, SF, SM) failed: 'Model' object has no attribute 'FieldOutputRequest'
+Field output request (U, UR) failed: 'StaticStep' object has no attribute 'FieldOutputRequest'
+Field output request failed (no U, UR, SF, or SM): 'StaticStep' object has no attribute 'FieldOutputRequest'
+(Abaqus may still write U/UR by default; see ODB field outputs after the job.)
+ODB field outputs: ['E', 'RF', 'RM', 'S', 'U', 'UR']
+ODB has UR: True

@@ -59,8 +59,8 @@ def _cantilever_dicts(L=2.0, E=2.1e11, G=8.1e10, A=0.00131, I_z=2.08769e-06, I_y
 
 def test_nonlinear_timoshenko_integration_cantilever_solve():
     """Assemble K_T and F_int at U=0, one Newton step; fixed DOFs remain zero."""
-    from pre_processing.element_library.element_factory import ElementFactory
-    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
         NonlinearTimoshenkoBeamElement3D,
     )
 

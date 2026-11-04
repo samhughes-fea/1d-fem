@@ -11,17 +11,17 @@ import tempfile
 import numpy as np
 import pytest
 
-from pre_processing.element_library.dof_layout import mesh_dof_per_node
-from pre_processing.section_integration.section_analysis import SectionAnalysis
-from pre_processing.section_integration.thin_walled import (
+from onedfem.pre_processing.element_library.dof_layout import mesh_dof_per_node
+from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
+from onedfem.pre_processing.section_integration.thin_walled import (
     ThinWalledSection,
     ThinWalledSectionAnalysis,
     Wall,
     WallLaminate,
 )
-from pre_processing.section_integration.thin_walled.element_recovery import element_wall_stress
-from pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
-from pre_processing.section_integration.thin_walled.stress_recovery import (
+from onedfem.pre_processing.section_integration.thin_walled.element_recovery import element_wall_stress
+from onedfem.pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
+from onedfem.pre_processing.section_integration.thin_walled.stress_recovery import (
     SaintVenantRecovery,
     mid_surface_strains,
     through_thickness,
@@ -146,7 +146,7 @@ def test_homogeneous_wall_shear_is_parabolic():
 # --------------------------------------------------------------------------- #
 def build_and_solve(etype, sa, L, n_el, tip_load, modes=0, shear=0, root_free=()):
     """Cantilever by direct assembly; returns (elements, nodal U (n_nodes, stride))."""
-    from pre_processing.element_library.element_factory import ElementFactory
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
 
     Cls = getattr(importlib.import_module(ElementFactory.ELEMENT_CLASS_MAP[etype]), etype)
     ed = _ed(etype, n_el, modes, sa, shear)
@@ -247,7 +247,7 @@ def test_process_job_writes_wall_stresses(tmp_path):
     """End to end: a Timoshenko cantilever on a composite box writes wall_stresses.csv."""
     import csv
 
-    from workflow_orchestrator.run_job import process_job, setup_job_results_directory
+    from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
     L, n_el, P = 2.0, 4, 1e3
     b, h = 0.4, 0.2

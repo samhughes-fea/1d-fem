@@ -1,5 +1,5 @@
 """
-Aggregate per-job result folders under ``post_processing/results`` into one CSV.
+Aggregate per-job result folders under ``results`` into one CSV.
 
 Reads ``logs/run_manifest.json`` when present and merges ``primary_summary.csv``
 and row counts for ``newton_history.csv`` / ``inner_solve_history.csv``.
@@ -7,7 +7,7 @@ and row counts for ``newton_history.csv`` / ``inner_solve_history.csv``.
 Usage (from repo root)::
 
     python scripts/collect_run_metrics.py
-    python scripts/collect_run_metrics.py --out post_processing/runs_summary.csv
+    python scripts/collect_run_metrics.py --out results/runs_summary.csv
 """
 
 from __future__ import annotations
@@ -105,13 +105,13 @@ def main() -> None:
     parser.add_argument(
         "--results-root",
         type=Path,
-        default=Path(ROOT) / "post_processing" / "results",
+        default=Path(ROOT) / "results",
         help="Directory containing per-run result folders",
     )
     parser.add_argument(
         "--out",
         type=Path,
-        default=Path(ROOT) / "post_processing" / "runs_summary.csv",
+        default=Path(ROOT) / "results" / "runs_summary.csv",
         help="Output CSV path",
     )
     args = parser.parse_args()

@@ -14,8 +14,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from processing.harmonic.damping_table import interpolate_zeta_hz, load_zeta_vs_frequency_hz
-from processing.harmonic.frequency_response import (
+from onedfem.processing.harmonic.damping_table import interpolate_zeta_hz, load_zeta_vs_frequency_hz
+from onedfem.processing.harmonic.frequency_response import (
     _dynamic_matrix,
     dynamic_matrix_csc_signature,
     harmonic_damping_matrix,
@@ -24,14 +24,14 @@ from processing.harmonic.frequency_response import (
     solve_one_frequency_partitioned,
     sweep_displacements,
 )
-from processing.harmonic.modal_superposition import (
+from onedfem.processing.harmonic.modal_superposition import (
     harmonic_displacement_modal_superposition,
     harmonic_truncation_metrics_vs_direct,
     undamped_natural_modes,
 )
-from processing.common.harmonic_complex_post import build_harmonic_complex_snapshots
-from simulation_runner.harmonic.harmonic_simulation import effective_harmonic_config
-from workflow_orchestrator.run_job import process_job, setup_job_results_directory
+from onedfem.processing.common.harmonic_complex_post import build_harmonic_complex_snapshots
+from onedfem.simulation_runner.harmonic.harmonic_simulation import effective_harmonic_config
+from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
 
 def test_effective_harmonic_config_defaults() -> None:

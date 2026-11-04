@@ -102,7 +102,7 @@ def geometry(index: int, length: float = 1.0):
 
 def ply_materials():
     """1d-fem ``PlyMaterial`` per IEA material (transversely isotropic, ``nu23 = 0.3``)."""
-    from pre_processing.section_integration.thin_walled import PlyMaterial
+    from onedfem.pre_processing.section_integration.thin_walled import PlyMaterial
 
     out = {}
     for name, p in DATA["materials"].items():
@@ -113,7 +113,7 @@ def ply_materials():
 
 def laminates(index: int) -> Dict[str, object]:
     """1d-fem ``WallLaminate`` per wall kind."""
-    from pre_processing.section_integration.thin_walled import Ply, WallLaminate
+    from onedfem.pre_processing.section_integration.thin_walled import Ply, WallLaminate
 
     mats = ply_materials()
     return {k: WallLaminate([Ply(mats[m], 0.0, t) for m, t in v]) for k, v in station_model(index).laminae.items()}

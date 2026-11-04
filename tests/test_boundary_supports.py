@@ -1,4 +1,4 @@
-"""Unit tests for ``processing.boundary_supports`` penalty BC resolution."""
+"""Unit tests for ``onedfem.processing.boundary_supports`` penalty BC resolution."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from processing.boundary_supports import resolve_penalty_fixed_dofs
+from onedfem.processing.boundary_supports import resolve_penalty_fixed_dofs
 
 
 def test_resolve_legacy_first_six_without_prescribed():

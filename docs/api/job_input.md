@@ -2,28 +2,28 @@
 
 Parsers for the job directory's text files, meshes and loads.
 
-### `pre_processing.parsing`
+### `onedfem.pre_processing.parsing`
 
-[pre_processing/parsing/__init__.py](../../pre_processing/parsing/__init__.py)
+[src/onedfem/pre_processing/parsing/__init__.py](../../src/onedfem/pre_processing/parsing/__init__.py)
 
 
-### `pre_processing.parsing.distributed_load_parser`
+### `onedfem.pre_processing.parsing.distributed_load_parser`
 
-[pre_processing/parsing/distributed_load_parser.py](../../pre_processing/parsing/distributed_load_parser.py)
+[src/onedfem/pre_processing/parsing/distributed_load_parser.py](../../src/onedfem/pre_processing/parsing/distributed_load_parser.py)
 
 - **`parse_distributed_load(file_path)`**
   Parses discrete distributed load vectors from a structured text file and returns a 2D NumPy array.
 
-### `pre_processing.parsing.element_parser`
+### `onedfem.pre_processing.parsing.element_parser`
 
-[pre_processing/parsing/element_parser.py](../../pre_processing/parsing/element_parser.py)
+[src/onedfem/pre_processing/parsing/element_parser.py](../../src/onedfem/pre_processing/parsing/element_parser.py)
 
 - **class `ElementParser(filepath: str, job_results_dir: str) -> None`**
   Parses an [Element] section and returns a dictionary whose structure is identical to the other parsers in the suite:
 
-### `pre_processing.parsing.element_section_parser`
+### `onedfem.pre_processing.parsing.element_section_parser`
 
-[pre_processing/parsing/element_section_parser.py](../../pre_processing/parsing/element_section_parser.py)
+[src/onedfem/pre_processing/parsing/element_section_parser.py](../../src/onedfem/pre_processing/parsing/element_section_parser.py)
 
 Parse ``element_section.txt``: which thin-walled section each element uses.
 
@@ -32,16 +32,16 @@ Parse ``element_section.txt``: which thin-walled section each element uses.
 - **`parse_element_section_modes(filepath: str) -> Dict[int, Tuple[int, int, int]]`**
   Return ``{element_id: (section_id, modes, shear_modes)}`` (0 for absent columns).
 
-### `pre_processing.parsing.grid_parser`
+### `onedfem.pre_processing.parsing.grid_parser`
 
-[pre_processing/parsing/grid_parser.py](../../pre_processing/parsing/grid_parser.py)
+[src/onedfem/pre_processing/parsing/grid_parser.py](../../src/onedfem/pre_processing/parsing/grid_parser.py)
 
 - **class `GridParser(filepath: str, job_results_dir: str) -> None`**
   Parses a [Grid] section and returns::
 
-### `pre_processing.parsing.laminate_parser`
+### `onedfem.pre_processing.parsing.laminate_parser`
 
-[pre_processing/parsing/laminate_parser.py](../../pre_processing/parsing/laminate_parser.py)
+[src/onedfem/pre_processing/parsing/laminate_parser.py](../../src/onedfem/pre_processing/parsing/laminate_parser.py)
 
 Parse ``laminate.txt``: ply materials and wall laminates for thin-walled sections.
 
@@ -61,9 +61,9 @@ Parse ``laminate.txt``: ply materials and wall laminates for thin-walled section
 - **`format_laminate_file(laminates: Dict[int, WallLaminate]) -> str`**
   Text of a ``laminate.txt`` for ``{laminate_id: WallLaminate}``.
 
-### `pre_processing.parsing.layup_sensitivity_parser`
+### `onedfem.pre_processing.parsing.layup_sensitivity_parser`
 
-[pre_processing/parsing/layup_sensitivity_parser.py](../../pre_processing/parsing/layup_sensitivity_parser.py)
+[src/onedfem/pre_processing/parsing/layup_sensitivity_parser.py](../../src/onedfem/pre_processing/parsing/layup_sensitivity_parser.py)
 
 Parse ``layup_sensitivity.txt``: the ply parameters and responses of a sensitivity run.
 
@@ -74,16 +74,16 @@ Parse ``layup_sensitivity.txt``: the ply parameters and responses of a sensitivi
 - **`format_layup_sensitivity_file(params: Sequence[LayupParameter], responses: Sequence[Response]) -> str`**
   The text of ``layup_sensitivity.txt`` for ``params`` and ``responses``.
 
-### `pre_processing.parsing.material_parser`
+### `onedfem.pre_processing.parsing.material_parser`
 
-[pre_processing/parsing/material_parser.py](../../pre_processing/parsing/material_parser.py)
+[src/onedfem/pre_processing/parsing/material_parser.py](../../src/onedfem/pre_processing/parsing/material_parser.py)
 
 - **class `MaterialParser(filepath: str, job_results_dir: str) -> None`**
   Parses a [Material] section and returns
 
-### `pre_processing.parsing.ply_strength_parser`
+### `onedfem.pre_processing.parsing.ply_strength_parser`
 
-[pre_processing/parsing/ply_strength_parser.py](../../pre_processing/parsing/ply_strength_parser.py)
+[src/onedfem/pre_processing/parsing/ply_strength_parser.py](../../src/onedfem/pre_processing/parsing/ply_strength_parser.py)
 
 Parse ``ply_strength.txt``: ply strengths per material id, for the failure criteria.
 
@@ -92,16 +92,16 @@ Parse ``ply_strength.txt``: ply strengths per material id, for the failure crite
 - **`format_ply_strength_file(strengths: Mapping[int, PlyStrength]) -> str`**
   Text of ``ply_strength.txt`` with every column.
 
-### `pre_processing.parsing.point_load_parser`
+### `onedfem.pre_processing.parsing.point_load_parser`
 
-[pre_processing/parsing/point_load_parser.py](../../pre_processing/parsing/point_load_parser.py)
+[src/onedfem/pre_processing/parsing/point_load_parser.py](../../src/onedfem/pre_processing/parsing/point_load_parser.py)
 
 - **`parse_point_load(file_path)`**
   Parses point load vector/s from a structured text file and returns a 2D NumPy array.
 
-### `pre_processing.parsing.precurvature_parser`
+### `onedfem.pre_processing.parsing.precurvature_parser`
 
-[pre_processing/parsing/precurvature_parser.py](../../pre_processing/parsing/precurvature_parser.py)
+[src/onedfem/pre_processing/parsing/precurvature_parser.py](../../src/onedfem/pre_processing/parsing/precurvature_parser.py)
 
 Parse optional per-element reference curvature / twist for straight beam elements.
 
@@ -114,16 +114,16 @@ Parse optional per-element reference curvature / twist for straight beam element
 - **`voigt_standard_beam_to_third_order_beam(E_standard: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]`**
   Map standard beam Voigt ``[ε_x, κ_y, κ_z, …]`` to Levinson/Reddy row order ``[ε_x, κ_z, κ_y, …]``.
 
-### `pre_processing.parsing.prescribed_displacement_parser`
+### `onedfem.pre_processing.parsing.prescribed_displacement_parser`
 
-[pre_processing/parsing/prescribed_displacement_parser.py](../../pre_processing/parsing/prescribed_displacement_parser.py)
+[src/onedfem/pre_processing/parsing/prescribed_displacement_parser.py](../../src/onedfem/pre_processing/parsing/prescribed_displacement_parser.py)
 
 - **`parse_prescribed_displacement(file_path, dof_per_node: int = 6)`**
   Parses prescribed displacement conditions from a structured text file.
 
-### `pre_processing.parsing.region_laminate_parser`
+### `onedfem.pre_processing.parsing.region_laminate_parser`
 
-[pre_processing/parsing/region_laminate_parser.py](../../pre_processing/parsing/region_laminate_parser.py)
+[src/onedfem/pre_processing/parsing/region_laminate_parser.py](../../src/onedfem/pre_processing/parsing/region_laminate_parser.py)
 
 Parse ``region_laminate.txt``: which ``laminate.txt`` laminate each geometry region uses.
 
@@ -132,9 +132,9 @@ Parse ``region_laminate.txt``: which ``laminate.txt`` laminate each geometry reg
 - **`format_region_laminate(mapping: Dict[str, int]) -> str`**
   Text of a ``region_laminate.txt`` for ``{label: laminate_id}``.
 
-### `pre_processing.parsing.section_geometry_parser`
+### `onedfem.pre_processing.parsing.section_geometry_parser`
 
-[pre_processing/parsing/section_geometry_parser.py](../../pre_processing/parsing/section_geometry_parser.py)
+[src/onedfem/pre_processing/parsing/section_geometry_parser.py](../../src/onedfem/pre_processing/parsing/section_geometry_parser.py)
 
 Parse ``section_geometry.txt``: mid-line points and walls of thin-walled sections.
 
@@ -145,16 +145,16 @@ Parse ``section_geometry.txt``: mid-line points and walls of thin-walled section
 - **`format_section_geometry(sections: Dict[int, ThinWalledSection], n_sub: Optional[Dict[int, int]] = None) -> str`**
   Text of a ``section_geometry.txt`` for ``{section_id: ThinWalledSection}``.
 
-### `pre_processing.parsing.section_parser`
+### `onedfem.pre_processing.parsing.section_parser`
 
-[pre_processing/parsing/section_parser.py](../../pre_processing/parsing/section_parser.py)
+[src/onedfem/pre_processing/parsing/section_parser.py](../../src/onedfem/pre_processing/parsing/section_parser.py)
 
 - **class `SectionParser(filepath: str, job_results_dir: str) -> None`**
   Parses a [Section] block and returns
 
-### `pre_processing.parsing.section_taper_parser`
+### `onedfem.pre_processing.parsing.section_taper_parser`
 
-[pre_processing/parsing/section_taper_parser.py](../../pre_processing/parsing/section_taper_parser.py)
+[src/onedfem/pre_processing/parsing/section_taper_parser.py](../../src/onedfem/pre_processing/parsing/section_taper_parser.py)
 
 Parse ``section_taper.txt``: the taper coupling of each element's section (the Resal effect).
 
@@ -163,16 +163,16 @@ Parse ``section_taper.txt``: the taper coupling of each element's section (the R
 - **`format_section_taper_file(tapers: "Dict[int, 'SectionTaper']") -> str`**
   Text of ``section_taper.txt`` for ``{element_id: SectionTaper}``.
 
-### `pre_processing.parsing.simulation_settings_parser`
+### `onedfem.pre_processing.parsing.simulation_settings_parser`
 
-[pre_processing/parsing/simulation_settings_parser.py](../../pre_processing/parsing/simulation_settings_parser.py)
+[src/onedfem/pre_processing/parsing/simulation_settings_parser.py](../../src/onedfem/pre_processing/parsing/simulation_settings_parser.py)
 
 - **`parse_simulation_settings(file_path)`**
   Parses simulation settings from a structured simulation_settings.txt file.
 
-### `pre_processing.parsing.simulation_settings_resolution`
+### `onedfem.pre_processing.parsing.simulation_settings_resolution`
 
-[pre_processing/parsing/simulation_settings_resolution.py](../../pre_processing/parsing/simulation_settings_resolution.py)
+[src/onedfem/pre_processing/parsing/simulation_settings_resolution.py](../../src/onedfem/pre_processing/parsing/simulation_settings_resolution.py)
 
 Canonical taxonomy §1–§5 resolution for simulation_settings after parsing simulation_settings.txt.
 
@@ -185,18 +185,18 @@ Canonical taxonomy §1–§5 resolution for simulation_settings after parsing si
 - **`finalize_simulation_settings(settings: Dict[str, Any], *, type_line_explicit: bool) -> None`**
   Mutates ``settings`` in place: hydrate taxonomy dicts, validate ``enabled`` sections, and set canonical ``settings['type']``.
 
-### `pre_processing.parsing.wall_load_parser`
+### `onedfem.pre_processing.parsing.wall_load_parser`
 
-[pre_processing/parsing/wall_load_parser.py](../../pre_processing/parsing/wall_load_parser.py)
+[src/onedfem/pre_processing/parsing/wall_load_parser.py](../../src/onedfem/pre_processing/parsing/wall_load_parser.py)
 
 Parse ``wall_load.txt``: uniform surface loads on the walls of thin-walled sections.
 
 - **`parse_wall_load_file(filepath: str) -> Dict[int, Dict[int, Tuple[float, float, float]]]`**
   Return ``{element_id: {wall_id: (p_x, p_s, p_n)}}``.
 
-### `pre_processing.mesh_library.blade_beam_job`
+### `onedfem.pre_processing.mesh_library.blade_beam_job`
 
-[pre_processing/mesh_library/blade_beam_job.py](../../pre_processing/mesh_library/blade_beam_job.py)
+[src/onedfem/pre_processing/mesh_library/blade_beam_job.py](../../src/onedfem/pre_processing/mesh_library/blade_beam_job.py)
 
 A 1d-fem beam job for a blade or wing lofted by implicit-geometry-kernel.
 

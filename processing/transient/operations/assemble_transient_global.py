@@ -1,3 +1,0 @@
-from processing.dynamic.operations.assemble_dynamic_global import AssembleDynamicGlobalSystem as AssembleTransientGlobalSystem
-
-AssembleDynamicGlobalSystem = AssembleTransientGlobalSystem

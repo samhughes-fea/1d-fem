@@ -9,14 +9,14 @@ import tempfile
 import numpy as np
 import pytest
 
-from pre_processing.element_library.dof_layout import (
+from onedfem.pre_processing.element_library.dof_layout import (
     dof_name_map,
     dof_names,
     mesh_dof_per_node,
     mesh_extra_dofs,
     row_extra_dofs,
 )
-from pre_processing.parsing.prescribed_displacement_parser import parse_prescribed_displacement
+from onedfem.pre_processing.parsing.prescribed_displacement_parser import parse_prescribed_displacement
 
 TS = "LinearTimoshenkoBeamElement3D"
 ORDERS = {k: 2 for k in ("axial", "bending_y", "bending_z", "shear_y", "shear_z", "torsion", "load")}
@@ -71,7 +71,7 @@ def test_prescribed_displacement_on_any_stride(tmp_path):
 
 
 def _elements(ed, coords):
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
 

@@ -1,6 +1,6 @@
 """Interlaminar stresses of the 2D section against the CalculiX prism of the same mesh.
 
-The prism (``post_processing/validation_visualisers/iea15mw_sections/make_interlaminar_reference.py``)
+The prism (``validation/iea15mw_sections/make_interlaminar_reference.py``)
 gives the stresses at the ``3 x 3`` in-plane Gauss points of every brick in a slice at
 mid-length, which carries the example's section forces. Each interface value is taken from
 those points as ``SolidSectionAnalysis.interface_stress`` does: a quadratic in the distance
@@ -18,10 +18,10 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from pre_processing.section_integration.solid.material import bond_matrix, material_axes
+from onedfem.pre_processing.section_integration.solid.material import bond_matrix, material_axes
 
-REFERENCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "post_processing",
-                         "validation_visualisers", "iea15mw_sections", "reference", "prism_20_interlaminar.json")
+REFERENCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "validation",
+                         "iea15mw_sections", "reference", "prism_20_interlaminar.json")
 
 
 def load_reference(path: str = REFERENCE) -> Optional[dict]:

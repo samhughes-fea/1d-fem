@@ -8,7 +8,7 @@ This document complements [`SIMULATION_SETTINGS_TAXONOMY.md`](SIMULATION_SETTING
 |--------|-----------|
 | `[Type] modal` with `modal.analysis = vibration` (or default) | `[Type] eigen` + `[Eigen]` |
 | `[Type] modal` with `modal.analysis = buckling` | `[Type] buckling` + `[Buckling]` |
-| `[Modal]` section keys (`num_modes`, `dense_threshold`, …) | `[Eigen]` or `[Buckling]` as appropriate (see [`simulation_settings_parser.py`](../../pre_processing/parsing/simulation_settings_parser.py)) |
+| `[Modal]` section keys (`num_modes`, `dense_threshold`, …) | `[Eigen]` or `[Buckling]` as appropriate (see [`simulation_settings_parser.py`](../../src/onedfem/pre_processing/parsing/simulation_settings_parser.py)) |
 | `run_secondary_tertiary_modal` | `run_secondary_tertiary_eigen` / `run_secondary_tertiary_buckling` |
 
 ## Python imports (removed shims)

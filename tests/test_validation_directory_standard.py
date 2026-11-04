@@ -9,7 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 def test_validation_directory_standard_files_exist() -> None:
     assert (PROJECT_ROOT / "docs" / "conventions" / "ABAQUS_VALIDATION_DIRECTORY_STANDARD.md").is_file()
     for family in ("static", "eigen", "buckling", "transient", "harmonic"):
-        family_dir = PROJECT_ROOT / "post_processing" / "validation_visualisers" / family
+        family_dir = PROJECT_ROOT / "validation" / family
         assert family_dir.is_dir()
         assert any(p.name.startswith("README_VALIDATION_") for p in family_dir.iterdir())
         for sub in ("reference_cases", "plots", "tables", "output"):
@@ -18,7 +18,7 @@ def test_validation_directory_standard_files_exist() -> None:
 
 def test_nonlinear_static_validation_phase1_assets_exist() -> None:
     root = PROJECT_ROOT
-    assert (root / "post_processing" / "validation_visualisers" / "static" / "README_VALIDATION_NONLINEAR_STATIC.md").is_file()
+    assert (root / "validation" / "static" / "README_VALIDATION_NONLINEAR_STATIC.md").is_file()
     assert (root / "jobs" / "job_benchmark_nl_static_cantilever_tip" / "simulation_settings.txt").is_file()
     assert (root / "docs" / "conventions" / "NONLINEAR_STATIC_ABAQUS_VALIDATION_PLAN.md").is_file()
 
@@ -26,12 +26,12 @@ def test_nonlinear_static_validation_phase1_assets_exist() -> None:
 def test_nonlinear_static_tip_displacement_contract_assets_exist() -> None:
     root = PROJECT_ROOT
     assert (root / "docs" / "conventions" / "NONLINEAR_STATIC_TIP_DISPLACEMENT_CONTRACT.md").is_file()
-    text = (root / "post_processing" / "validation_visualisers" / "static" / "README_VALIDATION_NONLINEAR_STATIC.md").read_text(encoding="utf-8")
+    text = (root / "validation" / "static" / "README_VALIDATION_NONLINEAR_STATIC.md").read_text(encoding="utf-8")
     assert "tip displacement vs load level" in text
 
 
 def test_nonlinear_static_tip_history_writer_outputs_csv(tmp_path) -> None:
-    from processing.static.results.save_nonlinear_static_validation_summary import write_nonlinear_static_tip_history_summary
+    from onedfem.processing.static.results.save_nonlinear_static_validation_summary import write_nonlinear_static_tip_history_summary
 
     out = write_nonlinear_static_tip_history_summary(
         primary_results_dir=str(tmp_path),
@@ -51,7 +51,7 @@ def test_nonlinear_static_abaqus_reference_contract_assets_exist() -> None:
     assert doc.is_file()
     text = doc.read_text(encoding="utf-8")
     assert "tip_load_history.csv" in text
-    readme = (root / "post_processing" / "validation_visualisers" / "static" / "README_VALIDATION_NONLINEAR_STATIC.md").read_text(encoding="utf-8")
+    readme = (root / "validation" / "static" / "README_VALIDATION_NONLINEAR_STATIC.md").read_text(encoding="utf-8")
     assert "tip_load_history.csv" in readme
 
 
@@ -145,7 +145,7 @@ def test_nonlinear_static_suite_docs_record_common_fem_artifact_contract() -> No
     suite_doc = (root / "docs" / "conventions" / "NONLINEAR_STATIC_ABAQUS_VALIDATION_SUITE.md").read_text(encoding="utf-8")
     assert "nonlinear_static_validation" in suite_doc
     assert "tip_load_history.csv" in suite_doc
-    readme = (root / "post_processing" / "validation_visualisers" / "static" / "README_VALIDATION_NONLINEAR_STATIC.md").read_text(encoding="utf-8")
+    readme = (root / "validation" / "static" / "README_VALIDATION_NONLINEAR_STATIC.md").read_text(encoding="utf-8")
     assert "tip_load_history.csv" in readme
 
 
@@ -155,6 +155,6 @@ def test_nonlinear_static_suite_docs_record_common_abaqus_artifact_contract() ->
     assert "U_global.csv" in suite_doc
     assert "rotation_source.txt" in suite_doc
     assert "frame_index" in suite_doc
-    readme = (root / "post_processing" / "validation_visualisers" / "static" / "README_VALIDATION_NONLINEAR_STATIC.md").read_text(encoding="utf-8")
+    readme = (root / "validation" / "static" / "README_VALIDATION_NONLINEAR_STATIC.md").read_text(encoding="utf-8")
     assert "U_global.csv" in readme
     assert "rotation_source.txt" in readme

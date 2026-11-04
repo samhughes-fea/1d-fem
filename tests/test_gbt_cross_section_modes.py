@@ -9,15 +9,15 @@ import tempfile
 import numpy as np
 import pytest
 
-from pre_processing.element_library.dof_layout import mesh_dof_per_node
-from pre_processing.section_integration.section_analysis import SectionAnalysis
-from pre_processing.section_integration.thin_walled import (
+from onedfem.pre_processing.element_library.dof_layout import mesh_dof_per_node
+from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
+from onedfem.pre_processing.section_integration.thin_walled import (
     ThinWalledSection,
     ThinWalledSectionAnalysis,
     Wall,
     WallLaminate,
 )
-from pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
+from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
 
 E, NU = 70e9, 0.3
 G = E / (2 * (1 + NU))
@@ -148,7 +148,7 @@ def _ed(etype, n_el, modes, sa=None, shear=0):
 
 def solve_cantilever(etype, sa, L, n_el, modes, tip_load, fixed_local=(), free_only=None, root_free=(), shear=0):
     """Direct assembly; root clamped with all extra DOFs fixed except ``root_free``. Returns nodal U (n_nodes, stride)."""
-    from pre_processing.element_library.element_factory import ElementFactory
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
     import importlib
 
     Cls = getattr(importlib.import_module(ElementFactory.ELEMENT_CLASS_MAP[etype]), etype)
@@ -280,7 +280,7 @@ def test_gbt_element_needs_gbt_matrices():
 
 def test_gbt_mass_matrix_is_consistent():
     sa = SectionAnalysis.from_thin_walled(box(0.3, 0.15, rho=1600.0), gbt_modes=1)
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
         LinearGBTBeamElement3D,
     )
 
@@ -320,7 +320,7 @@ def test_process_job_with_gbt_modes(tmp_path):
     """End to end: the [modes] column of element_section.txt sets the DOF layout and the GBT element."""
     import csv
 
-    from workflow_orchestrator.run_job import process_job, setup_job_results_directory
+    from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
     L, n_el, T = 3.0, 6, 50.0
     b, h, t = 0.2, 0.3, 2e-3
@@ -395,7 +395,7 @@ def test_gbt_element_energy_stays_positive_with_coupled_modes():
     b-a coupling on the full rule against b^2 on one point gave spurious soft modes)."""
     from dataclasses import replace
 
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
         LinearGBTBeamElement3D,
     )
 

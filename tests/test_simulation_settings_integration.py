@@ -12,7 +12,7 @@ import tempfile
 import pytest
 from pathlib import Path
 
-from pre_processing.parsing.simulation_settings_parser import parse_simulation_settings
+from onedfem.pre_processing.parsing.simulation_settings_parser import parse_simulation_settings
 
 
 class TestSimulationSettingsIntegration:

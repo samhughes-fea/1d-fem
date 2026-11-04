@@ -1,6 +1,6 @@
 # Linear static pyAbaqus reference contract
 
-This document defines the canonical pyAbaqus external-reference contract for linear static validation using the shared workflow under [`post_processing/validation_visualisers/abaqus/`](../../post_processing/validation_visualisers/abaqus/).
+This document defines the canonical pyAbaqus external-reference contract for linear static validation using the shared workflow under [`validation/abaqus/`](../../validation/abaqus/).
 
 ## Objective
 
@@ -30,7 +30,7 @@ At minimum, each load family should have:
 
 ## Script-generation contract
 
-The shared Abaqus generator in [`job_to_abaqus_script.py`](../../post_processing/validation_visualisers/abaqus/job_to_abaqus_script.py) must accept canonical linear static jobs and generate a CAE script that:
+The shared Abaqus generator in [`job_to_abaqus_script.py`](../../validation/abaqus/job_to_abaqus_script.py) must accept canonical linear static jobs and generate a CAE script that:
 
 - creates the beam geometry and section
 - applies the prescribed displacements
@@ -42,7 +42,7 @@ The shared Abaqus generator in [`job_to_abaqus_script.py`](../../post_processing
 
 Raw Abaqus reference artifacts should be written under:
 
-- `post_processing/validation_visualisers/abaqus_results/<job_name>/`
+- `validation/abaqus_results/<job_name>/`
 
 Required files:
 
@@ -78,7 +78,7 @@ Later phases may add:
 
 ## Family-local ownership
 
-The linear static family layer under [`post_processing/validation_visualisers/static/`](../../post_processing/validation_visualisers/static/) should own:
+The linear static family layer under [`validation/static/`](../../validation/static/) should own:
 
 - FEM-vs-Abaqus comparison logic
 - family plots and tables

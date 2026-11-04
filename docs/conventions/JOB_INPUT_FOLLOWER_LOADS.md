@@ -27,7 +27,7 @@ With `theta` the node's total rotation vector and `R = exp(theta)`, the generali
 The load depends on the displacement, so every Newton iteration also adds the load
 stiffness `K_L = -d g / dU` to the tangent. It is unsymmetric, because a follower load is
 not conservative. The force part is closed form (`[R F_0 x] J`), and the moment part is a
-central difference of the closed-form moment. Code: `processing/static/follower_loads.py`.
+central difference of the closed-form moment. Code: `src/onedfem/processing/static/follower_loads.py`.
 
 The rotation vector is the corotational elements' nodal rotation, so use
 `CorotationalEulerBernoulliBeamElement3D`, `CorotationalTimoshenkoBeamElement3D` or

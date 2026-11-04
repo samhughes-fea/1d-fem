@@ -1,6 +1,6 @@
 # Nodal DOF layout
 
-Source: `pre_processing/element_library/dof_layout.py`.
+Source: `src/onedfem/pre_processing/element_library/dof_layout.py`.
 
 ## Mesh stride
 

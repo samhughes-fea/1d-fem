@@ -39,11 +39,11 @@ import numpy as np
 import pytest
 from scipy import linalg
 
-from pre_processing.element_library.dof_layout import mesh_dof_per_node
-from pre_processing.element_library.element_factory import ElementFactory
-from pre_processing.element_library.linear.beam.second_order import geometric_section_matrix
-from pre_processing.section_integration.section_analysis import SectionAnalysis
-from pre_processing.section_integration.thin_walled import (
+from onedfem.pre_processing.element_library.dof_layout import mesh_dof_per_node
+from onedfem.pre_processing.element_library.element_factory import ElementFactory
+from onedfem.pre_processing.element_library.linear.beam.second_order import geometric_section_matrix
+from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
+from onedfem.pre_processing.section_integration.thin_walled import (
     Ply,
     PlyMaterial,
     ThinWalledSection,
@@ -404,7 +404,7 @@ def test_k_sigma_symmetric_and_linear_in_state(etype):
 
 def test_gbt_geometric_stiffness_checks_the_dof_count():
     """GBT has its own geometric stiffness (tests/test_gbt_buckling.py); it checks its input."""
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
         LinearGBTBeamElement3D,
     )
 
@@ -418,7 +418,7 @@ def test_gbt_geometric_stiffness_checks_the_dof_count():
 def test_processing_buckling_path_matches_direct_eigensolve():
     from scipy.sparse import csr_matrix
 
-    from processing.buckling.linear_buckling import (
+    from onedfem.processing.buckling.linear_buckling import (
         apply_buckling_boundary_conditions,
         assemble_global_geometric_stiffness,
         solve_linear_buckling_eigenpairs,
@@ -442,7 +442,7 @@ def test_processing_buckling_path_matches_direct_eigensolve():
 @pytest.mark.parametrize("etype", [EB, TS])
 def test_p_delta_beam_column_amplification(etype):
     """Pinned beam-column, central lateral load: delta = Q L^3 / 48 EI * 3 (tan u - u) / u^3."""
-    from processing.buckling.p_delta import solve_p_delta
+    from onedfem.processing.buckling.p_delta import solve_p_delta
 
     L, n = 3.0, 32
     beam = Beam(etype, L, n, rect=(0.06, 0.1))
@@ -461,7 +461,7 @@ def test_p_delta_beam_column_amplification(etype):
 
 def test_p_delta_tension_centre_offset_eccentric_column():
     """Compression at the web of a channel is eccentric to its tension centre: delta = e (sec(kL/2) - 1)."""
-    from processing.buckling.p_delta import solve_p_delta
+    from onedfem.processing.buckling.p_delta import solve_p_delta
 
     L, n = 6.0, 32   # long enough that flexure along y comes before flexural-torsional buckling
     an = channel()
@@ -480,7 +480,7 @@ def test_p_delta_tension_centre_offset_eccentric_column():
 
 
 def test_p_delta_past_buckling_is_an_unstable_state():
-    from processing.buckling.p_delta import solve_p_delta
+    from onedfem.processing.buckling.p_delta import solve_p_delta
 
     beam = Beam(EB, 3.0, 16, rect=(0.06, 0.1))
     P = 1.3 * np.pi**2 * E * beam.rect["I_z"] / 3.0**2

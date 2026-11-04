@@ -1,0 +1,69 @@
+--------------------------------------------------------------------------
+### Global System
+
+                   │ CURRENT            │ EVOLUTION         
+Equations          │ 774                │ 774               
+Dirichlet          │ 0                  │ 0                 
+Eliminated         │ 0                  │ 0                 
+Unknowns           │ 774                │ 774               
+nnz                │ 3850               │ 3850              
+Density            │ 6.43e-03           │ 6.43e-03          
+Zero rows          │ 0                  │ 0                 
+Zero cols          │ 0                  │ 0                 
+Bandwidth          │ 10                 │ 10                
+Symmetric          │ yes                │ yes               
+Rank               │ 768                │ 768               
+Cond-no            │ 6.5e+17            │ 6.5e+17           
+λmin/λmax          │ —                  │ —                 
+Inertia            │ —                  │ —                 
+b-min/max          │ -7.7e+00/0.0e+00   │ -7.7e+00/0.0e+00  
+Σb                 │ -3.3e+02           │ -3.3e+02          
+Top|b|             │ 763:-7.7e+00, 757:-7.6e+00, 751:-7.5e+00 │ 763:-7.7e+00, 757:-7.6e+00, 751:-7.5e+00
+
+2026-02-26 16:17:55,084 [INFO] 🩺  Global System diagnostics appended → C:\Users\s1834431\Programs\fem_model\post_processing\results\job_0005_n128_2026-02-26_16-17-48-353941_pid18316_9d5e0a8f\diagnostics\DiagnoseLinearStaticSystem.log
+--------------------------------------------------------------------------
+### Modified System
+
+                   │ CURRENT            │ EVOLUTION         
+Equations          │ 774                │ 774               
+Dirichlet          │ 0                  │ 6                 
+Eliminated         │ 0                  │ 0                 
+Unknowns           │ 774                │ 768               
+nnz                │ 3826               │ 3850              
+Density            │ 6.39e-03           │ 6.43e-03          
+Zero rows          │ 0                  │ 0                 
+Zero cols          │ 0                  │ 0                 
+Bandwidth          │ 10                 │ 10                
+Symmetric          │ yes                │ yes               
+Rank               │ 6                  │ 768               
+Cond-no            │ 5.0e+34            │ 6.5e+17           
+λmin/λmax          │ —                  │ —                 
+Inertia            │ —                  │ —                 
+b-min/max          │ -7.7e+00/0.0e+00   │ -7.7e+00/0.0e+00  
+Σb                 │ -3.3e+02           │ -3.3e+02          
+Top|b|             │ 763:-7.7e+00, 757:-7.6e+00, 751:-7.5e+00 │ 763:-7.7e+00, 757:-7.6e+00, 751:-7.5e+00
+
+2026-02-26 16:17:56,192 [INFO] 🩺  Modified System diagnostics appended → C:\Users\s1834431\Programs\fem_model\post_processing\results\job_0005_n128_2026-02-26_16-17-48-353941_pid18316_9d5e0a8f\diagnostics\DiagnoseLinearStaticSystem.log
+--------------------------------------------------------------------------
+### Condensed System
+
+                   │ CURRENT            │ EVOLUTION         
+Equations          │ 768                │ 774               
+Dirichlet          │ 0                  │ 6                 
+Eliminated         │ 0                  │ 6                 
+Unknowns           │ 768                │ 762               
+nnz                │ 3820               │ 3850              
+Density            │ 6.48e-03           │ 6.43e-03          
+Zero rows          │ 0                  │ 0                 
+Zero cols          │ 0                  │ 0                 
+Bandwidth          │ 10                 │ 10                
+Symmetric          │ yes                │ yes               
+Rank               │ 768                │ 768               
+Cond-no            │ 2.7e+11            │ 6.5e+17           
+λmin/λmax          │ —                  │ —                 
+Inertia            │ —                  │ —                 
+b-min/max          │ -7.7e+00/0.0e+00   │ -7.7e+00/0.0e+00  
+Σb                 │ -3.3e+02           │ -3.3e+02          
+Top|b|             │ 757:-7.7e+00, 751:-7.6e+00, 745:-7.5e+00 │ 763:-7.7e+00, 757:-7.6e+00, 751:-7.5e+00
+
+2026-02-26 16:17:57,328 [INFO] 🩺  Condensed System diagnostics appended → C:\Users\s1834431\Programs\fem_model\post_processing\results\job_0005_n128_2026-02-26_16-17-48-353941_pid18316_9d5e0a8f\diagnostics\DiagnoseLinearStaticSystem.log

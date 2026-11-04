@@ -1,6 +1,6 @@
 # Nonlinear buckling continuation (MVP contract)
 
-This document defines the initial contract for nonlinear buckling continuation routed through [`NonlinearBucklingSimulationRunner`](../../simulation_runner/buckling/nonlinear_buckling_simulation.py).
+This document defines the initial contract for nonlinear buckling continuation routed through [`NonlinearBucklingSimulationRunner`](../../src/onedfem/simulation_runner/buckling/nonlinear_buckling_simulation.py).
 
 ## Status
 
@@ -40,7 +40,7 @@ Successful or partially converged runs write:
 
 When `continuation_method = arc_length`, the history includes predictor load-factor metadata even though the corrector still reuses the current nonlinear equilibrium solve.
 
-When imperfection seeding is enabled, the summary JSON records the mode index and scale used to perturb the initial displacement field from the linear buckling mode-shape export under [`primary_results/modal_results/`](../../simulation_runner/spectral/vibration_buckling_backend.py).
+When imperfection seeding is enabled, the summary JSON records the mode index and scale used to perturb the initial displacement field from the linear buckling mode-shape export under [`primary_results/modal_results/`](../../src/onedfem/simulation_runner/spectral/vibration_buckling_backend.py).
 
 ## CSV schema
 

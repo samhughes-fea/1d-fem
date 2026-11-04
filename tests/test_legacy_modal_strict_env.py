@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from pre_processing.parsing.simulation_settings_parser import parse_simulation_settings
+from onedfem.pre_processing.parsing.simulation_settings_parser import parse_simulation_settings
 
 
 def test_legacy_modal_fixture_raises_when_strict_env(

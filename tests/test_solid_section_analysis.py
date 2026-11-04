@@ -7,14 +7,14 @@ import os
 import numpy as np
 import pytest
 
-from pre_processing.section_integration.section_analysis import ELEMENT_SIGN, SectionAnalysis
-from pre_processing.section_integration.solid.material import SolidMaterial
-from pre_processing.section_integration.solid.mesh import SectionMesh
-from pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
-from pre_processing.section_integration.thin_walled import ThinWalledSection, Wall, WallLaminate
-from pre_processing.section_integration.thin_walled.job_input import attach_section_analyses
-from pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
-from pre_processing.section_integration.thin_walled.section_analysis import (
+from onedfem.pre_processing.section_integration.section_analysis import ELEMENT_SIGN, SectionAnalysis
+from onedfem.pre_processing.section_integration.solid.material import SolidMaterial
+from onedfem.pre_processing.section_integration.solid.mesh import SectionMesh
+from onedfem.pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
+from onedfem.pre_processing.section_integration.thin_walled import ThinWalledSection, Wall, WallLaminate
+from onedfem.pre_processing.section_integration.thin_walled.job_input import attach_section_analyses
+from onedfem.pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
+from onedfem.pre_processing.section_integration.thin_walled.section_analysis import (
     ThinWalledSectionAnalysis,
     stiffness_about,
 )
@@ -259,7 +259,7 @@ def test_cantilever_job_with_a_coupled_2d_section(tmp_path):
     import csv
     import shutil
 
-    from workflow_orchestrator.run_job import process_job, setup_job_results_directory
+    from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
     n, L, P = 40, 1.0, 100.0          # linear elements: tip error 1 / (4 n^2)
     job = tmp_path / "job"

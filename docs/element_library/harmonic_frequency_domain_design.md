@@ -4,4 +4,4 @@ The authoritative §4 frequency-domain specification and v1 scope live under con
 
 - **[`docs/conventions/HARMONIC_FREQUENCY_DOMAIN.md`](../conventions/HARMONIC_FREQUENCY_DOMAIN.md)**
 
-Implementation: [`simulation_runner/harmonic/harmonic_simulation.py`](../../simulation_runner/harmonic/harmonic_simulation.py), kernels [`processing/harmonic/frequency_response.py`](../../processing/harmonic/frequency_response.py).
+Implementation: [`src/onedfem/simulation_runner/harmonic/harmonic_simulation.py`](../../src/onedfem/simulation_runner/harmonic/harmonic_simulation.py), kernels [`src/onedfem/processing/harmonic/frequency_response.py`](../../src/onedfem/processing/harmonic/frequency_response.py).

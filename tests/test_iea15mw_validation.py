@@ -1,4 +1,4 @@
-"""IEA 15 MW section validation (post_processing/validation_visualisers/iea15mw_sections)."""
+"""IEA 15 MW section validation (validation/iea15mw_sections)."""
 
 import importlib.util
 import os
@@ -9,7 +9,7 @@ import pytest
 pytest.importorskip("implicit_geometry_kernel")
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
-RUN = os.path.join(ROOT, "post_processing", "validation_visualisers", "iea15mw_sections", "run.py")
+RUN = os.path.join(ROOT, "validation", "iea15mw_sections", "run.py")
 
 
 def _load(path, name):
@@ -58,7 +58,7 @@ def test_seventy_percent_span_prism_end_restraint():
     """The longer prism keeps EA and EI and loses most of its extra shear and torsion stiffness."""
     import json
 
-    ref = os.path.join(ROOT, "post_processing", "validation_visualisers", "iea15mw_sections", "reference")
+    ref = os.path.join(ROOT, "validation", "iea15mw_sections", "reference")
     short, long = (np.linalg.inv(np.array(json.load(open(os.path.join(ref, f)))["K"]))
                    for f in ("prism_20.json", "prism_20_4chords.json"))
     ratio = np.diag(short) / np.diag(long)       # long-prism over short-prism effective stiffness

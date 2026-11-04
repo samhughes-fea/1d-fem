@@ -23,8 +23,8 @@ These are pinned repository targets for the current benchmark job and test harne
 
 ## Acceptance criteria
 
-1. The run produces [`continuation_history.csv`](../../simulation_runner/buckling/nonlinear_buckling_simulation.py).
-2. The run produces [`nonlinear_buckling_summary.json`](../../simulation_runner/buckling/nonlinear_buckling_simulation.py).
+1. The run produces [`continuation_history.csv`](../../src/onedfem/simulation_runner/buckling/nonlinear_buckling_simulation.py).
+2. The run produces [`nonlinear_buckling_summary.json`](../../src/onedfem/simulation_runner/buckling/nonlinear_buckling_simulation.py).
 3. The continuation history contains at least one converged increment.
 4. The first row matches the pinned scalar/path targets within tolerance.
 5. The continuation method token is recorded in the history.

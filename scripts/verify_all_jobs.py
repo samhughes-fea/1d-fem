@@ -182,7 +182,7 @@ def verify_job_results(job_name, results_dir, element_type):
 
 if __name__ == "__main__":
     # Find latest results directories
-    results_base = PROJECT_ROOT / "post_processing" / "results"
+    results_base = PROJECT_ROOT / "results"
     
     jobs_config = [
         ("job_0000", "EulerBernoulliBeamElement3D"),

@@ -13,7 +13,7 @@ omega_sweep = 0, 0.4, 0.8      # optional: a Campbell table, rad/s
 ```
 
 Every element forms its rotating-frame terms in its own Gauss loop
-(`pre_processing/element_library/rotating_frame.py`). Four point masses per Gauss station
+(`src/onedfem/pre_processing/element_library/rotating_frame.py`). Four point masses per Gauss station
 carry the section's mass, mass centre and second moments, and move with the element's own
 field interpolation. The terms are:
 

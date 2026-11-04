@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.sparse import eye
 
-from processing.eigen.metrics.directional_effective_mass import modal_effective_mass_fraction_z
+from onedfem.processing.eigen.metrics.directional_effective_mass import modal_effective_mass_fraction_z
 
 
 def test_modal_effective_mass_fraction_z_identity_modes():

@@ -187,7 +187,7 @@ def verify_job_results(job_name, results_dir):
 
 if __name__ == "__main__":
     # Find latest results directory for job_0000
-    results_base = PROJECT_ROOT / "post_processing" / "results"
+    results_base = PROJECT_ROOT / "results"
     job_0000_dirs = list(results_base.glob("job_0000_*"))
     
     if not job_0000_dirs:

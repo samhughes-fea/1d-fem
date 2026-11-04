@@ -110,12 +110,12 @@ Every element must assemble tensors from a **weak form** discretized with **Gaus
 
 ## Element class or module docstring
 
-1. **Identity:** Number of nodes, DOF per node, ordering of `U_e` (match [`Element1DBase`](../../pre_processing/element_library/element_1D_base.py) / job convention).
+1. **Identity:** Number of nodes, DOF per node, ordering of `U_e` (match [`Element1DBase`](../../src/onedfem/pre_processing/element_library/element_1D_base.py) / job convention).
 2. **Weak forms:** Bulleted list of the integrals **this file implements** (copy from the list above; omit methods the element does not expose).
 3. **Shapes:** `K_e`, `F_e`; per Gauss point `B`, `D`, strain vector `ε` (or `E`), stress resultant packing.
 4. **Kinematics:** Strain definitions and **which axis / frame** (straight local `x`, curved `s`, etc.).
 5. **Constitutive:** What `D` contains (EA, EI, GA, GJ, κ, …); **integration** (full / reduced / selective).
-6. **Limits:** Reductions (e.g. κ₀→0); links to [`docs/proofs/`](../../docs/proofs) or [`docs/element_library/`](../../docs/element_library).
+6. **Limits:** Reductions (e.g. κ₀→0); links to [`docs/proofs/`](../proofs) or [`docs/element_library/`](../element_library).
 7. **Public methods:** Return types (`ElementObject`, `MassObject`, …) and what `element_stiffness_matrix`, `element_force_vector`, `element_mass_matrix`, `tangent_stiffness_matrix` compute.
 
 ## `B_matrix` / `D_matrix` / loads / shapes utilities
@@ -166,7 +166,7 @@ Extensions such as `(14,) U_e` and `(7, 14) B` should state how the **first 12 D
 | 0–5 (node 1) | \(u_x, u_y, u_z, \theta_x, \theta_y, \theta_z\) |
 | 6–11 (node 2) | same order |
 
-Match [`Element1DBase`](../../pre_processing/element_library/element_1D_base.py) and job/global assembly conventions.
+Match [`Element1DBase`](../../src/onedfem/pre_processing/element_library/element_1D_base.py) and job/global assembly conventions.
 
 **Engineering strain vector `ε` (6,) — Voigt row order**
 

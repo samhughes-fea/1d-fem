@@ -5,7 +5,7 @@ import numpy as np
 from pathlib import Path
 
 # Find latest results
-results_base = Path("post_processing/results")
+results_base = Path("results")
 job_0000_dirs = list(results_base.glob("job_0000_*"))
 latest_dir = max(job_0000_dirs, key=lambda p: p.stat().st_mtime)
 

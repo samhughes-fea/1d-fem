@@ -15,7 +15,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 def find_latest_results(job_name):
     """Find latest results directory for a job."""
-    results_base = PROJECT_ROOT / "post_processing" / "results"
+    results_base = PROJECT_ROOT / "results"
     job_dirs = list(results_base.glob(f"{job_name}_*"))
     if not job_dirs:
         return None

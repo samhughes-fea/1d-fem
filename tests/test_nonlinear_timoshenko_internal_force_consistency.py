@@ -50,7 +50,7 @@ def _cantilever_dicts(L=1.0, E=2.1e11, G=8.1e10, A=0.001, I_z=1e-8, I_y=1e-8, J_
 
 def test_nonlinear_timoshenko_internal_force_zero_at_zero_displacement():
     """F_int(U_e=0) should be zero."""
-    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
         NonlinearTimoshenkoBeamElement3D,
     )
 
@@ -82,7 +82,7 @@ def test_nonlinear_timoshenko_internal_force_zero_at_zero_displacement():
 
 def test_nonlinear_timoshenko_tangent_symmetric_and_internal_force_finite():
     """K_T(U_e) is symmetric; F_int(U_e) is finite for small U."""
-    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
         NonlinearTimoshenkoBeamElement3D,
     )
 
@@ -118,10 +118,10 @@ def test_nonlinear_timoshenko_tangent_symmetric_and_internal_force_finite():
 
 def test_nonlinear_timoshenko_warping_initial_tangent_matches_linear_stiffness():
     """At U=0, NL Timoshenko + warping tangent equals linear 14×14 K_e (K_0 only)."""
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
-    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
         NonlinearTimoshenkoBeamElement3D,
     )
 
@@ -240,7 +240,7 @@ def _nl_ts_warp_case():
 
 def test_nonlinear_timoshenko_warping_internal_force_zero_at_zero_displacement():
     """F_int(0) == 0 for 14-DOF TL Timoshenko + warping."""
-    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
         NonlinearTimoshenkoBeamElement3D,
     )
 
@@ -269,7 +269,7 @@ def test_nonlinear_timoshenko_warping_internal_force_zero_at_zero_displacement()
 
 def test_nonlinear_timoshenko_warping_tangent_symmetric_random_displacement():
     """K_T(U) symmetric and F_int(U) finite for small random U including χ DOFs."""
-    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
         NonlinearTimoshenkoBeamElement3D,
     )
 
@@ -304,7 +304,7 @@ def test_nonlinear_timoshenko_warping_tangent_symmetric_random_displacement():
 
 def test_nonlinear_timoshenko_warping_finite_difference_force_matches_tangent():
     """ΔF_int ≈ K_T @ ΔU for small ΔU (spot-check tangent consistency)."""
-    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
         NonlinearTimoshenkoBeamElement3D,
     )
 
@@ -344,10 +344,10 @@ def test_nonlinear_timoshenko_warping_finite_difference_force_matches_tangent():
 
 def test_nonlinear_timoshenko_warping_linear_geometric_matches_linear_timoshenko():
     """linear_geometric_stiffness_matrix on NL TS + warping equals linear twin (14×14, χ rows/cols zero)."""
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
-    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
         NonlinearTimoshenkoBeamElement3D,
     )
 

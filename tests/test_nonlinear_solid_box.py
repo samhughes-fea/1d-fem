@@ -1,6 +1,6 @@
 """Corotational Timoshenko beam against the CalculiX ``NLGEOM`` solid composite box.
 
-The reference (``post_processing/validation_visualisers/nonlinear_solid_box/reference.json``)
+The reference (``validation/nonlinear_solid_box/reference.json``)
 is a ``C3D20R`` model of the CAS CFRP box with mitred corners, clamped at the root, under a
 dead flapwise tip force up to 3 P (P gives 20 % of the span in linear theory).
 """
@@ -16,11 +16,11 @@ import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, ".."))
-for p in (REPO, os.path.join(REPO, "post_processing", "validation_visualisers", "iea15mw_sections")):
+for p in (REPO, os.path.join(REPO, "validation", "iea15mw_sections")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-REFERENCE = os.path.join(REPO, "post_processing", "validation_visualisers", "nonlinear_solid_box", "reference.json")
+REFERENCE = os.path.join(REPO, "validation", "nonlinear_solid_box", "reference.json")
 
 
 @pytest.fixture(scope="module")
@@ -36,7 +36,7 @@ def _solid_tip(ref, level):
 
 def test_linear_solid_matches_the_beam(ref):
     """The solid's linear tip deflection is the beam's: the section and the solid agree."""
-    from post_processing.validation_visualisers.abaqus.shell_validation.cases import BOX_L
+    from validation.abaqus.shell_validation.cases import BOX_L
 
     assert ref["linear"]["tip"][0][2] == pytest.approx(0.2 * BOX_L, rel=2e-3)
 
@@ -44,7 +44,7 @@ def test_linear_solid_matches_the_beam(ref):
 def test_corotational_beam_follows_the_solid(tmp_path, ref):
     """At 2 P (35 % of the span) the tip deflection is within 1.3 %, the twist within 2 %,
     and the tip shortening within 1 % of the deflection."""
-    from post_processing.validation_visualisers.nonlinear_solid_box.run import run_job
+    from validation.nonlinear_solid_box.run import run_job
 
     beam = run_job(str(tmp_path), "thin_walled", 2.0)[-1]
     solid = _solid_tip(ref, 2.0)
@@ -68,7 +68,7 @@ def test_solid_flattens_like_brazier(ref):
 def test_gbt_beam_flattens_like_the_solid(tmp_path, ref):
     """The corotational GBT beam's Brazier term flattens the flanges: at P its quarter-span
     flattening is 86 % of the solid's, and its tip deflection is within 0.2 %."""
-    from post_processing.validation_visualisers.nonlinear_solid_box.run import (GBT_MODES, N_EL, flattening,
+    from validation.nonlinear_solid_box.run import (GBT_MODES, N_EL, flattening,
                                                                                 gbt_modes, run_gbt_job)
 
     modes = gbt_modes()

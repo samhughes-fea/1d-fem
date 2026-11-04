@@ -59,7 +59,7 @@ def minimal_mesh_dicts():
 
 
 def test_corotational_internal_force_zero_at_zero(minimal_mesh_dicts):
-    from pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D import (
         CorotationalBeamElement3D,
     )
 
@@ -86,7 +86,7 @@ def test_corotational_internal_force_zero_at_zero(minimal_mesh_dicts):
 
 
 def test_corotational_tangent_matches_stiffness_at_zero(minimal_mesh_dicts):
-    from pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D import (
         CorotationalBeamElement3D,
     )
 
@@ -116,7 +116,7 @@ def test_corotational_tangent_matches_stiffness_at_zero(minimal_mesh_dicts):
 
 
 def test_corotational_elastic_material_tangent_matches_ke_at_zero(minimal_mesh_dicts):
-    from pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D import (
         CorotationalBeamElement3D,
     )
 
@@ -145,7 +145,7 @@ def test_corotational_elastic_material_tangent_matches_ke_at_zero(minimal_mesh_d
 
 
 def test_corotational_elastic_material_symmetric_at_small_u(minimal_mesh_dicts):
-    from pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D import (
         CorotationalBeamElement3D,
     )
 
@@ -175,7 +175,7 @@ def test_corotational_elastic_material_symmetric_at_small_u(minimal_mesh_dicts):
 
 def test_corotational_fd_and_elastic_material_differ_with_transverse_translation(minimal_mesh_dicts):
     """Finite spin of chord: elastic-material block omits spin stiffness vs FD consistent tangent."""
-    from pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D import (
         CorotationalBeamElement3D,
     )
 
@@ -218,10 +218,10 @@ def test_corotational_fd_and_elastic_material_differ_with_transverse_translation
 
 
 def test_gesdb_matches_tl_timoshenko_internal_force_small_u(minimal_mesh_dicts):
-    from pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.geometrically_exact_shear_deformable_beam_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.geometrically_exact_shear_deformable_beam_3D import (
         GeometricallyExactShearDeformableBeam3D,
     )
-    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
         NonlinearTimoshenkoBeamElement3D,
     )
 

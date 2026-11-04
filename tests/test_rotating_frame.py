@@ -7,13 +7,13 @@ import numpy as np
 import pytest
 import scipy.sparse as sp
 
-from pre_processing.element_library.rotating_frame import Rotation, section_point_masses
-from processing.eigen.rotating_frame import campbell, rotating_frame_vibration
+from onedfem.pre_processing.element_library.rotating_frame import Rotation, section_point_masses
+from onedfem.processing.eigen.rotating_frame import campbell, rotating_frame_vibration
 
 
 def _cantilever(tmp_path, n, etype="LinearEulerBernoulliBeamElement3D", L=1.0, E=1e9, A=1e-3, Iy=1e-7, Iz=4e-7,
                 rho=1000.0):
-    from pre_processing.element_library.element_factory import ElementFactory
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
 
     cls = getattr(importlib.import_module(ElementFactory.ELEMENT_CLASS_MAP[etype]), etype)
     xyz = np.array([[i * L / n, 0.0, 0.0] for i in range(n + 1)])
@@ -130,7 +130,7 @@ def test_eigen_job_with_rotation(tmp_path):
     import logging
     import shutil
 
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     root = os.path.join(os.path.dirname(__file__), "..")
     job = tmp_path / "job"
@@ -161,7 +161,7 @@ def test_static_job_with_rotation_matches_the_exact_centrifugal_stretch(tmp_path
     import logging
     import shutil
 
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     root = os.path.join(os.path.dirname(__file__), "..")
     job = tmp_path / "job"

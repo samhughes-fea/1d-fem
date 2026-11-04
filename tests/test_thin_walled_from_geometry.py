@@ -17,12 +17,12 @@ pytest.importorskip("implicit_geometry_kernel")
 
 from implicit_geometry_kernel import Airfoil, BladeGeometry, Station  # noqa: E402
 
-from pre_processing.parsing.region_laminate_parser import (  # noqa: E402
+from onedfem.pre_processing.parsing.region_laminate_parser import (  # noqa: E402
     format_region_laminate,
     parse_region_laminate_file,
 )
-from pre_processing.section_integration.thin_walled import Ply, PlyMaterial, WallLaminate  # noqa: E402
-from pre_processing.section_integration.thin_walled.from_geometry import thin_walled_from_cut  # noqa: E402
+from onedfem.pre_processing.section_integration.thin_walled import Ply, PlyMaterial, WallLaminate  # noqa: E402
+from onedfem.pre_processing.section_integration.thin_walled.from_geometry import thin_walled_from_cut  # noqa: E402
 
 GLASS = PlyMaterial(E1=38.6e9, E2=8.27e9, G12=4.14e9, nu12=0.26, G13=4.14e9, G23=3.063e9, rho=1800.0)
 CARBON = PlyMaterial(E1=181e9, E2=10.3e9, G12=7.17e9, nu12=0.28, G13=7.17e9, G23=3.679e9, rho=1600.0)
@@ -107,7 +107,7 @@ def test_thickness_mismatch(cut):
 
 
 def test_region_laminate_file(tmp_path, cut):
-    from pre_processing.section_integration.thin_walled.section_analysis import ThinWalledSectionAnalysis
+    from onedfem.pre_processing.section_integration.thin_walled.section_analysis import ThinWalledSectionAnalysis
 
     path = tmp_path / "region_laminate.txt"
     path.write_text(format_region_laminate({"skin": 1, "cap": 2, "web": 3, "shear_web_1": 3}))
@@ -123,6 +123,6 @@ def test_region_laminate_file(tmp_path, cut):
 
 
 def test_hoop_free_is_the_default():
-    from pre_processing.section_integration.thin_walled.section_analysis import wall_law
+    from onedfem.pre_processing.section_integration.thin_walled.section_analysis import wall_law
 
     np.testing.assert_allclose(wall_law(LAMS["skin"]), wall_law(LAMS["skin"], "free"))

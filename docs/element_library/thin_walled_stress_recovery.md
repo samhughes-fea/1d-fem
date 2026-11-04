@@ -4,11 +4,11 @@ Every beam element with a thin-walled section (`element_section.txt`) can give
 its wall resultants, ply stresses and interlaminar stresses at any point of the
 section. Code:
 
-- `pre_processing/section_integration/thin_walled/stress_recovery.py`: the
+- `src/onedfem/pre_processing/section_integration/thin_walled/stress_recovery.py`: the
   wall-level steps and `SaintVenantRecovery` (section forces in, stresses out).
-- `pre_processing/section_integration/thin_walled/element_recovery.py`: the
+- `src/onedfem/pre_processing/section_integration/thin_walled/element_recovery.py`: the
   per-element wall strains (`element_wall_field`, `element_wall_stress`).
-- `post_processing/thin_walled/wall_stresses.py`: the CSV written by
+- `src/onedfem/post_processing/thin_walled/wall_stresses.py`: the CSV written by
   `process_job`.
 
 ## 1. Wall strains a beam theory carries
@@ -81,7 +81,7 @@ Elements without wall recovery are skipped.
 ## 6. Python use
 
 ```python
-from pre_processing.section_integration.thin_walled.stress_recovery import SaintVenantRecovery
+from onedfem.pre_processing.section_integration.thin_walled.stress_recovery import SaintVenantRecovery
 
 rec = SaintVenantRecovery(analysis)                 # a ThinWalledSectionAnalysis
 p = rec.at(wall_id=3, s=0.3, forces=[N, M_y, M_z, V_y, V_z, T], points_per_ply=5)

@@ -1,4 +1,4 @@
-"""Unit tests for stagewise processing.spectral / harmonic / transient operations."""
+"""Unit tests for stagewise onedfem.processing.spectral / harmonic / transient operations."""
 
 from __future__ import annotations
 
@@ -8,18 +8,18 @@ import numpy as np
 import pytest
 from scipy.sparse import coo_matrix, csr_matrix, eye
 
-from processing.transient.operations import (
+from onedfem.processing.transient.operations import (
     AssembleTransientGlobalSystem,
     IntegrateTransientSystem,
     ModifyTransientGlobalSystem,
 )
-from processing.harmonic.operations import (
+from onedfem.processing.harmonic.operations import (
     AssembleHarmonicLoadVector,
     AssembleHarmonicStructuralMatrices,
     BuildHarmonicDampingMatrix,
     ModifyHarmonicStructuralMatrices,
 )
-from processing.spectral.operations import (
+from onedfem.processing.spectral.operations import (
     AssembleSpectralGlobalSystem,
     ModifySpectralGlobalSystem,
     PrepareSpectralLocalMatrices,

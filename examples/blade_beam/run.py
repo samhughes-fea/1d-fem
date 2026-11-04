@@ -82,7 +82,7 @@ def reference() -> dict:
 
 
 def _job(name, work, model, n, prismatic=False, **kw):
-    from pre_processing.mesh_library.blade_beam_job import blade_beam_job
+    from onedfem.pre_processing.mesh_library.blade_beam_job import blade_beam_job
 
     kind, et = MODELS[model]
     laminates = _stiff_core_laminates() if kw.pop("stiff_core", False) else S.laminates(20)
@@ -99,7 +99,7 @@ def _stiff_core_laminates() -> dict:
     """The station laminates with the core's transverse shear moduli times ``STIFF_CORE``."""
     import dataclasses
 
-    from pre_processing.section_integration.thin_walled import Ply, WallLaminate
+    from onedfem.pre_processing.section_integration.thin_walled import Ply, WallLaminate
 
     out = {}
     for k, lam in S.laminates(20).items():
@@ -115,7 +115,7 @@ def _stiff_core_laminates() -> dict:
 
 def _run(job, work) -> str:
     from examples.thin_walled.common import results_dir
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     res = results_dir(os.path.join(work, "results", os.path.basename(job.job_dir)))
     process_job(job.job_dir, res, {}, {}, force_serial=True, max_processes_per_job=1)
@@ -124,7 +124,7 @@ def _run(job, work) -> str:
 
 def _tip(res, job) -> np.ndarray:
     """Tip translations and rotations in the blade frame."""
-    from pre_processing.mesh_library.blade_beam_job import job_to_blade
+    from onedfem.pre_processing.mesh_library.blade_beam_job import job_to_blade
 
     with open(os.path.join(res, "primary_results", "global", "U_global.csv"), encoding="utf-8") as f:
         U = np.array([float(r[1]) for r in list(csv.reader(f))[1:]])
@@ -134,7 +134,7 @@ def _tip(res, job) -> np.ndarray:
 
 def _modes(res, job):
     """Frequencies (Hz) and the blade-frame tip motion [u_x, u_y, u_z, twist] of each mode."""
-    from pre_processing.mesh_library.blade_beam_job import job_to_blade
+    from onedfem.pre_processing.mesh_library.blade_beam_job import job_to_blade
 
     f = sorted(glob.glob(os.path.join(res, "**", "*_frequencies.txt"), recursive=True))[0]
     freq = np.atleast_1d(np.loadtxt(f))
@@ -162,19 +162,19 @@ def run_static(work, n) -> dict:
     for model in MODELS:
         out[model] = {}
         for case, (load, _) in STATIC.items():
-            from pre_processing.mesh_library.blade_beam_job import blade_to_job
+            from onedfem.pre_processing.mesh_library.blade_beam_job import blade_to_job
 
             job = _job(f"{model}_{case}", work, model, n, loads={G.LENGTH: blade_to_job(load)})
             out[model][case] = _tip(_run(job, work), job).tolist()
     out["untapered"] = {}
     for case, (load, _) in STATIC.items():
-        from pre_processing.mesh_library.blade_beam_job import blade_to_job
+        from onedfem.pre_processing.mesh_library.blade_beam_job import blade_to_job
 
         job = _job(f"untapered_{case}", work, TW, n, taper=False, loads={G.LENGTH: blade_to_job(load)})
         out["untapered"][case] = _tip(_run(job, work), job).tolist()
     out["prismatic"] = {}
     for case, (load, _) in STATIC.items():
-        from pre_processing.mesh_library.blade_beam_job import blade_to_job
+        from onedfem.pre_processing.mesh_library.blade_beam_job import blade_to_job
 
         job = _job(f"prismatic_{case}", work, TW, n, prismatic=True, loads={G.LENGTH: blade_to_job(load)})
         out["prismatic"][case] = _tip(_run(job, work), job).tolist()
@@ -193,7 +193,7 @@ def run_modal(work, n) -> dict:
 
 
 def run_nonlinear(work, n, P: float) -> dict:
-    from pre_processing.mesh_library.blade_beam_job import blade_to_job
+    from onedfem.pre_processing.mesh_library.blade_beam_job import blade_to_job
 
     rows = []
     for frac in NONLINEAR_FRACTIONS:

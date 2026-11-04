@@ -10,13 +10,13 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.shape_functions import ShapeFunctionOperator as EBShapeOp
-from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.B_matrix import StrainDisplacementOperator as EBBOp
-from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.D_matrix import MaterialStiffnessOperator as EBDOp
+from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.shape_functions import ShapeFunctionOperator as EBShapeOp
+from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.B_matrix import StrainDisplacementOperator as EBBOp
+from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.D_matrix import MaterialStiffnessOperator as EBDOp
 
-from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.shape_functions import ShapeFunctionOperator as TimShapeOp
-from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.B_matrix import StrainDisplacementOperator as TimBOp
-from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.D_matrix import MaterialStiffnessOperator as TimDOp
+from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.shape_functions import ShapeFunctionOperator as TimShapeOp
+from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.B_matrix import StrainDisplacementOperator as TimBOp
+from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.D_matrix import MaterialStiffnessOperator as TimDOp
 
 
 def verify_timoshenko():

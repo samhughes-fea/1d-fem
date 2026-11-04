@@ -12,8 +12,8 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.linear.truss.linear_truss_3D import LinearTrussElement3D
-from pre_processing.element_library.linear.bar.linear_bar_3D import LinearBarElement3D
+from onedfem.pre_processing.element_library.linear.truss.linear_truss_3D import LinearTrussElement3D
+from onedfem.pre_processing.element_library.linear.bar.linear_bar_3D import LinearBarElement3D
 
 
 def _make_job_dir():

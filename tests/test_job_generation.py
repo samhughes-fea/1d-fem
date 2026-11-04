@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pre_processing.mesh_library.benchmark_generation import (
+from onedfem.pre_processing.mesh_library.benchmark_generation import (
     nonlinear_static_distributed_benchmark,
     nonlinear_static_point_benchmark,
 )
-from pre_processing.mesh_library.job_generation import (
+from onedfem.pre_processing.mesh_library.job_generation import (
     ElementSpec,
     JobSpec,
     MeshSpec,

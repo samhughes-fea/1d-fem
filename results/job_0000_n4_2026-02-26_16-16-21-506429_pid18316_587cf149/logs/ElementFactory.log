@@ -1,0 +1,13 @@
+2026-02-26 16:16:22,349 [DEBUG]: 🟢 ElementFactory logger initialised.
+2026-02-26 16:16:22,349 [INFO]: 🚩 Starting batch element creation.
+2026-02-26 16:16:22,349 [DEBUG]: Element IDs sanitised: [0, 1, 2, 3]
+2026-02-26 16:16:22,349 [DEBUG]: Module for EulerBernoulliBeamElement3D loaded.
+2026-02-26 16:16:22,349 [DEBUG]: ✅ Element 0 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:22,349 [DEBUG]: ✅ Element 1 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:22,349 [DEBUG]: ✅ Element 2 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:22,358 [DEBUG]: ✅ Element 3 (EulerBernoulliBeamElement3D) instantiated.
+2026-02-26 16:16:22,358 [DEBUG]: Logging verified for element 0.
+2026-02-26 16:16:22,358 [DEBUG]: Logging verified for element 1.
+2026-02-26 16:16:22,358 [DEBUG]: Logging verified for element 2.
+2026-02-26 16:16:22,360 [DEBUG]: Logging verified for element 3.
+2026-02-26 16:16:22,360 [INFO]: ✅ Batch element creation complete.

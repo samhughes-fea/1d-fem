@@ -52,7 +52,7 @@ right-hand side from \(\partial K\). The warping constraint multipliers drop out
 matrix is linear in the mass moments, so its derivative is exact by construction.
 
 `section_derivative(analysis, LayupParameter(laminate_id, ply, kind))`
-(`pre_processing/section_integration/thin_walled/layup_sensitivity.py`) returns
+(`src/onedfem/pre_processing/section_integration/thin_walled/layup_sensitivity.py`) returns
 `SectionDerivative` with `stiffness`, `flexibility`, `mass` and `mass_matrix`. Against
 central differences the stiffness derivative agrees to about \(10^{-9}\), with the hoop
 free or restrained.
@@ -94,7 +94,7 @@ modulus \(E_x = C_{xx} - C_{xi} C_{ii}^{-1} C_{ix}\), and the relaxed-gradient s
 The mass does not depend on ply angles.
 
 `solid_section_derivative(analysis, LayupParameter(laminate_id, ply, "angle"))`
-(`pre_processing/section_integration/solid/layup_sensitivity.py`) returns the same
+(`src/onedfem/pre_processing/section_integration/solid/layup_sensitivity.py`) returns the same
 `SectionDerivative`, and jobs on `section_mesh_2d.txt` sections use it. A thickness
 parameter moves the mesh nodes and is refused.
 

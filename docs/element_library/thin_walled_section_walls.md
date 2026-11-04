@@ -2,7 +2,7 @@
 
 This page covers the first step of anisotropic thin-walled section analysis: the stiffness of each wall. Later steps (Saint-Venant warping, shear flows, section stiffness, cross-section modes) build on it.
 
-Code: `pre_processing/section_integration/thin_walled/`.
+Code: `src/onedfem/pre_processing/section_integration/thin_walled/`.
 
 ## Axes
 

@@ -3,7 +3,7 @@
 import numpy as np
 from numpy.polynomial.legendre import leggauss
 
-from pre_processing.element_library.nonlinear.euler_bernoulli.utilities.geometric_stiffness import (
+from onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.utilities.geometric_stiffness import (
     GeometricStiffnessOperator,
 )
 

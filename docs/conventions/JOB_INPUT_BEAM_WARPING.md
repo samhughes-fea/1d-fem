@@ -1,6 +1,6 @@
 # Job input: beam elements, Vlasov warping, and `section.txt`
 
-This note ties together `ElementParser`, `SectionParser`, and the runtime helpers in `pre_processing/element_library/beam_warping.py`.
+This note ties together `ElementParser`, `SectionParser`, and the runtime helpers in `src/onedfem/pre_processing/element_library/beam_warping.py`.
 
 ## Single policy object (linear and nonlinear beams)
 
@@ -53,7 +53,7 @@ Default Timoshenko `κ` (often `5/6`) and a scalar `κGA` diagonal are **not** a
 
 ## `prescribed_displacement.txt` when the mesh uses warping (7 DOF/node)
 
-If any row in `element.txt` turns on **Vlasov warping** (`[warping]` / `element_dictionary["warping"]` or a legacy type name containing `"Warping"`), the global mesh allocates **seven** degrees of freedom per node. The static job runner then parses `prescribed_displacement.txt` with **`dof_per_node = 7`** (see `parse_prescribed_displacement` in `pre_processing/parsing/prescribed_displacement_parser.py`).
+If any row in `element.txt` turns on **Vlasov warping** (`[warping]` / `element_dictionary["warping"]` or a legacy type name containing `"Warping"`), the global mesh allocates **seven** degrees of freedom per node. The static job runner then parses `prescribed_displacement.txt` with **`dof_per_node = 7`** (see `parse_prescribed_displacement` in `src/onedfem/pre_processing/parsing/prescribed_displacement_parser.py`).
 
 - **Local DOF indices 0–5** are the same as for a standard 3D beam: `UX`, `UY`, `UZ`, `RX`, `RY`, `RZ`.
 - **Local index 6** is the warping intensity **χ**, accepted in the file as **`CHI`** or **`W`** (alias).
@@ -80,6 +80,6 @@ When `simulation_settings["type"]` is **`buckling`** (legacy: **`modal`** with *
 - [`MODAL_BUCKLING_LTB_VALIDATION.md`](MODAL_BUCKLING_LTB_VALIDATION.md) — LTB / χ coupling limitations and validation checklist
 - [`DEPRECATED_ELEMENT_TYPES.md`](DEPRECATED_ELEMENT_TYPES.md) — removed type strings and migrations
 - [`BEAM_SHEAR_CORRECTION_AND_THINWALL.md`](BEAM_SHEAR_CORRECTION_AND_THINWALL.md) — Timoshenko \(\kappa\) defaults vs thin-walled sections
-- `pre_processing/parsing/element_parser.py`
-- `pre_processing/parsing/section_parser.py`
-- `pre_processing/element_library/beam_warping.py`
+- `src/onedfem/pre_processing/parsing/element_parser.py`
+- `src/onedfem/pre_processing/parsing/section_parser.py`
+- `src/onedfem/pre_processing/element_library/beam_warping.py`

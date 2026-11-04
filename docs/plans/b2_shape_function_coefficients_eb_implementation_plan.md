@@ -25,7 +25,7 @@ We do **not** rely on a generic curve fitter (numpy/matplotlib polyfit, spline, 
 | Explicit nodal values | **Solid triangle** | Nodal values that are not projections (e.g. primary solution at nodes). |
 | Continuous interpolant | Thin black line (linewidth 0.25) | Shape-function interpolation between nodes; not a curve fit. |
 
-This convention is implemented in `post_processing/graphical_visualisers/resolution_plotting_utils.py` (defaults and `nodal_data_type` parameter) and used by the deformation, strain, stress, and energy density profile visualisers.
+This convention is implemented in `src/onedfem/post_processing/graphical_visualisers/resolution_plotting_utils.py` (defaults and `nodal_data_type` parameter) and used by the deformation, strain, stress, and energy density profile visualisers.
 
 ---
 
@@ -70,7 +70,7 @@ Alternatively a single dataclass or single array with a layout convention; the a
 | # | Task | File(s) | Notes |
 |---|------|---------|--------|
 | 1.1 | Add optional `shape_function_N_coefficients`, `shape_function_dN_dxi_coefficients`, `shape_function_d2N_dxi2_coefficients` to `ElementObject`. Document shape `(12, 6, 4)` and monomial convention. | [`gauss_point_data.py`](pre_processing/element_library/gauss_point_data.py) | Keep B1 `evaluate_shape_functions`; B2 is additive. |
-| 1.2 | Implement generic evaluator: `evaluate_shape_functions_from_coefficients(N_coeffs, dN_coeffs, d2N_coeffs, xi) -> (N, dN_dξ, d2N_dξ2)`. Input `xi` shape (n_points,); output shapes (n_points, 12, 6). Use `np.polyval` or explicit loop over dof/comp. | New module e.g. [`pre_processing/element_library/utilities/shape_function_coefficient_evaluator.py`](pre_processing/element_library/utilities/shape_function_coefficient_evaluator.py) | Single function or small class; no element-type branching. |
+| 1.2 | Implement generic evaluator: `evaluate_shape_functions_from_coefficients(N_coeffs, dN_coeffs, d2N_coeffs, xi) -> (N, dN_dξ, d2N_dξ2)`. Input `xi` shape (n_points,); output shapes (n_points, 12, 6). Use `np.polyval` or explicit loop over dof/comp. | New module e.g. [`src/onedfem/pre_processing/element_library/utilities/shape_function_coefficient_evaluator.py`](pre_processing/element_library/utilities/shape_function_coefficient_evaluator.py) | Single function or small class; no element-type branching. |
 | 1.3 | Unit test: for a known coefficient array (e.g. EB N1(ξ) = 0.5 - 0.75ξ + 0.25ξ³), call evaluator at several ξ and assert match to hand values or to `ShapeFunctionOperator.natural_coordinate_form`. | `tests/test_shape_function_coefficient_evaluator.py` or extend formulation cache tests | Validates evaluator correctness. |
 
 ### Phase 2: Euler-Bernoulli export
@@ -102,13 +102,13 @@ Alternatively a single dataclass or single array with a layout convention; the a
 
 | File | Change |
 |------|--------|
-| `pre_processing/element_library/gauss_point_data.py` | Add three optional coefficient fields to `ElementObject`; docstrings. |
-| `pre_processing/element_library/utilities/shape_function_coefficient_evaluator.py` | **New.** Generic evaluator from (N_coeffs, dN_coeffs, d2N_coeffs, xi) → (N, dN_dξ, d2N_dξ2). |
-| `pre_processing/element_library/euler_bernoulli/euler_bernoulli_3D.py` | Build and pass coefficient arrays when creating `ElementObject`. |
-| `post_processing/graphical_visualisers/resolution_plotting_utils.py` | Prefer B2 coefficients when present; use generic evaluator in adapter path. |
-| `processing/static/results/save_formulation_container.py` | Save the three coefficient arrays per element when present. |
+| `src/onedfem/pre_processing/element_library/gauss_point_data.py` | Add three optional coefficient fields to `ElementObject`; docstrings. |
+| `src/onedfem/pre_processing/element_library/utilities/shape_function_coefficient_evaluator.py` | **New.** Generic evaluator from (N_coeffs, dN_coeffs, d2N_coeffs, xi) → (N, dN_dξ, d2N_dξ2). |
+| `src/onedfem/pre_processing/element_library/euler_bernoulli/euler_bernoulli_3D.py` | Build and pass coefficient arrays when creating `ElementObject`. |
+| `src/onedfem/post_processing/graphical_visualisers/resolution_plotting_utils.py` | Prefer B2 coefficients when present; use generic evaluator in adapter path. |
+| `src/onedfem/processing/static/results/save_formulation_container.py` | Save the three coefficient arrays per element when present. |
 | `tests/test_formulation_cache_shape_functions.py` or new test file | Tests for evaluator and for EB ElementObject B2 export vs operator. |
-| `processing/static/results/RESULTS_DESIGN.md` | Short note on B2 coefficient format (optional). |
+| `src/onedfem/processing/static/results/RESULTS_DESIGN.md` | Short note on B2 coefficient format (optional). |
 
 ---
 

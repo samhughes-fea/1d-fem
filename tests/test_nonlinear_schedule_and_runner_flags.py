@@ -5,8 +5,8 @@ import tempfile
 
 import numpy as np
 
-from pre_processing.parsing.simulation_settings_parser import parse_simulation_settings
-from simulation_runner.static.nonlinear_static_simulation import NonlinearStaticSimulationRunner
+from onedfem.pre_processing.parsing.simulation_settings_parser import parse_simulation_settings
+from onedfem.simulation_runner.static.nonlinear_static_simulation import NonlinearStaticSimulationRunner
 
 
 def test_parser_nonlinear_section_defaults_merge():
@@ -85,7 +85,7 @@ def test_validation_tip_dof_selects_vertical_translation_of_last_node():
 
 def test_newton_condensed_helper_matches_runner_threshold_semantics():
     """Sanity: atol + rtol * ref matches documented NR residual gate."""
-    from simulation_runner.static.nonlinear_static_simulation import newton_condensed_residual_converged
+    from onedfem.simulation_runner.static.nonlinear_static_simulation import newton_condensed_residual_converged
 
     assert newton_condensed_residual_converged(0.05, 0.1, 1e-3, 100.0)
     # threshold = 0.1 + 1e-3 * 100 = 0.2 — strictly above boundary should fail

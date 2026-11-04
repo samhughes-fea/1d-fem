@@ -9,14 +9,14 @@ import tempfile
 import numpy as np
 import pytest
 
-from pre_processing.element_library.shape_function_registry import get_shape_function_operator
-from pre_processing.parsing.element_section_parser import parse_element_section_file
-from pre_processing.section_integration.section_analysis import (
+from onedfem.pre_processing.element_library.shape_function_registry import get_shape_function_operator
+from onedfem.pre_processing.parsing.element_section_parser import parse_element_section_file
+from onedfem.pre_processing.section_integration.section_analysis import (
     ELEMENT_SIGN,
     SectionAnalysis,
     to_element_voigt,
 )
-from pre_processing.section_integration.thin_walled import (
+from onedfem.pre_processing.section_integration.thin_walled import (
     Ply,
     PlyMaterial,
     ThinWalledSection,
@@ -24,7 +24,7 @@ from pre_processing.section_integration.thin_walled import (
     Wall,
     WallLaminate,
 )
-from pre_processing.section_integration.thin_walled.job_input import attach_section_analyses
+from onedfem.pre_processing.section_integration.thin_walled.job_input import attach_section_analyses
 
 E, NU = 70e9, 0.3
 G = E / (2 * (1 + NU))
@@ -41,10 +41,10 @@ def _tw(points, walls, lams, **kw):
 
 
 def _element_B(element_type, L=2.0, xi=0.3):
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.B_matrix import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.B_matrix import (
         StrainDisplacementOperator as TimoshenkoB,
     )
-    from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.B_matrix import (
+    from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.B_matrix import (
         StrainDisplacementOperator as EulerBernoulliB,
     )
 
@@ -115,7 +115,7 @@ def test_sign_map_preserves_energy():
 
 
 def test_isotropic_section_analysis_matches_timoshenko_D():
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.D_matrix import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.D_matrix import (
         MaterialStiffnessOperator,
     )
 
@@ -225,7 +225,7 @@ def _element_kwargs(job_results_dir, etype):
 
 
 def test_base_class_isotropic_section_analysis_and_unsupported_assignment():
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
 

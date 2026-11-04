@@ -52,7 +52,7 @@ def _cantilever_dicts(L=1.0, E=2.1e11, G=8.1e10):
 @pytest.mark.parametrize("seed", [0, 1, 42])
 def test_nonlinear_timoshenko_tangent_symmetric_random_displacement(seed: int) -> None:
     """``K_T`` is numerically symmetric at random ``U_e``."""
-    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
         NonlinearTimoshenkoBeamElement3D,
     )
 
@@ -84,7 +84,7 @@ def test_nonlinear_timoshenko_tangent_symmetric_random_displacement(seed: int) -
 
 def test_nonlinear_euler_bernoulli_tangent_symmetric_random_displacement() -> None:
     """NL EB ``K_T`` symmetric at small random displacement."""
-    from pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D import (
         NonlinearEulerBernoulliBeamElement3D,
     )
 
@@ -139,7 +139,7 @@ def test_nonlinear_euler_bernoulli_tangent_symmetric_random_displacement() -> No
 
 def test_nonlinear_euler_bernoulli_internal_force_uses_B_tot_nonzero_when_nl_active() -> None:
     """With nonzero displacement, NL EB internal force differs from ``B_lin.T @ S`` when ``B_nl`` is nonzero."""
-    from pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D import (
         NonlinearEulerBernoulliBeamElement3D,
     )
 

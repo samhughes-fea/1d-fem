@@ -12,8 +12,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from simulation_runner.buckling.nonlinear_buckling_simulation import NonlinearBucklingSimulationRunner
-from workflow_orchestrator.run_job import process_job, setup_job_results_directory
+from onedfem.simulation_runner.buckling.nonlinear_buckling_simulation import NonlinearBucklingSimulationRunner
+from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
 
 def test_nonlinear_buckling_runner_requires_full_settings(tmp_path: Path) -> None:
@@ -49,11 +49,11 @@ def test_process_job_nonlinear_buckling_flag_dispatches_continuation(tmp_path: P
 
 
 def test_deprecated_runner_aliases_are_subclasses() -> None:
-    from simulation_runner.buckling.buckling_simulation import (
+    from onedfem.simulation_runner.buckling.buckling_simulation import (
         BucklingSimulationRunner,
         LinearBucklingSimulationRunner,
     )
-    from simulation_runner.transient.dynamic_simulation import (
+    from onedfem.simulation_runner.transient.dynamic_simulation import (
         DynamicSimulationRunner,
         TransientSimulationRunner,
     )

@@ -1,0 +1,44 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage[margin=1in]{geometry}
+
+\begin{document}
+
+\begin{table}[htbp]
+\centering
+\caption{GCI--Richardson extrapolation vs.\ Abaqus ($n=500$): deflection and rotation.}
+\label{tab:gci-richardson-abaqus}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}cll r rr r r rr rr@{}}
+\toprule
+Job & Load type & QoI & $n_{\mathrm{fine}}$ & $p_{\mathrm{obs}}$ &
+$\phi_{\mathrm{fine}}$ & $\phi_{\mathrm{ext}}$ & Abaqus ($n=500$) &
+Error ext.\ (\%) & GCI$_{12}$ (\%) & GCI$_{23}$ (\%) \\
+\midrule
+    0 & End & $u_y$ (mm) & 128 & -3.58 & -3.0413 & -3.0413 & -3.0342 & 0.234 & --- & --- \\
+    0 & End & $\theta_z$ (deg) & 128 & -3.97 & -0.1307 & -0.1307 & -0.1302 & 0.401 & --- & --- \\
+    1 & Mid-span & $u_y$ (mm) & 128 & -2.61 & -0.9504 & -0.9504 & -0.9468 & 0.376 & --- & --- \\
+    1 & Mid-span & $\theta_z$ (deg) & 128 & -3.42 & -0.0327 & -0.0327 & -0.0324 & 0.805 & --- & --- \\
+    2 & Quarter-span & $u_y$ (mm) & 128 & --- & -0.2614 & -0.2614 & -0.2596 & 0.686 & --- & --- \\
+    2 & Quarter-span & $\theta_z$ (deg) & 128 & --- & -0.0082 & -0.0082 & -0.0080 & 1.619 & --- & --- \\
+    5 & UDL & $u_y$ (mm) & 128 & 2.00 & -1.3179 & -1.3179 & -1.3143 & 0.270 & 0.0015 & 0.0059 \\
+    5 & UDL & $\theta_z$ (deg) & 128 & 2.00 & -0.0523 & -0.0523 & -0.0520 & 0.502 & 0.0030 & 0.0119 \\
+    6 & Triangular & $u_y$ (mm) & 128 & 2.00 & -3.0525 & -3.0526 & -3.0342 & 0.607 & 0.0019 & 0.0076 \\
+    6 & Triangular & $\theta_z$ (deg) & 128 & 0.88 & -0.1307 & -0.1307 & -0.1302 & 0.401 & 0.0000 & 0.0000 \\
+    7 & Parabolic & $u_y$ (mm) & 128 & 2.00 & -0.9560 & -0.9560 & -0.9468 & 0.973 & 0.0030 & 0.0121 \\
+    7 & Parabolic & $\theta_z$ (deg) & 128 & 0.74 & -0.0327 & -0.0327 & -0.0324 & 0.805 & 0.0000 & 0.0000 \\
+\bottomrule
+\end{tabular}%
+}
+\medskip
+\raggedright
+\small
+\textbf{Note.} FEM grids: $n_1=128$, $n_2=64$, $n_3=32$ elements (refinement ratio $r=2$); safety factor $F_s=1.25$. Abaqus reference: 500-element mesh (converged benchmark). $\phi_{\mathrm{fine}}$ = fine-grid FEM solution; $\phi_{\mathrm{ext}}$ = Richardson extrapolate. Error ext.\ = $100(\phi_{\mathrm{ext}}-\mathrm{Abaqus})/|\mathrm{Abaqus}|$. GCI$_{12}$, GCI$_{23}$ from three-grid formula. Tip deflection in mm, tip rotation in deg. Abaqus tip rotation is zero if UR was not in the ODB.
+\end{table}
+
+\end{document}

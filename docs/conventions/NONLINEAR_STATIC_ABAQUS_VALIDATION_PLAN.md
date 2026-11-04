@@ -6,13 +6,13 @@ Pinned benchmark job:
 
 ## Purpose
 
-Establish the first Abaqus-oriented validation track for [`NonlinearStaticSimulationRunner`](../../simulation_runner/static/nonlinear_static_simulation.py).
+Establish the first Abaqus-oriented validation track for [`NonlinearStaticSimulationRunner`](../../src/onedfem/simulation_runner/static/nonlinear_static_simulation.py).
 
 ## Phase 1 scope
 
 This phase creates:
 
-- a family-local validation home under [`post_processing/validation_visualisers/static/`](../../post_processing/validation_visualisers/static/)
+- a family-local validation home under [`validation/static/`](../../validation/static/)
 - a pinned nonlinear-static cantilever benchmark job
 - initial regression checks that the benchmark assets and directory structure exist
 

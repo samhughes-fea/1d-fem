@@ -1,6 +1,6 @@
 # Transient reference validation: SDOF Newmark benchmark
 
-This note defines the first reference-grade transient validation target for [`TransientSimulationRunner`](../../simulation_runner/transient/dynamic_simulation.py) and the underlying [`newmark_integrate()`](../../processing/dynamic/time_integration.py).
+This note defines the first reference-grade transient validation target for [`TransientSimulationRunner`](../../src/onedfem/simulation_runner/transient/dynamic_simulation.py) and the underlying [`newmark_integrate()`](../../src/onedfem/processing/dynamic/time_integration.py).
 
 ## Reference case
 

@@ -12,7 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.parsing.prescribed_displacement_parser import parse_prescribed_displacement
+from onedfem.pre_processing.parsing.prescribed_displacement_parser import parse_prescribed_displacement
 
 
 def test_parse_prescribed_displacement_dof_per_node_7(tmp_path: Path) -> None:

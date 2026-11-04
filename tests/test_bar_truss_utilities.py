@@ -10,13 +10,13 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.linear.bar.utilities import (
+from onedfem.pre_processing.element_library.linear.bar.utilities import (
     ShapeFunctionOperator as BarShapeFunctionOperator,
     StrainDisplacementOperator as BarStrainDisplacementOperator,
     MaterialStiffnessOperator as BarMaterialStiffnessOperator,
     LoadInterpolationOperator as BarLoadInterpolationOperator,
 )
-from pre_processing.element_library.linear.truss.utilities import (
+from onedfem.pre_processing.element_library.linear.truss.utilities import (
     ShapeFunctionOperator as TrussShapeFunctionOperator,
     StrainDisplacementOperator as TrussStrainDisplacementOperator,
     MaterialStiffnessOperator as TrussMaterialStiffnessOperator,
@@ -199,7 +199,7 @@ def test_bar_element_stiffness_gauss_data_uses_operators():
     """Bar element_stiffness_matrix gauss_data has B, D, N from utilities."""
     import os
     import tempfile
-    from pre_processing.element_library.linear.bar.linear_bar_3D import LinearBarElement3D
+    from onedfem.pre_processing.element_library.linear.bar.linear_bar_3D import LinearBarElement3D
 
     L = 1.0
     node_coords = np.array([[0.0, 0.0, 0.0], [L, 0.0, 0.0]], dtype=np.float64)
@@ -245,8 +245,8 @@ def test_bar_Ke_equals_Lt_Klocal_L():
     """Bar K_e from ∫ Bᵀ D B dx (quadrature) matches analytical Lᵀ K_local L."""
     import os
     import tempfile
-    from pre_processing.element_library.linear.bar.linear_bar_3D import LinearBarElement3D
-    from pre_processing.element_library.linear.bar.utilities import build_L_matrix_4x12, direction_cosines
+    from onedfem.pre_processing.element_library.linear.bar.linear_bar_3D import LinearBarElement3D
+    from onedfem.pre_processing.element_library.linear.bar.utilities import build_L_matrix_4x12, direction_cosines
 
     L = 2.0
     E, G = 2.1e11, 8.1e10
@@ -293,8 +293,8 @@ def test_truss_Ke_equals_Lt_Klocal_L():
     """Truss K_e from ∫ Bᵀ D B dx (quadrature) matches analytical Lᵀ K_local L."""
     import os
     import tempfile
-    from pre_processing.element_library.linear.truss.linear_truss_3D import LinearTrussElement3D
-    from pre_processing.element_library.linear.truss.utilities import (
+    from onedfem.pre_processing.element_library.linear.truss.linear_truss_3D import LinearTrussElement3D
+    from onedfem.pre_processing.element_library.linear.truss.utilities import (
         direction_cosines_and_transverse,
         build_L_matrix_6x12,
     )

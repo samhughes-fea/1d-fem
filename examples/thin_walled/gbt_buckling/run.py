@@ -94,7 +94,7 @@ def write_column_job(job: str, length: float, element_type: str, modes: int, n_w
 
 def run_buckling(work: str, name: str, length: float, element_type: str, modes: int, n_warping: int):
     """Load factors (ascending) and mode shapes (n_nodes, stride, n_modes) of one job."""
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     job = os.path.join(work, "jobs", name)
     n_el = write_column_job(job, length, element_type, modes, n_warping)
@@ -120,7 +120,7 @@ class SectionShape:
     """
 
     def __init__(self, modes: int):
-        from pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
+        from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
 
         self.cm = CrossSectionModes(build_analysis(section()))
         self.X = self.cm._modes[1][:, :modes]
@@ -182,7 +182,7 @@ def in_plane_dofs(U: np.ndarray, n_warping: int, modes: int) -> np.ndarray:
 
 # --------------------------------------------------------------------------- #
 def main(plot: bool = True, work_dir: str = HERE, out_dir: str = HERE, lengths=LENGTHS) -> dict:
-    from pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
+    from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
 
     area = T * (H + 2 * B + 2 * C)
     p = CrossSectionModes(build_analysis(section())).n_sv_warping

@@ -1,0 +1,3 @@
+2026-02-26 16:19:02,008 [DEBUG] 📁 Log file created at: c:\Users\s1834431\Programs\fem_model\post_processing\results\job_0009_n16_2026-02-26_16-18-57-038574_pid18316_80d4afc8\logs\PrimaryResultsOrchestrator.log (Module: primary_results_orchestrator, Line: 91)
+2026-02-26 16:19:02,008 [INFO] ✅ Reactions evaluated & masked (Module: primary_results_orchestrator, Line: 45)
+2026-02-26 16:19:02,008 [INFO] ✅ Residual computed (Module: primary_results_orchestrator, Line: 46)

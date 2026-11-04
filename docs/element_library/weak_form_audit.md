@@ -1,4 +1,4 @@
-# Weak-form Gauss audit (`pre_processing/element_library`)
+# Weak-form Gauss audit (`src/onedfem/pre_processing/element_library`)
 
 Reference: [FORMULATION_DOCSTRING_STANDARDS.md](../conventions/FORMULATION_DOCSTRING_STANDARDS.md) § *Weak-form assembly (required)*.
 
@@ -22,4 +22,4 @@ Reference: [FORMULATION_DOCSTRING_STANDARDS.md](../conventions/FORMULATION_DOCST
 
 **Utilities:** `B_matrix` / `D_matrix` / `shape_functions` / `interpolate_loads` should state which integral they support (`ε = B U_e`, `S = D ε`, `N` for loads).
 
-**Modal linear buckling (global assembly):** Not an element Gauss row — [`assemble_global_geometric_stiffness`](../../processing/modal/buckling.py) builds global **K_σ** from each beam element’s `linear_geometric_stiffness_matrix(U_e)` after a linear static prestress solve. EB/Timoshenko smoke: [`tests/test_modal_buckling_euler_column.py`](../../tests/test_modal_buckling_euler_column.py).
+**Modal linear buckling (global assembly):** Not an element Gauss row — [`assemble_global_geometric_stiffness`](../../src/onedfem/processing/modal/buckling.py) builds global **K_σ** from each beam element’s `linear_geometric_stiffness_matrix(U_e)` after a linear static prestress solve. EB/Timoshenko smoke: [`tests/test_modal_buckling_euler_column.py`](../../tests/test_modal_buckling_euler_column.py).

@@ -10,9 +10,9 @@ import numpy as np
 import pytest
 import scipy.sparse as sp
 
-from processing.static.operations.solver import SolveCondensedSystem
-from processing.common.primary_artifact_manifest import write_primary_artifact_manifest
-from workflow_orchestrator.run_manifest import write_run_manifest
+from onedfem.processing.static.operations.solver import SolveCondensedSystem
+from onedfem.processing.common.primary_artifact_manifest import write_primary_artifact_manifest
+from onedfem.workflow_orchestrator.run_manifest import write_run_manifest
 
 
 def test_write_run_manifest_schema(tmp_path: Path):

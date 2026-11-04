@@ -2,7 +2,7 @@
 
 Shared input for the blade examples ([blade_beam](../blade_beam/README.md),
 [blade_section_2d](../blade_section_2d/README.md)) and the section validation in
-`post_processing/validation_visualisers/iea15mw_sections`. Nothing here runs on its own.
+`validation/iea15mw_sections`. Nothing here runs on its own.
 
 - `data/iea15mw_stations.json`: three stations of the IEA Wind 15 MW reference blade as
   PreComp sees them (profile, sector layups, web positions and PreComp's section

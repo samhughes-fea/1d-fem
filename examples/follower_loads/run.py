@@ -114,7 +114,7 @@ def write_job(job_dir: str, k_max: float, follower: bool) -> str:
 
 def run_job(job_dir: str, work: str) -> np.ndarray:
     """Run the job; return ``U`` (n_nodes, 6) at the last load step."""
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     res = os.path.join(work, "results", os.path.basename(job_dir))
     if os.path.isdir(res):

@@ -11,7 +11,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from processing.dynamic.assembly import assemble_global_force_vector
+from onedfem.processing.dynamic.assembly import assemble_global_force_vector
 
 
 def test_none_force_vectors_returns_zero():

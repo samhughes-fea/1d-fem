@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pre_processing.parsing.element_parser import ElementParser
+from onedfem.pre_processing.parsing.element_parser import ElementParser
 
 
 def _write(tmp: Path, body: str) -> str:

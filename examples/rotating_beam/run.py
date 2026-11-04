@@ -70,7 +70,7 @@ def write_job(job_dir: str, Iy: float, Iz: float, rotation: str, n: int = N_EL, 
 
 def run(job_dir: str, work: str) -> np.ndarray:
     """Run an eigen job; return its Campbell table (rows ``[omega, f_1, ...]``)."""
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     res = os.path.join(work, "results", os.path.basename(job_dir))
     if os.path.isdir(res):

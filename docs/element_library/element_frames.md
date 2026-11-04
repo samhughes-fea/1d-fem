@@ -2,8 +2,8 @@
 
 The linear Euler-Bernoulli, Timoshenko and Benscoter beams can lie in any direction,
 carry a section twist about their axis, and be curved and pretwisted. Code:
-`pre_processing/element_library/element_frame.py` (geometry) and
-`pre_processing/element_library/framed_element.py` (the element kernels).
+`src/onedfem/pre_processing/element_library/element_frame.py` (geometry) and
+`src/onedfem/pre_processing/element_library/framed_element.py` (the element kernels).
 
 ## Inputs
 

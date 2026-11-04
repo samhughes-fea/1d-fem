@@ -8,35 +8,35 @@ The `element_type` names a job's `element.txt` accepts.
 
 | Element type | Module | Summary |
 |---|---|---|
-| `CorotationalBeamElement3D` | `pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D` | Co-rotational 3D beam (``kernel`` = ``timoshenko`` or ``euler_bernoulli``). |
-| `CorotationalBenscoterBeamElement3D` | `pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section` | Corotational Benscoter beam: restrained warping and large twist on thin-walled sections. |
-| `CorotationalEulerBernoulliBeamElement3D` | `pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section` | Corotational Euler-Bernoulli beam (shear-rigid core, classical section stiffness). |
-| `CorotationalGBTBeamElement3D` | `pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section` | Corotational GBT beam: large rotations of the section, with its warping and distortional modes linear in the element's own frame. |
-| `CorotationalLevinsonBeamElement3D` | `pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section` | Corotational Levinson beam (non-variational third-order shear; unsymmetric tangent). |
-| `CorotationalReddyBeamElement3D` | `pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section` | Corotational Reddy beam: third-order shear (shear lag of the slaved warping) at large rotation. |
-| `CorotationalTimoshenkoBeamElement3D` | `pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section` | Corotational Timoshenko beam on the coupled Saint-Venant section stiffness. |
-| `GEBTUnshearableBeamElement3D` | `pre_processing.element_library.nonlinear.large_rotations.gebt_unshearable.gebt_unshearable_3D` | Unshearable large-rotation beam using the nonlinear EB TL pipeline. |
-| `GeometricallyExactShearDeformableBeam3D` | `pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.geometrically_exact_shear_deformable_beam_3D` | Factory-facing **GeometricallyExactShearDeformableBeam3D** element type. |
-| `LinearBarElement3D` | `pre_processing.element_library.linear.bar.linear_bar_3D` | 2 nodes, 6 DOF/node; only axial and torsion strains are non-zero in ``B``. |
-| `LinearBenscoterBeamElement3D` | `pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_benscoter_3D` | Timoshenko beam with Benscoter restrained warping for thin-walled anisotropic sections. |
-| `LinearEulerBernoulliBeamElement3D` | `pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D` | 2-node straight beam, 6 DOF per node, 12 total (see module docstring for ``U_e`` order). |
-| `LinearGBTBeamElement3D` | `pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D` | Generalised Beam Theory element for thin-walled anisotropic sections. |
-| `LinearLevinsonBeamElement3D` | `pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.linear_levinson_3D` | Levinson third-order shear beam (isotropic or thin-walled sections). |
-| `LinearReddyBeamElement3D` | `pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.linear_reddy_3D` | Reddy third-order shear beam (isotropic or thin-walled sections). |
-| `LinearTimoshenkoBeamElement3D` | `pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D` | 2-node straight beam, 6 DOF per node, 12 total; local ``x`` along the chord. |
-| `LinearTrussElement3D` | `pre_processing.element_library.linear.truss.linear_truss_3D` | 2 nodes, 6 DOF/node; transverse displacement follows the element transverse direction (utilities). |
-| `NonlinearEulerBernoulliBeamElement3D` | `pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D` | TL EB element: Green-Lagrange strain, ``S = D @ E``, material and geometric tangents from Gauss sums. |
-| `NonlinearLevinsonBeamElement3D` | `pre_processing.element_library.nonlinear.levinson.nonlinear_levinson_3D` | Total-Lagrangian 3D Levinson 3rd-order beam element (12 DOF) — STUB. |
-| `NonlinearReddyBeamElement3D` | `pre_processing.element_library.nonlinear.reddy.nonlinear_reddy_3D` | Total-Lagrangian 3D Reddy 3rd-order beam element (12 DOF) — STUB. |
-| `NonlinearTimoshenkoBeamElement3D` | `pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D` | TL Timoshenko: ``K_0`` (linear selective assembly); ``E_nl`` and ``B_tot`` for ``F_int`` and ``K_delta``; ``K_sigma`` from ``N``, ``M_y``, ``M_z``. |
-| `UpdatedLagrangianEulerBernoulliBeamElement3D` | `pre_processing.element_library.nonlinear.euler_bernoulli.updated_lagrangian_euler_bernoulli_3D` | Updated-Lagrangian 3D Euler-Bernoulli beam element (12 DOF) — STUB. |
-| `UpdatedLagrangianTimoshenkoBeamElement3D` | `pre_processing.element_library.nonlinear.timoshenko.updated_lagrangian_timoshenko_3D` | Updated-Lagrangian 3D Timoshenko beam element (12 DOF) — STUB. |
+| `CorotationalBeamElement3D` | `onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D` | Co-rotational 3D beam (``kernel`` = ``timoshenko`` or ``euler_bernoulli``). |
+| `CorotationalBenscoterBeamElement3D` | `onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section` | Corotational Benscoter beam: restrained warping and large twist on thin-walled sections. |
+| `CorotationalEulerBernoulliBeamElement3D` | `onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section` | Corotational Euler-Bernoulli beam (shear-rigid core, classical section stiffness). |
+| `CorotationalGBTBeamElement3D` | `onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section` | Corotational GBT beam: large rotations of the section, with its warping and distortional modes linear in the element's own frame. |
+| `CorotationalLevinsonBeamElement3D` | `onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section` | Corotational Levinson beam (non-variational third-order shear; unsymmetric tangent). |
+| `CorotationalReddyBeamElement3D` | `onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section` | Corotational Reddy beam: third-order shear (shear lag of the slaved warping) at large rotation. |
+| `CorotationalTimoshenkoBeamElement3D` | `onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section` | Corotational Timoshenko beam on the coupled Saint-Venant section stiffness. |
+| `GEBTUnshearableBeamElement3D` | `onedfem.pre_processing.element_library.nonlinear.large_rotations.gebt_unshearable.gebt_unshearable_3D` | Unshearable large-rotation beam using the nonlinear EB TL pipeline. |
+| `GeometricallyExactShearDeformableBeam3D` | `onedfem.pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.geometrically_exact_shear_deformable_beam_3D` | Factory-facing **GeometricallyExactShearDeformableBeam3D** element type. |
+| `LinearBarElement3D` | `onedfem.pre_processing.element_library.linear.bar.linear_bar_3D` | 2 nodes, 6 DOF/node; only axial and torsion strains are non-zero in ``B``. |
+| `LinearBenscoterBeamElement3D` | `onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_benscoter_3D` | Timoshenko beam with Benscoter restrained warping for thin-walled anisotropic sections. |
+| `LinearEulerBernoulliBeamElement3D` | `onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D` | 2-node straight beam, 6 DOF per node, 12 total (see module docstring for ``U_e`` order). |
+| `LinearGBTBeamElement3D` | `onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D` | Generalised Beam Theory element for thin-walled anisotropic sections. |
+| `LinearLevinsonBeamElement3D` | `onedfem.pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.linear_levinson_3D` | Levinson third-order shear beam (isotropic or thin-walled sections). |
+| `LinearReddyBeamElement3D` | `onedfem.pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.linear_reddy_3D` | Reddy third-order shear beam (isotropic or thin-walled sections). |
+| `LinearTimoshenkoBeamElement3D` | `onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D` | 2-node straight beam, 6 DOF per node, 12 total; local ``x`` along the chord. |
+| `LinearTrussElement3D` | `onedfem.pre_processing.element_library.linear.truss.linear_truss_3D` | 2 nodes, 6 DOF/node; transverse displacement follows the element transverse direction (utilities). |
+| `NonlinearEulerBernoulliBeamElement3D` | `onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D` | TL EB element: Green-Lagrange strain, ``S = D @ E``, material and geometric tangents from Gauss sums. |
+| `NonlinearLevinsonBeamElement3D` | `onedfem.pre_processing.element_library.nonlinear.levinson.nonlinear_levinson_3D` | Total-Lagrangian 3D Levinson 3rd-order beam element (12 DOF) — STUB. |
+| `NonlinearReddyBeamElement3D` | `onedfem.pre_processing.element_library.nonlinear.reddy.nonlinear_reddy_3D` | Total-Lagrangian 3D Reddy 3rd-order beam element (12 DOF) — STUB. |
+| `NonlinearTimoshenkoBeamElement3D` | `onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D` | TL Timoshenko: ``K_0`` (linear selective assembly); ``E_nl`` and ``B_tot`` for ``F_int`` and ``K_delta``; ``K_sigma`` from ``N``, ``M_y``, ``M_z``. |
+| `UpdatedLagrangianEulerBernoulliBeamElement3D` | `onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.updated_lagrangian_euler_bernoulli_3D` | Updated-Lagrangian 3D Euler-Bernoulli beam element (12 DOF) — STUB. |
+| `UpdatedLagrangianTimoshenkoBeamElement3D` | `onedfem.pre_processing.element_library.nonlinear.timoshenko.updated_lagrangian_timoshenko_3D` | Updated-Lagrangian 3D Timoshenko beam element (12 DOF) — STUB. |
 
 ## Modules
 
-### `pre_processing.element_library`
+### `onedfem.pre_processing.element_library`
 
-[pre_processing/element_library/__init__.py](../../pre_processing/element_library/__init__.py)
+[src/onedfem/pre_processing/element_library/__init__.py](../../src/onedfem/pre_processing/element_library/__init__.py)
 
 - **class `ElementFactory(job_results_dir: str) -> None`**
   Batch-builds 1-D element objects and validates their logging infrastructure.
@@ -53,9 +53,9 @@ The `element_type` names a job's `element.txt` accepts.
 - **class `LinearBarElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: Optional[int] = None)`**
   2 nodes, 6 DOF/node; only axial and torsion strains are non-zero in ``B``.
 
-### `pre_processing.element_library.beam_load_interpolation`
+### `onedfem.pre_processing.element_library.beam_load_interpolation`
 
-[pre_processing/element_library/beam_load_interpolation.py](../../pre_processing/element_library/beam_load_interpolation.py)
+[src/onedfem/pre_processing/element_library/beam_load_interpolation.py](../../src/onedfem/pre_processing/element_library/beam_load_interpolation.py)
 
 Work-conjugate load interpolation for two-node, six-DOF-per-node beams.
 
@@ -66,9 +66,9 @@ Work-conjugate load interpolation for two-node, six-DOF-per-node beams.
 - **`distributed_load_vector(xi_g, w_g, q_g, L: float, bending: str = 'hermite') -> np.ndarray`**
   Nodal loads (12,) of line loads ``q_g`` (n_g, 6) at Gauss points ``xi_g``, weights ``w_g``.
 
-### `pre_processing.element_library.element_frame`
+### `onedfem.pre_processing.element_library.element_frame`
 
-[pre_processing/element_library/element_frame.py](../../pre_processing/element_library/element_frame.py)
+[src/onedfem/pre_processing/element_library/element_frame.py](../../src/onedfem/pre_processing/element_library/element_frame.py)
 
 Local frames of beam elements: straight elements in any direction, and curved, twisted ones.
 
@@ -83,9 +83,9 @@ Local frames of beam elements: straight elements in any direction, and curved, t
 - **`node_dof_rotation(R0: np.ndarray, R1: np.ndarray, n_dof: int, blocks: Optional[list] = None, pairs: Optional[list] = None) -> np.ndarray`**
   ``T`` with ``u_local = T @ u_global`` for an element whose nodes carry frames ``R0``, ``R1``.
 
-### `pre_processing.element_library.framed_element`
+### `onedfem.pre_processing.element_library.framed_element`
 
-[pre_processing/element_library/framed_element.py](../../pre_processing/element_library/framed_element.py)
+[src/onedfem/pre_processing/element_library/framed_element.py](../../src/onedfem/pre_processing/element_library/framed_element.py)
 
 Element frames for the linear beams: rotation to global axes, and curved, twisted elements.
 
@@ -99,9 +99,9 @@ Element frames for the linear beams: rotation to global axes, and curved, twiste
   ``(element, U_local, xi_local)`` for recovering the section state at ``xi`` of ``element``.
 - **`chain(element) -> _Chain`**
 
-### `pre_processing.element_library.linear`
+### `onedfem.pre_processing.element_library.linear`
 
-[pre_processing/element_library/linear/__init__.py](../../pre_processing/element_library/linear/__init__.py)
+[src/onedfem/pre_processing/element_library/linear/__init__.py](../../src/onedfem/pre_processing/element_library/linear/__init__.py)
 
 - **class `LinearEulerBernoulliBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: Optional[int] = None)`**
   2-node straight beam, 6 DOF per node, 12 total (see module docstring for ``U_e`` order).
@@ -120,25 +120,25 @@ Element frames for the linear beams: rotation to global axes, and curved, twiste
 - **class `LinearBarElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: Optional[int] = None)`**
   2 nodes, 6 DOF/node; only axial and torsion strains are non-zero in ``B``.
 
-### `pre_processing.element_library.linear.bar`
+### `onedfem.pre_processing.element_library.linear.bar`
 
-[pre_processing/element_library/linear/bar/__init__.py](../../pre_processing/element_library/linear/bar/__init__.py)
+[src/onedfem/pre_processing/element_library/linear/bar/__init__.py](../../src/onedfem/pre_processing/element_library/linear/bar/__init__.py)
 
 - **class `LinearBarElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: Optional[int] = None)`**
   2 nodes, 6 DOF/node; only axial and torsion strains are non-zero in ``B``.
 
-### `pre_processing.element_library.linear.bar.linear_bar_3D`
+### `onedfem.pre_processing.element_library.linear.bar.linear_bar_3D`
 
-[pre_processing/element_library/linear/bar/linear_bar_3D.py](../../pre_processing/element_library/linear/bar/linear_bar_3D.py)
+[src/onedfem/pre_processing/element_library/linear/bar/linear_bar_3D.py](../../src/onedfem/pre_processing/element_library/linear/bar/linear_bar_3D.py)
 
 2-node 3D bar: axial + torsion only (no bending/shear DOF coupling in B).
 
 - **class `LinearBarElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: Optional[int] = None)`**
   2 nodes, 6 DOF/node; only axial and torsion strains are non-zero in ``B``.
 
-### `pre_processing.element_library.linear.bar.utilities`
+### `onedfem.pre_processing.element_library.linear.bar.utilities`
 
-[pre_processing/element_library/linear/bar/utilities/__init__.py](../../pre_processing/element_library/linear/bar/utilities/__init__.py)
+[src/onedfem/pre_processing/element_library/linear/bar/utilities/__init__.py](../../src/onedfem/pre_processing/element_library/linear/bar/utilities/__init__.py)
 
 - **class `ShapeFunctionOperator(element_length: float) -> None`**
   Operator for evaluating 3D Bar element shape functions and their derivatives. Bar has axial and torsion only; shape functions are linear Lagrange in ξ.
@@ -153,34 +153,34 @@ Element frames for the linear beams: rotation to global axes, and curved, twiste
 - **`build_L_matrix_4x12(axial: numpy.ndarray) -> numpy.ndarray`**
   Build 4×12 L: local DOF (u1_axial, u2_axial, θx1, θx2) from global 12 DOF. u_local = L @ u_global.
 
-### `pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter`
+### `onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter`
 
-[pre_processing/element_library/linear/beam/first_order_shear_deformation_theory/benscoter/__init__.py](../../pre_processing/element_library/linear/beam/first_order_shear_deformation_theory/benscoter/__init__.py)
+[src/onedfem/pre_processing/element_library/linear/beam/first_order_shear_deformation_theory/benscoter/__init__.py](../../src/onedfem/pre_processing/element_library/linear/beam/first_order_shear_deformation_theory/benscoter/__init__.py)
 
 - **class `LinearBenscoterBeamElement3D(**kwargs)`**
   Timoshenko beam with Benscoter restrained warping for thin-walled anisotropic sections.
 - **class `LinearGBTBeamElement3D(**kwargs)`**
   Generalised Beam Theory element for thin-walled anisotropic sections.
 
-### `pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko`
+### `onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko`
 
-[pre_processing/element_library/linear/beam/first_order_shear_deformation_theory/timoshenko/__init__.py](../../pre_processing/element_library/linear/beam/first_order_shear_deformation_theory/timoshenko/__init__.py)
+[src/onedfem/pre_processing/element_library/linear/beam/first_order_shear_deformation_theory/timoshenko/__init__.py](../../src/onedfem/pre_processing/element_library/linear/beam/first_order_shear_deformation_theory/timoshenko/__init__.py)
 
 - **class `LinearTimoshenkoBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: int = 3)`**
   2-node straight beam, 6 DOF per node, 12 total; local ``x`` along the chord.
 
-### `pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D`
+### `onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D`
 
-[pre_processing/element_library/linear/beam/first_order_shear_deformation_theory/timoshenko/linear_timoshenko_3D.py](../../pre_processing/element_library/linear/beam/first_order_shear_deformation_theory/timoshenko/linear_timoshenko_3D.py)
+[src/onedfem/pre_processing/element_library/linear/beam/first_order_shear_deformation_theory/timoshenko/linear_timoshenko_3D.py](../../src/onedfem/pre_processing/element_library/linear/beam/first_order_shear_deformation_theory/timoshenko/linear_timoshenko_3D.py)
 
 2-node 3D Timoshenko beam (shear-deformable).
 
 - **class `LinearTimoshenkoBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: int = 3)`**
   2-node straight beam, 6 DOF per node, 12 total; local ``x`` along the chord.
 
-### `pre_processing.element_library.linear.beam.second_order`
+### `onedfem.pre_processing.element_library.linear.beam.second_order`
 
-[pre_processing/element_library/linear/beam/second_order.py](../../pre_processing/element_library/linear/beam/second_order.py)
+[src/onedfem/pre_processing/element_library/linear/beam/second_order.py](../../src/onedfem/pre_processing/element_library/linear/beam/second_order.py)
 
 Second-order (geometric) stiffness of the linear beam elements from their section forces.
 
@@ -189,32 +189,32 @@ Second-order (geometric) stiffness of the linear beam elements from their sectio
 - **class `GeometricStiffnessMixin()`**
   ``linear_geometric_stiffness_matrix`` for an element that defines ``_geometric_state``.
 
-### `pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy`
+### `onedfem.pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy`
 
-[pre_processing/element_library/linear/beam/third_order_shear_deformation_theory/reddy/__init__.py](../../pre_processing/element_library/linear/beam/third_order_shear_deformation_theory/reddy/__init__.py)
+[src/onedfem/pre_processing/element_library/linear/beam/third_order_shear_deformation_theory/reddy/__init__.py](../../src/onedfem/pre_processing/element_library/linear/beam/third_order_shear_deformation_theory/reddy/__init__.py)
 
 - **class `LinearReddyBeamElement3D(**kwargs)`**
   Reddy third-order shear beam (isotropic or thin-walled sections).
 
-### `pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli`
+### `onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli`
 
-[pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli/__init__.py](../../pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli/__init__.py)
+[src/onedfem/pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli/__init__.py](../../src/onedfem/pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli/__init__.py)
 
 - **class `LinearEulerBernoulliBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: Optional[int] = None)`**
   2-node straight beam, 6 DOF per node, 12 total (see module docstring for ``U_e`` order).
 
-### `pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D`
+### `onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D`
 
-[pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli/linear_euler_bernoulli_3D.py](../../pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli/linear_euler_bernoulli_3D.py)
+[src/onedfem/pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli/linear_euler_bernoulli_3D.py](../../src/onedfem/pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli/linear_euler_bernoulli_3D.py)
 
 2-node 3D Euler–Bernoulli beam.
 
 - **class `LinearEulerBernoulliBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: Optional[int] = None)`**
   2-node straight beam, 6 DOF per node, 12 total (see module docstring for ``U_e`` order).
 
-### `pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli_with_warp.utilities`
+### `onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli_with_warp.utilities`
 
-[pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli_with_warp/utilities/__init__.py](../../pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli_with_warp/utilities/__init__.py)
+[src/onedfem/pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli_with_warp/utilities/__init__.py](../../src/onedfem/pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli_with_warp/utilities/__init__.py)
 
 - **`N_DOF`** (constant)
 - **`N_STANDARD_DOF`** (constant)
@@ -227,25 +227,25 @@ Second-order (geometric) stiffness of the linear beam elements from their sectio
 - **`extend_natural_shape_to_warping(N12: numpy.ndarray, xi: float) -> numpy.ndarray`**
   Extend standard (12, 6) ``N`` at one Gauss point to (14, 6).
 
-### `pre_processing.element_library.linear.truss`
+### `onedfem.pre_processing.element_library.linear.truss`
 
-[pre_processing/element_library/linear/truss/__init__.py](../../pre_processing/element_library/linear/truss/__init__.py)
+[src/onedfem/pre_processing/element_library/linear/truss/__init__.py](../../src/onedfem/pre_processing/element_library/linear/truss/__init__.py)
 
 - **class `LinearTrussElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: Optional[int] = None)`**
   2 nodes, 6 DOF/node; transverse displacement follows the element transverse direction (utilities).
 
-### `pre_processing.element_library.linear.truss.linear_truss_3D`
+### `onedfem.pre_processing.element_library.linear.truss.linear_truss_3D`
 
-[pre_processing/element_library/linear/truss/linear_truss_3D.py](../../pre_processing/element_library/linear/truss/linear_truss_3D.py)
+[src/onedfem/pre_processing/element_library/linear/truss/linear_truss_3D.py](../../src/onedfem/pre_processing/element_library/linear/truss/linear_truss_3D.py)
 
 2-node 3D truss: axial + one transverse shear direction + torsion (six DOF/node for layout compatibility).
 
 - **class `LinearTrussElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: Optional[int] = None)`**
   2 nodes, 6 DOF/node; transverse displacement follows the element transverse direction (utilities).
 
-### `pre_processing.element_library.linear.truss.utilities`
+### `onedfem.pre_processing.element_library.linear.truss.utilities`
 
-[pre_processing/element_library/linear/truss/utilities/__init__.py](../../pre_processing/element_library/linear/truss/utilities/__init__.py)
+[src/onedfem/pre_processing/element_library/linear/truss/utilities/__init__.py](../../src/onedfem/pre_processing/element_library/linear/truss/utilities/__init__.py)
 
 - **class `ShapeFunctionOperator(element_length: float) -> None`**
   Operator for evaluating 3D Truss element shape functions and their derivatives. Truss has axial, transverse, and torsion; all use linear Lagrange in ξ.
@@ -260,9 +260,9 @@ Second-order (geometric) stiffness of the linear beam elements from their sectio
 - **`build_L_matrix_6x12(axial: numpy.ndarray, transverse: numpy.ndarray) -> numpy.ndarray`**
   Build the 6×12 matrix L that maps global 12 DOF to local 6 DOF.
 
-### `pre_processing.element_library.nonlinear`
+### `onedfem.pre_processing.element_library.nonlinear`
 
-[pre_processing/element_library/nonlinear/__init__.py](../../pre_processing/element_library/nonlinear/__init__.py)
+[src/onedfem/pre_processing/element_library/nonlinear/__init__.py](../../src/onedfem/pre_processing/element_library/nonlinear/__init__.py)
 
 - **class `NonlinearEulerBernoulliBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: Optional[int] = None)`**
   TL EB element: Green-Lagrange strain, ``S = D @ E``, material and geometric tangents from Gauss sums.
@@ -283,27 +283,27 @@ Second-order (geometric) stiffness of the linear beam elements from their sectio
 - **class `GEBTUnshearableBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: Optional[int] = None)`**
   Unshearable large-rotation beam using the nonlinear EB TL pipeline.
 
-### `pre_processing.element_library.nonlinear.euler_bernoulli`
+### `onedfem.pre_processing.element_library.nonlinear.euler_bernoulli`
 
-[pre_processing/element_library/nonlinear/euler_bernoulli/__init__.py](../../pre_processing/element_library/nonlinear/euler_bernoulli/__init__.py)
+[src/onedfem/pre_processing/element_library/nonlinear/euler_bernoulli/__init__.py](../../src/onedfem/pre_processing/element_library/nonlinear/euler_bernoulli/__init__.py)
 
 - **class `NonlinearEulerBernoulliBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: Optional[int] = None)`**
   TL EB element: Green-Lagrange strain, ``S = D @ E``, material and geometric tangents from Gauss sums.
 - **class `UpdatedLagrangianEulerBernoulliBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: np.ndarray, distributed_load_array: np.ndarray, job_results_dir: str, quadrature_order: int | None = None)`**
   Updated-Lagrangian 3D Euler-Bernoulli beam element (12 DOF) — STUB.
 
-### `pre_processing.element_library.nonlinear.euler_bernoulli.updated_lagrangian_euler_bernoulli_3D`
+### `onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.updated_lagrangian_euler_bernoulli_3D`
 
-[pre_processing/element_library/nonlinear/euler_bernoulli/updated_lagrangian_euler_bernoulli_3D.py](../../pre_processing/element_library/nonlinear/euler_bernoulli/updated_lagrangian_euler_bernoulli_3D.py)
+[src/onedfem/pre_processing/element_library/nonlinear/euler_bernoulli/updated_lagrangian_euler_bernoulli_3D.py](../../src/onedfem/pre_processing/element_library/nonlinear/euler_bernoulli/updated_lagrangian_euler_bernoulli_3D.py)
 
 Updated-Lagrangian (UL) 3D Euler-Bernoulli beam element (12 DOF) — STUB.
 
 - **class `UpdatedLagrangianEulerBernoulliBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: np.ndarray, distributed_load_array: np.ndarray, job_results_dir: str, quadrature_order: int | None = None)`**
   Updated-Lagrangian 3D Euler-Bernoulli beam element (12 DOF) — STUB.
 
-### `pre_processing.element_library.nonlinear.euler_bernoulli.utilities`
+### `onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.utilities`
 
-[pre_processing/element_library/nonlinear/euler_bernoulli/utilities/__init__.py](../../pre_processing/element_library/nonlinear/euler_bernoulli/utilities/__init__.py)
+[src/onedfem/pre_processing/element_library/nonlinear/euler_bernoulli/utilities/__init__.py](../../src/onedfem/pre_processing/element_library/nonlinear/euler_bernoulli/utilities/__init__.py)
 
 - **class `GreenLagrangeStrainOperator(element_length: float, include_shear: bool = False) -> None`**
   Green–Lagrange strain measures for a 2-node 3D Euler–Bernoulli beam (Total Lagrangian).
@@ -312,9 +312,9 @@ Updated-Lagrangian (UL) 3D Euler-Bernoulli beam element (12 DOF) — STUB.
 - **class `GeometricStiffnessOperator(element_length: float) -> None`**
   Assemble \(\mathbf{K}_\sigma\) from section forces and shape-function derivatives (**TL nonlinear**).
 
-### `pre_processing.element_library.nonlinear.large_rotations`
+### `onedfem.pre_processing.element_library.nonlinear.large_rotations`
 
-[pre_processing/element_library/nonlinear/large_rotations/__init__.py](../../pre_processing/element_library/nonlinear/large_rotations/__init__.py)
+[src/onedfem/pre_processing/element_library/nonlinear/large_rotations/__init__.py](../../src/onedfem/pre_processing/element_library/nonlinear/large_rotations/__init__.py)
 
 Finite-rotation beam kinematics (co-rotational frame, GEBT-class registrations).
 
@@ -325,18 +325,18 @@ Finite-rotation beam kinematics (co-rotational frame, GEBT-class registrations).
 - **class `GEBTUnshearableBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: Optional[int] = None)`**
   Unshearable large-rotation beam using the nonlinear EB TL pipeline.
 
-### `pre_processing.element_library.nonlinear.large_rotations.corotational`
+### `onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational`
 
-[pre_processing/element_library/nonlinear/large_rotations/corotational/__init__.py](../../pre_processing/element_library/nonlinear/large_rotations/corotational/__init__.py)
+[src/onedfem/pre_processing/element_library/nonlinear/large_rotations/corotational/__init__.py](../../src/onedfem/pre_processing/element_library/nonlinear/large_rotations/corotational/__init__.py)
 
 Co-rotational beam (12 DOF).
 
 - **class `CorotationalBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: np.ndarray, distributed_load_array: np.ndarray, job_results_dir: str, quadrature_order: int | None = None, kernel: str = 'timoshenko', tangent_stiffness_mode: "Literal['finite_difference', 'elastic_material']" = 'finite_difference')`**
   Co-rotational 3D beam (``kernel`` = ``timoshenko`` or ``euler_bernoulli``).
 
-### `pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section`
+### `onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section`
 
-[pre_processing/element_library/nonlinear/large_rotations/corotational/corotational_section.py](../../pre_processing/element_library/nonlinear/large_rotations/corotational/corotational_section.py)
+[src/onedfem/pre_processing/element_library/nonlinear/large_rotations/corotational/corotational_section.py](../../src/onedfem/pre_processing/element_library/nonlinear/large_rotations/corotational/corotational_section.py)
 
 Corotational beam elements on any SectionAnalysis, with third- and fourth-order local energy.
 
@@ -361,79 +361,79 @@ Corotational beam elements on any SectionAnalysis, with third- and fourth-order 
 - **class `CorotationalLevinsonBeamElement3D(**kwargs)`**
   Corotational Levinson beam (non-variational third-order shear; unsymmetric tangent).
 
-### `pre_processing.element_library.nonlinear.large_rotations.gebt_unshearable`
+### `onedfem.pre_processing.element_library.nonlinear.large_rotations.gebt_unshearable`
 
-[pre_processing/element_library/nonlinear/large_rotations/gebt_unshearable/__init__.py](../../pre_processing/element_library/nonlinear/large_rotations/gebt_unshearable/__init__.py)
+[src/onedfem/pre_processing/element_library/nonlinear/large_rotations/gebt_unshearable/__init__.py](../../src/onedfem/pre_processing/element_library/nonlinear/large_rotations/gebt_unshearable/__init__.py)
 
 GEBT unshearable (Euler-Bernoulli) beam (12 DOF).
 
 - **class `GEBTUnshearableBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: Optional[int] = None)`**
   Unshearable large-rotation beam using the nonlinear EB TL pipeline.
 
-### `pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam`
+### `onedfem.pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam`
 
-[pre_processing/element_library/nonlinear/large_rotations/geometrically_exact_shear_deformable_beam/__init__.py](../../pre_processing/element_library/nonlinear/large_rotations/geometrically_exact_shear_deformable_beam/__init__.py)
+[src/onedfem/pre_processing/element_library/nonlinear/large_rotations/geometrically_exact_shear_deformable_beam/__init__.py](../../src/onedfem/pre_processing/element_library/nonlinear/large_rotations/geometrically_exact_shear_deformable_beam/__init__.py)
 
 - **class `GeometricallyExactShearDeformableBeam3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: np.ndarray, distributed_load_array: np.ndarray, job_results_dir: str, quadrature_order: int | None = 3, gesdb_tl_fallback: bool = False, gesdb_kernel: str = 'tl_locked')`**
   Factory-facing **GeometricallyExactShearDeformableBeam3D** element type.
 
-### `pre_processing.element_library.nonlinear.levinson`
+### `onedfem.pre_processing.element_library.nonlinear.levinson`
 
-[pre_processing/element_library/nonlinear/levinson/__init__.py](../../pre_processing/element_library/nonlinear/levinson/__init__.py)
+[src/onedfem/pre_processing/element_library/nonlinear/levinson/__init__.py](../../src/onedfem/pre_processing/element_library/nonlinear/levinson/__init__.py)
 
 Nonlinear (Total Lagrangian) Levinson 3rd-order beam (12 DOF).
 
 - **class `NonlinearLevinsonBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: np.ndarray, distributed_load_array: np.ndarray, job_results_dir: str, quadrature_order: int | None = None)`**
   Total-Lagrangian 3D Levinson 3rd-order beam element (12 DOF) — STUB.
 
-### `pre_processing.element_library.nonlinear.levinson.nonlinear_levinson_3D`
+### `onedfem.pre_processing.element_library.nonlinear.levinson.nonlinear_levinson_3D`
 
-[pre_processing/element_library/nonlinear/levinson/nonlinear_levinson_3D.py](../../pre_processing/element_library/nonlinear/levinson/nonlinear_levinson_3D.py)
+[src/onedfem/pre_processing/element_library/nonlinear/levinson/nonlinear_levinson_3D.py](../../src/onedfem/pre_processing/element_library/nonlinear/levinson/nonlinear_levinson_3D.py)
 
 Nonlinear (Total Lagrangian) 3D Levinson third-order shear deformation beam (12 DOF) — STUB.
 
 - **class `NonlinearLevinsonBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: np.ndarray, distributed_load_array: np.ndarray, job_results_dir: str, quadrature_order: int | None = None)`**
   Total-Lagrangian 3D Levinson 3rd-order beam element (12 DOF) — STUB.
 
-### `pre_processing.element_library.nonlinear.reddy`
+### `onedfem.pre_processing.element_library.nonlinear.reddy`
 
-[pre_processing/element_library/nonlinear/reddy/__init__.py](../../pre_processing/element_library/nonlinear/reddy/__init__.py)
+[src/onedfem/pre_processing/element_library/nonlinear/reddy/__init__.py](../../src/onedfem/pre_processing/element_library/nonlinear/reddy/__init__.py)
 
 Nonlinear (Total Lagrangian) Reddy 3rd-order beam (12 DOF).
 
 - **class `NonlinearReddyBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: np.ndarray, distributed_load_array: np.ndarray, job_results_dir: str, quadrature_order: int | None = None)`**
   Total-Lagrangian 3D Reddy 3rd-order beam element (12 DOF) — STUB.
 
-### `pre_processing.element_library.nonlinear.reddy.nonlinear_reddy_3D`
+### `onedfem.pre_processing.element_library.nonlinear.reddy.nonlinear_reddy_3D`
 
-[pre_processing/element_library/nonlinear/reddy/nonlinear_reddy_3D.py](../../pre_processing/element_library/nonlinear/reddy/nonlinear_reddy_3D.py)
+[src/onedfem/pre_processing/element_library/nonlinear/reddy/nonlinear_reddy_3D.py](../../src/onedfem/pre_processing/element_library/nonlinear/reddy/nonlinear_reddy_3D.py)
 
 Nonlinear (Total Lagrangian) 3D Reddy third-order shear deformation beam (12 DOF) — STUB.
 
 - **class `NonlinearReddyBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: np.ndarray, distributed_load_array: np.ndarray, job_results_dir: str, quadrature_order: int | None = None)`**
   Total-Lagrangian 3D Reddy 3rd-order beam element (12 DOF) — STUB.
 
-### `pre_processing.element_library.nonlinear.timoshenko`
+### `onedfem.pre_processing.element_library.nonlinear.timoshenko`
 
-[pre_processing/element_library/nonlinear/timoshenko/__init__.py](../../pre_processing/element_library/nonlinear/timoshenko/__init__.py)
+[src/onedfem/pre_processing/element_library/nonlinear/timoshenko/__init__.py](../../src/onedfem/pre_processing/element_library/nonlinear/timoshenko/__init__.py)
 
 - **class `NonlinearTimoshenkoBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: int | None = 3)`**
   TL Timoshenko: ``K_0`` (linear selective assembly); ``E_nl`` and ``B_tot`` for ``F_int`` and ``K_delta``; ``K_sigma`` from ``N``, ``M_y``, ``M_z``.
 - **class `UpdatedLagrangianTimoshenkoBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: np.ndarray, distributed_load_array: np.ndarray, job_results_dir: str, quadrature_order: int | None = None)`**
   Updated-Lagrangian 3D Timoshenko beam element (12 DOF) — STUB.
 
-### `pre_processing.element_library.nonlinear.timoshenko.updated_lagrangian_timoshenko_3D`
+### `onedfem.pre_processing.element_library.nonlinear.timoshenko.updated_lagrangian_timoshenko_3D`
 
-[pre_processing/element_library/nonlinear/timoshenko/updated_lagrangian_timoshenko_3D.py](../../pre_processing/element_library/nonlinear/timoshenko/updated_lagrangian_timoshenko_3D.py)
+[src/onedfem/pre_processing/element_library/nonlinear/timoshenko/updated_lagrangian_timoshenko_3D.py](../../src/onedfem/pre_processing/element_library/nonlinear/timoshenko/updated_lagrangian_timoshenko_3D.py)
 
 Updated-Lagrangian (UL) 3D Timoshenko beam element (12 DOF) — STUB.
 
 - **class `UpdatedLagrangianTimoshenkoBeamElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: np.ndarray, distributed_load_array: np.ndarray, job_results_dir: str, quadrature_order: int | None = None)`**
   Updated-Lagrangian 3D Timoshenko beam element (12 DOF) — STUB.
 
-### `pre_processing.element_library.nonlinear.timoshenko.utilities`
+### `onedfem.pre_processing.element_library.nonlinear.timoshenko.utilities`
 
-[pre_processing/element_library/nonlinear/timoshenko/utilities/__init__.py](../../pre_processing/element_library/nonlinear/timoshenko/utilities/__init__.py)
+[src/onedfem/pre_processing/element_library/nonlinear/timoshenko/utilities/__init__.py](../../src/onedfem/pre_processing/element_library/nonlinear/timoshenko/utilities/__init__.py)
 
 - **class `GreenLagrangeStrainOperator(element_length: float, include_shear: bool = False) -> None`**
   Green–Lagrange strain measures for a 2-node 3D beam in Total Lagrangian formulation.
@@ -442,18 +442,18 @@ Updated-Lagrangian (UL) 3D Timoshenko beam element (12 DOF) — STUB.
 - **class `GeometricStiffnessOperator(element_length: float) -> None`**
   Assemble \(\mathbf{K}_\sigma\) from section forces and shape-function derivatives (**TL nonlinear**).
 
-### `pre_processing.element_library.nonlinear.timoshenko.utilities.geometric_stiffness`
+### `onedfem.pre_processing.element_library.nonlinear.timoshenko.utilities.geometric_stiffness`
 
-[pre_processing/element_library/nonlinear/timoshenko/utilities/geometric_stiffness.py](../../pre_processing/element_library/nonlinear/timoshenko/utilities/geometric_stiffness.py)
+[src/onedfem/pre_processing/element_library/nonlinear/timoshenko/utilities/geometric_stiffness.py](../../src/onedfem/pre_processing/element_library/nonlinear/timoshenko/utilities/geometric_stiffness.py)
 
 \(\mathbf{K}_\sigma\) for nonlinear Timoshenko — same weak-form implementation as EB (**re-export**).
 
 - **class `GeometricStiffnessOperator(element_length: float) -> None`**
   Assemble \(\mathbf{K}_\sigma\) from section forces and shape-function derivatives (**TL nonlinear**).
 
-### `pre_processing.element_library.rotating_frame`
+### `onedfem.pre_processing.element_library.rotating_frame`
 
-[pre_processing/element_library/rotating_frame.py](../../pre_processing/element_library/rotating_frame.py)
+[src/onedfem/pre_processing/element_library/rotating_frame.py](../../src/onedfem/pre_processing/element_library/rotating_frame.py)
 
 Beams in a frame rotating at a constant rate: centrifugal load, spin softening and Coriolis terms.
 
@@ -470,9 +470,9 @@ Beams in a frame rotating at a constant rate: centrifugal load, spin softening a
 - **`rotation_from_settings(simulation_settings: Dict[str, Any]) -> Optional[Rotation]`**
   The ``[Rotation]`` settings as a ``Rotation``, or None when absent or ``omega`` is zero.
 
-### `pre_processing.element_library.utilities`
+### `onedfem.pre_processing.element_library.utilities`
 
-[pre_processing/element_library/utilities/__init__.py](../../pre_processing/element_library/utilities/__init__.py)
+[src/onedfem/pre_processing/element_library/utilities/__init__.py](../../src/onedfem/pre_processing/element_library/utilities/__init__.py)
 
 - **`expand_stiffness_matrix(reduced_Ke, full_size=12, dof_map_binary=None)`**
   Expands a reduced stiffness matrix (Ke) to fit a full DOF system using efficient vectorized indexing.

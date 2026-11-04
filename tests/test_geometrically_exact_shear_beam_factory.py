@@ -13,8 +13,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 
 def test_geometrically_exact_shear_beam_factory_instantiation():
-    from pre_processing.element_library.element_factory import ElementFactory
-    from pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.geometrically_exact_shear_deformable_beam_3D import (
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
+    from onedfem.pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.geometrically_exact_shear_deformable_beam_3D import (
         GeometricallyExactShearDeformableBeam3D,
     )
 

@@ -15,7 +15,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "examples", "thin_walled"))
 import common  # noqa: E402
 
-from pre_processing.element_library.element_frame import straight_frame  # noqa: E402
+from onedfem.pre_processing.element_library.element_frame import straight_frame  # noqa: E402
 
 GBT = "LinearGBTBeamElement3D"
 
@@ -52,7 +52,7 @@ def _run(job_dir, res_dir, n_nodes):
     import csv
     import logging
 
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     res = common.results_dir(res_dir)
     logging.getLogger().setLevel(logging.WARNING)

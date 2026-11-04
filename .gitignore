@@ -5,14 +5,14 @@ __pycache__/
 *.so
 .Python
 
-# Results: many reference trees under post_processing/results/ are tracked; do not use a blanket ignore.
+# Results: many reference trees under results/ are tracked; do not use a blanket ignore.
 # Ephemeral local pytest/run_job outputs (timestamp+pid); use `git add -f` if one must be committed.
-post_processing/results/test_*/
-post_processing/results/pytest_*/
-post_processing/results/job_smoke_*_20*/
-post_processing/results/job_test_*/
-post_processing/results/_dbg/
-post_processing/results/dbg_*/
+results/test_*/
+results/pytest_*/
+results/job_smoke_*_20*/
+results/job_test_*/
+results/_dbg/
+results/dbg_*/
 
 # Validation: do not ignore; allow tracking Abaqus generated scripts and result CSVs
 #post_processing/validation_visualisers/abaqus/generated/
@@ -33,14 +33,14 @@ abaqus*.rec
 *_abaqus.sta
 
 # Local validation-generated wrappers and extracted raw reference results
-post_processing/validation_visualisers/abaqus/generated/run_*.py
-post_processing/validation_visualisers/abaqus_results/*/
+validation/abaqus/generated/run_*.py
+validation/abaqus_results/*/
 
 # Local validation result trees and generated plot outputs
-post_processing/results/validation/
-post_processing/results/job_benchmark_*_20*/
-post_processing/validation_visualisers/deformation/deformation_plots/*.png
-post_processing/validation_visualisers/section_forces/section_forces_plots/*.png
+results/validation/
+results/job_benchmark_*_20*/
+validation/deformation/deformation_plots/*.png
+validation/section_forces/section_forces_plots/*.png
 
 # IDE
 .vscode/
@@ -66,3 +66,6 @@ debug*.log
 build/
 dist/
 *.egg-info/
+
+# run_job batch log at the project root
+run_job.log

@@ -12,9 +12,9 @@ from scipy.sparse import csr_matrix, eye
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from processing.boundary_supports import resolve_penalty_fixed_dofs
-from processing.harmonic.operations.modify_harmonic_structural import ModifyHarmonicStructuralMatrices
-from processing.spectral.operations.modify_spectral_global import ModifySpectralGlobalSystem
+from onedfem.processing.boundary_supports import resolve_penalty_fixed_dofs
+from onedfem.processing.harmonic.operations.modify_harmonic_structural import ModifyHarmonicStructuralMatrices
+from onedfem.processing.spectral.operations.modify_spectral_global import ModifySpectralGlobalSystem
 
 
 def test_harmonic_and_spectral_bc_dofs_match_for_fixed_node():

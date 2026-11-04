@@ -7,13 +7,13 @@ import os
 import numpy as np
 import pytest
 
-from pre_processing.section_integration.section_analysis import SectionAnalysis
-from pre_processing.section_integration.solid.material import SolidMaterial, bond_matrix, material_axes
-from pre_processing.section_integration.solid.mesh import SectionMesh
-from pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
-from pre_processing.section_integration.thin_walled import ThinWalledSection, Wall, WallLaminate
-from pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
-from pre_processing.section_integration.thin_walled.section_analysis import ThinWalledSectionAnalysis
+from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
+from onedfem.pre_processing.section_integration.solid.material import SolidMaterial, bond_matrix, material_axes
+from onedfem.pre_processing.section_integration.solid.mesh import SectionMesh
+from onedfem.pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
+from onedfem.pre_processing.section_integration.thin_walled import ThinWalledSection, Wall, WallLaminate
+from onedfem.pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
+from onedfem.pre_processing.section_integration.thin_walled.section_analysis import ThinWalledSectionAnalysis
 from tests.test_benscoter_beam_element import BS, fe_cantilever
 from tests.test_solid_section_analysis import CFRP, ORTHO, _i_section
 
@@ -112,7 +112,7 @@ def test_core_stresses_of_a_sandwich():
     for p in parts:
         elems += [c + off for c in p.elements]
         off += p.nodes.shape[0]
-    from pre_processing.section_integration.solid.mesh import _merge_nodes
+    from onedfem.pre_processing.section_integration.solid.mesh import _merge_nodes
 
     nodes, elems = _merge_nodes(nodes, elems)
     mids = [1] * 4 + [2] * 16 + [1] * 4
@@ -175,7 +175,7 @@ def test_restrained_torsion_cantilever_with_a_2d_section():
     free = T * L / so.stiffness[5, 5]
     assert tip_s[3] < 0.9 * free                                    # warping restraint stiffens it
     # a Benscoter element's state: twist rate phi and a warping amplitude c (d = c - phi)
-    from pre_processing.section_integration.solid.element_recovery import element_section_state
+    from onedfem.pre_processing.section_integration.solid.element_recovery import element_section_state
 
     el = els[0]
     phi, c = 2e-3, 5e-3
@@ -191,7 +191,7 @@ def test_restrained_torsion_cantilever_with_a_2d_section():
 
 
 def test_section_stress_csv(tmp_path):
-    from post_processing.solid.section_stresses import SECTION_STRESS_COLUMNS, write_section_stresses
+    from onedfem.post_processing.solid.section_stresses import SECTION_STRESS_COLUMNS, write_section_stresses
 
     class _El:
         element_id, x_start, x_end, L = 3, 0.0, 1.0, 1.0

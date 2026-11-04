@@ -13,7 +13,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 
 def test_read_elem_section_forces_csv_uses_xi_per_row_when_present():
-    from post_processing.graphical_visualisers.tertiary_visualisers.section_forces.section_forces_visualisation import (
+    from onedfem.post_processing.graphical_visualisers.tertiary_visualisers.section_forces.section_forces_visualisation import (
         _read_elem_section_forces_csv,
     )
 
@@ -35,7 +35,7 @@ def test_read_elem_section_forces_csv_uses_xi_per_row_when_present():
 
 
 def test_read_elem_section_forces_csv_fallback_leggauss_without_xi_line():
-    from post_processing.graphical_visualisers.tertiary_visualisers.section_forces.section_forces_visualisation import (
+    from onedfem.post_processing.graphical_visualisers.tertiary_visualisers.section_forces.section_forces_visualisation import (
         _read_elem_section_forces_csv,
     )
 

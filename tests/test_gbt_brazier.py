@@ -19,7 +19,7 @@ import sys
 import numpy as np
 import pytest
 
-from pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section import (
+from onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section import (
     brazier_energy_derivatives,
 )
 
@@ -68,7 +68,7 @@ def _tube():
 
 
 def _run(tmp_path, moment, name):
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     common, sec = _tube()
     spec = common.CantileverSpec(L, N_EL, "CorotationalGBTBeamElement3D", sec, tip_load=[0, 0, 0, 0, moment, 0],
@@ -88,7 +88,7 @@ def _run(tmp_path, moment, name):
 
 @pytest.mark.slow
 def test_tube_ovalises_as_brazier(tmp_path, monkeypatch):
-    from pre_processing.section_integration.section_analysis import SectionAnalysis
+    from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
 
     M = 1.0e4                                   # zeta about 1.2 %
     U = _run(tmp_path, M, "brazier")

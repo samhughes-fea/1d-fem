@@ -2,7 +2,7 @@
 
 ## Objective
 
-Build a canonical pyAbaqus external-reference validation suite across the major simulation families, using a shared Abaqus generation and extraction layer under [`post_processing/validation_visualisers/abaqus/`](post_processing/validation_visualisers/abaqus/) and family-local comparison/reporting layers under [`post_processing/validation_visualisers/`](post_processing/validation_visualisers/).
+Build a canonical pyAbaqus external-reference validation suite across the major simulation families, using a shared Abaqus generation and extraction layer under [`validation/abaqus/`](post_processing/validation_visualisers/abaqus/) and family-local comparison/reporting layers under [`validation/`](post_processing/validation_visualisers/).
 
 This plan is intended as a future reference for implementation sequencing, scope control, and benchmark-family alignment.
 
@@ -41,7 +41,7 @@ These families do not all start at the same maturity level, so implementation sh
 
 ### 1. Shared Abaqus layer, family-owned comparisons
 
-The shared layer under [`post_processing/validation_visualisers/abaqus/`](post_processing/validation_visualisers/abaqus/) should own:
+The shared layer under [`validation/abaqus/`](post_processing/validation_visualisers/abaqus/) should own:
 
 - job parsing
 - simulation-type dispatch
@@ -50,7 +50,7 @@ The shared layer under [`post_processing/validation_visualisers/abaqus/`](post_p
 - ODB extraction helpers
 - canonical raw result layout in `abaqus_results/<job_name>/`
 
-Each family layer under [`post_processing/validation_visualisers/`](post_processing/validation_visualisers/) should own:
+Each family layer under [`validation/`](post_processing/validation_visualisers/) should own:
 
 - comparison metrics
 - tables and plots
@@ -118,7 +118,7 @@ Planned deliverables:
   - `rotation_source.txt`
   - optional family-specific summary CSV if already used by the existing comparator flow
 - define FEM outputs to compare against the Abaqus exports
-- identify comparator entrypoints under [`post_processing/validation_visualisers/static/`](post_processing/validation_visualisers/static/)
+- identify comparator entrypoints under [`validation/static/`](post_processing/validation_visualisers/static/)
 
 Success criteria:
 
@@ -139,7 +139,7 @@ Planned deliverables:
   - selected DOF displacement response per frequency
   - optional real and imaginary components where applicable
 - define FEM-side outputs using the current harmonic runner artifacts
-- define comparator and family summary structure under [`post_processing/validation_visualisers/harmonic/`](post_processing/validation_visualisers/harmonic/)
+- define comparator and family summary structure under [`validation/harmonic/`](post_processing/validation_visualisers/harmonic/)
 
 Success criteria:
 
@@ -159,7 +159,7 @@ Planned deliverables:
   - natural frequencies
   - selected normalized mode-shape coordinates or nodal DOFs
 - define FEM artifacts already produced by the eigen path
-- define a family comparator under [`post_processing/validation_visualisers/eigen/`](post_processing/validation_visualisers/eigen/)
+- define a family comparator under [`validation/eigen/`](post_processing/validation_visualisers/eigen/)
 
 Success criteria:
 
@@ -178,7 +178,7 @@ Planned deliverables:
   - load factors
   - selected buckling mode-shape data
 - define FEM artifacts already produced by the buckling path
-- define family comparator under [`post_processing/validation_visualisers/buckling/`](post_processing/validation_visualisers/buckling/)
+- define family comparator under [`validation/buckling/`](post_processing/validation_visualisers/buckling/)
 
 Success criteria:
 
@@ -199,7 +199,7 @@ Planned deliverables:
   - tip displacement vs load factor
   - optional interior displacement history
   - optional final deformed-shape parity
-- consolidate family summaries under [`post_processing/validation_visualisers/static/`](post_processing/validation_visualisers/static/)
+- consolidate family summaries under [`validation/static/`](post_processing/validation_visualisers/static/)
 
 Success criteria:
 
@@ -214,7 +214,7 @@ Planned deliverables:
 
 - extend Abaqus extraction for selected DOF time histories
 - define DOF mapping metadata format
-- add FEM-vs-Abaqus comparator under [`post_processing/validation_visualisers/transient/`](post_processing/validation_visualisers/transient/)
+- add FEM-vs-Abaqus comparator under [`validation/transient/`](post_processing/validation_visualisers/transient/)
 - define canonical transient summary tables and plots
 
 Success criteria:
@@ -254,10 +254,10 @@ Success criteria:
 
 The following shared files are expected to carry most of the cross-family pyAbaqus implementation burden:
 
-- [`post_processing/validation_visualisers/abaqus/job_to_abaqus_script.py`](post_processing/validation_visualisers/abaqus/job_to_abaqus_script.py)
-- [`post_processing/validation_visualisers/abaqus/extract_odb_results.py`](post_processing/validation_visualisers/abaqus/extract_odb_results.py)
-- [`post_processing/validation_visualisers/abaqus/simulation_type_dispatch.py`](post_processing/validation_visualisers/abaqus/simulation_type_dispatch.py)
-- [`post_processing/validation_visualisers/abaqus/config.py`](post_processing/validation_visualisers/abaqus/config.py)
+- [`validation/abaqus/job_to_abaqus_script.py`](post_processing/validation_visualisers/abaqus/job_to_abaqus_script.py)
+- [`validation/abaqus/extract_odb_results.py`](post_processing/validation_visualisers/abaqus/extract_odb_results.py)
+- [`validation/abaqus/simulation_type_dispatch.py`](post_processing/validation_visualisers/abaqus/simulation_type_dispatch.py)
+- [`validation/abaqus/config.py`](post_processing/validation_visualisers/abaqus/config.py)
 
 Shared implementation responsibilities:
 
@@ -273,11 +273,11 @@ Each family layer should own its own comparator entrypoints and summary generati
 
 Planned family-local homes:
 
-- [`post_processing/validation_visualisers/static/`](post_processing/validation_visualisers/static/)
-- [`post_processing/validation_visualisers/transient/`](post_processing/validation_visualisers/transient/)
-- [`post_processing/validation_visualisers/harmonic/`](post_processing/validation_visualisers/harmonic/)
-- [`post_processing/validation_visualisers/eigen/`](post_processing/validation_visualisers/eigen/)
-- [`post_processing/validation_visualisers/buckling/`](post_processing/validation_visualisers/buckling/)
+- [`validation/static/`](post_processing/validation_visualisers/static/)
+- [`validation/transient/`](post_processing/validation_visualisers/transient/)
+- [`validation/harmonic/`](post_processing/validation_visualisers/harmonic/)
+- [`validation/eigen/`](post_processing/validation_visualisers/eigen/)
+- [`validation/buckling/`](post_processing/validation_visualisers/buckling/)
 
 Each family should eventually provide:
 

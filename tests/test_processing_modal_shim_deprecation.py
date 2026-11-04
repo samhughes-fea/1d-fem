@@ -1,4 +1,4 @@
-"""``processing.modal.assembly`` / ``boundary_conditions`` / ``buckling`` shims removed — import canonical modules."""
+"""``onedfem.processing.modal.assembly`` / ``boundary_conditions`` / ``buckling`` shims removed — import canonical modules."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ import pytest
 @pytest.mark.parametrize(
     "mod",
     (
-        "processing.modal.assembly",
-        "processing.modal.boundary_conditions",
-        "processing.modal.buckling",
+        "onedfem.processing.modal.assembly",
+        "onedfem.processing.modal.boundary_conditions",
+        "onedfem.processing.modal.buckling",
     ),
 )
 def test_processing_modal_submodule_shims_removed(mod: str) -> None:
@@ -23,4 +23,4 @@ def test_processing_modal_submodule_shims_removed(mod: str) -> None:
 
 
 def test_processing_modal_package_doc_stub_importable() -> None:
-    import processing.modal  # noqa: F401 — package placeholder remains
+    import onedfem.processing.modal  # noqa: F401 — package placeholder remains

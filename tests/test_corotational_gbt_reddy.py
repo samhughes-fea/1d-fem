@@ -22,7 +22,7 @@ import sys
 import numpy as np
 import pytest
 
-from pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section import (
+from onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section import (
     rotation_exp,
     rotation_log,
 )
@@ -83,7 +83,7 @@ def test_rigid_rotation_turns_the_forces(etype):
         np.testing.assert_allclose(g[s], Q @ f[s], atol=1e-8 * scale)
     np.testing.assert_allclose(g[12:], f[12:], atol=1e-8 * scale)
     # moments: work-conjugate to the rotation vector, so compare the spatial moments
-    from processing.static.follower_loads import tangent_operator
+    from onedfem.processing.static.follower_loads import tangent_operator
 
     for r in (slice(3, 6), slice(9, 12)):
         m_u = np.linalg.solve(tangent_operator(U[r]).T, f[r])
@@ -119,7 +119,7 @@ def _box_job(tmp_path, etype, load, nonlinear, increments=8):
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "examples", "thin_walled"))
     import common
 
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     # stocky walls (b/t = 7.5): at the large-deflection load the Brazier flattening of
     # CorotationalGBT stays small, so the test isolates the large-rotation kinematics

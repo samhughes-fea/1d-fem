@@ -79,7 +79,7 @@ def vlasov_nonlinear(T: float) -> float:
 def _run_job(work_dir, name, etype, T, nonlinear):
     import logging
 
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     spec = CantileverSpec(L, N_EL, etype, section(), [0.0, 0.0, 0.0, T, 0.0, 0.0], warping=1)
     job = os.path.join(work_dir, "jobs", name)

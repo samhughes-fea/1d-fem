@@ -1,6 +1,6 @@
 # Harmonic reference validation: SDOF analytical benchmark
 
-This note defines the first reference-grade harmonic validation target for [`simulation_runner/harmonic/harmonic_simulation.py`](../../simulation_runner/harmonic/harmonic_simulation.py) and the underlying frequency-response kernels in [`processing/harmonic/frequency_response.py`](../../processing/harmonic/frequency_response.py).
+This note defines the first reference-grade harmonic validation target for [`src/onedfem/simulation_runner/harmonic/harmonic_simulation.py`](../../src/onedfem/simulation_runner/harmonic/harmonic_simulation.py) and the underlying frequency-response kernels in [`src/onedfem/processing/harmonic/frequency_response.py`](../../src/onedfem/processing/harmonic/frequency_response.py).
 
 ## Reference case
 

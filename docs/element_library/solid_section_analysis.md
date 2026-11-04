@@ -4,7 +4,7 @@
 finite-element mesh of it (`solid_section_mesh.md`), with 3D anisotropic materials. It
 works for any shape: solid, thick-walled, laminated, sandwich, or a mix. The method is
 Giavotto et al. (1983) as implemented in BECAS (Blasques and Stolpe 2012). Code:
-`pre_processing/section_integration/solid/section_analysis.py`.
+`src/onedfem/pre_processing/section_integration/solid/section_analysis.py`.
 
 It gives the same quantities as the thin-walled analysis, in the same order and right-handed
 signs:
@@ -109,7 +109,7 @@ Timoshenko or Benscoter elements, corotational ones included. Linear static jobs
 nonlinear static jobs whose elements are all corotational, and eigen jobs (one block of
 rows per mode, column `mode`) write `secondary_results/section_stresses/section_stresses.csv`
 and `interface_stresses.csv`. They are written at every element's mid-point, or at the
-stations of `stress_stations.txt` (`post_processing/stations.py`): a row `[x]` is where the
+stations of `stress_stations.txt` (`src/onedfem/post_processing/stations.py`): a row `[x]` is where the
 axis crosses the plane `X = x`, and a row `[x] [y] [z]` is the nearest point of the axis.
 The `x` column is the global `X` of the axis point, and `xi` is its element coordinate.
 A linear Timoshenko element's shear strain is exact only at its mid-point, so put

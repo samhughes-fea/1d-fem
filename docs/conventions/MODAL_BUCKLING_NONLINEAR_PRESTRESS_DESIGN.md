@@ -1,17 +1,17 @@
 # Design note: nonlinear prestress for linear buckling
 
-**Implemented:** `buckling.buckling_prestress = nonlinear_static` (legacy: `modal.buckling_prestress`; see [`LinearBucklingSimulationRunner`](../../simulation_runner/buckling/buckling_simulation.py) / [`VibrationBucklingBackend`](../../simulation_runner/spectral/vibration_buckling_backend.py)).
+**Implemented:** `buckling.buckling_prestress = nonlinear_static` (legacy: `modal.buckling_prestress`; see [`LinearBucklingSimulationRunner`](../../src/onedfem/simulation_runner/buckling/buckling_simulation.py) / [`VibrationBucklingBackend`](../../src/onedfem/simulation_runner/spectral/vibration_buckling_backend.py)).
 
 This document records the **API and architecture** for using a converged **nonlinear static** state to build **K_σ** for the linearised buckling eigenproblem, in addition to the long-standing **`linear_static`** prestress.
 
 ## Current behaviour
 
-- **`buckling_prestress = linear_static`** (default): shared buckling pipeline in [`LinearBucklingSimulationRunner`](../../simulation_runner/buckling/buckling_simulation.py) / [`VibrationBucklingBackend`](../../simulation_runner/spectral/vibration_buckling_backend.py) runs [`LinearStaticSimulationRunner.solve_linear_system_only`](../../simulation_runner/static/linear_static_simulation.py) with load scale `buckling_load_factor`, uses **U_global** to evaluate element **K_σ**, then solves \((\mathbf{K} + \lambda \mathbf{K}_\sigma)\boldsymbol{\phi} = \mathbf{0}\).
+- **`buckling_prestress = linear_static`** (default): shared buckling pipeline in [`LinearBucklingSimulationRunner`](../../src/onedfem/simulation_runner/buckling/buckling_simulation.py) / [`VibrationBucklingBackend`](../../src/onedfem/simulation_runner/spectral/vibration_buckling_backend.py) runs [`LinearStaticSimulationRunner.solve_linear_system_only`](../../src/onedfem/simulation_runner/static/linear_static_simulation.py) with load scale `buckling_load_factor`, uses **U_global** to evaluate element **K_σ**, then solves \((\mathbf{K} + \lambda \mathbf{K}_\sigma)\boldsymbol{\phi} = \mathbf{0}\).
 - **`buckling_prestress = none`**: rejected with **`ValueError`** — no reference stresses → **K_σ** cannot be defined meaningfully.
 
 ## Intended nonlinear workflow (design)
 
-1. Run [`NonlinearStaticSimulationRunner`](../../simulation_runner/static/nonlinear_static_simulation.py) with the same mesh, loads (scaled), and BCs **until convergence** per increment.
+1. Run [`NonlinearStaticSimulationRunner`](../../src/onedfem/simulation_runner/static/nonlinear_static_simulation.py) with the same mesh, loads (scaled), and BCs **until convergence** per increment.
 2. Extract **U_global** at the last converged state (or user-selected increment).
 3. Evaluate **K_σ** from each element’s `linear_geometric_stiffness_matrix(U_e)` **using stresses consistent with that nonlinear configuration**. Note: TL/nonlinear elements already define stress from **Green–Lagrange** strains; linear buckling theory assumes **small** disturbances about a **prestressed** state — engineering acceptance often uses the **same** **K_σ** Gauss assembly as today but with **U** from nonlinear equilibrium (Koiter-type approximate buckling about a nonlinear path).
 
@@ -33,5 +33,5 @@ When **`buckling_prestress = nonlinear_static`** and **`buckling_nonlinear_prest
 
 - [x] `modal.buckling_prestress` value `nonlinear_static`, branch in `_run_linear_buckling`.
 - [x] `NonlinearStaticSimulationRunner` for prestress; `buckling_load_factor` scales the reference load table for that solve; `nonlinear.num_increments` / `load_factors` may be forced for a single-load prestress as needed.
-- [x] Optional twins: `modal.buckling_nonlinear_prestress_twins` with nonlinear twin instantiation ([`VibrationBucklingBackend`](../../simulation_runner/spectral/vibration_buckling_backend.py)).
+- [x] Optional twins: `modal.buckling_nonlinear_prestress_twins` with nonlinear twin instantiation ([`VibrationBucklingBackend`](../../src/onedfem/simulation_runner/spectral/vibration_buckling_backend.py)).
 - [x] Tests: `tests/test_modal_buckling_nonlinear_prestress.py`.

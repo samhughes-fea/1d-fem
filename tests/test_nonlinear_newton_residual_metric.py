@@ -4,8 +4,8 @@
 import os
 import tempfile
 
-from pre_processing.parsing.simulation_settings_parser import parse_simulation_settings
-from simulation_runner.static.nonlinear_static_simulation import (
+from onedfem.pre_processing.parsing.simulation_settings_parser import parse_simulation_settings
+from onedfem.simulation_runner.static.nonlinear_static_simulation import (
     newton_condensed_residual_converged,
 )
 

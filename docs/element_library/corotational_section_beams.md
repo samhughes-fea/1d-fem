@@ -3,7 +3,7 @@
 `CorotationalEulerBernoulliBeamElement3D`, `CorotationalTimoshenkoBeamElement3D`,
 `CorotationalBenscoterBeamElement3D`, `CorotationalGBTBeamElement3D`,
 `CorotationalReddyBeamElement3D` and `CorotationalLevinsonBeamElement3D`
-(`pre_processing/element_library/nonlinear/large_rotations/corotational/corotational_section.py`)
+(`src/onedfem/pre_processing/element_library/nonlinear/large_rotations/corotational/corotational_section.py`)
 take any linear element with its `SectionAnalysis` as a local core. They give large
 displacements and rotations with the coupled section stiffness, shear-centre and
 tension-centre offsets, restrained warping and large twist. Run them with
@@ -77,7 +77,7 @@ The example [examples/thin_walled/large_twist](../../examples/thin_walled/large_
 runs the restrained large-twist case through the nonlinear job runner.
 
 The composite box check is
-[nonlinear_solid_box](../../post_processing/validation_visualisers/nonlinear_solid_box/README.md).
+[nonlinear_solid_box](../../validation/nonlinear_solid_box/README.md).
 Beyond 35 % of the span the solid's flanges flatten (Brazier): at 49 % the Timoshenko beam is
 5 % stiff. `CorotationalGBTBeamElement3D` has a Brazier term
 ([gbt_cross_section_modes.md](gbt_cross_section_modes.md#brazier-flattening)): its flanges

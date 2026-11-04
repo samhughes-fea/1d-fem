@@ -1,6 +1,6 @@
 # Cross-section modes and the GBT element
 
-`CrossSectionModes` (`pre_processing/section_integration/thin_walled/cross_section_modes.py`)
+`CrossSectionModes` (`src/onedfem/pre_processing/section_integration/thin_walled/cross_section_modes.py`)
 finds the conventional (Vlasov) deformation modes and the warping modes of any open,
 closed or multi-cell thin-walled section. `LinearGBTBeamElement3D` is a beam with
 plane-section kinematics, the warping modes (Saint-Venant warping plus optional
@@ -159,7 +159,7 @@ orthogonality), the wall-load resultants by hand, and the parsers.
 
 ## GBT on 2D sections
 
-`SolidCrossSectionModes` (`pre_processing/section_integration/solid/cross_section_modes.py`)
+`SolidCrossSectionModes` (`src/onedfem/pre_processing/section_integration/solid/cross_section_modes.py`)
 gives the same generalised strains, stiffness and mass for a section meshed in 2D, so
 `LinearGBTBeamElement3D` takes either kind of section. Each section point moves as
 
@@ -200,7 +200,7 @@ mitres the corners of a closed section like this one (see below):
 - Statics: with 0 or 6 modes, the 2D section gives the thin-walled GBT tip response within
   3 %.
 - Free vibration against a CalculiX `C3D20R` model of the same mitred box
-  ([gbt_2d_box](../../post_processing/validation_visualisers/gbt_2d_box/make_reference.py)).
+  ([gbt_2d_box](../../validation/gbt_2d_box/make_reference.py)).
   CalculiX gives flap bending at 59.1 Hz, torsion with cross-section distortion at 76.9 Hz,
   local wall modes from 83.9 Hz, and edge bending at 128.9 Hz.
 
@@ -325,7 +325,7 @@ Linear GBT has none.
 | CAS box, tip deflection at 3 P (49 % span) | same solid | −3.5 % (rigid section: −5.3 %) |
 
 The composite box is
-[nonlinear_solid_box](../../post_processing/validation_visualisers/nonlinear_solid_box/README.md).
+[nonlinear_solid_box](../../validation/nonlinear_solid_box/README.md).
 The beam's flattening agrees with a frame estimate of the flanges (rigid corners, Brazier
 pressure \(N_{xx}\kappa\)): 0.28 mm at a quarter span at P with four modes, 0.34 mm with
 eight, against 0.39 mm in the solid. Between 2 P and 3 P the solid's flattening grows faster

@@ -18,11 +18,11 @@ import sys
 import numpy as np
 import pytest
 
-from pre_processing.section_integration.solid.material import SolidMaterial
-from pre_processing.section_integration.solid.mesh import SectionMesh
-from pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
-from pre_processing.section_integration.thin_walled import ThinWalledSection, Wall, WallLaminate
-from pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
+from onedfem.pre_processing.section_integration.solid.material import SolidMaterial
+from onedfem.pre_processing.section_integration.solid.mesh import SectionMesh
+from onedfem.pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
+from onedfem.pre_processing.section_integration.thin_walled import ThinWalledSection, Wall, WallLaminate
+from onedfem.pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "examples", "thin_walled"))
 import common  # noqa: E402
@@ -83,7 +83,7 @@ def test_one_row_per_ply_falls_back_to_the_element_values():
 
 # --------------------------------------------------------------- jobs
 def _run(job_dir, res_dir):
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     res = common.results_dir(res_dir)
     logging.getLogger().setLevel(logging.WARNING)
@@ -162,7 +162,7 @@ def test_eigen_job_writes_stresses_per_mode(tmp_path):
 def test_two_d_section_job_writes_ply_interface_stresses(tmp_path):
     """A cross-ply strip cantilever with a 2D section (two rows per ply): the interface shear
     at mid-span is the layered-beam value."""
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     n, L, P = 8, 0.5, 10.0
     mesh = _strip(2)

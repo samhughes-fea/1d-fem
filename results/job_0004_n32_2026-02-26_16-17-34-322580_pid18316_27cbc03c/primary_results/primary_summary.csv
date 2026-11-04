@@ -1,0 +1,2 @@
+total_dof,max_abs_U_global,norm_U_global,max_abs_R_global,norm_R_global,max_abs_R_residual,norm_R_residual,n_elements
+198,1.673039e-03,7.108564e-03,6.666992e+02,8.333594e+02,6.666992e+02,8.333594e+02,32

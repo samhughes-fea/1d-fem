@@ -13,11 +13,11 @@ from scipy.sparse import coo_matrix
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from processing.transient.transient_forcing import build_transient_force_func
-from simulation_runner.eigen.eigen_simulation import EigenSimulationRunner
-from simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
+from onedfem.processing.transient.transient_forcing import build_transient_force_func
+from onedfem.simulation_runner.eigen.eigen_simulation import EigenSimulationRunner
+from onedfem.simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
 from tests.test_modal_buckling_euler_column import _build_cantilever_modal_case
-from workflow_orchestrator.run_job import process_job, setup_job_results_directory
+from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
 
 def _pinned_eigen_cantilever_reference_frequencies_hz(n: int) -> np.ndarray:
@@ -240,7 +240,7 @@ def test_transient_sdof_newmark_matches_analytical_cosine_response():
     def force(_t: float) -> np.ndarray:
         return np.array([0.0], dtype=np.float64)
 
-    from processing.transient.time_integration import newmark_integrate
+    from onedfem.processing.transient.time_integration import newmark_integrate
 
     U, _V, _A = newmark_integrate(k, m, c, u0, v0, t_grid, force)
     omega_n = np.sqrt(100.0)

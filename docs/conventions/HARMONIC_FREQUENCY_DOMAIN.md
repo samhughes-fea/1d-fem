@@ -1,6 +1,6 @@
 # Harmonic analysis (§4) — frequency-domain design
 
-**Status:** Implemented in [`simulation_runner/harmonic/harmonic_simulation.py`](../../simulation_runner/harmonic/harmonic_simulation.py) with kernels in [`processing/harmonic/frequency_response.py`](../../processing/harmonic/frequency_response.py). This note fixes notation, v1 scope, and extension points.
+**Status:** Implemented in [`src/onedfem/simulation_runner/harmonic/harmonic_simulation.py`](../../src/onedfem/simulation_runner/harmonic/harmonic_simulation.py) with kernels in [`src/onedfem/processing/harmonic/frequency_response.py`](../../src/onedfem/processing/harmonic/frequency_response.py). This note fixes notation, v1 scope, and extension points.
 
 ## Governing semi-discrete equation
 
@@ -12,11 +12,11 @@ For angular frequency \(\omega\) (rad/s) and consistent undamped structural matr
 
 Loads are taken as **real** harmonic amplitudes \(\mathbf{f}\) (same pattern as linear static assembly); the unknown \(\mathbf{u}\) is **complex** to capture magnitude and phase.
 
-Sign conventions match standard vibration textbooks and the undamped eigenproblem used in §2 (**K**, **M** from [`processing.eigen.assembly`](../../processing/eigen/assembly.py)).
+Sign conventions match standard vibration textbooks and the undamped eigenproblem used in §2 (**K**, **M** from [`onedfem.processing.eigen.assembly`](../../src/onedfem/processing/eigen/assembly.py)).
 
 ## Boundary conditions
 
-After global assembly, **K** and **M** receive the same **penalty** boundary treatment as §2 eigen ([`processing.eigen.boundary_conditions.apply_boundary_conditions`](../../processing/eigen/boundary_conditions.py)), including optional **`prescribed_displacement.txt`** wiring from **`run_job`**: fixed / prescribed-zero DOFs enforce large stiffness on **K** and identity scaling on **M**. The assembled load vector **F** has entries zeroed at constrained DOFs.
+After global assembly, **K** and **M** receive the same **penalty** boundary treatment as §2 eigen ([`onedfem.processing.eigen.boundary_conditions.apply_boundary_conditions`](../../src/onedfem/processing/eigen/boundary_conditions.py)), including optional **`prescribed_displacement.txt`** wiring from **`run_job`**: fixed / prescribed-zero DOFs enforce large stiffness on **K** and identity scaling on **M**. The assembled load vector **F** has entries zeroed at constrained DOFs.
 
 **Non-zero prescribed displacement amplitudes** (real values from the same parser used for static jobs) define **known harmonic motion** on those global DOFs; optional per-row phase (sixth column) and/or global **`[Harmonic] prescribed_motion_phase_rad`**. The solver partitions \(\mathbf{u} = \mathbf{u}^{(p)} + \mathbf{u}^{(f)}\) with \(\mathbf{u}^{(p)}\) fixed on prescribed-motion DOFs and solves the reduced system on the remaining free DOFs. **`point_load.txt`** supports an optional **10th column** **`phase_rad`** per row for complex equivalent nodal loads; **`[Harmonic] load_phase_rad`** still applies an extra **global** phase on the assembled load vector.
 
@@ -41,9 +41,9 @@ with **`rayleigh_alpha`** \(\alpha\) (1/s) and **`rayleigh_beta`** \(\beta\) (s)
 **Mass-proportional reference:** **`mp_damping_reference`** selects how \(\omega_{\mathrm{ref}}\) enters \(\mathbf{C}_{\mathrm{mp}}\):
 
 - **`geometric_mean`** (default): \(\omega_{\mathrm{ref}} = 2\pi\sqrt{f_{\min} f_{\max}}\) — one **C** for the whole sweep (legacy behaviour).
-- **`current_frequency`**: replace \(\omega_{\mathrm{ref}}\) with the **current** sample \(\omega\) when forming \(\mathbf{C}_{\mathrm{mp}}\) at each frequency (Rayleigh terms unchanged). Implemented by rebuilding **C** each sample inside [`sweep_displacements`](../../processing/harmonic/frequency_response.py).
+- **`current_frequency`**: replace \(\omega_{\mathrm{ref}}\) with the **current** sample \(\omega\) when forming \(\mathbf{C}_{\mathrm{mp}}\) at each frequency (Rayleigh terms unchanged). Implemented by rebuilding **C** each sample inside [`sweep_displacements`](../../src/onedfem/processing/harmonic/frequency_response.py).
 
-**Optional modal superposition path:** **`use_modal_superposition`** — solve undamped modes \((\omega_r, \boldsymbol{\phi}_r)\) from **K**, **M** (same BCs), then build \(\mathbf{u}(\omega)\) with diagonal **viscous modal damping** using **`modal_damping_ratio`** \(\zeta\) on each modal oscillator ([`modal_superposition.py`](../../processing/harmonic/modal_superposition.py)), unless a **`damping_zeta_table_file`** is set (then \(\zeta_r\) is interpolated at each mode’s natural frequency in Hz). Incompatible with non-zero prescribed-motion partitioning in the current implementation (use the direct sweep instead). Rayleigh terms are **not** applied on this path (a warning is logged; use the direct sweep for full **C**).
+**Optional modal superposition path:** **`use_modal_superposition`** — solve undamped modes \((\omega_r, \boldsymbol{\phi}_r)\) from **K**, **M** (same BCs), then build \(\mathbf{u}(\omega)\) with diagonal **viscous modal damping** using **`modal_damping_ratio`** \(\zeta\) on each modal oscillator ([`modal_superposition.py`](../../src/onedfem/processing/harmonic/modal_superposition.py)), unless a **`damping_zeta_table_file`** is set (then \(\zeta_r\) is interpolated at each mode’s natural frequency in Hz). Incompatible with non-zero prescribed-motion partitioning in the current implementation (use the direct sweep instead). Rayleigh terms are **not** applied on this path (a warning is logged; use the direct sweep for full **C**).
 
 **Prescribed motion phase:** optional **sixth numeric column** on each row of **`prescribed_displacement.txt`** after **`type`** gives per-DOF phase (rad), added to the global **`prescribed_motion_phase_rad`** on motion DOFs (when the column is omitted, only the global scalar applies).
 
@@ -57,7 +57,7 @@ with **`rayleigh_alpha`** \(\alpha\) (1/s) and **`rayleigh_beta`** \(\beta\) (s)
 
 ## Job inputs
 
-Parser keys (see [`simulation_runner/harmonic/README.md`](../../simulation_runner/harmonic/README.md)) populate **`simulation_settings["harmonic"]`**:
+Parser keys (see [`src/onedfem/simulation_runner/harmonic/README.md`](../../src/onedfem/simulation_runner/harmonic/README.md)) populate **`simulation_settings["harmonic"]`**:
 
 | Key | Role |
 |-----|------|
@@ -97,7 +97,7 @@ Optional secondary/tertiary outputs follow modal/dynamic when **`run_secondary_t
 ### Primary output schema (v1)
 
 - **`logs/primary_artifacts.json`** (when the job completes) lists the five primary text files above under **`artifacts`** with paths **relative to** the job results root. Field **`schema_version`** is **`1.0`**; **`family`** is **`harmonic`**. Downstream tools should treat column order as identical to the frequency vector in **`frequencies_hz`**.
-- Helpers for a future **native complex stress** path live in [`processing/harmonic/complex_displacement_recovery.py`](../../processing/harmonic/complex_displacement_recovery.py) (`static_recovery_pair_from_complex_column`).
+- Helpers for a future **native complex stress** path live in [`src/onedfem/processing/harmonic/complex_displacement_recovery.py`](../../src/onedfem/processing/harmonic/complex_displacement_recovery.py) (`static_recovery_pair_from_complex_column`).
 
 ## Roadmap (next)
 
@@ -107,7 +107,7 @@ Status of the follow-on track (after the ζ tables, mode reuse, phased loads/BCs
 |----------|--------|--------|
 | 1 | **Low-level sparse reuse** | **Partial —** optional CSC shell reuse for **`splu`**: set **`FEM_HARMONIC_SPLU_CSC_BUFFER=0`** to disable. Each frequency still performs a full numeric factorization; this path cuts Python alloc / CSR→CSC churn when **A(ω)** keeps a fixed sparsity pattern. True SuperLU symbolic-only reuse is not exposed in SciPy’s high-level API. |
 | 2 | **Stress harmonics in post** | **Partial —** **`[PostProcessing] harmonic_secondary_tertiary_displacement_component`** = **`real`** (default) \| **`imag`** \| **`both`** drives secondary/tertiary snapshots from **`real(U)`** / **`imag(U)`** (see **`RESULTS_DESIGN.md`**). |
-| 3 | **Large-n modal eigen** | **Partial —** shared **`processing/eigen/smallest_generalized_eigenpairs.py`** (**SM** \(\rightarrow\) shift-invert \(\rightarrow\) dense fallback) powers harmonic **`undamped_natural_modes`** and **`VibrationBucklingBackend.solve_modal_vibration`**. |
+| 3 | **Large-n modal eigen** | **Partial —** shared **`src/onedfem/processing/eigen/smallest_generalized_eigenpairs.py`** (**SM** \(\rightarrow\) shift-invert \(\rightarrow\) dense fallback) powers harmonic **`undamped_natural_modes`** and **`VibrationBucklingBackend.solve_modal_vibration`**. |
 
 ## Relation to Section 2 and Section 3
 

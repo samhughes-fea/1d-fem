@@ -6,7 +6,7 @@ import os
 import numpy as np
 import pytest
 
-from processing.static.follower_loads import FollowerLoads, parse_follower_load, rotation_exp, tangent_operator
+from onedfem.processing.static.follower_loads import FollowerLoads, parse_follower_load, rotation_exp, tangent_operator
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 
@@ -70,7 +70,7 @@ def test_cantilever_matches_the_elastica(tmp_path, follower):
 def test_follower_load_needs_a_nonlinear_job(tmp_path, capfd):
     import shutil
 
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     job = tmp_path / "job"
     shutil.copytree(os.path.join(ROOT, "jobs", "job_smoke_eigen"), job)

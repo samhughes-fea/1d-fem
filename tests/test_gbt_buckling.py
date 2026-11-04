@@ -20,9 +20,9 @@ sys.path.insert(0, os.path.join(HERE, "..", "examples", "thin_walled", "gbt_buck
 from test_gbt_cross_section_modes import E, G, NU, _ed, box, iso  # noqa: E402
 
 from finite_strip import column_stress, critical_stress  # noqa: E402
-from pre_processing.element_library.dof_layout import mesh_dof_per_node  # noqa: E402
-from pre_processing.section_integration.section_analysis import SectionAnalysis  # noqa: E402
-from pre_processing.section_integration.thin_walled import ThinWalledSection, ThinWalledSectionAnalysis, Wall  # noqa: E402
+from onedfem.pre_processing.element_library.dof_layout import mesh_dof_per_node  # noqa: E402
+from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis  # noqa: E402
+from onedfem.pre_processing.section_integration.thin_walled import ThinWalledSection, ThinWalledSectionAnalysis, Wall  # noqa: E402
 
 GBT = "LinearGBTBeamElement3D"
 _WORK = tempfile.mkdtemp()
@@ -30,7 +30,7 @@ TS = "LinearTimoshenkoBeamElement3D"
 
 
 def _elements(etype, sa, L, n_el, modes):
-    from pre_processing.element_library.element_factory import ElementFactory
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
 
     Cls = getattr(importlib.import_module(ElementFactory.ELEMENT_CLASS_MAP[etype]), etype)
     ed = _ed(etype, n_el, modes, sa)
@@ -169,7 +169,7 @@ def test_lipped_channel_matches_the_finite_strip_column(L, n_el, kind):
 
 
 def test_sparse_buckling_solver_matches_dense():
-    from processing.buckling.linear_buckling import _sparse_buckling
+    from onedfem.processing.buckling.linear_buckling import _sparse_buckling
 
     tw, _, _ = _lipped_channel(2)
     sa = SectionAnalysis.from_thin_walled(tw, gbt_modes=6)
@@ -188,7 +188,7 @@ def test_2d_section_geometric_terms_match_thin_walled():
     term of the first local mode as the thin-walled section's."""
     from test_gbt_2d_sections import box_mesh
 
-    from pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
+    from onedfem.pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
 
     an = SolidSectionAnalysis(box_mesh())
     lam_g = _pinned_column(GBT, SectionAnalysis.from_solid(an, gbt=True), 6.0, 12, 0)[0]
@@ -208,8 +208,8 @@ def test_2d_local_buckling_converges_to_thin_walled():
     mesh with 24 elements along each wall and two rows through it."""
     from test_gbt_2d_sections import _box_section
 
-    from pre_processing.section_integration.solid.mesh import SectionMesh
-    from pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
+    from onedfem.pre_processing.section_integration.solid.mesh import SectionMesh
+    from onedfem.pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
 
     tw = _thin_walled(_box_section())
     ref = _first_local_mode(SectionAnalysis.from_thin_walled(tw, gbt_modes=8), 8)
