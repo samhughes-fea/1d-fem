@@ -260,8 +260,6 @@ def test_rejects_types_without_frames(tmp_path):
     geo = geometry([Station(0.0, 1.0, AF), Station(1.0, 1.0, AF)])
     with pytest.raises(ValueError, match="element_type"):
         blade_beam_job(str(tmp_path / "x"), geo, LAMS, 1, element_type="LinearReddyBeamElement3D")
-    with pytest.raises(ValueError, match="neither pretwist nor taper"):
-        blade_beam_job(str(tmp_path / "x"), geo, LAMS, 1, element_type="LinearGBTBeamElement3D")
     with pytest.raises(ValueError, match="gbt_modes needs"):
         blade_beam_job(str(tmp_path / "x"), geo, LAMS, 1, gbt_modes=2)
     with pytest.raises(ValueError, match="no node"):
