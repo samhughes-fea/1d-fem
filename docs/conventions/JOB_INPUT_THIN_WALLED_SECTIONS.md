@@ -177,8 +177,11 @@ job = blade_beam_job("jobs/my_blade", geometry, {"skin": skin, "cap": cap, "web"
 - **Axes.** Job axes are `X = z` (span), `Y = x` (chord), `Z = y` (flap) of the blade
   frame, so a straight blade lies along `X` and its element axes are the section axes.
   `blade_to_job` and `job_to_blade` convert vectors and force-moment 6-vectors.
-- **Reference axis.** Nodes lie on the pitch axis, at the station offsets (sweep,
-  prebend). A bent or swept blade is a chain of straight elements.
+- **Reference axis.** Nodes lie on the pitch axis, at the station offsets (presweep
+  edgewise, prebend flapwise). A prebent or swept blade is a chain of straight elements,
+  so `k_y0` and `k_z0` of `precurvature.txt` stay zero. How pretwist, prebend and
+  presweep map to `k_x0`, `k_y0` and `k_z0` is in
+  [element_frames.md](../element_library/element_frames.md#blade-terms).
 - **Sections.** Element `e` takes the cut at its mid-span as section `e + 1`, written to
   `laminate.txt` and `section_geometry.txt` (thin-walled; equal laminates share an id)
   or to `section_mesh_2d.txt` (2D layered mesh).

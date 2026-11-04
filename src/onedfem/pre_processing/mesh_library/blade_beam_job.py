@@ -21,8 +21,10 @@ blade-frame vectors to job axes.
 Reference axis
 --------------
 Nodes sit on the pitch axis: node ``i`` at ``(z_i, offset_x(z_i), offset_y(z_i))``,
-the station offsets (sweep, prebend) interpolated as the geometry interpolates them.
-A prebent or swept blade is a chain of straight elements along that polyline. The
+the station offsets (presweep edgewise, prebend flapwise) interpolated as the geometry
+interpolates them. A prebent or swept blade is a chain of straight elements along that
+polyline, so only the pretwist rate ``k_x0`` goes into ``precurvature.txt``; its bending
+curvatures ``k_y0`` (prebend) and ``k_z0`` (presweep) stay zero. The
 sections are measured from the pitch-axis point of their cut, so they ride on the
 axis.
 
