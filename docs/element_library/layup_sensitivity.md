@@ -99,6 +99,17 @@ the derivative section in place of its own. From the solved job:
   \(g_i = \varphi^T K_g(e_i)\varphi\) (element by element), and one adjoint solve \(K\mu = g\) gives
   \(g^T\partial U_0 = -\mu^T \partial K\,U_0\).
 
+**Pretwisted, curved and tapered elements.** The pretwist coupling (`with_pretwist`) is
+linear in the walls' axial stiffness weights, so a pretwisted element formed with the
+derivative section (with derivative weights) gives its derivative. A curved element is a
+chain of straight sub-elements condensed by their static shapes \(\Phi\):
+\(K = \Phi^T K_c \Phi\) is stationary in \(\Phi\), so \(\partial K = \Phi^T \partial K_c \Phi\), while
+its mass takes the change of the shapes, \(\partial\Phi_i = -K_{ii}^{-1}(\partial K_c\Phi)_i\). The
+taper coupling is \(\sum_l A_l\,G_l\) over the laminates, with \(A_l\) the axial wall stiffness
+and \(G_l\) a geometric factor that `section_taper` now writes per laminate
+(`[Section_Taper_Laminate]` in `section_taper.txt`, written by `blade_beam_job`), so its
+derivative is \(\partial A_l\,G_l\).
+
 The products are formed element by element (\(\lambda_e^T \partial K_e U_e\)), so no
 global derivative matrix is assembled.
 
@@ -137,7 +148,12 @@ parameters `relative_derivative` is the logarithmic derivative \((t / J)\,\parti
 second-order derivatives, and the job derivatives against central differences of re-solved
 jobs: static displacements, twist and compliance and eigen frequencies with Timoshenko and
 Benscoter elements, and the first two buckling load factors of a box cantilever under
-compression, shear, torque and bending (all to \(2\times10^{-5}\)).
+compression, shear, torque and bending, and static and eigen responses of a pretwisted,
+prebent box and of a tapered, pretwisted one (all to \(2\times10^{-5}\)). On the IEA 15 MW
+outboard segment (tapered, pretwisted, 6 elements) the cap angle derivatives of tip
+deflection, twist, compliance and frequencies agree with re-built jobs to \(10^{-5}\). The web
+core thickness derivatives agree to \(4\times10^{-4}\): the derivative holds the wall
+mid-lines, while a re-cut loft moves the walls with the thickness.
 
 ## Example
 
@@ -151,9 +167,11 @@ reaches a target twist per unit flap deflection.
 
 - Linear static and eigen jobs with `LinearTimoshenkoBeamElement3D` or
   `LinearBenscoterBeamElement3D` elements on thin-walled sections, and linear buckling jobs
-  (linear static prestress) with Timoshenko elements. Other element types (GBT, third-order,
-  corotational), 2D sections, pretwisted and tapered elements, nonlinear prestress,
+  (linear static prestress) with straight Timoshenko elements. Pretwisted, curved and
+  tapered elements are included (a tapered one needs `[Section_Taper_Laminate]`). Other
+  element types (GBT, third-order, corotational), 2D sections, nonlinear prestress,
   second-order static and rotating (centrifugal) jobs are refused.
+- Wall mid-lines are held fixed: a thickness change grows the stack about its mid-surface.
 - Eigenvalue derivatives assume simple eigenvalues. For repeated frequencies (a doubly
   symmetric section) the derivative of each of them depends on the chosen modes.
 - Loads are taken as independent of the layup, so gravity and inertial loads, whose

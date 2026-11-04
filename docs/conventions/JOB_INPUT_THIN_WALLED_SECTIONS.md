@@ -109,10 +109,15 @@ short step apart.
 [Section_Taper]
 [element_id] [C_eps_y] [C_eps_z] [C_ky_y] [C_ky_z] [C_kz_y] [C_kz_z] [Q_yy] [Q_yz] [Q_zz]
 0 1.2e7 -3.4e8 ...
+[Section_Taper_Laminate]
+[element_id] [laminate_id] [C_eps_y] [C_eps_z] [C_ky_y] [C_ky_z] [C_kz_y] [C_kz_z] [Q_yy] [Q_yz] [Q_zz]
+0 1 -0.0395 0.00087 ...
 ```
 
-Every listed element must have a section; GBT sections are refused.
-`blade_beam_job(..., taper=True)` (the default) writes this file from the loft.
+Every listed element must have a section. The optional `[Section_Taper_Laminate]` block
+splits each row by laminate per unit axial wall stiffness (`C = sum_l A_l C_l`, the same for
+`Q`); layup sensitivities of tapered elements need it. `blade_beam_job(..., taper=True)` (the
+default) writes both blocks from the loft.
 
 ## Sections from implicit-geometry-kernel, and `region_laminate.txt`
 

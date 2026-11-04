@@ -130,7 +130,24 @@ def _spec(change=None):
                               {1: [(1, a, tt) for a, tt in zip(cap, t)], 2: [(1, a, 0.5e-3) for a in WEB]})
 
 
-def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D"):
+def _taper_file(sec) -> str:
+    """``section_taper.txt`` for every element: the box's depth growing by 10 % per metre and
+    its width shrinking by 5 % per metre, cut either side of the section."""
+    from pre_processing.parsing.section_taper_parser import format_section_taper_file
+    from pre_processing.section_integration.thin_walled.taper import section_taper
+
+    an = common.build_analysis(sec)
+    d = 0.01
+
+    def cut(s):
+        pts = {k: (y * (1 - 0.05 * s), z * (1 + 0.10 * s)) for k, (y, z) in sec.points.items()}
+        return ThinWalledSection(pts, [Wall(*w) for w in sec.walls])
+
+    t = section_taper(cut(-d), cut(d), an.laminates, 2 * d)
+    return format_section_taper_file({e: t for e in range(N_EL)})
+
+
+def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D", precurvature=None, taper=False):
     from workflow_orchestrator.run_job import process_job
 
     tip = BUCKLING_TIP if kind == "buckling" else [0.0, 3e3, 20e3, 5e3, 0.0, 0.0]
@@ -138,6 +155,13 @@ def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D"):
     job = os.path.join(_WORK, "jobs", name)
     common.write_job(job, spec)
     common.write_supports(job, spec)
+    if taper:
+        with open(os.path.join(job, "section_taper.txt"), "w", encoding="utf-8") as f:
+            f.write(_taper_file(sec))
+    if precurvature is not None:
+        with open(os.path.join(job, "precurvature.txt"), "w", encoding="utf-8") as f:
+            f.write("[Precurvature]\n[element_id] [k_x0] [k_y0] [k_z0]\n")
+            f.writelines(f"{e} {precurvature[0]} {precurvature[1]} {precurvature[2]}\n" for e in range(N_EL))
     if kind == "eigen":
         with open(os.path.join(job, "simulation_settings.txt"), "w", encoding="utf-8") as f:
             f.write("[Simulation]\n[Type]\neigen\n\n[Solver]\ntype = direct\n\n[Eigen]\nnum_modes = 4\n")
@@ -192,6 +216,56 @@ def test_job_sensitivities_match_central_differences_of_re_solved_jobs(kind, ele
 
 
 @pytest.mark.slow
+@pytest.mark.parametrize("kind", ["static", "eigen"])
+def test_pretwisted_curved_job_sensitivities_match_central_differences(kind):
+    """A pretwisted, prebent cantilever: curved elements condensed from straight sub-elements,
+    with the helical-fibre coupling of the twist rate."""
+    curv = (0.15, 0.0, 0.05)
+    tag = f"curved_{kind}"
+    base = _run(tag, _spec(), kind, precurvature=curv)
+    for prm in JOB_PARAMS:
+        h = 1e-3 if prm.kind == "angle" else 1e-8
+        rp = _run(f"{tag}_p", _spec((prm, h)), kind, precurvature=curv)
+        rm = _run(f"{tag}_m", _spec((prm, -h)), kind, precurvature=curv)
+        for (label, resp), row in base.items():
+            if label != prm.label:
+                continue
+            fd = (float(rp[label, resp]["response_value"]) - float(rm[label, resp]["response_value"])) / (2 * h)
+            assert float(row["derivative"]) == pytest.approx(fd, rel=2e-5), (label, resp)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("kind", ["static", "eigen"])
+def test_tapered_pretwisted_job_sensitivities_match_central_differences(kind):
+    """Tapered (Resal coupling split by laminate) and pretwisted: the blade case."""
+    curv = (0.15, 0.0, 0.0)
+    tag = f"tapered_{kind}"
+    base = _run(tag, _spec(), kind, precurvature=curv, taper=True)
+    for prm in JOB_PARAMS:
+        h = 1e-3 if prm.kind == "angle" else 1e-8
+        rp = _run(f"{tag}_p", _spec((prm, h)), kind, precurvature=curv, taper=True)
+        rm = _run(f"{tag}_m", _spec((prm, -h)), kind, precurvature=curv, taper=True)
+        for (label, resp), row in base.items():
+            if label != prm.label:
+                continue
+            fd = (float(rp[label, resp]["response_value"]) - float(rm[label, resp]["response_value"])) / (2 * h)
+            assert float(row["derivative"]) == pytest.approx(fd, rel=2e-5), (label, resp)
+
+
+def test_taper_split_by_laminate_sums_to_the_coupling(tmp_path):
+    from pre_processing.parsing.section_taper_parser import parse_section_taper_file
+    from pre_processing.section_integration.thin_walled.wall_stiffness import beam_wall_stiffness
+
+    sec = _spec()
+    p = tmp_path / "section_taper.txt"
+    p.write_text(_taper_file(sec))
+    t = parse_section_taper_file(str(p))[0]
+    lams = common.build_analysis(sec).laminates
+    total = sum(beam_wall_stiffness(lams[lid]).matrix[0, 0] * row for lid, row in t.parts.items())
+    np.testing.assert_allclose(total, t.as_row(), rtol=1e-12, atol=1e-9 * np.abs(t.as_row()).max())
+
+
+@pytest.mark.slow
 def test_buckling_load_sensitivities_match_central_differences_of_re_solved_jobs():
     """Load factors of a cantilever under compression, shear, torque and bending."""
     base = _run("buckling", _spec(), "buckling")
@@ -215,9 +289,11 @@ def test_unsupported_elements_are_refused():
 
     class LinearTimoshenkoBeamElement3D:
         element_id = 1
-        _pretwist_rate = 0.1
+
+        class _assigned_section_analysis:
+            tapered = True
 
     with pytest.raises(NotImplementedError, match="LinearTimoshenkoBeamElement3D"):
         element_derivatives(LinearEulerBernoulliBeamElement3D(), None)
-    with pytest.raises(NotImplementedError, match="pretwisted"):
+    with pytest.raises(NotImplementedError, match="tapered"):
         element_derivatives(LinearTimoshenkoBeamElement3D(), None)

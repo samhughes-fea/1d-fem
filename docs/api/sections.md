@@ -61,7 +61,7 @@ Section constitutive data shared by every beam element: ``SectionAnalysis``.
 
 - **`to_element_voigt(K_rh: npt.ArrayLike) -> npt.NDArray[np.float64]`**
   Map a right-handed 6 x 6 section stiffness to the element sign convention.
-- **class `SectionAnalysis(stiffness: npt.NDArray[np.float64], classical_stiffness: npt.NDArray[np.float64], warping_stiffness: float = 0.0, shear_centre: Tuple[float, float] = (0.0, 0.0), tension_centre: Tuple[float, float] = (0.0, 0.0), mass: Dict[str, float] = <factory>, source: str = 'isotropic', section_id: Optional[int] = None, benscoter_stiffness: Optional[npt.NDArray[np.float64]] = None, warping_inertia: float = 0.0, gbt_modes: int = 0, gbt_stiffness: Optional[npt.NDArray[np.float64]] = None, gbt_mass: Optional[npt.NDArray[np.float64]] = None, gbt_shear_modes: int = 0, gbt_sv_modes: int = 0, third_order_stiffness: Optional[npt.NDArray[np.float64]] = None, third_order_rate: Optional[npt.NDArray[np.float64]] = None, geometric_terms: Optional[npt.NDArray[np.float64]] = None, benscoter_geometric_terms: Optional[npt.NDArray[np.float64]] = None, third_order_geometric_terms: Optional[npt.NDArray[np.float64]] = None, axial_points: Optional[npt.NDArray[np.float64]] = None, gbt_geometric: Optional[Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]] = None, gbt_moments: Optional[npt.NDArray[np.float64]] = None) -> None`**
+- **class `SectionAnalysis(stiffness: npt.NDArray[np.float64], classical_stiffness: npt.NDArray[np.float64], warping_stiffness: float = 0.0, shear_centre: Tuple[float, float] = (0.0, 0.0), tension_centre: Tuple[float, float] = (0.0, 0.0), mass: Dict[str, float] = <factory>, source: str = 'isotropic', section_id: Optional[int] = None, benscoter_stiffness: Optional[npt.NDArray[np.float64]] = None, warping_inertia: float = 0.0, gbt_modes: int = 0, gbt_stiffness: Optional[npt.NDArray[np.float64]] = None, gbt_mass: Optional[npt.NDArray[np.float64]] = None, gbt_shear_modes: int = 0, gbt_sv_modes: int = 0, third_order_stiffness: Optional[npt.NDArray[np.float64]] = None, third_order_rate: Optional[npt.NDArray[np.float64]] = None, geometric_terms: Optional[npt.NDArray[np.float64]] = None, benscoter_geometric_terms: Optional[npt.NDArray[np.float64]] = None, third_order_geometric_terms: Optional[npt.NDArray[np.float64]] = None, axial_points: Optional[npt.NDArray[np.float64]] = None, gbt_geometric: Optional[Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]] = None, gbt_moments: Optional[npt.NDArray[np.float64]] = None, tapered: bool = False, taper_parts: Optional[Dict[int, npt.NDArray[np.float64]]] = None) -> None`**
   Section stiffness and properties in the element convention.
 
 ### `pre_processing.section_integration.solid`
@@ -266,7 +266,7 @@ Exact derivatives of thin-walled section properties with respect to ply angles a
   ``d ABD`` (6, 6) and ``d [m0, m1, m2]`` (the mass moments ``int rho n^p dn``, p = 0, 1, 2).
 - **`wall_law_derivative(lam: WallLaminate, dABD: np.ndarray, hoop: str = 'free') -> np.ndarray`**
   ``d wall_law(lam, hoop)`` (4, 4) for a change ``dABD`` of the laminate stiffness.
-- **class `SectionDerivative(parameter: LayupParameter, flexibility: npt.NDArray[np.float64], stiffness: npt.NDArray[np.float64], mass: Dict[str, float], mass_matrix: npt.NDArray[np.float64], benscoter_stiffness: Optional[npt.NDArray[np.float64]] = None, warping_inertia: float = 0.0, geometric_terms: Optional[npt.NDArray[np.float64]] = None) -> None`**
+- **class `SectionDerivative(parameter: LayupParameter, flexibility: npt.NDArray[np.float64], stiffness: npt.NDArray[np.float64], mass: Dict[str, float], mass_matrix: npt.NDArray[np.float64], benscoter_stiffness: Optional[npt.NDArray[np.float64]] = None, warping_inertia: float = 0.0, geometric_terms: Optional[npt.NDArray[np.float64]] = None, axial_weights: Optional[npt.NDArray[np.float64]] = None, wall_axial: float = 0.0) -> None`**
   Derivatives of a thin-walled section for one ``LayupParameter``.
 - **`section_derivative(an, param: LayupParameter, benscoter: bool = False, geometric: bool = False) -> SectionDerivative`**
   Exact derivatives of the section stiffness, flexibility and mass for ``param``.
@@ -315,7 +315,7 @@ Wall and ply stresses of a thin-walled section from its beam solution.
 
 Taper coupling of a thin-walled section: the Resal effect.
 
-- **class `SectionTaper(coupling: npt.NDArray[np.float64], shear: npt.NDArray[np.float64]) -> None`**
+- **class `SectionTaper(coupling: npt.NDArray[np.float64], shear: npt.NDArray[np.float64], parts: Optional[Dict[int, npt.NDArray[np.float64]]] = None) -> None`**
   Right-handed taper coupling of one section.
 - **`section_taper(start: ThinWalledSection, end: ThinWalledSection, laminates: Mapping[int, WallLaminate], distance: float, n_gauss: int = 3) -> SectionTaper`**
   Taper coupling of the section midway between ``start`` and ``end``.

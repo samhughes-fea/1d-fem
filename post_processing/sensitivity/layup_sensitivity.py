@@ -66,38 +66,90 @@ def _check_element(el) -> None:
     if name not in SUPPORTED:
         raise NotImplementedError(
             f"layup sensitivities need {', '.join(SUPPORTED)} elements; element {el.element_id} is {name}")
-    if getattr(el, "_pretwist_rate", 0.0):
-        raise NotImplementedError(f"element {el.element_id}: layup sensitivities of pretwisted elements")
-    if getattr(el, "_section_taper", None) is not None:
-        raise NotImplementedError(f"element {el.element_id}: layup sensitivities of tapered elements")
+    sa = getattr(el, "_assigned_section_analysis", None)
+    if sa is not None and getattr(sa, "tapered", False) and getattr(sa, "taper_parts", None) is None:
+        raise NotImplementedError(f"element {el.element_id}: layup sensitivities of a tapered element need its "
+                                  "taper split by laminate ([Section_Taper_Laminate] in section_taper.txt)")
+
+
+def _curved(el) -> bool:
+    return bool(getattr(el, "_frame_mesh", False)) and getattr(el, "_frame_arc", None) is not None
+
+
+class _Swapped:
+    """``el`` with ``d_section`` as its assigned section (and no pretwisted copy of the old one)."""
+
+    def __init__(self, el, d_section):
+        self.el, self.d = el, d_section
+
+    def __enter__(self):
+        el = self.el
+        self.saved = (el._assigned_section_analysis, el.logger_operator,
+                      el.__dict__.pop("_pretwisted_section_analysis", None))
+        el._assigned_section_analysis = self.d
+        el.logger_operator = None
+        return el
+
+    def __exit__(self, *exc):
+        el = self.el
+        el.__dict__.pop("_pretwisted_section_analysis", None)
+        el._assigned_section_analysis, el.logger_operator, pre = self.saved
+        if pre is not None:
+            el._pretwisted_section_analysis = pre
+        return False
 
 
 def element_derivatives(el, d_section, mass: bool = False) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """``dK_e`` (and ``dM_e``) of element ``el`` for the derivative section ``d_section``.
 
-    The element forms its own matrices with the derivative section in place of its own.
+    The element forms its own matrices with the derivative section in place of its own; a
+    pretwisted element's helical coupling (``with_pretwist``) is linear in the section, so it
+    is formed the same way. A curved element is a chain of straight sub-elements condensed by
+    their static shapes ``Phi``: ``K = Phi^T K_c Phi`` is stationary in ``Phi``, so
+    ``dK = Phi^T dK_c Phi``, while its mass takes the change of the shapes too,
+    ``dPhi_i = -K_ii^-1 (dK_c Phi)_i``.
     """
     _check_element(el)
-    saved_sa, saved_log = el._assigned_section_analysis, el.logger_operator
-    el._assigned_section_analysis = d_section
-    el.logger_operator = None
-    try:
-        dK = el.element_stiffness_matrix().K_e
-        dM = el.element_mass_matrix().M_e if mass else None
-    finally:
-        el._assigned_section_analysis, el.logger_operator = saved_sa, saved_log
+    if _curved(el):
+        return _curved_derivatives(el, d_section, mass)
+    with _Swapped(el, d_section) as e:
+        dK = e.element_stiffness_matrix().K_e
+        dM = e.element_mass_matrix().M_e if mass else None
     return dK, dM
+
+
+def _curved_derivatives(el, d_section, mass: bool):
+    from pre_processing.element_library.framed_element import chain
+
+    c = chain(el)
+    with _Swapped(c.sub, d_section) as sub:
+        dK_sub = np.asarray(sub.element_stiffness_matrix().K_e, dtype=np.float64)
+        dM_sub = np.asarray(sub.element_mass_matrix().M_e, dtype=np.float64) if mass else None
+    n = (c.m + 1) * c.dpn
+
+    def chain_matrix(A):
+        out = np.zeros((n, n))
+        for T, g in zip(c.T, c.maps):
+            out[np.ix_(g, g)] += T.T @ A @ T
+        return out
+
+    dKc = chain_matrix(dK_sub)
+    dK = c.Phi.T @ dKc @ c.Phi
+    if not mass:
+        return 0.5 * (dK + dK.T), None
+    Kc = chain_matrix(c.K_sub)
+    Mc = chain_matrix(np.asarray(c.sub.element_mass_matrix().M_e, dtype=np.float64))
+    dPhi = np.zeros_like(c.Phi)
+    if c.i.size:
+        dPhi[c.i] = -np.linalg.solve(Kc[np.ix_(c.i, c.i)], (dKc @ c.Phi)[c.i])
+    dM = c.Phi.T @ chain_matrix(dM_sub) @ c.Phi + dPhi.T @ Mc @ c.Phi + c.Phi.T @ Mc @ dPhi
+    return 0.5 * (dK + dK.T), 0.5 * (dM + dM.T)
 
 
 def element_geometric_derivative(el, d_section, U_e) -> np.ndarray:
     """The element's geometric stiffness about ``U_e`` formed with the section ``d_section``."""
-    saved_sa, saved_log = el._assigned_section_analysis, el.logger_operator
-    el._assigned_section_analysis = d_section
-    el.logger_operator = None
-    try:
-        return el.linear_geometric_stiffness_matrix(U_e)
-    finally:
-        el._assigned_section_analysis, el.logger_operator = saved_sa, saved_log
+    with _Swapped(el, d_section) as e:
+        return e.linear_geometric_stiffness_matrix(U_e)
 
 
 def _geometric_gradient(el, phi_e) -> np.ndarray:
@@ -132,9 +184,10 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
     eigen = mode_shapes is not None and not buckling
     for el in elements:
         _check_element(el)
-        if buckling and type(el).__name__ not in BUCKLING:
-            raise NotImplementedError(f"buckling-load sensitivities need {', '.join(BUCKLING)} elements; "
-                                      f"element {el.element_id} is {type(el).__name__}")
+        if buckling and (type(el).__name__ not in BUCKLING or _curved(el)):
+            raise NotImplementedError(f"buckling-load sensitivities need straight {', '.join(BUCKLING)} elements; "
+                                      f"element {el.element_id} is {type(el).__name__}"
+                                      + (", curved or pretwisted" if _curved(el) else ""))
     cache: Dict[Tuple[int, LayupParameter], object] = {}
     rows: List[dict] = []
 
