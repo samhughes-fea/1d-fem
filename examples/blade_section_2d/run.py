@@ -30,7 +30,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
-for p in (REPO, os.path.join(REPO, "examples", "iea15mw")):
+for p in (REPO, HERE, os.path.join(REPO, "examples", "iea15mw")):
     if p not in sys.path:
         sys.path.insert(0, p)
 import stations as S  # noqa: E402
@@ -353,6 +353,14 @@ def main(plot: bool = True, rows_per_ply: int = 2, element_size=None, out_dir: s
                   "core_tau_xn_max_2d": float(max(core_txn)) if core_txn else None,
                   "tau_xn_max_thin_walled": float(max(tw_core_txn)) if tw_core_txn else None},
     }
+    import prism_check
+
+    ref = prism_check.load_reference()
+    if ref is not None:
+        res = prism_check.compare(sa, mesh, forces, ref, te=trailing_edge(mesh))
+        summary["prism_interlaminar"] = {k: v for k, v in res.items() if k != "rows"}
+        if plot:
+            prism_check.figure(res, os.path.join(out_dir, "prism_interlaminar.png"))
     if plot:
         figures({"mesh": mesh, "sa": sa, "forces": forces, "interfaces": interfaces, "worst": worst,
                  "panel": panel, "panel_lines": panel_lines, "panel_tw": panel_tw}, out_dir)

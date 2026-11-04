@@ -29,6 +29,7 @@ Every model, PreComp included, uses this geometry and these layups. The comparis
 | CLM shell | IGK loft 8 chords long, curved Quad8 FSDT shells on the wall mid-surfaces, `beam_section_properties` over the middle fifth (`make_shell_reference.py`) | `reference/shell_*.json` |
 | PreComp | WISDEM's PreComp on the same idealised sectors and webs (`make_precomp_reference.py`) | `reference/precomp_idealised.json` |
 | CalculiX prism | the 2D mesh extruded 2 chords into `C3D20R` bricks, with a rigid tip. The 6×6 is fitted from the strain energies of 21 load cases over the middle 35 % (`prism.py`, `make_prism_reference.py`, about an hour per station) | `reference/prism_*.json` |
+| CalculiX prism, stresses | the 70 % span mesh of `examples/blade_section_2d` (two rows per ply) extruded 2 chords into 12 fully integrated `C3D20` bricks; Gauss point stresses of a slice at mid-length under that example's section forces (`make_interlaminar_reference.py`, about a minute). Compared in `examples/blade_section_2d` | `reference/prism_20_interlaminar.json` |
 
 The references are committed because 1d-fem depends on none of their tools.
 
