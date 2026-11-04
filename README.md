@@ -86,6 +86,18 @@ way to see each file's format.
 Every figure is drawn from the FEA data itself: element shape-function interpolation along
 the beam, Gauss-point values and their shape-function projections on sections.
 
+## Related repositories
+
+| Repository | Owns | Relation to 1d-fem |
+|---|---|---|
+| implicit-geometry-kernel | blade and section geometry (airfoils, lofts, `section_at(z)`) | optional; `src/onedfem` reads its geometry duck typed and never imports it |
+| composite-laminate-model | laminate theory, shell FEA, ply failure and damage (linear static) | shell reference in examples and validation only |
+| anisotropic-section-model | blade 6×6 / 7×7 section properties, small exact beam references | cross-checks in examples and validation only |
+| 1d-fem | beam solver for all analysis types, with its own thin-walled, 2D and GBT section analysis | depends on none of the others |
+
+`tests/test_repo_boundaries.py` fails if library code imports any of them. Tests that use
+them skip when they are not installed.
+
 ## Documentation
 
 - [docs/api](docs/api/README.md): API reference, generated from the docstrings.
