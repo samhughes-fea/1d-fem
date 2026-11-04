@@ -13,6 +13,9 @@ mid-point, and takes the reference axis, element frames, twist and pretwist from
 python examples/blade_beam/run.py
 ```
 
+`python examples/blade_beam/run.py --replot` redraws the figures from the committed
+`summary.json` without solving.
+
 It needs implicit-geometry-kernel (`pip install -r requirements-geometry.txt`, Python 3.11 or later). It takes about 40
 minutes, mostly writing wall stresses, and writes the figures and `summary.json` here.
 The shell results are committed in `data/shell_reference.json`. They come from
@@ -22,6 +25,9 @@ The shell results are committed in `data/shell_reference.json`. They come from
 - modal and `NLGEOM` runs of the same mesh in CalculiX.
 
 ![Loft](loft.png)
+
+Left: the planform of the loft, with the caps and webs of the section cut at each beam
+element's mid-point. Right: the root, mid and tip cuts.
 
 ## Static
 
@@ -67,6 +73,9 @@ layered `Q8` elements.
 ## Modal
 
 ![Frequencies](modes.png)
+
+Left: every computed mode, labelled by its kind. Right: the first four modes of each beam
+against the shell (grey band ±3 %).
 
 | Mode | Shell | Timoshenko | Benscoter | Timoshenko 2D | GBT 2D, 4 modes | GBT 2D, cores stiff in shear |
 |---|---|---|---|---|---|---|

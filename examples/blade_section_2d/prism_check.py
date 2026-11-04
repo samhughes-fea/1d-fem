@@ -119,8 +119,9 @@ def summarise(rows: List[dict]) -> Dict:
 
 def figure(result: Dict, path: str) -> None:
     """Parity of the three interface stresses, one marker per interface point (no fitting)."""
-    import matplotlib
-    matplotlib.use("Agg")
+    from onedfem.post_processing.graphical_visualisers import figure_style as fs
+
+    fs.use()
     import matplotlib.pyplot as plt
 
     away = [r for r in result["rows"] if not r["at_trailing_edge"]]

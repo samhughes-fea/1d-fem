@@ -255,28 +255,50 @@ def _style(ax):
 
 
 def figures(result, ref, out_dir):
-    import matplotlib
-    matplotlib.use("Agg")
+    """Loft, static differences, frequencies and the large-deflection path. Load steps,
+    shell increments and frequencies are discrete values and are drawn as markers."""
+    from onedfem.post_processing.graphical_visualisers import figure_style as fs
+
+    fs.use()
     import matplotlib.pyplot as plt
 
-    # 1. the loft and its cuts
+    # 1. the loft: planform with the 20 element cuts, and cuts overlaid
     geo = G.geometry()
-    fig = plt.figure(figsize=(9, 3.6))
-    ax = fig.add_axes((-0.25, -0.45, 1.5, 1.8), projection="3d")
-    for z in np.linspace(0, G.LENGTH, 9):
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(12, 3.6), gridspec_kw={"width_ratios": [1.9, 1]})
+    zs = np.linspace(0, G.LENGTH, 81)
+    ext = []
+    for z in zs:
+        pts = np.vstack([np.asarray(w.xy) for w in geo.section_at(float(z)).walls])
+        ext.append((pts[:, 0].min(), pts[:, 0].max()))
+    ext = np.array(ext)
+    ax.fill_between(zs, ext[:, 0], ext[:, 1], color=fs.GRID, alpha=0.6, lw=0)
+    ax.plot(zs, ext[:, 0], color=fs.INK, lw=0.9, label="leading edge")
+    ax.plot(zs, ext[:, 1], color=fs.MUTED, lw=0.9, label="trailing edge")
+    n_el = int(result.get("n_elements", 20))
+    for k in range(n_el):
+        z = (k + 0.5) * G.LENGTH / n_el
+        for w in geo.section_at(float(z)).walls:
+            if w.kind != "skin":
+                xy = np.asarray(w.xy)
+                ax.plot([z, z], [xy[:, 0].min(), xy[:, 0].max()], color=COLOURS[TW], lw=1.2,
+                        solid_capstyle="butt")
+    ax.plot([], [], color=COLOURS[TW], lw=1.2, label="caps and webs at each element's mid-point cut")
+    ax.set(xlabel="span from the segment root (m)", ylabel="chordwise y (m)")
+    fs.panel_title(ax, "IEA 15 MW outboard segment, r = 64.5 to 84.7 m",
+                   f"lofted once by implicit-geometry-kernel; {n_el} beam elements, one section cut each")
+    ax.legend(loc="upper right", ncol=3, fontsize=7)
+    for z, c in ((0.0, fs.colour("", 0)), (0.5 * G.LENGTH, fs.colour("", 2)), (G.LENGTH, fs.colour("", 1))):
         cut = geo.section_at(float(z))
-        for w in cut.walls:
+        for i, w in enumerate(cut.walls):
             xy = np.asarray(w.xy)
-            ax.plot(np.full(len(xy), z), xy[:, 0], xy[:, 1], color="#2a78d6" if w.kind != "skin" else "#8b8a83", lw=0.6)
-    ax.set_box_aspect((G.LENGTH, 4.5, 1.2), zoom=1.0)
-    ax.set_xlabel("span z, m", fontsize=7)
-    ax.set_yticks([])
-    ax.set_zticks([])
-    ax.view_init(elev=22, azim=-62)
-    fig.text(0.01, 0.95, "IEA 15 MW outboard segment lofted by implicit-geometry-kernel (caps and webs blue)",
-             fontsize=9)
-    fig.savefig(os.path.join(out_dir, "loft.png"), dpi=150)
-    plt.close(fig)
+            ax2.plot(xy[:, 0], xy[:, 1], color=c, lw=0.9 if w.kind == "skin" else 1.6,
+                     label=f"{z:.1f} m" if i == 0 else None)
+    ax2.set_aspect("equal")
+    ax2.set(xlabel="y (m)", ylabel="z (m)")
+    fs.panel_title(ax2, "Root, mid and tip cuts", "wall mid-lines; caps and webs thicker")
+    ax2.legend(loc="lower center", ncol=3, fontsize=7)
+    fig.tight_layout()
+    fs.save(fig, os.path.join(out_dir, "loft.png"))
 
     # 2. static differences
     cmp_ = result["comparison"]
@@ -299,14 +321,14 @@ def figures(result, ref, out_dir):
     ax.set_ylabel("beam against shell, %", fontsize=8)
     ax.set_ylim(-6, 8)
     ax.legend(fontsize=7, frameon=False, loc="upper center", ncol=2)
-    ax.set_title("Static tip response (grey: 3 % target)", fontsize=9, loc="left")
-    _style(ax)
+    ax.grid(axis="x", visible=False)
+    fs.panel_title(ax, "Static tip response, beam against shell", "tip loads 10 kN flap, 10 kN edge, 10 kN·m torque; "
+                                                                "grey band: the 3 % target")
     fig.tight_layout()
-    fig.savefig(os.path.join(out_dir, "static.png"), dpi=150)
-    plt.close(fig)
+    fs.save(fig, os.path.join(out_dir, "static.png"))
 
     # 3. frequencies
-    fig, ax = plt.subplots(figsize=(9, 3.6))
+    fig, (ax, axd) = plt.subplots(1, 2, figsize=(13, 4.0), gridspec_kw={"width_ratios": [1.6, 1]})
     sf = ref["modal"]["frequencies_hz"]
     kinds = cmp_["modal"]["shell_kinds"]
     for i, (f, k) in enumerate(zip(sf, kinds)):
@@ -324,11 +346,28 @@ def figures(result, ref, out_dir):
     ax.tick_params(axis="x", labelsize=6)
     ax.set_ylabel("frequency, Hz", fontsize=8)
     ax.set_xlim(0.4, 2.0 + len(columns) + 0.2)
-    ax.set_title("Cantilever frequencies", fontsize=9, loc="left")
-    _style(ax)
+    ax.grid(axis="x", visible=False)
+    fs.panel_title(ax, "Cantilever frequencies", "each line one computed mode, labelled by its kind")
+    labels = {"timoshenko_thin_walled": "Timoshenko", "benscoter_thin_walled": "Benscoter",
+              "timoshenko_2d": "Timoshenko 2D", "gbt_2d": f"GBT 2D, {GBT_MODES} modes",
+              "gbt_2d_stiff_core": "GBT 2D, stiff cores"}
+    markers = "osD^v"
+    nm = len(columns)
+    for j, model in enumerate(columns):
+        rows_ = cmp_["modal"][model]
+        xs = np.array([r["shell_mode"] for r in rows_], dtype=float) + (j - (nm - 1) / 2) * 0.12
+        fs.solves(axd, xs, [100 * r["difference"] for r in rows_], color=COLOURS[model], marker=markers[j % 5],
+                  label=labels.get(model, model))
+    axd.axhspan(-3, 3, color=fs.GRID, alpha=0.5, lw=0, zorder=0)
+    axd.axhline(0, color=fs.MUTED, lw=0.6)
+    names_ = [f"{i + 1} {k}" for i, k in enumerate(kinds[:4])]
+    axd.set_xticks(range(1, 5), names_)
+    axd.grid(axis="x", visible=False)
+    axd.set(ylabel="beam against shell (%)")
+    fs.panel_title(axd, "First four modes, difference from the shell", "plane-section beams put torsion 7-11 % high")
+    axd.legend(loc="upper left", fontsize=6.5)
     fig.tight_layout()
-    fig.savefig(os.path.join(out_dir, "modes.png"), dpi=150)
-    plt.close(fig)
+    fs.save(fig, os.path.join(out_dir, "modes.png"))
 
     # 4. nonlinear tip path
     fig, axes = plt.subplots(1, 2, figsize=(9, 3.4))
@@ -338,26 +377,23 @@ def figures(result, ref, out_dir):
     lin_s = ref["static"]["tip"]["flap"][1] / 1e4
     nl = np.array(result["nonlinear"]["rows"], dtype=float)
     ax = axes[0]
-    ax.plot(sh[:, 0] * P / 1e6, sh[:, 2], "s", color=COLOURS["shell"], ms=4, mfc="none",
-            label="CLM shell, CalculiX NLGEOM increments")
-    ax.plot(nl[:, 0] * P / 1e6, nl[:, 2], "o", color=COLOURS[TW], ms=5, label="corotational Timoshenko load steps")
+    fs.reference(ax, sh[:, 0] * P / 1e6, sh[:, 2], label="CLM shell, CalculiX NLGEOM increments", ms=4)
+    fs.solves(ax, nl[:, 0] * P / 1e6, nl[:, 2], color=COLOURS[TW], label="corotational Timoshenko load steps")
     f = np.linspace(0, 0.5, 2)
     ax.plot(f * P / 1e6, lin * f * P, "--", color=COLOURS[TW], lw=0.8, label="linear Timoshenko (exactly linear in load)")
     ax.plot(f * P / 1e6, lin_s * f * P, "--", color=COLOURS["shell"], lw=0.8, label="linear shell (exactly linear in load)")
-    ax.set_xlabel("flapwise tip force, MN", fontsize=8)
-    ax.set_ylabel("flap tip deflection, m", fontsize=8)
-    ax.legend(fontsize=7, frameon=False)
-    _style(ax)
+    ax.set(xlabel="flapwise tip force (MN)", ylabel="flap tip deflection (m)")
+    fs.panel_title(ax, "Tip deflection", "within 0.6 % of the shell along the path")
+    ax.legend(loc="upper left")
     ax = axes[1]
-    ax.plot(sh[:, 2], -sh[:, 3], "s", color=COLOURS["shell"], ms=4, mfc="none", label="shell increments")
-    ax.plot(nl[:, 2], -nl[:, 3], "o", color=COLOURS[TW], ms=5, label="corotational beam load steps")
-    ax.set_xlabel("flap tip deflection, m", fontsize=8)
-    ax.set_ylabel("tip shortening, m", fontsize=8)
-    _style(ax)
-    fig.suptitle("Large flapwise deflection", fontsize=9, x=0.01, ha="left")
+    fs.reference(ax, sh[:, 2], -sh[:, 3], label="shell increments", ms=4)
+    fs.solves(ax, nl[:, 2], -nl[:, 3], color=COLOURS[TW], label="corotational beam load steps")
+    ax.set(xlabel="flap tip deflection (m)", ylabel="tip shortening (m)")
+    fs.panel_title(ax, "Tip shortening")
+    ax.legend(loc="upper left")
+    fig.suptitle("Large flapwise deflection, up to 7 % of the span", x=0.01, ha="left")
     fig.tight_layout()
-    fig.savefig(os.path.join(out_dir, "nonlinear.png"), dpi=150)
-    plt.close(fig)
+    fs.save(fig, os.path.join(out_dir, "nonlinear.png"))
 
 
 def main(n_elements: int = 20, plot: bool = True, work_dir: Optional[str] = None, parts=("static", "modal", "nonlinear"),
@@ -391,6 +427,16 @@ def _main(n_elements: int = 20, plot: bool = True, work_dir: Optional[str] = Non
     return result
 
 
+def replot(out_dir: str = HERE) -> None:
+    """Redraw the figures from the committed ``summary.json`` and shell reference, without solving."""
+    with open(os.path.join(out_dir, "summary.json"), encoding="utf-8") as f:
+        result = json.load(f)
+    figures(result, reference(), out_dir)
+
+
 if __name__ == "__main__":
+    if "--replot" in sys.argv:
+        replot()
+        sys.exit(0)
     r = main()
     print(json.dumps(r.get("comparison"), indent=1))

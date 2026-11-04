@@ -215,15 +215,73 @@ def junction_interfaces(sa, mesh, forces, te_radius=0.02):
 
 
 # ---------------------------------------------------------------------------
+MATERIAL_STYLE = {"Gelcoat": ("gelcoat", "#c9ced4"), "glass_uni": ("glass UD", "#3f7fae"),
+                  "CarbonUD": ("carbon UD", "#28323d"), "glass_biax": ("glass biax", "#8dbbdc"),
+                  "glass_triax": ("glass triax", "#5f9fca"), "medium_density_foam": ("foam", "#e8c766")}
+
+
+def mesh_figure(mesh, out_dir):
+    """The section mesh coloured by material, with close-ups of the cap-web junction and the
+    trailing edge; every Q8 element is drawn by its corner nodes."""
+    from onedfem.post_processing.graphical_visualisers import figure_style as fs
+
+    fs.use()
+    import matplotlib.pyplot as plt
+    from matplotlib.collections import PolyCollection
+    from matplotlib.patches import Patch, Rectangle
+
+    names = _material_names(mesh)
+    polys = [mesh.nodes[c[:4]] for c in mesh.elements]
+    mats = [names.get(m, "") for m in mesh.material_ids]
+    cols = [MATERIAL_STYLE.get(m, ("", "#9aa5b1"))[1] for m in mats]
+    rear = [e for e, m in enumerate(mats) if m == "CarbonUD"]
+    cen = np.array([p.mean(axis=0) for p in polys])
+    cap_c = cen[rear]
+    # close-up 1: the rear end of the pressure-side cap, where the rear web meets it
+    lo = cap_c[cap_c[:, 1] < 0]
+    k = int(np.argmax(lo[:, 0])) if len(lo) else 0
+    z1 = (lo[k, 0] - 0.08, lo[k, 1] - 0.05, 0.16, 0.12) if len(lo) else None
+    te = cen[int(np.argmax(cen[:, 0]))]
+    z2 = (te[0] - 0.16, te[1] - 0.05, 0.2, 0.1)
+    fig = plt.figure(figsize=(12, 6.4))
+    gs = fig.add_gridspec(2, 2, height_ratios=[1.15, 1])
+    ax = fig.add_subplot(gs[0, :])
+    ax.add_collection(PolyCollection(polys, facecolors=cols, edgecolors="none"))
+    ax.autoscale_view()
+    ax.set_aspect("equal")
+    for zz in (z1, z2):
+        if zz:
+            ax.add_patch(Rectangle(zz[:2], zz[2], zz[3], fill=False, ec=fs.INK, lw=0.7, ls=":"))
+    used = sorted({m for m in mats if m in MATERIAL_STYLE}, key=list(MATERIAL_STYLE).index)
+    ax.legend(handles=[Patch(fc=MATERIAL_STYLE[m][1], label=MATERIAL_STYLE[m][0]) for m in used],
+              loc="upper right", ncol=3)
+    ax.set(xlabel="y (m)", ylabel="z (m)")
+    fs.panel_title(ax, f"IEA 15 MW, r = {S.station(INDEX)['r']:.1f} m: 2D section mesh",
+                   f"{len(polys)} layered Q8 elements, two rows per ply, cut from the loft by implicit-geometry-kernel")
+    for j, (zz, title) in enumerate(((z1, "Rear web at the pressure-side cap"), (z2, "Trailing edge"))):
+        az = fig.add_subplot(gs[1, j])
+        az.add_collection(PolyCollection(polys, facecolors=cols, edgecolors="white", linewidths=0.25))
+        az.set_aspect("equal")
+        if zz:
+            az.set(xlim=(zz[0], zz[0] + zz[2]), ylim=(zz[1], zz[1] + zz[3]))
+        az.grid(False)
+        az.set(xlabel="y (m)", ylabel="z (m)" if j == 0 else "")
+        fs.panel_title(az, title, "element edges in white")
+    fig.tight_layout()
+    fs.save(fig, os.path.join(out_dir, "section_mesh.png"))
+
+
 def figures(ctx, out_dir):
-    import matplotlib
-    matplotlib.use("Agg")
+    from onedfem.post_processing.graphical_visualisers import figure_style as fs
+
+    fs.use()
     import matplotlib.pyplot as plt
     from matplotlib.collections import PolyCollection
 
     from onedfem.post_processing.solid.gauss_projection import element_patches
 
     mesh, sa, forces = ctx["mesh"], ctx["sa"], ctx["forces"]
+    mesh_figure(mesh, out_dir)
     polys = [mesh.nodes[c[:4]] for c in mesh.elements]
     by_el = {}
     for p in sa.point_stresses(forces=forces):
@@ -250,7 +308,7 @@ def figures(ctx, out_dir):
                  f"{ARM:.0f} m outboard and a {TORQUE / 1e3:.0f} kN m torque", fontsize=9, loc="left")
     _style(ax)
     fig.tight_layout()
-    fig.savefig(os.path.join(out_dir, "axial_stress.png"), dpi=150)
+    fs.save(fig, os.path.join(out_dir, "axial_stress.png"))
     plt.close(fig)
 
     # 2. interface shear, whole section and the zoomed junction
@@ -283,7 +341,7 @@ def figures(ctx, out_dir):
         _style(ax)
     cb = fig.colorbar(sc, ax=axes, shrink=0.85)
     cb.set_label("√(τxn² + τsn²), MPa", fontsize=8)
-    fig.savefig(os.path.join(out_dir, "interface_shear.png"), dpi=150, bbox_inches="tight")
+    fs.save(fig, os.path.join(out_dir, "interface_shear.png"))
     plt.close(fig)
 
     # 3. sandwich panel through-thickness: 2D Gauss points (dots) and their projection along
@@ -310,7 +368,7 @@ def figures(ctx, out_dir):
     axes[0].legend(fontsize=6.5, frameon=False)
     fig.suptitle(f"Suction-side sandwich panel at {100 * PANEL_X:.0f} % chord", fontsize=9, x=0.01, ha="left")
     fig.tight_layout()
-    fig.savefig(os.path.join(out_dir, "sandwich_panel.png"), dpi=150)
+    fs.save(fig, os.path.join(out_dir, "sandwich_panel.png"))
     plt.close(fig)
 
 

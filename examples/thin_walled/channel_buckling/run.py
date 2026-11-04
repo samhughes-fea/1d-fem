@@ -119,12 +119,15 @@ def buckling(n_el: int, work_dir: str) -> dict:
     # flexure along the symmetry axis is uncoupled; the flexural-torsional mode twists
     twists = [k for k in np.argsort(lam) if np.abs(modes[3::stride, k]).max() > 1e-6 * np.abs(modes[:, k]).max()]
     lam_ft = float(lam[twists[0]])
+    lam_raw = lam.copy()
     lam = np.sort(lam)
     return {
         "shear_centre_y": an.shear_centre[0], "tension_centre_y": y_t,
         "closed_form": {k: ref[k] for k in ("P_v", "P_w", "P_phi", "P_ft")},
         "load_factors": lam.tolist(),
         "P_ft": lam_ft, "P_ft_error": lam_ft / ref["P_ft"] - 1.0,
+        "_mode": modes[:, twists[0]].reshape(n_el + 1, stride), "_flexural": modes[:, int(np.argmin(lam_raw))]
+        .reshape(n_el + 1, stride), "_lam_flexural": float(lam.min()),
     }
 
 
@@ -149,37 +152,121 @@ def p_delta(n_el: int, work_dir: str, ratios=(0.2, 0.4, 0.6, 0.8)) -> dict:
             with open(os.path.join(res, "primary_results", "global", "U_global.csv"), newline="") as fh:
                 U = np.array([float(row[1]) for row in list(csv.reader(fh))[1:]]).reshape(n_el + 1, -1)
             out[so] = float(U[n_el // 2, 1] - U[0, 1])
+            out[so + "_U"] = U
         k = np.sqrt(P / EIz)
         rows.append({"P_over_Pv": r, "linear": out["none"], "p_delta": out["p_delta"],
-                     "secant": float(-e * (1 / np.cos(k * L_PDELTA / 2) - 1))})
-    return {"eccentricity": e, "P_v": P_v, "rows": rows,
+                     "secant": float(-e * (1 / np.cos(k * L_PDELTA / 2) - 1)),
+                     "_U": {"linear": out["none_U"], "p_delta": out["p_delta_U"]}})
+    return {"eccentricity": e, "P_v": P_v, "EIz": EIz, "rows": rows,
             "max_error": max(abs(rw["p_delta"] / rw["secant"] - 1) for rw in rows)}
 
 
 def main(n_el: int = N_EL, plot: bool = True, work_dir: str = HERE) -> dict:
     summary = {"buckling": buckling(n_el, work_dir), "p_delta": p_delta(n_el, work_dir)}
+
+    def public(d):
+        if isinstance(d, dict):
+            return {k: public(v) for k, v in d.items() if not k.startswith("_")}
+        if isinstance(d, list):
+            return [public(v) for v in d]
+        return d
+
     with open(os.path.join(work_dir, "summary.json"), "w", encoding="utf-8") as f:
-        json.dump(summary, f, indent=2)
+        json.dump(public(summary), f, indent=2)
     if plot:
-        import matplotlib
+        _plots(summary, n_el, work_dir)
+    return public(summary)
 
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
 
-        rows = summary["p_delta"]["rows"]
-        r = [rw["P_over_Pv"] for rw in rows]
-        fig, ax = plt.subplots(figsize=(5.5, 3.8))
-        ax.plot(r, [1e3 * rw["secant"] for rw in rows], "k-", label="secant formula")
-        ax.plot(r, [1e3 * rw["p_delta"] for rw in rows], "o", label="1d-fem P-delta")
-        ax.plot(r, [1e3 * rw["linear"] for rw in rows], "s", mfc="none", label="1d-fem linear")
-        ax.set_xlabel("P / P_v")
-        ax.set_ylabel("midspan deflection v (mm)")
-        ax.set_title("Channel compressed at the web (eccentric to the tension centre)")
-        ax.legend()
-        fig.tight_layout()
-        fig.savefig(os.path.join(work_dir, "p_delta.png"), dpi=130)
-        plt.close(fig)
-    return summary
+def _plots(summary, n_el, out_dir):
+    """Section, buckling mode and P-delta figures. Fields along the beam are each element's
+    shape-function field; solved load levels are markers; the closed forms are analytic lines."""
+    from onedfem.post_processing.graphical_visualisers import figure_style as fs
+    from onedfem.post_processing.graphical_visualisers.beam_field_sampling import beam_curve
+    from onedfem.post_processing.graphical_visualisers.thin_walled_drawing import draw_section
+
+    from common import ply_materials
+
+    fs.use()
+    import matplotlib.pyplot as plt
+
+    an = build_analysis(section())
+    b, pdl = summary["buckling"], summary["p_delta"]
+    mats = ply_materials(section(), {1: "steel"})
+
+    # 1. section and the buckled section at mid-span; mode along the beam
+    fig = plt.figure(figsize=(11, 4.0))
+    gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 1.8])
+    for j, (mode, title) in enumerate(((b["_flexural"], f"Flexural, {b['_lam_flexural'] / 1e3:.1f} kN"),
+                                       (b["_mode"], f"Flexural-torsional, {b['P_ft'] / 1e3:.1f} kN"))):
+        ax = fig.add_subplot(gs[j])
+        draw_section(ax, an, mats, legend=False, nodes=False)
+        um = mode[n_el // 2]
+        v, w, phi = um[1], um[2], um[3]
+        amp = 0.04 / max(abs(v), abs(w), abs(phi) * 0.1, 1e-30)
+        R = np.array([[np.cos(amp * phi), -np.sin(amp * phi)], [np.sin(amp * phi), np.cos(amp * phi)]])
+        for wl in an.section.walls:
+            a_, b_ = an.section.endpoints(wl)
+            pts = np.array([R @ a_ + amp * np.array([v, w]), R @ b_ + amp * np.array([v, w])])
+            ax.plot(pts[:, 0], pts[:, 1], color=fs.colour("GBT" if j else "Timoshenko"), lw=1.6, zorder=5)
+        ax.plot(an.shear_centre[0], an.shear_centre[1], "+", color=fs.INK, ms=9, mew=1.2, label="shear centre")
+        ax.plot(*an.tension_centre, "o", color=fs.INK, mfc="white", ms=5, label="centroid")
+        ax.plot(0, 0, "x", color=fs.INK, ms=6, label="beam axis")
+        ax.set(xlabel="y (m)", ylabel="z (m)" if j == 0 else "", xlim=(-0.09, 0.17), ylim=(-0.14, 0.14))
+        fs.panel_title(ax, title, "mid-span section, mode scaled (rigid section, Benscoter)")
+        if j == 0:
+            ax.legend(loc="upper left", fontsize=6.5)
+    ax = fig.add_subplot(gs[2])
+    x = np.linspace(0, L_BUCKLE, n_el + 1)
+    mode = b["_mode"] / np.abs(b["_mode"][:, 1]).max()
+    for comp, lab, c in ((1, "lateral v (normalised)", fs.colour("Timoshenko")),
+                         (3, "twist φ (scaled to v)", fs.colour("GBT"))):
+        scale = 1.0 if comp == 1 else 1.0 / max(np.abs(mode[:, 3]).max(), 1e-30) * np.abs(mode[:, 1]).max()
+        xs, vv = beam_curve(x, mode, comp, "LinearBenscoterBeamElement3D")
+        fs.field(ax, xs, vv * scale, color=c, label=lab)
+        fs.nodal(ax, x, mode[:, comp] * scale, color=c)
+    ax.set(xlabel="x (m)", ylabel="mode amplitude")
+    fs.panel_title(ax, "Flexural-torsional mode along the column",
+                   f"{b['P_ft'] / 1e3:.2f} kN against {b['closed_form']['P_ft'] / 1e3:.2f} kN "
+                   f"(Timoshenko & Gere), {100 * b['P_ft_error']:+.2f} %")
+    ax.legend(loc="center right")
+    fs.marks_legend(ax, ("field", "nodal"), loc="center left")
+    fig.tight_layout()
+    fs.save(fig, os.path.join(out_dir, "buckling.png"))
+
+    # 2. P-delta: deflected shapes along the beam and mid-span deflection against load
+    rows = pdl["rows"]
+    fig, ax = plt.subplots(1, 2, figsize=(10.5, 3.9), gridspec_kw={"width_ratios": [1.3, 1]})
+    x = np.linspace(0, L_PDELTA, n_el + 1)
+    for i, rw in enumerate(rows):
+        c = fs.colour("", i)
+        for kind, ls in (("p_delta", "-"), ("linear", ":")):
+            U = rw["_U"][kind]
+            xs, vv = beam_curve(x, U - U[0], 1, "LinearTimoshenkoBeamElement3D")
+            fs.field(ax[0], xs, vv * 1e3, color=c, ls=ls,
+                     label=f"P = {rw['P_over_Pv']:.1f} P_v" if kind == "p_delta" else None)
+        k = np.sqrt(rw["P_over_Pv"] * pdl["P_v"] / pdl["EIz"])
+        xa = np.linspace(0, L_PDELTA, 101)
+        fs.analytic(ax[0], xa, -pdl["eccentricity"] * (np.cos(k * (xa - L_PDELTA / 2)) / np.cos(k * L_PDELTA / 2)
+                                                       - 1) * 1e3, label="beam-column, exact" if i == 0 else None)
+    ax[0].set(xlabel="x (m)", ylabel="lateral deflection v (mm)")
+    fs.panel_title(ax[0], "Deflected shape", "solid: P-delta, dotted: linear (no amplification)")
+    ax[0].legend(loc="upper left")
+    r = np.array([rw["P_over_Pv"] for rw in rows])
+    rr = np.linspace(0, 0.85, 120)
+    kk = np.sqrt(rr * pdl["P_v"] / pdl["EIz"])
+    fs.analytic(ax[1], rr, -pdl["eccentricity"] * (1 / np.cos(kk * L_PDELTA / 2) - 1) * 1e3,
+                label="secant formula e(sec(kL/2) − 1)")
+    fs.solves(ax[1], r, [1e3 * rw["p_delta"] for rw in rows], color=fs.colour("Timoshenko"),
+              label="1d-fem P-delta, one solve per load")
+    fs.solves(ax[1], r, [1e3 * rw["linear"] for rw in rows], color=fs.colour("linear"), marker="s",
+              label="1d-fem linear")
+    ax[1].set(xlabel="P / P_v", ylabel="mid-span deflection v (mm)")
+    fs.panel_title(ax[1], "Mid-span deflection", f"largest error against the secant formula "
+                                                f"{100 * pdl['max_error']:.2f} %")
+    ax[1].legend(loc="upper left")
+    fig.tight_layout()
+    fs.save(fig, os.path.join(out_dir, "p_delta.png"))
 
 
 if __name__ == "__main__":

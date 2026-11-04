@@ -48,9 +48,13 @@ margin is `1 / f − 1`.
 
 ![Root contour](root_contour.png)
 
-At the root Gauss point, every ply face is plotted around the contour (bottom cap, rear
-web, top cap, front web). The webs carry the highest exposures. In the caps, the 0° plies
-are only at about 0.1 of their fibre strength.
+The section at the root Gauss point, unrolled: distance around the contour (bottom cap,
+rear web, top cap, front web) against the position through the wall. Each square is one
+evaluated point, coloured by its exposure, and the circle marks the worst. Top: the
+thin-walled model, at the bottom and top face of every ply, at points along each wall.
+Bottom: the 2D section, at every quadrature point of its mesh, placed on the nearest wall.
+The worst points sit where the rear web meets a cap. In the caps, the 0° plies are only at
+about 0.1 of their fibre strength.
 
 ## Files
 

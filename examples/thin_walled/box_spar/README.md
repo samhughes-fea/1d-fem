@@ -25,6 +25,13 @@ Cases: Euler-Bernoulli, Timoshenko, Benscoter (`[warping] = 1`), GBT with
 2 distortional modes and 6 shear-lag modes, and the same GBT with the root
 warping amplitudes left free.
 
+![section](section.png)
+
+Every wall is drawn at its laminate thickness about its mid-line, ply by ply,
+lighter for off-axis plies; the close-up shows the plies where the rear web
+meets the top cap. The ticks on the walls are the ends of the section's wall
+elements.
+
 ## Results
 
 | Case | Tip w (mm) | Tip twist (mrad) |
@@ -48,12 +55,24 @@ warping amplitudes left free.
 - `wall_stresses.csv` from `process_job` matches the direct recovery
   (`csv_vs_direct_N_xx`).
 
+### Fields around the section
+
+![torque shear flow and root fields](section_fields.png)
+
+Each field is drawn normal to its wall from the section's own solution,
+evaluated through the cubic shape functions inside every wall element; the
+dots are the section's Gauss points. Left: the torque shear flow, 13.88 kN/m
+in every wall against 13.89 kN/m from Bredt-Batho. Middle and right: `N_xx`
+and `N_xs` at the root under the flapwise force.
+
 ### Shear lag at the root
 
 ![cap stresses](cap_stresses.png)
 
-Left: `N_xx` across the top cap in the root element. Timoshenko keeps the
-section plane, so `N_xx` is uniform. GBT with the root warping fixed shows
+Left: `N_xx` across the top cap in the root element, at the points
+`wall_stresses.csv` writes (markers), with the Saint-Venant section field at
+the same station (line). Timoshenko keeps the section plane, so `N_xx` is
+uniform. GBT with the root warping fixed shows
 shear lag: the cap is 10.5 % more loaded at the corners and 4.4 % less at the
 centre than the beam value. Right: interlaminar shear through the top cap and
 rear web at mid-span. At the cap centre `tau_xn` comes from the 0° plies taking

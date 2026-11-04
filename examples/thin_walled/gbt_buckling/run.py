@@ -217,36 +217,47 @@ def main(plot: bool = True, work_dir: str = HERE, out_dir: str = HERE, lengths=L
 
 
 def figures(rows, shapes, shape: SectionShape, out_dir: str) -> None:
-    import matplotlib
-    matplotlib.use("Agg")
+    """Buckling stress against length (one marker per solved length), the share of each mode
+    class in the buckling mode, and the buckled sections drawn through the frame shape functions."""
+    from onedfem.post_processing.graphical_visualisers import figure_style as fs
+
+    fs.use()
     import matplotlib.pyplot as plt
 
     L = np.array([r["length"] for r in rows])
-    fig, ax = plt.subplots(figsize=(7.5, 4.2))
-    ax.plot(L, [r["fsm"] / 1e6 for r in rows], "s", ms=8, mfc="none", color=COLOURS["fsm"],
-            label="finite strip (reference)")
+    fig, (ax, axs) = plt.subplots(2, 1, figsize=(7.5, 5.6), sharex=True, gridspec_kw={"height_ratios": [3, 1]})
+    fs.reference(ax, L, [r["fsm"] / 1e6 for r in rows], label="finite strip (reference)", ms=7)
     for c in CLASSES:
         sel = [r for r in rows if r["governs"] == c]
         if sel:
-            ax.plot([r["length"] for r in sel], [r["gbt"] / 1e6 for r in sel], "o", ms=5, color=COLOURS[c],
-                    label=f"1d-fem GBT, {c}")
-    ax.plot(L, [r["benscoter"] / 1e6 for r in rows], "x", ms=6, color="#8b8a83",
+            fs.solves(ax, [r["length"] for r in sel], [r["gbt"] / 1e6 for r in sel], color=COLOURS[c],
+                      label=f"1d-fem GBT, {c}")
+    ax.plot(L, [r["benscoter"] / 1e6 for r in rows], "x", ls="none", ms=6, color=fs.MUTED,
             label="1d-fem Benscoter (rigid section)")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlabel("column length, m", fontsize=8)
-    ax.set_ylabel("buckling stress P / A, MPa", fontsize=8)
-    ax.set_title("Lipped channel column: lowest buckling stress at each length (markers are the computed lengths)",
-                 fontsize=9, loc="left")
-    ax.tick_params(labelsize=7)
-    for s in ("top", "right"):
-        ax.spines[s].set_visible(False)
-    ax.legend(fontsize=7, frameon=False)
-    fig.tight_layout()
-    fig.savefig(os.path.join(out_dir, "signature.png"), dpi=150)
-    plt.close(fig)
+    ax.set_ylabel("buckling stress P / A (MPa)")
+    fs.panel_title(ax, "Lipped channel column: lowest buckling stress at each length",
+                   "one marker per column length solved; GBT within 1.3 % of the finite strip model")
+    ax.legend(loc="upper right")
+    bottom = np.zeros(len(rows))
+    for c in ("local", "distortional", "global"):
+        v = np.array([r["share"][c] for r in rows])
+        axs.bar(L, v, bottom=bottom, width=L * 0.18, color=COLOURS[c], label=c, lw=0)
+        bottom += v
+    axs.set(xlabel="column length (m)", ylabel="mode share", ylim=(0, 1))
+    from matplotlib.ticker import FuncFormatter
 
-    fig, axes = plt.subplots(1, len(shapes), figsize=(3.2 * len(shapes), 3.4))
+    for a in (ax, axs):
+        a.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+    axs.grid(axis="x", visible=False)
+    fs.panel_title(axs, "Share of the in-plane displacement by mode class", None)
+    axs.legend(loc="center left", bbox_to_anchor=(1.0, 0.5))
+    fig.tight_layout()
+    fs.save(fig, os.path.join(out_dir, "signature.png"))
+
+    fig, axes = plt.subplots(1, len(shapes), figsize=(3.3 * len(shapes), 3.6))
     by_len = {r["length"]: r for r in rows}
     for ax, (Lk, Q) in zip(np.atleast_1d(axes), sorted(shapes.items())):
         mid = Q.shape[0] // 2
@@ -255,22 +266,19 @@ def figures(rows, shapes, shape: SectionShape, out_dir: str) -> None:
         peak = max(np.hypot(f[0::4], f[1::4]).max(), 1e-30)
         f = f * (0.25 * H / peak)
         for seg in shape.curve(np.zeros_like(f)):
-            ax.plot(seg[:, 0] * 1e3, seg[:, 1] * 1e3, color="#e9e8e3", lw=2.5)
+            ax.plot(seg[:, 0] * 1e3, seg[:, 1] * 1e3, color=fs.GRID, lw=3.0)
         r = by_len[Lk]
         for seg in shape.curve(f):
-            ax.plot(seg[:, 0] * 1e3, seg[:, 1] * 1e3, color=COLOURS[r["governs"]], lw=1.4)
+            fs.field(ax, seg[:, 0] * 1e3, seg[:, 1] * 1e3, color=COLOURS[r["governs"]], lw=1.5)
         ax.set_aspect("equal")
-        ax.set_title(f"L = {Lk:g} m: {r['governs']}\n{r['gbt'] / 1e6:.1f} MPa (finite strip {r['fsm'] / 1e6:.1f})",
-                     fontsize=8, loc="left")
-        ax.tick_params(labelsize=6)
-        ax.set_xlabel("y, mm", fontsize=7)
-        for s in ("top", "right"):
-            ax.spines[s].set_visible(False)
-    fig.suptitle("Buckled section at a node near midspan (section modes and frame shape functions)",
-                 fontsize=9, x=0.01, ha="left")
+        ax.set_xlabel("y (mm)")
+        fs.panel_title(ax, f"L = {Lk:g} m: {r['governs']}",
+                       f"{r['gbt'] / 1e6:.1f} MPa (finite strip {r['fsm'] / 1e6:.1f})")
+    np.atleast_1d(axes)[0].set_ylabel("z (mm)")
+    fig.suptitle("Buckled section at a node near mid-span, through the frame shape functions (grey: undeformed)",
+                 x=0.01, ha="left")
     fig.tight_layout()
-    fig.savefig(os.path.join(out_dir, "mode_shapes.png"), dpi=150)
-    plt.close(fig)
+    fs.save(fig, os.path.join(out_dir, "mode_shapes.png"))
 
 
 if __name__ == "__main__":

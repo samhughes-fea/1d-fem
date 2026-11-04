@@ -42,7 +42,8 @@ centrifugal stretch adds Ω̄² I / (A L²) to the tension, so the section is sl
 make that negligible. A stubby section stiffens a little more, which is real.
 
 The computed frequencies are markers at the speeds solved, and so are the reference
-values. Only the exact whirl relation is drawn as lines.
+values. Only the exact whirl relation is drawn as lines. The right panel gives the
+difference from the reference at every speed.
 
 `tests/test_rotating_frame.py` covers the same checks, and also:
 

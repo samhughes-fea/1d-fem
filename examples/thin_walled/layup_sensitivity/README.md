@@ -38,6 +38,10 @@ coupling, as in an aeroelastically tailored blade). The webs are `[45, -45, -45,
 All 63 derivatives agree with central differences to within 1.0 × 10⁻⁵ (relative); the
 largest difference is the step error of the differences themselves.
 
+![adjoint against central differences](check.png)
+
+![section](section.png)
+
 ![sensitivities](sensitivities.png)
 
 Left: change per degree of ply angle, as a percentage of the response. The off-axis pair

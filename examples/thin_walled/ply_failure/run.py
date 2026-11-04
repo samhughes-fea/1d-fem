@@ -108,51 +108,78 @@ def along_span(rows: List[dict]) -> Dict[str, np.ndarray]:
     return {"x": xs, **{c: np.array([by_x[x][c] for x in xs]) for c in CRITERIA}}
 
 
+def contour_coordinates(r: dict) -> tuple:
+    """``(contour distance, n)`` of a row: from its wall and ``s`` (thin-walled rows), or from
+    the nearest wall mid-line of the box to its ``(y, z)`` (2D section rows)."""
+    if r["wall_id"]:
+        w = r["wall_id"]
+        return _OFFSETS[w] + float(r["s"]), float(r["n"])
+    y, z = float(r["y"]), float(r["z"])
+    # walls: 1 bottom (+y), 2 rear web (+z), 3 top (-y), 4 front web (-z); n = x cross s points inward
+    d = {"1": abs(z + H / 2), "2": abs(y - B / 2), "3": abs(z - H / 2), "4": abs(y + B / 2)}
+    w = min(d, key=d.get)
+    s_, n = {"1": (y + B / 2, z + H / 2), "2": (z + H / 2, B / 2 - y),
+             "3": (B / 2 - y, H / 2 - z), "4": (H / 2 - z, y + B / 2)}[w]
+    return _OFFSETS[w] + s_, n
+
+
+_OFFSETS = {"1": 0.0, "2": B, "3": B + H, "4": 2 * B + H}
+
+
 def figures(tw: List[dict], so: List[dict], out_dir: str) -> None:
-    import matplotlib
-    matplotlib.use("Agg")
+    """Exposure along the span at every Gauss point, and maps of the exposure over every ply
+    face (thin-walled) or quadrature point (2D) of the root Gauss point's section, unrolled."""
+    from onedfem.post_processing.graphical_visualisers import figure_style as fs
+
+    fs.use()
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(1, 2, figsize=(10, 3.6), sharey=True)
-    for ax, rows, title in ((axes[0], tw, "thin-walled sections"), (axes[1], so, "2D sections")):
+    fig, axes = plt.subplots(1, 2, figsize=(10.5, 3.8), sharey=True)
+    for ax, rows, title in ((axes[0], tw, "Thin-walled sections"), (axes[1], so, "2D sections")):
         a = along_span(rows)
         for c in CRITERIA:
-            ax.plot(a["x"], a[c], "o", ms=3.5, color=COLOURS[c], label=NAMES[c])
-        ax.set_xlabel("span x at the Gauss points, m", fontsize=8)
-        ax.set_title(title, fontsize=9, loc="left")
-        for s in ("top", "right"):
-            ax.spines[s].set_visible(False)
-        ax.tick_params(labelsize=7)
-    axes[0].set_ylabel("largest exposure in the section", fontsize=8)
-    axes[0].legend(fontsize=7, frameon=False)
-    fig.suptitle("Ply failure exposure at every Gauss point (1 / exposure = first-ply-failure load factor)",
-                 fontsize=9, x=0.01, ha="left")
+            fs.gauss(ax, a["x"], a[c], color=COLOURS[c], label=NAMES[c], ms=3.4)
+        ax.set(xlabel="span x at the beam Gauss points (m)")
+        fs.panel_title(ax, title, "largest exposure over the section at each Gauss point")
+    axes[0].set_ylabel("exposure (1 / first-ply-failure load factor)")
+    axes[0].legend(loc="upper right")
+    fs.marks_legend(axes[1], ("gauss",), loc="upper right", labels={"gauss": "beam Gauss point (2 per element)"})
     fig.tight_layout()
-    fig.savefig(os.path.join(out_dir, "exposure_along_span.png"), dpi=150)
-    plt.close(fig)
+    fs.save(fig, os.path.join(out_dir, "exposure_along_span.png"))
 
-    # the root Gauss point of the thin-walled model, around the contour, per ply
-    g0 = min(float(r["x"]) for r in tw)
-    root = [r for r in tw if float(r["x"]) == g0]
-    fig, axes = plt.subplots(1, 2, figsize=(10, 3.6), sharey=True)
-    offsets = {"1": 0.0, "2": B, "3": B + H, "4": 2 * B + H}
-    for ax, c in zip(axes, ("tsai_wu", "puck")):
-        for r in root:
-            s = offsets[r["wall_id"]] + float(r["s"])
-            ax.plot(s, float(r[c]), "o", ms=2.5, color=COLOURS[c], alpha=0.6)
-        for w, o in offsets.items():
-            ax.axvline(o, color="#e9e8e3", lw=0.8, zorder=0)
-            ax.text(o + 0.02, 0.98, WALLS[w], transform=ax.get_xaxis_transform(), fontsize=6, color="#52514e",
-                    va="top")
-        ax.set_xlabel("contour coordinate (bottom cap, rear web, top cap, front web), m", fontsize=8)
-        ax.set_title(f"{NAMES[c]}, every ply face at the root Gauss point", fontsize=9, loc="left")
-        for sp in ("top", "right"):
-            ax.spines[sp].set_visible(False)
-        ax.tick_params(labelsize=7)
-    axes[0].set_ylabel("exposure", fontsize=8)
+    # the root Gauss point: exposure on every ply face / quadrature point, around the unrolled contour
+    fig, axes = plt.subplots(2, 2, figsize=(12, 5.6), sharex=True, sharey="row")
+    for i, (rows, label) in enumerate(((tw, "thin-walled: every ply face at points along each wall"),
+                                       (so, "2D section: every quadrature point of the section mesh"))):
+        g0 = min(float(r["x"]) for r in rows)
+        root = [r for r in rows if float(r["x"]) == g0]
+        cn = np.array([contour_coordinates(r) for r in root])
+        for j, c in enumerate(("tsai_wu", "puck")):
+            ax = axes[i, j]
+            e = np.array([float(r[c]) for r in root])
+            order = np.argsort(e)
+            sc = ax.scatter(cn[order, 0], cn[order, 1] * 1e3, c=e[order], s=6 if i == 0 else 3, cmap="viridis",
+                            vmin=0, vmax=max(e.max(), 1e-12), marker="s", lw=0)
+            k = int(np.argmax(e))
+            ax.plot(cn[k, 0], cn[k, 1] * 1e3, "o", mfc="none", mec="#d4570b", ms=9, mew=1.4)
+            ax.annotate(f"{e[k]:.3f}", (cn[k, 0], cn[k, 1] * 1e3), xytext=(8, 6), textcoords="offset points",
+                        fontsize=7, color="#d4570b")
+            for w, o in _OFFSETS.items():
+                ax.axvline(o, color=fs.MUTED, lw=0.6)
+                if i == 0:
+                    ax.text(o + 0.02, 1.0, WALLS[w], transform=ax.get_xaxis_transform(), fontsize=6.5,
+                            color=fs.MUTED, va="bottom")
+            ax.grid(False)
+            fig.colorbar(sc, ax=ax, pad=0.01, label=f"{NAMES[c]} exposure")
+            if i == 1:
+                ax.set_xlabel("contour distance (m)")
+            if j == 0:
+                ax.set_ylabel("n through the wall (mm)")
+            ax.set_title(f"{NAMES[c]}, {label}", fontsize=8, pad=14 if i == 0 else 6)
+    fig.suptitle(f"Root Gauss point (x = {min(float(r['x']) for r in tw):.3f} m): exposure over the unrolled "
+                 "section; circle = worst point", x=0.01, ha="left")
     fig.tight_layout()
-    fig.savefig(os.path.join(out_dir, "root_contour.png"), dpi=150)
-    plt.close(fig)
+    fs.save(fig, os.path.join(out_dir, "root_contour.png"))
 
 
 def main(plot: bool = True, work_dir: str = HERE, out_dir: str = HERE) -> dict:
