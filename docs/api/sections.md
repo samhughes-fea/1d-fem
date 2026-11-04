@@ -277,10 +277,12 @@ Exact derivatives of thin-walled section properties with respect to ply angles a
   ``d ABD`` (6, 6) and ``d [m0, m1, m2]`` (the mass moments ``int rho n^p dn``, p = 0, 1, 2).
 - **`wall_law_derivative(lam: WallLaminate, dABD: np.ndarray, hoop: str = 'free') -> np.ndarray`**
   ``d wall_law(lam, hoop)`` (4, 4) for a change ``dABD`` of the laminate stiffness.
-- **class `SectionDerivative(parameter: LayupParameter, flexibility: npt.NDArray[np.float64], stiffness: npt.NDArray[np.float64], mass: Dict[str, float], mass_matrix: npt.NDArray[np.float64], benscoter_stiffness: Optional[npt.NDArray[np.float64]] = None, warping_inertia: float = 0.0, geometric_terms: Optional[npt.NDArray[np.float64]] = None, axial_weights: Optional[npt.NDArray[np.float64]] = None, wall_axial: float = 0.0) -> None`**
+- **class `SectionDerivative(parameter: LayupParameter, flexibility: npt.NDArray[np.float64], stiffness: npt.NDArray[np.float64], mass: Dict[str, float], mass_matrix: npt.NDArray[np.float64], benscoter_stiffness: Optional[npt.NDArray[np.float64]] = None, warping_inertia: float = 0.0, geometric_terms: Optional[npt.NDArray[np.float64]] = None, axial_weights: Optional[npt.NDArray[np.float64]] = None, wall_axial: float = 0.0, gbt_stiffness: Optional[npt.NDArray[np.float64]] = None, gbt_mass: Optional[npt.NDArray[np.float64]] = None, gbt_geometric: Optional[Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]] = None, warping_fields: Optional[Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]] = None) -> None`**
   Derivatives of a thin-walled section for one ``LayupParameter``.
 - **`section_derivative(an, param: LayupParameter, benscoter: bool = False, geometric: bool = False) -> SectionDerivative`**
   Exact derivatives of the section stiffness, flexibility and mass for ``param``.
+- **`gbt_section_derivative(modes, d: SectionDerivative, n_modes: int, n_shear: int = 0)`**
+  Derivatives of the GBT section matrices: ``(dK, dM, (dTX, dTY))``.
 - **`element_section_derivative(sa, d: SectionDerivative)`**
   A ``SectionAnalysis`` like ``sa`` whose stiffness and mass matrix are the derivatives ``d`` (element signs).
 

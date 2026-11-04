@@ -147,11 +147,13 @@ def _taper_file(sec) -> str:
     return format_section_taper_file({e: t for e in range(N_EL)})
 
 
-def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D", precurvature=None, taper=False, two_d=False):
+def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D", precurvature=None, taper=False, two_d=False,
+         modes=0, shear_modes=0):
     from workflow_orchestrator.run_job import process_job
 
     tip = BUCKLING_TIP if kind == "buckling" else [0.0, 3e3, 20e3, 5e3, 0.0, 0.0]
-    spec = common.CantileverSpec(4.0, N_EL, element, sec, tip, warping=int("Benscoter" in element))
+    spec = common.CantileverSpec(4.0, N_EL, element, sec, tip, warping=int("Benscoter" in element or "GBT" in element),
+                                 modes=modes, shear_modes=shear_modes)
     job = os.path.join(_WORK, "jobs", name)
     common.write_job(job, spec)
     common.write_supports(job, spec)
@@ -363,6 +365,28 @@ def test_2d_section_job_sensitivities_match_central_differences(kind, element):
         assert float(row["derivative"]) == pytest.approx(fd, rel=2e-5), (label, resp)
         n += 1
     assert n == len(RESPONSES[kind])
+
+
+# ------------------------------------------------------------------ GBT
+
+@pytest.mark.slow
+@pytest.mark.parametrize("kind, shear", [("static", 2), ("eigen", 0), ("eigen", 2), ("buckling", 0)])
+def test_gbt_job_sensitivities_match_central_differences(kind, shear):
+    """GBT cantilevers with two distortional modes (and two shear-lag modes): the mode
+    derivatives are in, so a distortional frequency matches too (holding the modes fixed it is
+    18 % off for a ply thickness)."""
+    el = "LinearGBTBeamElement3D"
+    tag = f"gbt_{kind}_{shear}"
+    base = _run(tag, _spec(), kind, el, modes=2, shear_modes=shear)
+    for prm in JOB_PARAMS:
+        h = 1e-3 if prm.kind == "angle" else 1e-8
+        rp = _run(f"{tag}_p", _spec((prm, h)), kind, el, modes=2, shear_modes=shear)
+        rm = _run(f"{tag}_m", _spec((prm, -h)), kind, el, modes=2, shear_modes=shear)
+        for (label, resp), row in base.items():
+            if label != prm.label:
+                continue
+            fd = (float(rp[label, resp]["response_value"]) - float(rm[label, resp]["response_value"])) / (2 * h)
+            assert float(row["derivative"]) == pytest.approx(fd, rel=3e-5), (label, resp)
 
 
 def test_unsupported_elements_are_refused():

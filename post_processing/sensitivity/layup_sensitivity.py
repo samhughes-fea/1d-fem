@@ -17,7 +17,15 @@ section's stiffness (6 x 6, or the Benscoter 8 x 8), its mass and its warping in
   section at fixed ``U_0`` (its forces ``D e`` and second-order terms ``H``: the element's
   ``K_g`` formed with ``dD`` and with ``dH``) and through ``U_0``: ``K_g`` is linear in
   ``U_0``, so ``phi^T K_g(dU_0) phi = g^T dU_0`` with ``g_i = phi^T K_g(e_i) phi``, and one
-  adjoint solve ``K mu = g`` gives ``g^T dU_0 = -mu^T dK U_0``. Timoshenko elements only.
+  adjoint solve ``K mu = g`` gives ``g^T dU_0 = -mu^T dK U_0``. Timoshenko and GBT elements
+  (for GBT, ``K_g`` is linear in the section's geometric tensors alone).
+
+GBT elements (``LinearGBTBeamElement3D``) are linear in the GBT section matrices, which are
+integrals of the cross-section modes against the wall laws. The modes change with the
+layup too: the derivatives of the distortional and warping modes are taken in the
+directions that change their spans (``thin_walled.layup_sensitivity.gbt_section_derivative``),
+which is all a beam with one section sees, so the result is exact for such beams. Beams
+whose GBT elements have several sections (aligned mode bases) are refused.
 
 ``write_layup_sensitivity`` writes ``secondary_results/sensitivity/layup_sensitivity.csv``
 with one row per parameter and response: the parameter value, the response, its derivative
@@ -56,10 +64,13 @@ LAYUP_SENSITIVITY_COLUMNS = ("parameter", "laminate_id", "ply", "kind", "value",
                              "derivative", "relative_derivative")
 
 #: elements whose stiffness and mass are linear in the section's 6 x 6 stiffness and mass
-SUPPORTED = ("LinearTimoshenkoBeamElement3D", "LinearBenscoterBeamElement3D")
+SUPPORTED = ("LinearTimoshenkoBeamElement3D", "LinearBenscoterBeamElement3D", "LinearGBTBeamElement3D")
 BENSCOTER = ("LinearBenscoterBeamElement3D",)
+#: elements on the GBT section matrices (derivatives with the cross-section modes held fixed)
+GBT = ("LinearGBTBeamElement3D",)
 #: elements whose geometric stiffness is linear in the section stiffness and second-order terms
-BUCKLING = ("LinearTimoshenkoBeamElement3D",)
+#: (or, for GBT, in its geometric tensors)
+BUCKLING = ("LinearTimoshenkoBeamElement3D", "LinearGBTBeamElement3D")
 
 
 def _check_element(el) -> None:
@@ -68,6 +79,13 @@ def _check_element(el) -> None:
         raise NotImplementedError(
             f"layup sensitivities need {', '.join(SUPPORTED)} elements; element {el.element_id} is {name}")
     sa = getattr(el, "_assigned_section_analysis", None)
+    if name in GBT:
+        if _curved(el) or np.any(getattr(el, "_E_0_voigt", 0.0)):
+            raise NotImplementedError(f"element {el.element_id}: layup sensitivities of GBT elements need straight "
+                                      "elements without precurvature or pretwist")
+        if sa is not None and getattr(sa, "source", "") == "solid":
+            raise NotImplementedError(f"element {el.element_id}: layup sensitivities of GBT elements need "
+                                      "thin-walled sections")
     if sa is not None and getattr(sa, "tapered", False) and getattr(sa, "taper_parts", None) is None:
         raise NotImplementedError(f"element {el.element_id}: layup sensitivities of a tapered element need its "
                                   "taper split by laminate ([Section_Taper_Laminate] in section_taper.txt)")
@@ -89,6 +107,10 @@ class _Swapped:
                       el.__dict__.pop("_pretwisted_section_analysis", None))
         el._assigned_section_analysis = self.d
         el.logger_operator = None
+        self.gbt = None
+        if "_D_gbt" in el.__dict__:                 # GBT elements keep their matrices from __init__
+            self.gbt = (el._D_gbt, el._M_gbt, el.__dict__.pop("_gbt_geometric_cache", None))
+            el._D_gbt, el._M_gbt = el.section_analysis.gbt_matrices(el.n_modes, el.n_shear)
         return el
 
     def __exit__(self, *exc):
@@ -97,6 +119,11 @@ class _Swapped:
         el._assigned_section_analysis, el.logger_operator, pre = self.saved
         if pre is not None:
             el._pretwisted_section_analysis = pre
+        if self.gbt is not None:
+            el.__dict__.pop("_gbt_geometric_cache", None)
+            el._D_gbt, el._M_gbt, cache = self.gbt
+            if cache is not None:
+                el._gbt_geometric_cache = cache
         return False
 
 
@@ -190,6 +217,11 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
                                       f"element {el.element_id} is {type(el).__name__}"
                                       + (", curved or pretwisted" if _curved(el) else ""))
     cache: Dict[Tuple[int, LayupParameter], object] = {}
+    modes_cache: Dict[int, object] = {}
+    gbt_sections = {id(tw) for el, tw in zip(elements, thin_walled) if type(el).__name__ in GBT and tw is not None}
+    if len(gbt_sections) > 1:
+        raise NotImplementedError("layup sensitivities of GBT elements need one section along the beam (the "
+                                  "alignment of several sections' mode bases is not differentiated)")
     rows: List[dict] = []
 
     dofs = [el.assemble_global_dof_indices() for el in elements]
@@ -253,17 +285,24 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
                 dGe.append((None, None, None))
                 continue
             bens = type(el).__name__ in BENSCOTER
-            key = (id(tw), p, bens)
+            gbt = type(el).__name__ in GBT
+            sa = el.section_analysis
+            key = (id(tw), p, bens, (sa.gbt_modes, sa.gbt_shear_modes) if gbt else None)
             if key not in cache:
-                cache[key] = _section_derivative(tw, p, benscoter=bens, geometric=buckling)
-            dsa = element_section_derivative(el.section_analysis, cache[key])
+                d = _section_derivative(tw, p, benscoter=bens, geometric=buckling)
+                if gbt:
+                    d = dataclasses.replace(d, **_gbt_derivative(modes_cache, tw, d, sa))
+                cache[key] = d
+            dsa = element_section_derivative(sa, cache[key])
             a, b = element_derivatives(el, dsa, mass=eigen)
             dKe.append(a)
             dMe.append(b)
             if buckling:
                 from pre_processing.section_integration.section_analysis import ELEMENT_SIGN
 
-                dH = dataclasses.replace(el.section_analysis, geometric_terms=cache[key].geometric_terms @ ELEMENT_SIGN)
+                # GBT: K_g is linear in the GBT geometric tensors alone (in dsa)
+                dH = None if gbt else dataclasses.replace(
+                    el.section_analysis, geometric_terms=cache[key].geometric_terms @ ELEMENT_SIGN)
                 dGe.append((el, dsa, dH))
         value = _parameter_value(thin_walled, p)
         if buckling:
@@ -273,7 +312,9 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
                     if el is None:
                         continue
                     u0 = U0[d]
-                    dKg = element_geometric_derivative(el, dsa, u0) + element_geometric_derivative(el, dH, u0)
+                    dKg = element_geometric_derivative(el, dsa, u0)
+                    if dH is not None:
+                        dKg = dKg + element_geometric_derivative(el, dH, u0)
                     num += lam * float(phi[d] @ dKg @ phi[d])
                 rows.append(_row(p, value, r, lam, -num / kg))
         elif not eigen:
@@ -291,6 +332,17 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
                 dw2 = (form(dKe, phi, phi) - w2 * form(dMe, phi, phi)) / float(phi @ np.asarray(M @ phi).ravel())
                 rows.append(_row(p, value, r, float(f[k]), dw2 / (8 * np.pi**2 * f[k])))
     return rows
+
+
+def _gbt_derivative(modes_cache, tw, d, sa) -> dict:
+    """The ``SectionDerivative`` GBT fields for section ``tw`` in the layout of ``sa``."""
+    from pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
+    from pre_processing.section_integration.thin_walled.layup_sensitivity import gbt_section_derivative
+
+    if id(tw) not in modes_cache:
+        modes_cache[id(tw)] = CrossSectionModes(tw)
+    dK, dM, dG = gbt_section_derivative(modes_cache[id(tw)], d, sa.gbt_modes, sa.gbt_shear_modes)
+    return {"gbt_stiffness": dK, "gbt_mass": dM, "gbt_geometric": dG}
 
 
 def _is_solid(an) -> bool:
@@ -341,6 +393,10 @@ def write_layup_sensitivity(job_dir: str, job_results_dir: str, element_dictiona
     if tw is None:
         raise ValueError("layup sensitivities need thin-walled or 2D sections (laminate.txt, section_geometry.txt "
                          "or section_mesh_2d.txt)")
+    loads = element_dictionary.get("wall_load_per_element")
+    if loads is not None and any(f is not None and type(el).__name__ in GBT for el, f in zip(elements, loads)):
+        raise NotImplementedError("layup sensitivities with wall loads on GBT elements: their generalised load "
+                                  "moves with the cross-section modes and is not differentiated")
     solid = element_dictionary.get("solid_analysis_per_element")
     if solid is not None:
         tw = tuple(s if s is not None else t for t, s in zip(tw, solid))
