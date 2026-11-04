@@ -87,9 +87,17 @@ def assemble_timoshenko_K0(
     """
     Assemble the 12×12 material stiffness ∫ ``Bᵀ D B`` dx with block-wise quadrature.
 
-    A full rule at ``max_full_order`` forms the baseline (captures coupling); bending
-    rows 1–2 and shear rows 3–4 are then substituted by separate Gauss sums at
+    A full rule at ``max_full_order`` forms the baseline (captures coupling); the bending
+    block (rows/cols 1–2 of ``D``, including ``D[1,2]``) and the shear block (rows/cols
+    3–4, including ``D[3,4]``) are then substituted by separate Gauss sums at
     ``bending_rule_order`` and ``orders.shear_block``.
+
+    With linear interpolation the bending strains are constant, so only the shear
+    block has a linear part; cross terms between a shear strain and a constant strain
+    integrate to the same value under the full and the one-point rule, so keeping them
+    in the full rule causes no shear locking. ``D[3,4]`` (shear-shear coupling) is the
+    one coupling that must be under-integrated with the shear block. For a diagonal
+    ``D`` this is the legacy diagonal-block scheme.
     """
     max_order = orders.max_full_order
     bending_order = orders.bending_rule_order
@@ -108,8 +116,7 @@ def assemble_timoshenko_K0(
         N, dN_dξ, d2N_dξ2 = shape_function_operator.natural_coordinate_form(np.array([xi_g]))
         B = strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
         B_bending = B[[1, 2], :]
-        D_bending_diag = np.array([D[1, 1], D[2, 2]])
-        Ke_bending_block += B_bending.T @ np.diag(D_bending_diag) @ B_bending * w_g * detJ
+        Ke_bending_block += B_bending.T @ D[1:3, 1:3] @ B_bending * w_g * detJ
 
     xi_shear, w_shear = np.polynomial.legendre.leggauss(shear_order)
     Ke_shear_block = np.zeros((12, 12), dtype=np.float64)
@@ -117,23 +124,20 @@ def assemble_timoshenko_K0(
         N, dN_dξ, d2N_dξ2 = shape_function_operator.natural_coordinate_form(np.array([xi_g]))
         B = strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
         B_shear = B[[3, 4], :]
-        D_shear_diag = np.array([D[3, 3], D[4, 4]])
-        Ke_shear_block += B_shear.T @ np.diag(D_shear_diag) @ B_shear * w_g * detJ
+        Ke_shear_block += B_shear.T @ D[3:5, 3:5] @ B_shear * w_g * detJ
 
     Ke_full_bending = np.zeros((12, 12), dtype=np.float64)
     for xi_g, w_g in zip(xi_full, w_full):
         N, dN_dξ, d2N_dξ2 = shape_function_operator.natural_coordinate_form(np.array([xi_g]))
         B = strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
         B_bending = B[[1, 2], :]
-        D_bending_diag = np.array([D[1, 1], D[2, 2]])
-        Ke_full_bending += B_bending.T @ np.diag(D_bending_diag) @ B_bending * w_g * detJ
+        Ke_full_bending += B_bending.T @ D[1:3, 1:3] @ B_bending * w_g * detJ
 
     Ke_full_shear = np.zeros((12, 12), dtype=np.float64)
     for xi_g, w_g in zip(xi_full, w_full):
         N, dN_dξ, d2N_dξ2 = shape_function_operator.natural_coordinate_form(np.array([xi_g]))
         B = strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
         B_shear = B[[3, 4], :]
-        D_shear_diag = np.array([D[3, 3], D[4, 4]])
-        Ke_full_shear += B_shear.T @ np.diag(D_shear_diag) @ B_shear * w_g * detJ
+        Ke_full_shear += B_shear.T @ D[3:5, 3:5] @ B_shear * w_g * detJ
 
     return Ke_full - Ke_full_bending - Ke_full_shear + Ke_bending_block + Ke_shear_block

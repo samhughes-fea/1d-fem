@@ -1,0 +1,3 @@
+# Optional: blade geometry from implicit-geometry-kernel (Python 3.11 or later).
+# Used by pre_processing/section_integration/thin_walled/from_geometry.py and the blade examples.
+implicit-geometry-kernel @ git+https://github.com/samhughes-fea/implicit-geometry-kernel

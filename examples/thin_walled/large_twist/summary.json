@@ -1,0 +1,29 @@
+{
+  "rows": [
+    {
+      "torque": 1000.0,
+      "corotational": 0.1408883579958,
+      "linear": 0.1435401579359,
+      "vlasov_nonlinear": 0.14054197542979918
+    },
+    {
+      "torque": 2000.0,
+      "corotational": 0.2688042196274,
+      "linear": 0.2870803158718,
+      "vlasov_nonlinear": 0.2681704191160807
+    },
+    {
+      "torque": 4000.0,
+      "corotational": 0.4752455598184,
+      "linear": 0.5741606317436,
+      "vlasov_nonlinear": 0.4741917358202939
+    },
+    {
+      "torque": 6000.0,
+      "corotational": 0.6327118237974,
+      "linear": 0.8612409476154,
+      "vlasov_nonlinear": 0.631331361124996
+    }
+  ],
+  "max_error": 0.002464620017909258
+}

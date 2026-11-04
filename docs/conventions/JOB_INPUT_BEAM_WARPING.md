@@ -18,8 +18,7 @@ Legacy helpers `mesh_uses_warping_dof`, `element_warping_stiffness_on`, and `eff
 ## `element.txt`: element type and optional columns
 
 - **Standard row:** 11 columns per `ElementParser` (element id, two nodes, type string, six integration orders).
-- **Optional 12th column:** either `[curvature]` (legacy scalar, not used by current elements) **or** `[warping]` (0/1 per element), disambiguated by the subheader.
-- **Optional 13th column:** when both `[curvature]` and `[warping]` appear, order is **fixed**: curvature then warping.
+- **Optional columns** after the 11 standard ones, any of them, in this order: `[curvature]` (legacy scalar, not used by current elements), `[warping]` (0/1 per element) and `[twist]` (section twist about the element axis in degrees; see [element_frames.md](../element_library/element_frames.md)).
 
 **Preferred authoring:** use baseline beam type strings (e.g. `LinearTimoshenkoBeamElement3D`, `LinearEulerBernoulliBeamElement3D`, `NonlinearEulerBernoulliBeamElement3D`) and set `[warping]` to **1** where Vlasov warping DOFs and/or stiffness are needed. Removed legacy aliases (`LinearWarping*`, `NonlinearWarpingEulerBernoulliBeamElement3D`, `NonlinearWarpingTimoshenkoBeamElement3D`) are listed in [`DEPRECATED_ELEMENT_TYPES.md`](DEPRECATED_ELEMENT_TYPES.md). When the `[warping]` column is **absent**, `beam_warping.py` can still infer warping from a type name containing `"Warping"` (legacy); explicit `[warping]` is recommended.
 

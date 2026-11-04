@@ -25,7 +25,7 @@ from processing.harmonic.operations import (
     SolveHarmonicFrequencySweep,
 )
 from processing.static.diagnostics.runtime_monitor_telemetry import RuntimeMonitorTelemetry
-from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
+from pre_processing.element_library.dof_layout import mesh_dof_per_node
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +193,7 @@ class HarmonicSimulationRunner:
 
     def _dof_per_node(self) -> int:
         ed = self.settings.get("element_dictionary")
-        return 7 if ed is not None and mesh_uses_warping_dof(ed) else 6
+        return mesh_dof_per_node(ed)
 
     def _total_dof(self) -> int:
         num_nodes = len(self.mesh_dictionary["node_ids"])

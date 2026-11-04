@@ -23,7 +23,7 @@ from processing.transient.operations import (
 from processing.transient.transient_forcing import build_transient_force_func
 from processing.dynamic.assembly import assemble_global_force_vector
 from processing.static.diagnostics.runtime_monitor_telemetry import RuntimeMonitorTelemetry
-from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
+from pre_processing.element_library.dof_layout import mesh_dof_per_node
 from pre_processing.parsing.simulation_settings_resolution import effective_transient_config
 
 logger = logging.getLogger(__name__)
@@ -205,7 +205,7 @@ class TransientSimulationRunner:
 
     def _dof_per_node(self) -> int:
         ed = self.element_dictionary
-        return 7 if ed is not None and mesh_uses_warping_dof(ed) else 6
+        return mesh_dof_per_node(ed)
 
     def _mesh_node_ids(self):
         node_ids = self.mesh_dictionary.get("node_ids")

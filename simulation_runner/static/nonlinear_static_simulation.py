@@ -147,9 +147,9 @@ class NonlinearStaticSimulationRunner:
         else:
             raise KeyError("grid_dictionary must contain an 'ids' array of node IDs")
 
-        from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
+        from pre_processing.element_library.dof_layout import mesh_dof_per_node
 
-        _dpn = 7 if mesh_uses_warping_dof(self.element_dictionary) else 6
+        _dpn = mesh_dof_per_node(self.element_dictionary)
         self.dof_per_node = _dpn
         self.total_dof = len(self.node_ids) * _dpn
         logger.debug(
@@ -812,6 +812,21 @@ class NonlinearStaticSimulationRunner:
                 F_int_list.append(Ke_dense @ U_e)
         return K_T_list, F_int_list
 
+    def _add_follower_loads(self, U_global: np.ndarray, R_global: np.ndarray, lam: float) -> np.ndarray:
+        """Follower loads (``follower_load.txt``, ``processing.static.follower_loads``): add
+        ``lam g(U)`` to the residual and their load stiffness ``lam K_L(U)`` to ``K_global``."""
+        rows = getattr(self, "follower_load_rows", None)
+        if rows is None or not np.size(rows):
+            return R_global
+        fl = getattr(self, "_follower_loads", None)
+        if fl is None:
+            from processing.static.follower_loads import FollowerLoads
+
+            fl = self._follower_loads = FollowerLoads(
+                rows, self.grid_dictionary["coordinates"], self.dof_per_node, self.total_dof)
+        self.K_global = (self.K_global + lam * fl.stiffness(U_global)).tocsr()
+        return R_global + lam * fl.forces(U_global)
+
     def _compute_load_factors(self) -> np.ndarray:
         """Return monotonic λ schedule for incremental loading (0 < λ ≤ 1)."""
         if self.nonlinear_load_factors is not None:
@@ -832,6 +847,7 @@ class NonlinearStaticSimulationRunner:
         )
         F_int_global = np.asarray(self.F_global, dtype=np.float64).ravel()
         R_global = F_ext_global - F_int_global
+        R_global = self._add_follower_loads(U_global, R_global, float(getattr(self, "last_load_factor", 1.0)))
         self.modify_global_system(
             self.K_global,
             R_global,
@@ -876,6 +892,7 @@ class NonlinearStaticSimulationRunner:
                 F_int_global = np.asarray(self.F_global, dtype=np.float64).ravel()
 
             R_global = F_ext_global - F_int_global
+            R_global = self._add_follower_loads(current_U, R_global, float(load_factor))
 
             with self.monitor.stage("NewtonModify"):
                 self.modify_global_system(

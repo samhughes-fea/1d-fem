@@ -45,6 +45,21 @@ class Element1DBase(ABC):
     ``precurvature_per_element`` (zeros if absent); subclasses map it to their ``B``/``D`` shapes.
     """
 
+    #: Element types that build their ``D`` from ``self.section_analysis`` set this to True.
+    supports_section_analysis: bool = False
+    #: Element types that may be rotated off the global axes or curved (``framed_element``).
+    supports_element_frame: bool = False
+
+    def __init_subclass__(cls, **kwargs):
+        """Wrap each subclass's element kernels so rotated and curved elements answer in global axes."""
+        super().__init_subclass__(**kwargs)
+        from pre_processing.element_library.framed_element import FRAMED_KERNELS, frame_kernel
+
+        for name in FRAMED_KERNELS:
+            fn = getattr(cls, name, None)          # own, inherited or from a mixin
+            if fn is not None and callable(fn) and not getattr(fn, "_frame_wrapped", False):
+                setattr(cls, name, frame_kernel(name, fn))
+
     # ------------------------------------------------------------------ #
     def __init__(
         self,
@@ -139,9 +154,38 @@ class Element1DBase(ABC):
         self.job_results_dir        = job_results_dir
         self.element_id             = element_id
         self.dof_per_node           = dof_per_node
+        # Nodal stride of the global numbering (``dof_layout``); at least this element's own count.
+        from pre_processing.element_library.dof_layout import mesh_dof_per_node
+
+        self.mesh_dof_per_node      = max(int(dof_per_node), mesh_dof_per_node(element_dictionary))
 
         # Reference strain ``E_0`` (6,) from optional ``precurvature_per_element``; Voigt order ``FORMULATION_DOCSTRING_STANDARDS``.
         self._E_0_voigt = element_reference_strain_voigt(element_dictionary, element_id)
+
+        # Element frame: rotated (off the global x axis, [twist]) or curved (precurvature.txt)
+        from pre_processing.element_library.framed_element import setup_frame
+
+        setup_frame(self, element_dictionary, grid_dictionary, idx, dict(
+            element_id=element_id, element_dictionary=element_dictionary, grid_dictionary=grid_dictionary,
+            material_dictionary=material_dictionary, section_dictionary=section_dictionary,
+            point_load_array=point_load_array, distributed_load_array=distributed_load_array,
+            job_results_dir=job_results_dir))
+        if self._frame_on:
+            # the kernels work in the element's own axes: node 1 at the origin, node 2 on its x axis
+            L_chord = float(np.linalg.norm(self.grid_array[1] - self.grid_array[0]))
+            self.grid_array = np.array([[0.0, 0.0, 0.0], [L_chord, 0.0, 0.0]])
+        pretwist = element_dictionary.get("pretwist_rate")
+        self._pretwist_rate = 0.0 if pretwist is None else float(np.asarray(pretwist)[idx])
+
+        # Thin-walled anisotropic section assigned through element_section.txt (None if absent).
+        per_element = element_dictionary.get("section_analysis_per_element")
+        self._assigned_section_analysis = None if per_element is None else per_element[idx]
+        if self._assigned_section_analysis is not None and not self.supports_section_analysis:
+            raise NotImplementedError(
+                f"Element {element_id} ({type(self).__name__}) is assigned thin-walled section "
+                f"{self._assigned_section_analysis.section_id}, but this element type does not "
+                "use SectionAnalysis stiffness yet. Remove it from element_section.txt."
+            )
 
         # optional placeholders for cached results
         self.Ke: Optional[np.ndarray] = None   # stiffness matrix cache
@@ -155,6 +199,50 @@ class Element1DBase(ABC):
 
         self._assert_logging_ready()
     
+    @property
+    def section_analysis(self):
+        """Section constitutive data (``SectionAnalysis``) in the element Voigt convention.
+
+        The thin-walled analysis assigned in ``element_section.txt`` when there is
+        one; otherwise built from ``section_array`` and ``material_array``
+        (``kappa`` defaults to 5/6 when absent).
+        """
+        base = self._base_section_analysis()
+        k = getattr(self, "_pretwist_rate", 0.0)
+        if not k:
+            return base
+        cached = self.__dict__.get("_pretwisted_section_analysis")
+        if cached is None:
+            cached = base.with_pretwist(k)
+            self._pretwisted_section_analysis = cached
+        return cached
+
+    def _base_section_analysis(self):
+        if self._assigned_section_analysis is not None:
+            return self._assigned_section_analysis
+        cached = getattr(self, "_isotropic_section_analysis", None)
+        if cached is None:
+            from pre_processing.section_integration.section_analysis import SectionAnalysis
+
+            sa = self.section_array
+            E, G, _nu, rho = (float(v) for v in self.material_array)
+            cached = SectionAnalysis.from_isotropic(
+                E=E, G=G, A=float(sa[0]), I_x=float(sa[1]), I_y=float(sa[2]), I_z=float(sa[3]),
+                J_t=float(sa[4]),
+                kappa=float(sa[5]) if sa.size >= 7 else 5.0 / 6.0,
+                y_sc=float(sa[7]) if sa.size >= 9 else 0.0,
+                z_sc=float(sa[8]) if sa.size >= 9 else 0.0,
+                Gamma=float(sa[9]) if sa.size >= 10 else 0.0,
+                rho=rho,
+            )
+            self._isotropic_section_analysis = cached
+        return cached
+
+    @property
+    def has_thin_walled_section(self) -> bool:
+        """True when ``element_section.txt`` assigns this element a thin-walled section."""
+        return self._assigned_section_analysis is not None
+
     def set_logging_directory(self, job_results_dir: str) -> None:
         """Re-point this element’s log files to a new directory."""
         self.job_results_dir = job_results_dir
@@ -256,7 +344,7 @@ class Element1DBase(ABC):
         Returns
         -------
         np.ndarray
-            Global DOF indices array of shape (2*dof_per_node,)
+            Global DOF indices array of shape (2*dof_per_node,), in the element's own DOF order.
 
         Raises
         ------
@@ -265,16 +353,27 @@ class Element1DBase(ABC):
 
         Notes
         -----
-        Assumes consecutive node numbering and fixed dof_per_node.
-        Index mapping formula: global_dof = node_id * dof_per_node + local_dof
+        Global numbering is node-major with the mesh stride
+        (``global_dof = node_id * mesh_dof_per_node + local_dof``, see ``dof_layout``).
+        Element vectors put the six standard DOFs of both nodes first and the element's
+        extra DOFs last, node 1 then node 2: ``[n1 0..5, n2 0..5, n1 6.., n2 6..]``. This is
+        the layout every 14-DOF beam element builds ``K_e`` and ``F_e`` in. An element with
+        fewer DOFs than the mesh stride (a truss on a warping mesh) uses the first ones.
         """
         eid, n1, n2 = self.element_array[:3]
-
-        dof_indices = []
         for nid in (n1, n2):
             if nid < 0:
                 raise ValueError(f"Invalid node ID {nid} in element {eid}")
-            start = nid * self.dof_per_node
-            dof_indices.extend(range(start, start + self.dof_per_node))
+
+        dpn = int(self.dof_per_node)
+        stride = int(getattr(self, "mesh_dof_per_node", dpn))
+        n_std = min(dpn, 6)
+        dof_indices = []
+        for nid in (n1, n2):
+            start = int(nid) * stride
+            dof_indices.extend(range(start, start + n_std))
+        for nid in (n1, n2):
+            start = int(nid) * stride
+            dof_indices.extend(range(start + n_std, start + dpn))
 
         return np.asarray(dof_indices, dtype=int)

@@ -27,20 +27,6 @@ def _timoshenko_operator(L: float) -> Any:
     return ShapeFunctionOperator(element_length=L)
 
 
-def _levinson_operator(L: float) -> Any:
-    from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.utilities.shape_functions import (
-        ShapeFunctionOperator,
-    )
-    return ShapeFunctionOperator(element_length=L)
-
-
-def _reddy_operator(L: float) -> Any:
-    from pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.utilities.shape_functions import (
-        ShapeFunctionOperator,
-    )
-    return ShapeFunctionOperator(element_length=L)
-
-
 def _bar_operator(L: float) -> Any:
     from pre_processing.element_library.linear.bar.utilities.shape_functions import (
         ShapeFunctionOperator,
@@ -62,12 +48,20 @@ SHAPE_FUNCTION_REGISTRY: dict[str, ShapeFunctionOperatorFactory] = {
     "LinearEulerBernoulliBeamElement3D": _eb_operator,
     "NonlinearEulerBernoulliBeamElement3D": _eb_operator,
     "LinearTimoshenkoBeamElement3D": _timoshenko_operator,
+    "LinearBenscoterBeamElement3D": _timoshenko_operator,
+    "LinearGBTBeamElement3D": _timoshenko_operator,
     "NonlinearTimoshenkoBeamElement3D": _timoshenko_operator,
     "GeometricallyExactShearDeformableBeam3D": _timoshenko_operator,
     "CorotationalBeamElement3D": _timoshenko_operator,
+    "CorotationalEulerBernoulliBeamElement3D": _eb_operator,
+    "CorotationalTimoshenkoBeamElement3D": _timoshenko_operator,
+    "CorotationalBenscoterBeamElement3D": _timoshenko_operator,
+    "CorotationalGBTBeamElement3D": _timoshenko_operator,
+    "CorotationalReddyBeamElement3D": _timoshenko_operator,
+    "CorotationalLevinsonBeamElement3D": _timoshenko_operator,
     "GEBTUnshearableBeamElement3D": _eb_operator,
-    "LinearLevinsonBeamElement3D": _levinson_operator,
-    "LinearReddyBeamElement3D": _reddy_operator,
+    "LinearLevinsonBeamElement3D": _timoshenko_operator,
+    "LinearReddyBeamElement3D": _timoshenko_operator,
     "LinearBarElement3D": _bar_operator,
     "LinearTrussElement3D": _truss_operator,
 }

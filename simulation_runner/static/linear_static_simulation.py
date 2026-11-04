@@ -147,9 +147,9 @@ class LinearStaticSimulationRunner:
         else:
             raise KeyError("grid_dictionary must contain an 'ids' array of node IDs")
 
-        from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
+        from pre_processing.element_library.dof_layout import mesh_dof_per_node
 
-        _dpn = 7 if mesh_uses_warping_dof(self.element_dictionary) else 6
+        _dpn = mesh_dof_per_node(self.element_dictionary)
         self.dof_per_node = _dpn
         self.total_dof = len(self.node_ids) * _dpn
         logger.debug(
@@ -186,6 +186,10 @@ class LinearStaticSimulationRunner:
         # Extract output configuration with defaults (for future use)
         self.output_config = simulation_settings.get("output", {})
         
+        # [static] options: second_order = none | p_delta
+        self.static_config = dict(simulation_settings.get("static") or {})
+        self.rotation_config = dict(simulation_settings.get("rotation") or {})
+
         # General simulation settings (optional or future expansion)
         self.solver_name = self.solver_config.get("type", "cg")
         
@@ -766,6 +770,34 @@ class LinearStaticSimulationRunner:
         if force_scale != 1.0:
             self.F_global = self.F_global * float(force_scale)
 
+        self._add_rotating_frame_terms()
+        return self._solve_assembled_system()
+
+    def _add_rotating_frame_terms(self) -> None:
+        """``[Rotation]``: add the centrifugal load and the spin-softening and rotation-load
+        stiffness (``pre_processing.element_library.rotating_frame``) to the assembled system.
+        The centrifugal stiffening of the deformed state is not included (a linear solve)."""
+        from pre_processing.element_library.rotating_frame import rotation_from_settings
+
+        rotation = rotation_from_settings({"rotation": self.rotation_config})
+        if rotation is None:
+            return
+        from processing.eigen.rotating_frame import assemble_rotating_frame
+
+        f_c, K_soft, K_rot, _, objs = assemble_rotating_frame(
+            list(self.elements), self.grid_dictionary["coordinates"], self.element_dictionary["connectivity"],
+            rotation, int(self.total_dof))
+        self.K_global = (self.K_global + K_soft + K_rot).tocsr()
+        self.F_global = np.asarray(self.F_global, dtype=np.float64) + f_c
+        self.rotating_frame_objects = objs
+        if getattr(self, "primary_results_set", None) is not None:
+            self.primary_results_set.global_results.F_global = self.F_global
+            self.primary_results_set.global_results.K_global = self.K_global
+        logger.info("Rotating frame: omega = %s rad/s about %s; centrifugal load added", rotation.omega,
+                    rotation.axis)
+
+    def _solve_assembled_system(self) -> np.ndarray:
+        """BC → condense → solve → reconstruct for the assembled ``K_global``, ``F_global``."""
         DiagnoseLinearStaticSystem(
             stage="Global System",
             A_current=self.K_global,
@@ -856,10 +888,56 @@ class LinearStaticSimulationRunner:
 
         return self.U_global
 
+    # -------------------------------------------------------------------------
+    # Second order (P-delta)
+    # -------------------------------------------------------------------------
+    def solve_p_delta(self) -> np.ndarray:
+        """Iterate ``(K + K_sigma(U)) U = F`` from the linear solution (``[static] second_order = p_delta``).
+
+        Each pass assembles the geometric stiffness of the current section forces
+        (``linear_geometric_stiffness_matrix`` of every element) and re-solves with the same
+        boundary conditions. Writes ``p_delta_iterations.csv`` to the primary results.
+        """
+        from processing.buckling.linear_buckling import assemble_global_geometric_stiffness
+
+        tol = float(self.static_config.get("p_delta_tolerance", 1e-8))
+        max_it = int(self.static_config.get("p_delta_max_iterations", 50))
+        K0 = self.K_global
+        history = []
+        converged = False
+        try:
+            for it in range(1, max_it + 1):
+                U_prev = self.U_global.copy()
+                self.K_sigma_global = assemble_global_geometric_stiffness(self.elements, U_prev, self.total_dof)
+                self.K_global = K0 + self.K_sigma_global
+                self._solve_assembled_system()
+                change = float(np.linalg.norm(self.U_global - U_prev) / max(np.linalg.norm(self.U_global), 1e-300))
+                history.append(change)
+                logger.info("P-delta iteration %d: relative change %.3e", it, change)
+                if change <= tol:
+                    converged = True
+                    break
+        finally:
+            self.K_global = K0
+        with open(os.path.join(self.primary_results_dir, "p_delta_iterations.csv"), "w") as fh:
+            fh.write("iteration,relative_change\n")
+            for i, c in enumerate(history, 1):
+                fh.write(f"{i},{c:.6e}\n")
+        self.p_delta_converged = converged
+        if not converged:
+            raise RuntimeError(
+                f"P-delta did not converge in {max_it} iterations (last change {history[-1]:.3e}); "
+                "the load may be at or past the first buckling load."
+            )
+        return self.U_global
+
     def run(self) -> None:
         """Execute the complete linear-static workflow."""
         try:
             self.solve_linear_system_only(force_scale=1.0)
+            if str(self.static_config.get("second_order", "none")).lower() == "p_delta":
+                with self.monitor.stage("PDelta"):
+                    self.solve_p_delta()
 
             with self.monitor.stage("ComputePrimaryResults"):
                 self.compute_primary_results()

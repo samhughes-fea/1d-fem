@@ -25,6 +25,8 @@ max-order Gauss points only.
 """
 
 import numpy as np
+from pre_processing.element_library.beam_load_interpolation import beam_field_interpolation
+from pre_processing.element_library.linear.beam.second_order import GeometricStiffnessMixin, _linear_rows
 from typing import Tuple
 
 # Import Element1DBase class
@@ -62,7 +64,7 @@ _TS_W_N_STRAIN = 7
 _TS_W_N_DOF = 14
 
 
-class LinearTimoshenkoBeamElement3D(Element1DBase):
+class LinearTimoshenkoBeamElement3D(GeometricStiffnessMixin, Element1DBase):
     """
     2-node straight beam, 6 DOF per node, 12 total; local ``x`` along the chord.
 
@@ -79,6 +81,12 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
     Quadrature: orders from ``element_array``; shear columns default to 2 if zero; selective bending/shear assembly (module docstring).
     Loads: ``F_dist += w_g * N.T @ q * detJ`` like EB; optional logging.
     """
+
+    #: Builds ``D`` from ``self.section_analysis`` (thin-walled anisotropic sections).
+    supports_section_analysis = True
+    supports_element_frame = True
+    #: Subclasses that give the seventh nodal DOF a thin-walled meaning (Benscoter) set this.
+    _thin_walled_warping_dof = False
     
     # Element formulation identifier for tracking in multi-element meshes
     element_type_name = "Timoshenko-3D"
@@ -111,7 +119,7 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
         idx = int(np.where(element_dictionary["ids"] == element_id)[0][0])
         etype_str = str(element_dictionary["types"][idx])
         warp_mesh = mesh_uses_warping_dof(element_dictionary)
-        dof_pn = 7 if warp_mesh else 6
+        dof_pn = self._nodal_dof_count(element_dictionary, idx, warp_mesh)
         self._n_dof = dof_pn * 2
 
         super().__init__(
@@ -181,7 +189,21 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
                 element_id=element_id,
             )
 
-        maybe_warn_timoshenko_default_kappa(self.section_array, element_id)
+        if self.has_thin_walled_section and self._n_dof == 14 and not self._thin_walled_warping_dof:
+            raise NotImplementedError(
+                f"Element {element_id}: a thin-walled SectionAnalysis with the warping DOF is not "
+                "supported by LinearTimoshenkoBeamElement3D; use LinearBenscoterBeamElement3D for "
+                "restrained warping, or [warping] = 0."
+            )
+        if not self.has_thin_walled_section:
+            maybe_warn_timoshenko_default_kappa(self.section_array, element_id)
+        wl = element_dictionary.get("wall_load_per_element")
+        self._wall_load_q = None if wl is None else wl[idx]
+
+    @classmethod
+    def _nodal_dof_count(cls, element_dictionary: dict, idx: int, warp_mesh: bool) -> int:
+        """DOFs this element uses per node: 6, or 7 on a warping mesh. Subclasses add more."""
+        return 7 if warp_mesh else 6
 
     def _validate_element_properties(self) -> None:
         """Validate critical element properties"""
@@ -293,7 +315,7 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
         return B
 
     def _D_matrix_7x7(self) -> np.ndarray:
-        D6 = self.material_stiffness_operator.assembly_form()
+        D6 = self._D6()
         D = np.zeros((_TS_W_N_STRAIN, _TS_W_N_STRAIN), dtype=np.float64)
         D[:6, :6] = D6
         g_eff = self._warp_policy.gamma_effective
@@ -315,7 +337,7 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
             return np.zeros(nd, dtype=np.float64)
         detJ = self.jacobian_determinant
         if nd == 12:
-            D = self.material_stiffness_operator.assembly_form()
+            D = self._D6()
             max_order = self._timoshenko_orders.max_full_order
             xi, w = np.polynomial.legendre.leggauss(max_order)
             f_e = np.zeros(12, dtype=np.float64)
@@ -343,9 +365,15 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
         """``B_tilde`` in natural ``xi``; element sums ``K_e += B.T @ D @ B * w_g * detJ`` (physical ``B``)."""
         return self.strain_displacement_operator.natural_coordinate_form(dN_dξ, d2N_dξ2, N)
 
+    def _D6(self) -> np.ndarray:
+        """Section ``D`` (6, 6): the assigned thin-walled ``SectionAnalysis`` stiffness, else the isotropic operator."""
+        if self.has_thin_walled_section or self._pretwist_rate:
+            return self.section_analysis.stiffness
+        return self.material_stiffness_operator.assembly_form()
+
     def D_matrix(self) -> np.ndarray:
         """D-matrix for stiffness assembly (4×4)."""
-        return self.material_stiffness_operator.assembly_form()
+        return self._D6()
     
     # Ke tensor computations ---------------------------------------------------------
     def element_stiffness_matrix(self):
@@ -367,11 +395,20 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
             D = self._D_matrix_7x7()
             xi_full, w_full = np.polynomial.legendre.leggauss(self.quadrature_order)
             gauss_cache = []
+            # transverse shear on the reduced shear rule, as in ``assemble_timoshenko_K0``: with the
+            # full rule the linear two-node element locks in bending
+            D_shear = np.zeros_like(D)
+            D_shear[3:5, 3:5] = D[3:5, 3:5]
+            xi_s, w_s = np.polynomial.legendre.leggauss(self._timoshenko_orders.shear_block)
+            detJ = self.jacobian_determinant
+            for xi_g, w_g in zip(xi_s, w_s):
+                N_12, dN_dξ_12, d2N_dξ2_12 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+                B = self._B_matrix_7x14(dN_dξ_12, d2N_dξ2_12, N_12)[0]
+                Ke += B.T @ D_shear @ B * w_g * detJ
             for g, (xi_g, w_g) in enumerate(zip(xi_full, w_full)):
                 N_12, dN_dξ_12, d2N_dξ2_12 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
                 B = self._B_matrix_7x14(dN_dξ_12, d2N_dξ2_12, N_12)[0]
-                detJ = self.jacobian_determinant
-                Ke += B.T @ D @ B * w_g * detJ
+                Ke += B.T @ (D - D_shear) @ B * w_g * detJ
                 gauss_cache.append(StiffnessGaussPointData(
                     xi=float(xi_g),
                     weight=float(w_g),
@@ -397,7 +434,7 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
             )
 
         L = np.array([[self.L]], dtype=np.float64)
-        D = self.material_stiffness_operator.assembly_form()
+        D = self._D6()
         orders = self._timoshenko_orders
         max_order = orders.max_full_order
         detJ = self.jacobian_determinant
@@ -507,6 +544,7 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
             self.logger_operator.log_text("force", f"\n=== Element {self.element_id} Force Vector Computation ===")
 
         Fe += self._precurvature_equivalent_load()
+        Fe += self._wall_load_vector()
 
         # Process distributed loads
         if self.distributed_load_array.size > 0:
@@ -532,65 +570,24 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
             point_loads=point_loads_cache
         )
 
-    def linear_geometric_stiffness_matrix(self, U_e: np.ndarray) -> np.ndarray:
+    def _geometric_state(self, xi: float, U_e: np.ndarray):
+        """Rows of ``[v', w', phi', phi]`` (linear fields) and the section terms at ``xi``.
+
+        The section forces are ``D (B U_e - E_0)`` on the twelve beam DOFs, with the shear
+        strains taken at the centre as the reduced shear rule sees them (elsewhere a linear
+        element's shear strain carries the parasitic part of the bending). The legacy
+        warping DOFs carry no stress here (``docs/element_library/second_order.md``).
         """
-        Geometric stiffness from linear strains :math:`\\varepsilon = B U_e`, :math:`S = D \\varepsilon`.
-        **12-DOF** standard Timoshenko; **14-DOF** warping: same embedded **12×12** ``K_σ`` on the first
-        twelve DOFs as ``NonlinearTimoshenkoBeamElement3D`` with warping (χ rows/cols zero in ``K_σ``).
-        """
-        U_e = np.asarray(U_e, dtype=np.float64).ravel()
-        from pre_processing.element_library.nonlinear.euler_bernoulli.utilities.geometric_stiffness import (
-            GeometricStiffnessOperator,
-        )
-        from pre_processing.element_library.nonlinear.euler_bernoulli.utilities.stress_resultant import (
-            StressResultantOperator,
-        )
 
-        stress_op = StressResultantOperator()
-        geo = GeometricStiffnessOperator(element_length=self.L)
-        D6 = self.material_stiffness_operator.assembly_form()
-        xi, w = self.integration_points
-        detJ = self.jacobian_determinant
-        dξ_dx = 2.0 / self.L
-        n_g = len(xi)
-        N_gp = np.zeros(n_g, dtype=np.float64)
-        M_y_gp = np.zeros(n_g, dtype=np.float64)
-        M_z_gp = np.zeros(n_g, dtype=np.float64)
-        dN_dx_list = []
+        def strains(x):
+            N, dN, d2N = self.shape_function_operator.natural_coordinate_form(np.array([x]))
+            B6 = self.strain_displacement_operator.physical_coordinate_form(dN, d2N, N)[0]
+            return B6 @ U_e[:12] - self._E_0_voigt
 
-        if U_e.size == 12:
-            for k, (xi_g, w_g) in enumerate(zip(xi, w)):
-                N, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-                B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2, N)[0]
-                eps = B @ U_e - self._E_0_voigt
-                Ni, Myi, Mzi = stress_op.section_forces_from_strain(eps, D6)
-                N_gp[k] = Ni
-                M_y_gp[k] = Myi
-                M_z_gp[k] = Mzi
-                dN_dx_list.append(dN_dξ[0] * dξ_dx)
-        elif U_e.size == 14 and self._n_dof == 14:
-            E0 = np.concatenate([self._E_0_voigt, np.zeros(1, dtype=np.float64)])
-            for k, (xi_g, w_g) in enumerate(zip(xi, w)):
-                N12, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-                B = self._B_matrix_7x14(dN_dξ, d2N_dξ2, N12)[0]
-                eps = B @ U_e - E0
-                Ni, Myi, Mzi = stress_op.section_forces_from_strain(eps[:6], D6)
-                N_gp[k] = Ni
-                M_y_gp[k] = Myi
-                M_z_gp[k] = Mzi
-                dN_dx_list.append(dN_dξ[0] * dξ_dx)
-        else:
-            raise ValueError(
-                f"linear_geometric_stiffness_matrix: expected 12 or (14 with warping element) DOFs, got {U_e.size}"
-            )
-
-        dN_dx_arr = np.stack(dN_dx_list, axis=0)
-        K12 = geo.assemble_K_sigma(N_gp, M_y_gp, M_z_gp, w, dN_dx_arr, detJ)
-        if U_e.size == 12:
-            return K12
-        K_sigma = np.zeros((_TS_W_N_DOF, _TS_W_N_DOF), dtype=np.float64)
-        K_sigma[:_TS_W_N_STD, :_TS_W_N_STD] = K12
-        return K_sigma
+        e = strains(xi)
+        e[3:5] = strains(0.0)[3:5]
+        F = self._D6() @ e
+        return _linear_rows(self.L, xi, self._n_dof), self._geometric_terms_matrix() @ F
 
     def element_mass_matrix(self):
         """Consistent mass: translations rho*A; torsion rho*J_t; bending rotations rho*Iy / rho*Iz."""
@@ -627,6 +624,13 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
                 M_e=M_e,
             )
 
+        if self.has_thin_walled_section:
+            return MassObject(
+                element_id=self.element_id,
+                element_type=self.element_type_name,
+                M_e=self._section_mass_matrix(),
+            )
+
         rho = float(self.material_array[3])
         mu = np.zeros(12, dtype=np.float64)
         for i in (0, 1, 2, 6, 7, 8):
@@ -655,6 +659,34 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
 
 
 
+    def _wall_load_resultant(self):
+        """Generalised wall load per length of this element (``wall_load.txt``), or None."""
+        return self._wall_load_q
+
+    def _wall_load_vector(self) -> np.ndarray:
+        """``F_e = int N^T f dx`` for the uniform generalised wall load ``f`` (rigid fields linear)."""
+        Fe = np.zeros(self._n_dof, dtype=np.float64)
+        f = self._wall_load_resultant()
+        if f is None:
+            return Fe
+        # constant f on linear fields: half the element's resultant to each node
+        Fe[:6] += 0.5 * self.L * f[:6]
+        Fe[6:12] += 0.5 * self.L * f[:6]
+        return Fe
+
+    def _section_mass_matrix(self) -> np.ndarray:
+        """``M_e = sum N M_s N^T w_g detJ`` with the rigid-section mass ``M_s`` of the SectionAnalysis."""
+        Ms = self.section_analysis.mass_matrix()
+        M_e = np.zeros((12, 12), dtype=np.float64)
+        xi, w = self.integration_points
+        detJ = self.jacobian_determinant
+        for xi_g, w_g in zip(xi, w):
+            # all six right-handed fields are linear Lagrange interpolations of their own DOFs
+            L1, L2 = 0.5 * (1.0 - xi_g), 0.5 * (1.0 + xi_g)
+            Phi = np.hstack([L1 * np.eye(6), L2 * np.eye(6)])
+            M_e += Phi.T @ Ms @ Phi * w_g * detJ
+        return 0.5 * (M_e + M_e.T)
+
     # Fe - distributed load contribution ------------------------------------------------
     def _compute_distributed_load_contribution(self):
         """Compute distributed load contribution using Gauss quadrature.
@@ -680,8 +712,7 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
                 n_gauss_points=self.quadrature_order
             )
             q_gauss = interpolator.interpolate(x_gauss)
-            N = np.stack([self.shape_function_operator.natural_coordinate_form(xi)[0][0]
-                        for xi in xi_gauss])
+            N = np.stack([beam_field_interpolation(xi, self.L, "linear").T for xi in xi_gauss])
             Fe_dist = np.einsum("gij,gj,g->i", N, q_gauss, weights) * (self.L / 2)
             
             # Cache Gauss point data
@@ -718,13 +749,11 @@ class LinearTimoshenkoBeamElement3D(Element1DBase):
                 continue
 
             xi_p = 2 * (x_p - self.x_start) / self.L - 1
-            N_p = self.shape_function_operator.natural_coordinate_form(np.array([xi_p]))[0][0]
+            N_p = beam_field_interpolation(xi_p, self.L, "linear").T   # (12, 6), right-handed
 
-            Fe_trans = np.einsum("ij,j->i", N_p[[0, 1, 2, 6, 7, 8], :3], F_p[:3])
-            Fe_rot = np.einsum("ij,j->i", N_p[[3, 4, 5, 9, 10, 11], 3:], F_p[3:])
-            inc = np.zeros(12, dtype=np.float64)
-            inc[[0, 1, 2, 6, 7, 8]] = Fe_trans
-            inc[[3, 4, 5, 9, 10, 11]] = Fe_rot
+            inc = N_p @ F_p
+            Fe_trans = inc[[0, 1, 2, 6, 7, 8]]
+            Fe_rot = inc[[3, 4, 5, 9, 10, 11]]
             Fe_point = add_phased_increment(Fe_point, inc, point_load_phase_rad(load))
 
             if self.logger_operator:

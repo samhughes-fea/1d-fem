@@ -1,0 +1,54 @@
+{
+ "station": 20,
+ "r": 84.65965517246,
+ "section_forces": [
+  0.0,
+  -4000000.0,
+  0.0,
+  0.0,
+  200000.0,
+  100000.0
+ ],
+ "n_elements": 2196,
+ "rows_per_ply": 2,
+ "cap_sigma_xx": {
+  "solid_2d": -115370440.49064273,
+  "thin_walled": -121754952.43698402,
+  "difference": -0.052437390172245246
+ },
+ "max_interface_shear": {
+  "below": 1537,
+  "above": 1538,
+  "y": 0.3880955348990121,
+  "z": -0.30525890652467813,
+  "sigma_nn": 1183538.6335979248,
+  "tau_sn": 633603.4913068359,
+  "tau_xn": 2315466.146970737,
+  "labels": [
+   "skin_pressure_surface:bay_0",
+   "spar_cap_pressure_surface"
+  ],
+  "at_trailing_edge": false
+ },
+ "max_interface_shear_trailing_edge": {
+  "below": 5,
+  "above": 6,
+  "y": 2.2157528459074864,
+  "z": 0.014782840573487178,
+  "sigma_nn": 5098.162028210789,
+  "tau_sn": 2444.180486860432,
+  "tau_xn": -3363954.08489324,
+  "labels": [
+   "skin_suction_surface:trailing_edge",
+   "skin_suction_surface:trailing_edge"
+  ],
+  "at_trailing_edge": true
+ },
+ "n_interface_points": 834,
+ "panel": {
+  "y": 1.1693888634639895,
+  "n_elements": 8,
+  "core_tau_xn_max_2d": 41.185798659190816,
+  "tau_xn_max_thin_walled": 74.37981040451808
+ }
+}

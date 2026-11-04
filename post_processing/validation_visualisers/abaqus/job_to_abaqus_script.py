@@ -28,7 +28,7 @@ from pre_processing.parsing.element_parser import ElementParser
 from pre_processing.parsing.material_parser import MaterialParser
 from pre_processing.parsing.section_parser import SectionParser
 from pre_processing.parsing.prescribed_displacement_parser import parse_prescribed_displacement
-from pre_processing.element_library.beam_warping import mesh_uses_warping_dof
+from pre_processing.element_library.dof_layout import mesh_dof_per_node
 from pre_processing.parsing.point_load_parser import parse_point_load
 
 from post_processing.validation_visualisers.abaqus.config import (
@@ -151,7 +151,7 @@ def _parse_job(job_dir: Path) -> dict:
     # Prescribed displacement (7 DOF/node when warping mesh is on)
     pres_path = job_dir / "prescribed_displacement.txt"
     if pres_path.is_file():
-        _dpn = 7 if mesh_uses_warping_dof(ed) else 6
+        _dpn = mesh_dof_per_node(ed)
         pres = parse_prescribed_displacement(str(pres_path), dof_per_node=_dpn)
     else:
         pres = {"node_id": [], "dof": [], "value": [], "dof_index": []}

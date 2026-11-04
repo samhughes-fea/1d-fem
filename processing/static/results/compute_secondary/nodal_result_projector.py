@@ -173,6 +173,9 @@ class NodalResultProjector:
             elem_stresses = self.gaussian_results.stress[gauss_idx]
             elem_energies = self.gaussian_results.internal_energy_density[gauss_idx]
             n_gauss = len(elem_obj.gauss_data)
+            if n_gauss == 0 or len(elem_strains) == 0:
+                # no Gauss data (a curved element condensed from sub-elements): nothing to project
+                continue
             xi_gauss = [gp.xi for gp in elem_obj.gauss_data]
 
             if self._element_has_shape_functions(elem_obj, n_nodes_elem):

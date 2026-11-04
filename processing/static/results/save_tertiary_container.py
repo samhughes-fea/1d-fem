@@ -109,7 +109,9 @@ class SaveTertiaryResults:
         """
         for elem_idx, elem_section_forces in enumerate(self.results.section_forces):
             section_force_array = np.array(elem_section_forces)  # shape: (n_gauss, 6)
-            n_gp = section_force_array.shape[0]
+            n_gp = section_force_array.shape[0] if section_force_array.ndim else 0
+            if n_gp == 0:     # curved elements keep no Gauss data
+                continue
             filename = self.section_forces_dir / f"section_forces_elem_{elem_idx:06d}.csv"
             xi_per_row = np.polynomial.legendre.leggauss(n_gp)[0]  # ascending
             with open(filename, "w", encoding="utf-8") as f:
@@ -125,6 +127,8 @@ class SaveTertiaryResults:
         for elem_idx, elem_principals in enumerate(self.results.principal_stresses):
             # Stack all Gauss point principal stresses
             principal_array = np.array(elem_principals)  # shape: (n_gauss, 3)
+            if principal_array.size == 0:
+                continue
             filename = self.principal_stress_dir / f"principal_stress_elem_{elem_idx:06d}.csv"
             header = "sigma1,sigma2,sigma3"
             np.savetxt(filename, principal_array, delimiter=",",
@@ -202,6 +206,9 @@ class SaveTertiaryResultsSummary:
             # Section force statistics
             if self.results.section_forces:
                 section_forces = np.array(self.results.section_forces[elem_idx])
+                if section_forces.ndim != 2 or section_forces.shape[0] == 0:
+                    summary_data.append(elem_summary)     # curved elements keep no Gauss data
+                    continue
                 elem_summary['max_axial_force'] = np.max(np.abs(section_forces[:, 0]))
                 elem_summary['max_shear_force'] = np.max(np.abs(section_forces[:, 1:3]))
                 elem_summary['max_torque'] = np.max(np.abs(section_forces[:, 3]))
@@ -210,12 +217,14 @@ class SaveTertiaryResultsSummary:
             # Principal stress statistics
             if self.results.principal_stresses:
                 principals = np.array(self.results.principal_stresses[elem_idx])
+            if self.results.principal_stresses and principals.ndim == 2 and principals.shape[0]:
                 elem_summary['max_principal_s1'] = np.max(principals[:, 0])
                 elem_summary['min_principal_s3'] = np.min(principals[:, 2])
 
             # Von Mises stress
             if self.results.von_mises_stress:
-                von_mises = self.results.von_mises_stress[elem_idx]
+                von_mises = np.asarray(self.results.von_mises_stress[elem_idx])
+            if self.results.von_mises_stress and von_mises.size:
                 elem_summary['max_von_mises'] = np.max(von_mises)
                 elem_summary['mean_von_mises'] = np.mean(von_mises)
 

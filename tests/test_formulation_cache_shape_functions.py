@@ -334,14 +334,14 @@ def test_linear_timoshenko_warping_element_object_shape_functions_populated():
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-def test_linear_levinson_warping_element_object_shape_functions_populated():
-    """14-DOF linear Levinson + [warping]: stiffness Gauss cache has N and dN/dξ."""
+def test_linear_levinson_element_object_shape_functions_populated():
+    """16-DOF linear Levinson (third-order, slope DOFs): stiffness Gauss cache has N and dN/dξ."""
     L = 1.0
     element_dictionary = {
         "ids": np.array([0]),
         "connectivity": np.array([[0, 1]]),
         "types": np.array(["LinearLevinsonBeamElement3D"]),
-        "warping": np.array([1], dtype=np.int8),
+        "warping": np.array([0], dtype=np.int8),
         "integration_orders": {
             "axial": np.array([3]),
             "bending_y": np.array([3]),
@@ -396,14 +396,14 @@ def test_linear_levinson_warping_element_object_shape_functions_populated():
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-def test_linear_reddy_warping_element_object_shape_functions_populated():
-    """14-DOF linear Reddy + [warping]: stiffness Gauss cache has N and dN/dξ."""
+def test_linear_reddy_element_object_shape_functions_populated():
+    """16-DOF linear Reddy (third-order, slope DOFs): stiffness Gauss cache has N and dN/dξ."""
     L = 1.0
     element_dictionary = {
         "ids": np.array([0]),
         "connectivity": np.array([[0, 1]]),
         "types": np.array(["LinearReddyBeamElement3D"]),
-        "warping": np.array([1], dtype=np.int8),
+        "warping": np.array([0], dtype=np.int8),
         "integration_orders": {
             "axial": np.array([3]),
             "bending_y": np.array([3]),

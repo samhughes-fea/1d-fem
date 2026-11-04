@@ -195,9 +195,11 @@ def test_linear_timoshenko_warping_K_sigma_embedding_matches_twelve_dof_slice():
         )
         np.random.seed(3)
         U14 = np.random.randn(14) * 1e-5
-        U12 = U14[:12].copy()
+        U_no_chi = U14.copy()
+        U_no_chi[12:] = 0.0
         K14 = elem.linear_geometric_stiffness_matrix(U14)
-        K12 = elem.linear_geometric_stiffness_matrix(U12)
+        K12 = elem.linear_geometric_stiffness_matrix(U_no_chi)[:12, :12]
+        # the legacy warping DOFs neither carry stress nor appear in K_sigma
         np.testing.assert_allclose(K14[:12, :12], K12, rtol=1e-12)
         assert np.allclose(K14[12:, :], 0.0)
         assert np.allclose(K14[:, 12:], 0.0)

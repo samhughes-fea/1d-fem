@@ -122,6 +122,10 @@ class ElementFactory:
             "pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D",
         "LinearTimoshenkoBeamElement3D":
             "pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D",
+        "LinearBenscoterBeamElement3D":
+            "pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_benscoter_3D",
+        "LinearGBTBeamElement3D":
+            "pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D",
         "LinearLevinsonBeamElement3D":
             "pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.linear_levinson_3D",
         "LinearReddyBeamElement3D":
@@ -147,6 +151,18 @@ class ElementFactory:
             "pre_processing.element_library.nonlinear.timoshenko.updated_lagrangian_timoshenko_3D",
         "CorotationalBeamElement3D":
             "pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D",
+        "CorotationalEulerBernoulliBeamElement3D":
+            "pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section",
+        "CorotationalTimoshenkoBeamElement3D":
+            "pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section",
+        "CorotationalBenscoterBeamElement3D":
+            "pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section",
+        "CorotationalGBTBeamElement3D":
+            "pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section",
+        "CorotationalReddyBeamElement3D":
+            "pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section",
+        "CorotationalLevinsonBeamElement3D":
+            "pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section",
         "GeometricallyExactShearDeformableBeam3D":
             "pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.geometrically_exact_shear_deformable_beam_3D",
         "GEBTUnshearableBeamElement3D":

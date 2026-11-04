@@ -88,25 +88,30 @@ def smallest_generalized_eigenpairs(
 
     lam: np.ndarray | None = None
     Phi: np.ndarray | None = None
+    # shift-invert just below zero first: unlike which="SM" it does not need M positive
+    # definite, so massless DOFs (GBT warping amplitudes, Lagrange-like extras) map to
+    # infinite eigenvalues instead of spoiling the lowest ones
+    diag = np.abs(K_mod.diagonal())
+    sigma0 = -(float(np.median(diag[diag > 0.0])) * 1e-8 if np.any(diag > 0.0) else 1e-8)
     try:
-        lam, Phi = _eigsh_sm()
+        lam_si, Phi_si = _eigsh_shift_invert(sigma0)
+        take = min(num_modes, int(lam_si.shape[0]))
+        idx = np.argsort(np.real(lam_si))[:take]
+        lam = lam_si[idx]
+        Phi = Phi_si[:, idx]
     except Exception as exc:
         logger.warning(
-            "%s: eigsh(which='SM') failed (%s); retrying shift-invert near zero",
+            "%s: eigsh shift-invert failed (%s); retrying which='SM'",
             context,
             exc,
         )
-        diag = np.abs(K_mod.diagonal())
-        sigma0 = float(np.median(diag[diag > 0.0])) * 1e-8 if np.any(diag > 0.0) else 1e-8
         try:
-            lam_si, Phi_si = _eigsh_shift_invert(sigma0)
-            take = min(num_modes, int(lam_si.shape[0]))
-            idx = np.argsort(np.real(lam_si))[:take]
-            lam = lam_si[idx]
-            Phi = Phi_si[:, idx]
+            lam, Phi = _eigsh_sm()
+            idx = np.argsort(lam)
+            lam, Phi = lam[idx], Phi[:, idx]
         except Exception as exc2:
             logger.warning(
-                "%s: eigsh shift-invert failed (%s); dense fallback when feasible",
+                "%s: eigsh(which='SM') failed (%s); dense fallback when feasible",
                 context,
                 exc2,
             )

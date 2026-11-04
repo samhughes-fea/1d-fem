@@ -91,6 +91,40 @@ def apply_buckling_boundary_conditions(
     return K_mod, Kg_mod, bc_dofs
 
 
+#: free DOFs above which a symmetric problem is solved sparse (Lanczos)
+_SPARSE_MIN_DOF = 600
+
+
+def _sparse_buckling(Ks: csr_matrix, Gs: csr_matrix, num_modes: int):
+    """Smallest positive ``lambda`` of ``K x = lambda (-K_g) x`` by Lanczos.
+
+    With ``K`` symmetric positive definite (the free block of a symmetric element set) as
+    the metric, ``-K_g x = mu K x`` is symmetric-definite and ``lambda = 1 / mu`` for its
+    largest ``mu``; ``-K_g`` may be indefinite. Returns ``None`` (use the dense solver) for
+    a nonsymmetric ``K``, a failed factorisation or too few positive eigenvalues found.
+    """
+    from scipy.sparse.linalg import ArpackError, ArpackNoConvergence, LinearOperator, eigsh, splu
+
+    d = abs(Ks - Ks.T)
+    if d.nnz and d.max() > 1e-10 * max(abs(Ks).max(), 1.0):
+        return None
+    K = (0.5 * (Ks + Ks.T)).tocsc()
+    G = (-0.5 * (Gs + Gs.T)).tocsc()
+    n = K.shape[0]
+    k = min(n - 2, num_modes + 4)
+    try:
+        lu = splu(K)
+        Kinv = LinearOperator((n, n), matvec=lu.solve, dtype=np.float64)
+        mu, V = eigsh(G, k=k, M=K, Minv=Kinv, which="LA")
+    except (ArpackError, ArpackNoConvergence, RuntimeError, ValueError):
+        return None
+    pos = np.where(mu > 1e-12 * max(abs(mu).max(), 1e-300))[0]
+    if pos.size < num_modes:
+        return None
+    order = pos[np.argsort(-mu[pos])][:num_modes]
+    return 1.0 / mu[order], V[:, order]
+
+
 def solve_linear_buckling_eigenpairs(
     K_mod: csr_matrix,
     Kg_mod: csr_matrix,
@@ -127,11 +161,21 @@ def solve_linear_buckling_eigenpairs(
     if free.size == 0:
         raise RuntimeError("Buckling eigenproblem has no free DOFs after boundary conditions.")
 
-    Kd = K_mod[np.ix_(free, free)].toarray()
-    Gd = Kg_mod[np.ix_(free, free)].toarray()
+    Ks = csr_matrix(K_mod)[free][:, free]
+    Gs = csr_matrix(Kg_mod)[free][:, free]
+    if free.size > _SPARSE_MIN_DOF:
+        out = _sparse_buckling(Ks, Gs, num_modes)
+        if out is not None:
+            lambdas, vecs_free = out
+            vectors = np.zeros((n, vecs_free.shape[1]), dtype=np.float64)
+            vectors[free, :] = vecs_free
+            return lambdas, vectors
+    Kd = Ks.toarray()
+    Gd = Gs.toarray()
     rhs = -Gd
-    # Symmetrize for numerical stability
-    Kd = 0.5 * (Kd + Kd.T)
+    # Symmetrize round-off only: a Petrov-Galerkin (Levinson) K is genuinely nonsymmetric.
+    if np.allclose(Kd, Kd.T, rtol=1e-10, atol=1e-12 * max(np.abs(Kd).max(), 1.0)):
+        Kd = 0.5 * (Kd + Kd.T)
     rhs = 0.5 * (rhs + rhs.T)
 
     # ``eigh`` requires a definite metric; :math:`-\\mathbf{K}_g` may be indefinite under compression.

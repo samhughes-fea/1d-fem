@@ -26,6 +26,8 @@ for that element even if the section defines Γ.
 """
 
 import numpy as np
+from pre_processing.element_library.beam_load_interpolation import beam_field_interpolation
+from pre_processing.element_library.linear.beam.second_order import GeometricStiffnessMixin
 from typing import Optional, Tuple
 
 # Import Element1DBase class
@@ -67,7 +69,7 @@ logger = logging.getLogger(__name__)
 # --- element-level logger ----------------------------------
 from pre_processing.element_library.base_logger_operator import BaseLoggerOperator
 
-class LinearEulerBernoulliBeamElement3D(Element1DBase):
+class LinearEulerBernoulliBeamElement3D(GeometricStiffnessMixin, Element1DBase):
     """
     2-node straight beam, 6 DOF per node, 12 total (see module docstring for ``U_e`` order).
 
@@ -85,6 +87,10 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
 
     Logging: optional per-element logs for stiffness and force matrices.
     """
+
+    #: Builds ``D`` from ``self.section_analysis`` (thin-walled anisotropic sections).
+    supports_section_analysis = True
+    supports_element_frame = True
     
     # Element formulation identifier for tracking in multi-element meshes
     element_type_name = "Euler-Bernoulli-3D"
@@ -180,6 +186,11 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
         )
         self.warping_strain_displacement_operator = None
         self.warping_material_stiffness_operator = None
+        if self.has_thin_walled_section and self._n_dof == 14:
+            raise NotImplementedError(
+                f"Element {element_id}: a thin-walled SectionAnalysis with the warping DOF is not "
+                "supported by LinearEulerBernoulliBeamElement3D; use [warping] = 0."
+            )
         if self._n_dof == 14:
             enforce_strict_section_gamma(
                 element_dictionary=element_dictionary,
@@ -282,7 +293,7 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
         xi, w = self.integration_points
         f_e = np.zeros(nd, dtype=np.float64)
         if nd == 12:
-            D = self.material_stiffness_operator.assembly_form()
+            D = self._D6()
             for xi_g, w_g in zip(xi, w):
                 _, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
                 B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)[0]
@@ -305,9 +316,17 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
         """``B_tilde`` in natural ``xi``; element sums ``K_e += B.T @ D @ B * w_g * detJ`` (physical ``B``)."""
         return self.strain_displacement_operator.natural_coordinate_form(dN_dξ, d2N_dξ2)
 
+    def _D6(self) -> np.ndarray:
+        """Section ``D`` (6, 6): shear-rigid ``SectionAnalysis.euler_bernoulli_D()`` when a
+        thin-walled section is assigned (classical 4 x 4 on ``[eps, kappa_y, kappa_z, phi]``),
+        else the isotropic operator."""
+        if self.has_thin_walled_section or self._pretwist_rate:
+            return self.section_analysis.euler_bernoulli_D()
+        return self.material_stiffness_operator.assembly_form()
+
     def D_matrix(self) -> np.ndarray:
         """D-matrix for stiffness assembly (4×4)."""
-        return self.material_stiffness_operator.assembly_form()
+        return self._D6()
 
     # Ke tensor computations ---------------------------------------------------------
     def element_stiffness_matrix(self):
@@ -366,7 +385,7 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
 
         Ke = np.zeros((12, 12), dtype=np.float64)
         L = np.array([[self.L]], dtype=np.float64)
-        D = self.material_stiffness_operator.assembly_form()
+        D = self._D6()
         xi, w = self.integration_points
         
         gauss_cache = []
@@ -420,6 +439,36 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
             shape_function_d2N_dxi2_coefficients=d2N_coeffs,
         )
 
+    def _section_mass_matrix(self) -> np.ndarray:
+        """``M_e = sum N M_s N^T w_g detJ`` with the rigid-section mass ``M_s`` of the SectionAnalysis."""
+        Ms = self.section_analysis.mass_matrix()
+        M_e = np.zeros((12, 12), dtype=np.float64)
+        xi, w = np.polynomial.legendre.leggauss(4)
+        detJ = self.jacobian_determinant
+        for xi_g, w_g in zip(xi, w):
+            Phi = self._field_interpolation(xi_g)
+            M_e += Phi.T @ Ms @ Phi * w_g * detJ
+        return 0.5 * (M_e + M_e.T)
+
+    def _field_interpolation(self, xi_g: float) -> np.ndarray:
+        """Interpolation ``Phi`` (6, 12): right-handed fields ``[u_x, u_y, u_z, theta_x, theta_y, theta_z] = Phi @ U_e``.
+
+        Axial and twist are linear; ``u_y``, ``u_z`` are Hermite cubics (the ``theta_z`` and
+        ``theta_y`` DOFs enter through columns 5 and 4 of the shape-function tensor), and the
+        rotations follow Euler-Bernoulli kinematics: ``theta_z = u_y'``, ``theta_y = -u_z'``.
+        """
+        N, dN, _ = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
+        N, dN = N[0], dN[0] * (2.0 / self.L)
+        Phi = np.zeros((6, 12))
+        for a in (0, 6):
+            Phi[0, a] = N[a, 0]
+            Phi[3, a + 3] = N[a + 3, 3]
+            Phi[1, a + 1], Phi[1, a + 5] = N[a + 1, 1], N[a + 5, 5]
+            Phi[2, a + 2], Phi[2, a + 4] = N[a + 2, 2], N[a + 4, 4]
+            Phi[5, a + 1], Phi[5, a + 5] = dN[a + 1, 1], dN[a + 5, 5]
+            Phi[4, a + 2], Phi[4, a + 4] = -dN[a + 2, 2], -dN[a + 4, 4]
+        return Phi
+
     # Fe tensor computations ---------------------------------------------------------
     def element_force_vector(self):
         """Compute the element force vector including distributed and point loads.
@@ -471,70 +520,35 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
             point_loads=point_loads_cache
         )
 
-    def linear_geometric_stiffness_matrix(self, U_e: np.ndarray) -> np.ndarray:
+    def _geometric_state(self, xi: float, U_e: np.ndarray):
+        """Rows of ``[v', w', phi', phi]`` (Hermite ``v``, ``w``) and the section terms at ``xi``.
+
+        ``N``, ``M_y``, ``M_z`` and ``T`` come from the strains; the shear forces, which a
+        shear-rigid element has no strain for, from the moment gradient over the element
+        (``V_z = M_y'``, ``V_y = -M_z'`` right-handed).
         """
-        Geometric stiffness :math:`\\mathbf{K}_\\sigma` from linear strains
-        :math:`\\boldsymbol{\\varepsilon}=\\mathbf{B}\\mathbf{U}_e` and :math:`\\mathbf{S}=\\mathbf{D}\\boldsymbol{\\varepsilon}`
-        (reference prestress for linear buckling). **12-DOF** EB; **14-DOF** warping embeds **12×12** ``K_σ``
-        on standard beam DOFs (χ unstressed in ``K_σ``), matching the nonlinear EB+warping tangent layout.
-        """
-        U_e = np.asarray(U_e, dtype=np.float64).ravel()
-        from pre_processing.element_library.nonlinear.euler_bernoulli.utilities.geometric_stiffness import (
-            GeometricStiffnessOperator,
-        )
-        from pre_processing.element_library.nonlinear.euler_bernoulli.utilities.stress_resultant import (
-            StressResultantOperator,
+        from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
+            _hermite_x,
         )
 
-        stress_op = StressResultantOperator()
-        geo = GeometricStiffnessOperator(element_length=self.L)
-        D6 = self.material_stiffness_operator.assembly_form()
-        xi, w = self.integration_points
-        detJ = self.jacobian_determinant
-        dξ_dx = 2.0 / self.L
-        n_g = len(xi)
-        N_gp = np.zeros(n_g, dtype=np.float64)
-        M_y_gp = np.zeros(n_g, dtype=np.float64)
-        M_z_gp = np.zeros(n_g, dtype=np.float64)
-        dN_dx_list = []
+        D6 = self._D6()
 
-        if U_e.size == 12:
-            for k, (xi_g, w_g) in enumerate(zip(xi, w)):
-                _, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-                B = self.strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)[0]
-                eps = B @ U_e - self._E_0_voigt
-                Ni, Myi, Mzi = stress_op.section_forces_from_strain(eps, D6)
-                N_gp[k] = Ni
-                M_y_gp[k] = Myi
-                M_z_gp[k] = Mzi
-                dN_dx = dN_dξ.copy() * dξ_dx
-                dN_dx[:, 3] = dN_dξ[:, 3] * dξ_dx
-                dN_dx_list.append(dN_dx[0])
-        elif U_e.size == 14 and self._n_dof == 14:
-            E0 = np.concatenate([self._E_0_voigt, np.zeros(1, dtype=np.float64)])
-            for k, (xi_g, w_g) in enumerate(zip(xi, w)):
-                _, dN_dξ, d2N_dξ2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-                B = self.warping_strain_displacement_operator.physical_coordinate_form(dN_dξ, d2N_dξ2)[0]
-                eps = B @ U_e - E0
-                Ni, Myi, Mzi = stress_op.section_forces_from_strain(eps[:6], D6)
-                N_gp[k] = Ni
-                M_y_gp[k] = Myi
-                M_z_gp[k] = Mzi
-                dN_dx = dN_dξ.copy() * dξ_dx
-                dN_dx[:, 3] = dN_dξ[:, 3] * dξ_dx
-                dN_dx_list.append(dN_dx[0])
-        else:
-            raise ValueError(
-                f"linear_geometric_stiffness_matrix: expected 12 or (14 with warping element) DOFs, got {U_e.size}"
-            )
+        def forces(x):
+            _, dN, d2N = self.shape_function_operator.natural_coordinate_form(np.array([x]))
+            B = self.strain_displacement_operator.physical_coordinate_form(dN, d2N)[0]
+            return D6 @ (B @ U_e[:12] - self._E_0_voigt)
 
-        dN_dx_arr = np.stack(dN_dx_list, axis=0)
-        K12 = geo.assemble_K_sigma(N_gp, M_y_gp, M_z_gp, w, dN_dx_arr, detJ)
-        if U_e.size == 12:
-            return K12
-        K_sigma = np.zeros((14, 14), dtype=np.float64)
-        K_sigma[:12, :12] = K12
-        return K_sigma
+        F = forces(xi)
+        dF = (forces(1.0) - forces(-1.0)) / self.L
+        F[3] = -dF[2]   # V_y = -M_z'
+        F[4] = -dF[1]   # V_z = M_y' (right-handed) = -(element-signed M_y)'
+        _, dH, _ = _hermite_x(xi, self.L)
+        G = np.zeros((4, self._n_dof))
+        G[0, [1, 5, 7, 11]] = dH                       # v' with slopes theta_z
+        G[1, [2, 4, 8, 10]] = dH * [1.0, -1.0, 1.0, -1.0]  # w' with slopes -theta_y
+        G[2, [3, 9]] = [-1.0 / self.L, 1.0 / self.L]
+        G[3, [3, 9]] = [0.5 * (1.0 - xi), 0.5 * (1.0 + xi)]
+        return G, self._geometric_terms_matrix() @ F
 
     def element_mass_matrix(self):
         """Consistent mass: translations rho*A; torsion rho*J_t; bending rotations rho*Iy / rho*Iz."""
@@ -569,6 +583,13 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
                 element_id=self.element_id,
                 element_type=self.element_type_name,
                 M_e=M_e,
+            )
+
+        if self.has_thin_walled_section:
+            return MassObject(
+                element_id=self.element_id,
+                element_type=self.element_type_name,
+                M_e=self._section_mass_matrix(),
             )
 
         rho = float(self.material_array[3])
@@ -624,8 +645,7 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
                 n_gauss_points=self.quadrature_order
             )
             q_gauss = interpolator.interpolate(x_gauss)
-            N = np.stack([self.shape_function_operator.natural_coordinate_form(xi)[0][0]
-                        for xi in xi_gauss])
+            N = np.stack([beam_field_interpolation(xi, self.L, "hermite").T for xi in xi_gauss])
             Fe_dist = np.einsum("gij,gj,g->i", N, q_gauss, weights) * (self.L / 2)
             
             # Cache Gauss point data
@@ -662,13 +682,11 @@ class LinearEulerBernoulliBeamElement3D(Element1DBase):
                 continue
 
             xi_p = 2 * (x_p - self.x_start) / self.L - 1
-            N_p = self.shape_function_operator.natural_coordinate_form(np.array([xi_p]))[0][0]
+            N_p = beam_field_interpolation(xi_p, self.L, "hermite").T   # (12, 6), right-handed
 
-            Fe_trans = np.einsum("ij,j->i", N_p[[0, 1, 2, 6, 7, 8], :3], F_p[:3])
-            Fe_rot = np.einsum("ij,j->i", N_p[[3, 4, 5, 9, 10, 11], 3:], F_p[3:])
-            inc = np.zeros(12, dtype=np.float64)
-            inc[[0, 1, 2, 6, 7, 8]] = Fe_trans
-            inc[[3, 4, 5, 9, 10, 11]] = Fe_rot
+            inc = N_p @ F_p
+            Fe_trans = inc[[0, 1, 2, 6, 7, 8]]
+            Fe_rot = inc[[3, 4, 5, 9, 10, 11]]
             Fe_point = add_phased_increment(Fe_point, inc, point_load_phase_rad(load))
 
             if self.logger_operator:

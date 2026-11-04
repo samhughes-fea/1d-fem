@@ -90,6 +90,10 @@ def _get_defaults():
         # Taxonomy §1–§5 sections (optional ``enabled`` flags; see finalize_simulation_settings).
         "static": {
             "enabled": False,
+            # Second-order static: "none" (linear) or "p_delta" ((K + K_sigma(U)) U = F).
+            "second_order": "none",
+            "p_delta_tolerance": 1e-8,
+            "p_delta_max_iterations": 50,
         },
         "eigen": {
             "enabled": False,
@@ -144,6 +148,17 @@ def _get_defaults():
             "buckling_nonlinear_prestress_twins": False,
             # When true, run_job dispatches to NonlinearBucklingSimulationRunner (MVP stub; not linear eigen).
             "nonlinear_buckling": False,
+        },
+        # Constant rotation of the whole structure (rotating-frame analysis; see
+        # pre_processing/element_library/rotating_frame.py). Off while omega and rpm are unset.
+        "rotation": {
+            "omega": None,              # rad/s
+            "rpm": None,                # alternative to omega
+            "axis": (0.0, 0.0, 1.0),
+            "origin": (0.0, 0.0, 0.0),
+            "gyroscopic": True,         # Coriolis terms in eigen jobs
+            "prestress": True,          # centrifugal stiffening (K_sigma of the centrifugal state)
+            "omega_sweep": None,        # eigen: list of rad/s for a Campbell table
         },
     }
 
@@ -260,6 +275,7 @@ def parse_simulation_settings(file_path):
         "transient": defaults["transient"].copy(),
         "harmonic": defaults["harmonic"].copy(),
         "buckling": defaults["buckling"].copy(),
+        "rotation": defaults["rotation"].copy(),
         "_modal_section_in_input": False,
         "_dynamic_section_in_input": False,
     }
@@ -314,6 +330,8 @@ def parse_simulation_settings(file_path):
                     current_section = "harmonic"
                 elif section_name == "buckling":
                     current_section = "buckling_taxonomy"
+                elif section_name == "rotation":
+                    current_section = "rotation"
                 else:
                     current_section = None
                 continue
@@ -543,6 +561,15 @@ def parse_simulation_settings(file_path):
                 if key and value:
                     if key == "enabled":
                         simulation_settings["static"]["enabled"] = _convert_value(value, bool)
+                    elif key == "second_order":
+                        so = str(value).strip().lower()
+                        if so not in ("none", "p_delta"):
+                            raise ValueError(f"static.second_order must be 'none' or 'p_delta', got {value!r}")
+                        simulation_settings["static"]["second_order"] = so
+                    elif key == "p_delta_tolerance":
+                        simulation_settings["static"]["p_delta_tolerance"] = _convert_value(value, float)
+                    elif key == "p_delta_max_iterations":
+                        simulation_settings["static"]["p_delta_max_iterations"] = _convert_value(value, int)
 
             elif current_section == "eigen":
                 key, value = _parse_key_value(line)
@@ -656,6 +683,24 @@ def parse_simulation_settings(file_path):
                         bk["buckling_nonlinear_prestress_twins"] = _convert_value(value, bool)
                     elif key in ("nonlinear_buckling", "use_nonlinear_buckling"):
                         bk["nonlinear_buckling"] = _convert_value(value, bool)
+
+            elif current_section == "rotation":
+                key, value = _parse_key_value(line)
+                if key and value:
+                    ro = simulation_settings["rotation"]
+                    if key in ("omega", "rpm"):
+                        ro[key] = _convert_value(value, float)
+                    elif key in ("axis", "origin"):
+                        v = tuple(float(t) for t in re.split(r"[,\s]+", value.strip()) if t)
+                        if len(v) != 3:
+                            raise ValueError(f"[Rotation] {key} needs three numbers, got {value!r}")
+                        ro[key] = v
+                    elif key in ("gyroscopic", "prestress"):
+                        ro[key] = _convert_value(value, bool)
+                    elif key == "omega_sweep":
+                        ro[key] = [float(t) for t in re.split(r"[,\s]+", value.strip()) if t]
+                    else:
+                        raise ValueError(f"[Rotation] unknown key {key!r}")
 
     # Validate parallel config
     try:
