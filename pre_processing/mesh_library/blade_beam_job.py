@@ -216,7 +216,8 @@ def blade_beam_job(
         (thin-walled sections; the root warping is held), or their corotational versions
         (``CorotationalTimoshenkoBeamElement3D`` and so on) for large deflection, or
         ``LinearGBTBeamElement3D`` with ``gbt_modes`` cross-section modes (all its extra
-        DOFs held at the root; needs ``pretwist=False`` and ``taper=False``).
+        DOFs held at the root; the sections' bases are aligned along the blade when the job
+        is read, ``gbt_alignment``).
     pretwist : bool
         Write the twist gradient as each element's pretwist rate (default). Off, each
         element keeps its mid-span section along its length.
@@ -258,8 +259,6 @@ def blade_beam_job(
     if benscoter and kind != "thin_walled":
         raise ValueError("LinearBenscoterBeamElement3D needs thin-walled sections")
     gbt = "GBT" in element_type
-    if gbt and (pretwist or taper):
-        raise ValueError("LinearGBTBeamElement3D takes neither pretwist nor taper: pass pretwist=False, taper=False")
     if gbt_modes and not gbt:
         raise ValueError("gbt_modes needs element_type='LinearGBTBeamElement3D'")
     z = _span_nodes(geometry, n_elements, z_nodes)

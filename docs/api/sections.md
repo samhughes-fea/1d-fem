@@ -17,6 +17,22 @@ Section integration: geometry to A, I_y, I_z, J_t, kappa, shear centre (y_sc, z_
 - **`section_properties_from_geometry(section_type: str, **kwargs: float) -> Dict[str, float]`**
   Compute section properties from geometry (closed-form).
 
+### `pre_processing.section_integration.gbt_alignment`
+
+[pre_processing/section_integration/gbt_alignment.py](../../pre_processing/section_integration/gbt_alignment.py)
+
+Consistent GBT bases on a beam whose sections change along it.
+
+- **`MIN_MATCH`** (constant)
+- **`align_gbt_sections(per_element: Sequence, connectivity: npt.ArrayLike, gbt_elements: Optional[Sequence[bool]] = None) -> Tuple[tuple, Dict[int, dict]]`**
+  Turn the GBT bases of each element's section to its neighbour's (module docstring).
+- **`gbt_signature(sa) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]`**
+  ``(S_w, S_m)``: one row per warping mode and per distortional mode of ``sa``.
+- **`mass_transform(sa, Rw: np.ndarray, Rm: np.ndarray) -> np.ndarray`**
+  ``T`` on the GBT mass order: a generalised load ``f`` of the old basis is ``T^T f`` in the new.
+- **`rotate_gbt_basis(sa, Rw: np.ndarray, Rm: np.ndarray)`**
+  ``sa`` with its warping basis turned by ``Rw`` and its mode basis by ``Rm``.
+
 ### `pre_processing.section_integration.ply_failure`
 
 [pre_processing/section_integration/ply_failure.py](../../pre_processing/section_integration/ply_failure.py)
@@ -45,7 +61,7 @@ Section constitutive data shared by every beam element: ``SectionAnalysis``.
 
 - **`to_element_voigt(K_rh: npt.ArrayLike) -> npt.NDArray[np.float64]`**
   Map a right-handed 6 x 6 section stiffness to the element sign convention.
-- **class `SectionAnalysis(stiffness: npt.NDArray[np.float64], classical_stiffness: npt.NDArray[np.float64], warping_stiffness: float = 0.0, shear_centre: Tuple[float, float] = (0.0, 0.0), tension_centre: Tuple[float, float] = (0.0, 0.0), mass: Dict[str, float] = <factory>, source: str = 'isotropic', section_id: Optional[int] = None, benscoter_stiffness: Optional[npt.NDArray[np.float64]] = None, warping_inertia: float = 0.0, gbt_modes: int = 0, gbt_stiffness: Optional[npt.NDArray[np.float64]] = None, gbt_mass: Optional[npt.NDArray[np.float64]] = None, gbt_shear_modes: int = 0, gbt_sv_modes: int = 0, third_order_stiffness: Optional[npt.NDArray[np.float64]] = None, third_order_rate: Optional[npt.NDArray[np.float64]] = None, geometric_terms: Optional[npt.NDArray[np.float64]] = None, benscoter_geometric_terms: Optional[npt.NDArray[np.float64]] = None, third_order_geometric_terms: Optional[npt.NDArray[np.float64]] = None, axial_points: Optional[npt.NDArray[np.float64]] = None, gbt_geometric: Optional[Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]] = None) -> None`**
+- **class `SectionAnalysis(stiffness: npt.NDArray[np.float64], classical_stiffness: npt.NDArray[np.float64], warping_stiffness: float = 0.0, shear_centre: Tuple[float, float] = (0.0, 0.0), tension_centre: Tuple[float, float] = (0.0, 0.0), mass: Dict[str, float] = <factory>, source: str = 'isotropic', section_id: Optional[int] = None, benscoter_stiffness: Optional[npt.NDArray[np.float64]] = None, warping_inertia: float = 0.0, gbt_modes: int = 0, gbt_stiffness: Optional[npt.NDArray[np.float64]] = None, gbt_mass: Optional[npt.NDArray[np.float64]] = None, gbt_shear_modes: int = 0, gbt_sv_modes: int = 0, third_order_stiffness: Optional[npt.NDArray[np.float64]] = None, third_order_rate: Optional[npt.NDArray[np.float64]] = None, geometric_terms: Optional[npt.NDArray[np.float64]] = None, benscoter_geometric_terms: Optional[npt.NDArray[np.float64]] = None, third_order_geometric_terms: Optional[npt.NDArray[np.float64]] = None, axial_points: Optional[npt.NDArray[np.float64]] = None, gbt_geometric: Optional[Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]] = None, gbt_moments: Optional[npt.NDArray[np.float64]] = None, tapered: bool = False, taper_parts: Optional[Dict[int, npt.NDArray[np.float64]]] = None, gbt_brazier: Optional[Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]] = None) -> None`**
   Section stiffness and properties in the element convention.
 
 ### `pre_processing.section_integration.solid`
@@ -60,8 +76,8 @@ Section constitutive data shared by every beam element: ``SectionAnalysis``.
   Stress transformation ``sigma_section = T sigma_material`` for the rotation ``R`` (columns: material axes in section axes), Voigt order ``VOIGT``.
 - **`material_axes(theta_deg: float, alpha_deg: float) -> npt.NDArray[np.float64]`**
   Columns ``e1, e2, e3`` in section axes ``(x, y, z)`` (see the module notes).
-- **class `SectionMesh(nodes: npt.NDArray[np.float64], elements: List[npt.NDArray[np.int64]], kinds: List[str], material_ids: List[int], theta: List[float], alpha: List[float], materials: Dict[int, SolidMaterial] = <factory>, section_id: Optional[int] = None, ties: Dict[int, List[Tuple[int, float]]] = <factory>) -> None`**
-  SectionMesh(nodes: 'npt.NDArray[np.float64]', elements: 'List[npt.NDArray[np.int64]]', kinds: 'List[str]', material_ids: 'List[int]', theta: 'List[float]', alpha: 'List[float]', materials: 'Dict[int, SolidMaterial]' = <factory>, section_id: 'Optional[int]' = None, ties: 'Dict[int, List[Tuple[int, float]]]' = <factory>)
+- **class `SectionMesh(nodes: npt.NDArray[np.float64], elements: List[npt.NDArray[np.int64]], kinds: List[str], material_ids: List[int], theta: List[float], alpha: List[float], materials: Dict[int, SolidMaterial] = <factory>, section_id: Optional[int] = None, ties: Dict[int, List[Tuple[int, float]]] = <factory>, plies: Optional[List[Optional[Tuple[int, int]]]] = None) -> None`**
+  SectionMesh(nodes: 'npt.NDArray[np.float64]', elements: 'List[npt.NDArray[np.int64]]', kinds: 'List[str]', material_ids: 'List[int]', theta: 'List[float]', alpha: 'List[float]', materials: 'Dict[int, SolidMaterial]' = <factory>, section_id: 'Optional[int]' = None, ties: 'Dict[int, List[Tuple[int, float]]]' = <factory>, plies: 'Optional[List[Optional[Tuple[int, int]]]]' = None)
 - **`parse_section_mesh_2d(path: str, materials: Mapping[int, SolidMaterial]) -> Dict[int, SectionMesh]`**
   Read ``section_mesh_2d.txt``: ``{section_id: SectionMesh}``.
 - **`read_gmsh(path: str)`**
@@ -112,6 +128,17 @@ Conforming 2D section meshes of an implicit-geometry-kernel blade section.
 - **`write_section_mesh_2d(path: str, meshes: Mapping[int, SectionMesh]) -> None`**
   Write ``section_mesh_2d.txt`` for ``{section_id: SectionMesh}``, with its materials.
 
+### `pre_processing.section_integration.solid.layup_sensitivity`
+
+[pre_processing/section_integration/solid/layup_sensitivity.py](../../pre_processing/section_integration/solid/layup_sensitivity.py)
+
+Exact derivatives of a 2D-meshed section's properties with respect to ply angles.
+
+- **`material_derivative(material, theta_deg: float, alpha_deg: float) -> npt.NDArray[np.float64]`**
+  ``d C / d theta`` (6, 6, per degree) of ``SolidMaterial.stiffness_in_section``.
+- **`solid_section_derivative(an, param: LayupParameter, benscoter: bool = False, geometric: bool = False) -> SectionDerivative`**
+  Exact derivatives of a ``SolidSectionAnalysis`` for a ply-angle ``param``.
+
 ### `pre_processing.section_integration.solid.material`
 
 [pre_processing/section_integration/solid/material.py](../../pre_processing/section_integration/solid/material.py)
@@ -131,8 +158,8 @@ Three-dimensional orthotropic materials for 2D section meshes, and their rotatio
 
 2D finite-element meshes of beam cross-sections, with a material and orientation per element.
 
-- **class `SectionMesh(nodes: npt.NDArray[np.float64], elements: List[npt.NDArray[np.int64]], kinds: List[str], material_ids: List[int], theta: List[float], alpha: List[float], materials: Dict[int, SolidMaterial] = <factory>, section_id: Optional[int] = None, ties: Dict[int, List[Tuple[int, float]]] = <factory>) -> None`**
-  SectionMesh(nodes: 'npt.NDArray[np.float64]', elements: 'List[npt.NDArray[np.int64]]', kinds: 'List[str]', material_ids: 'List[int]', theta: 'List[float]', alpha: 'List[float]', materials: 'Dict[int, SolidMaterial]' = <factory>, section_id: 'Optional[int]' = None, ties: 'Dict[int, List[Tuple[int, float]]]' = <factory>)
+- **class `SectionMesh(nodes: npt.NDArray[np.float64], elements: List[npt.NDArray[np.int64]], kinds: List[str], material_ids: List[int], theta: List[float], alpha: List[float], materials: Dict[int, SolidMaterial] = <factory>, section_id: Optional[int] = None, ties: Dict[int, List[Tuple[int, float]]] = <factory>, plies: Optional[List[Optional[Tuple[int, int]]]] = None) -> None`**
+  SectionMesh(nodes: 'npt.NDArray[np.float64]', elements: 'List[npt.NDArray[np.int64]]', kinds: 'List[str]', material_ids: 'List[int]', theta: 'List[float]', alpha: 'List[float]', materials: 'Dict[int, SolidMaterial]' = <factory>, section_id: 'Optional[int]' = None, ties: 'Dict[int, List[Tuple[int, float]]]' = <factory>, plies: 'Optional[List[Optional[Tuple[int, int]]]]' = None)
 - **class `QuadraturePoint(element: int, y: float, z: float, weight: float, N: np.ndarray, dN: np.ndarray, nodes: np.ndarray) -> None`**
   QuadraturePoint(element: 'int', y: 'float', z: 'float', weight: 'float', N: 'np.ndarray', dN: 'np.ndarray', nodes: 'np.ndarray')
 - **`parse_section_mesh_2d(path: str, materials: Mapping[int, SolidMaterial]) -> Dict[int, SectionMesh]`**
@@ -250,10 +277,12 @@ Exact derivatives of thin-walled section properties with respect to ply angles a
   ``d ABD`` (6, 6) and ``d [m0, m1, m2]`` (the mass moments ``int rho n^p dn``, p = 0, 1, 2).
 - **`wall_law_derivative(lam: WallLaminate, dABD: np.ndarray, hoop: str = 'free') -> np.ndarray`**
   ``d wall_law(lam, hoop)`` (4, 4) for a change ``dABD`` of the laminate stiffness.
-- **class `SectionDerivative(parameter: LayupParameter, flexibility: npt.NDArray[np.float64], stiffness: npt.NDArray[np.float64], mass: Dict[str, float], mass_matrix: npt.NDArray[np.float64]) -> None`**
+- **class `SectionDerivative(parameter: LayupParameter, flexibility: npt.NDArray[np.float64], stiffness: npt.NDArray[np.float64], mass: Dict[str, float], mass_matrix: npt.NDArray[np.float64], benscoter_stiffness: Optional[npt.NDArray[np.float64]] = None, warping_inertia: float = 0.0, geometric_terms: Optional[npt.NDArray[np.float64]] = None, axial_weights: Optional[npt.NDArray[np.float64]] = None, wall_axial: float = 0.0, gbt_stiffness: Optional[npt.NDArray[np.float64]] = None, gbt_mass: Optional[npt.NDArray[np.float64]] = None, gbt_geometric: Optional[Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]] = None, warping_fields: Optional[Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]] = None) -> None`**
   Derivatives of a thin-walled section for one ``LayupParameter``.
-- **`section_derivative(an, param: LayupParameter) -> SectionDerivative`**
+- **`section_derivative(an, param: LayupParameter, benscoter: bool = False, geometric: bool = False) -> SectionDerivative`**
   Exact derivatives of the section stiffness, flexibility and mass for ``param``.
+- **`gbt_section_derivative(modes, d: SectionDerivative, n_modes: int, n_shear: int = 0)`**
+  Derivatives of the GBT section matrices: ``(dK, dM, (dTX, dTY))``.
 - **`element_section_derivative(sa, d: SectionDerivative)`**
   A ``SectionAnalysis`` like ``sa`` whose stiffness and mass matrix are the derivatives ``d`` (element signs).
 
@@ -299,7 +328,7 @@ Wall and ply stresses of a thin-walled section from its beam solution.
 
 Taper coupling of a thin-walled section: the Resal effect.
 
-- **class `SectionTaper(coupling: npt.NDArray[np.float64], shear: npt.NDArray[np.float64]) -> None`**
+- **class `SectionTaper(coupling: npt.NDArray[np.float64], shear: npt.NDArray[np.float64], parts: Optional[Dict[int, npt.NDArray[np.float64]]] = None) -> None`**
   Right-handed taper coupling of one section.
 - **`section_taper(start: ThinWalledSection, end: ThinWalledSection, laminates: Mapping[int, WallLaminate], distance: float, n_gauss: int = 3) -> SectionTaper`**
   Taper coupling of the section midway between ``start`` and ``end``.

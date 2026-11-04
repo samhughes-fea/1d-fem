@@ -253,6 +253,32 @@ An earlier version of this check compared tied boxes. The 1.5 % agreement it fir
 came from boxes that had lost their ties, and the 2.4 % and 4.2 % that replaced it came from
 tied boxes. Both are withdrawn.
 
+## Tapered and pretwisted beams
+
+Neighbouring GBT elements share the warping amplitudes \(b_j\) and the mode amplitudes
+\(a_k\), so on a beam with its own section per element the \(j\)-th field of one section must
+continue the \(j\)-th field of the next. Each section builds its bases on its own (an
+eigen-decomposition each), and between two close sections a basis can come out turned within
+its span, two modes can swap, or a mode can change sign.
+
+`gbt_alignment.align_gbt_sections` walks the beam from its first element and turns each
+section's warping block and mode block to the neighbour's already aligned, by the orthogonal
+\(R = \operatorname{polar}(S_{\mathrm{ref}} S^T)\) (Procrustes, regularised towards the
+identity). A row of \(S\) holds one field's shape moments over its section
+(`SectionAnalysis.gbt_moments`: its displacements against the monomials up to degree 3 in the
+section's bounding-box coordinates), which vary smoothly along a smoothly varying beam. A
+turn within a block changes the basis, not the span, so every GBT matrix becomes
+\(T^T K T\) with \(T\) the block-diagonal of \(R^T\) and each section's model is unchanged.
+A match below 0.9 (the lowest cosine between turned and reference rows) is logged: refine the
+mesh or change the number of modes. Thin-walled and 2D section jobs align their GBT sections
+automatically.
+
+The Resal taper coupling and the pretwist coupling (`with_taper`, `with_pretwist`) act on the
+beam strains only, so they are added to the leading 6×6 block of `gbt_stiffness`, as for the
+Benscoter section. On the IEA 15 MW outboard segment (20 elements, 2D sections, tapered and
+pretwisted), GBT with the modes held gives the Timoshenko 2D tip deflections within 0.28 % in
+flap and 0.09 % in edge; in torsion it is 3.7 % stiffer, from the root's warping restraint.
+
 ## Corotational GBT
 
 `CorotationalGBTBeamElement3D` puts the GBT element in the corotational frame of
@@ -261,6 +287,52 @@ through as local DOFs. The second-order terms come from the section forces of th
 strains, so the distortional modes carry no wall-level geometric stiffness. Checked at element
 level (tangent, objectivity) and as a job: at small load it is the linear GBT element, and at
 a tip deflection of 14 % of the span it stiffens as the corotational Timoshenko beam does.
+
+### Brazier flattening
+
+A mode moves the walls in the section plane by \(\mathbf d_k(s)\), so the beam curvature
+\(\boldsymbol\kappa = (\kappa_y, \kappa_z)\) strains the moved fibre axially by
+
+\[
+e_B = \sum_k a_k\, \mathbf g_k \cdot \boldsymbol\kappa, \qquad \mathbf g_k = (d_{z,k},\ -d_{y,k}).
+\]
+
+Its work against the wall force of the GBT strains and its own energy are added to the
+element's local energy at each Gauss point:
+
+\[
+\Pi_B = \sum_k a_k\, \boldsymbol\kappa^T \mathbf T_k \mathbf E
+  + \tfrac12 \sum_{kl} a_k a_l\, \boldsymbol\kappa^T \mathbf Q_{kl} \boldsymbol\kappa,
+\qquad
+\mathbf T_k = \int \mathbf g_k N_{xx}\, ds,\quad \mathbf Q_{kl} = \int A_{11}\, \mathbf g_k \mathbf g_l^T ds,
+\]
+
+where \(N_{xx}\) is the wall force per unit GBT strain \(\mathbf E\) (on 2D sections, the
+integrals are over the mesh with \(\sigma_{xx}\) and the axial modulus). The bent section's
+compressed and stretched flanges are pushed towards the neutral axis, the modes take that
+up, and the bending stiffness falls (Brazier 1927). The terms are of third and fourth order
+in the local DOFs, like the other corotational terms. `SectionAnalysis.gbt_brazier_terms`
+builds them (`CrossSectionModes.brazier_tensor`, `SolidCrossSectionModes.brazier_tensor`).
+Linear GBT has none.
+
+| Check | Reference | Agreement |
+|---|---|---|
+| Energy gradient and Hessian | central differences | 1e-7 |
+| Isotropic tube (24-sided, R/t = 50) under a tip moment | Brazier's ovalisation \(\zeta = (1-\nu^2)\kappa^2R^4/t^2\) | 1 % at \(\zeta\) = 1.2 %, 4 % at 5.5 % |
+| Same tube | bending stiffness falls by \(1.5\zeta\) | within 10 % of the drop |
+| CAS composite box, flattening at 1 P (19 % span deflection) | CalculiX `C3D20R` `NLGEOM` solid | 86 % of the solid's |
+| CAS box, tip deflection up to 2 P (35 % span) | same solid | within 0.3 % (rigid section: 1.3 %) |
+| CAS box, tip deflection at 3 P (49 % span) | same solid | −3.5 % (rigid section: −5.3 %) |
+
+The composite box is
+[nonlinear_solid_box](../../post_processing/validation_visualisers/nonlinear_solid_box/README.md).
+The beam's flattening agrees with a frame estimate of the flanges (rigid corners, Brazier
+pressure \(N_{xx}\kappa\)): 0.28 mm at a quarter span at P with four modes, 0.34 mm with
+eight, against 0.39 mm in the solid. Between 2 P and 3 P the solid's flattening grows faster
+than the square of the curvature, to 3.3 mm, while the beam's reaches 2.2 mm. So at 3 P the
+beam is still 3.5 % stiff, against a 2 % target. Modes beyond eight and finer wall meshes
+change it by less than 0.1 %. Adding the modes' wall geometric stiffness changes it by less
+than 0.1 %, and on a coarse mesh it loses convergence near 2.75 P. It is left out.
 
 ## Buckling
 

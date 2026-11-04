@@ -254,7 +254,7 @@ def _write_stress_files(job_dir, job_results_dir, element_dictionary, elements, 
 
 def _write_layup_sensitivity(job_dir, job_results_dir, element_dictionary, elements, runner, solver_type,
                              simulation_settings) -> None:
-    """``layup_sensitivity.csv`` of a linear static or eigen job with ``layup_sensitivity.txt``
+    """``layup_sensitivity.csv`` of a linear static, eigen or linear buckling job with ``layup_sensitivity.txt``
     (``post_processing/sensitivity/layup_sensitivity.py``)."""
     from pre_processing.element_library.rotating_frame import rotation_from_settings
     from pre_processing.parsing.layup_sensitivity_parser import LAYUP_SENSITIVITY_FILE
@@ -263,10 +263,15 @@ def _write_layup_sensitivity(job_dir, job_results_dir, element_dictionary, eleme
         return
     static_kind = simulation_settings.get("_resolved_static_kind", "linear")
     second_order = str((simulation_settings.get("static") or {}).get("second_order", "none")).lower()
-    if (solver_type not in ("static", "eigen") or (solver_type == "static" and static_kind != "linear")
+    from pre_processing.parsing.simulation_settings_resolution import effective_buckling_config
+
+    bk = effective_buckling_config(simulation_settings)
+    nonlinear_buckling = bk["nonlinear_buckling"] or bk["buckling_prestress"] != "linear_static"
+    if (solver_type not in ("static", "eigen", "buckling") or (solver_type == "static" and static_kind != "linear")
+            or (solver_type == "buckling" and nonlinear_buckling)
             or second_order != "none" or rotation_from_settings(simulation_settings) is not None):
-        raise ValueError(f"{LAYUP_SENSITIVITY_FILE} needs a linear static or eigen job without second-order "
-                         "or rotation terms")
+        raise ValueError(f"{LAYUP_SENSITIVITY_FILE} needs a linear static, eigen or linear buckling job without "
+                         "second-order or rotation terms")
     from post_processing.sensitivity.layup_sensitivity import write_layup_sensitivity
 
     write_layup_sensitivity(job_dir, job_results_dir, element_dictionary, elements, runner, solver_type)

@@ -52,7 +52,16 @@ through-thickness stresses out of `C` in wall axes. It recovers the thin-walled 
 [section_id] [element_id] [type] [nodes...] [material_id] [theta] [alpha]
 [Solid_Material]          (optional; other material ids come from laminate.txt)
 [material_id] [E1] [E2] [E3] [G12] [G13] [G23] [nu12] [nu13] [nu23] [rho]
+[Section_Tie]             (optional; junction ties of SectionMesh.from_thin_walled)
+[section_id] [node_id] [master_id] [coefficient]
+[Section_Element_Ply]     (optional; the laminate ply of each element)
+[section_id] [element_id] [laminate_id] [ply]
 ```
+
+`[Section_Element_Ply]` (`SectionMesh.plies`, written for meshes made by
+`SectionMesh.from_thin_walled`) names the laminate and ply (from 1 at the bottom) each
+element was cut from, so that ply-angle sensitivities can turn the ply's elements together
+([layup_sensitivity.md](layup_sensitivity.md)).
 
 ## Meshes of blade sections from implicit-geometry-kernel
 
