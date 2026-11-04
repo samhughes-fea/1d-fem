@@ -179,6 +179,15 @@ u_x = u - y\theta_z + z\theta_y + \Omega_j b_j + u_k a_k', \qquad
   zero mean, cleared of the rigid-motion parts (the translations paired with \(-y, -z\) and the
   rotation paired with the Saint-Venant torsion warping) so that \(a_k\) does not duplicate
   bending or torsion.
+- The axial strain of \(a_k''\), \(\partial_x u_k\), comes with a slaved strain across the wall
+  that makes \(\sigma_{nn} = 0\) (\(n\) normal to each element's wall direction
+  \(\alpha\)), as in plate theory: the wall is free to thin. Without it the longitudinal
+  bending of a wall is held in plane strain and `C` is
+  \((1-\nu)/((1+\nu)(1-2\nu))\) times the plate value instead of \(1/(1-\nu^2)\), 22 % high
+  for \(\nu = 0.3\), which put 2D local buckling 10 % high. The membrane part of
+  \(\partial_x u_k\) keeps its hoop strain restrained, whereas the thin-walled modes release
+  it (\(N_{ss} = 0\)), so for a membrane-dominated mode `C` can be up to \(1/(1-\nu^2)\)
+  above the thin-walled value (none for a ply whose \(\nu_{21}\) is small).
 
 The stiffness is \(\int H^T C H\,\mathrm dA\) with the 3D material law, so anisotropy and
 Poisson coupling between distortion and the beam strains are kept. Extra shear-lag modes are
