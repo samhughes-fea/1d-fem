@@ -1,7 +1,8 @@
 # post_processing/sensitivity/layup_sensitivity.py
 """Sensitivities of beam responses to ply angles and thicknesses (``layup_sensitivity.txt``).
 
-The section derivatives are exact (``thin_walled.layup_sensitivity``). The element
+The section derivatives are exact (``thin_walled.layup_sensitivity``; for sections meshed in
+2D, ply angles only, ``solid.layup_sensitivity``). The element
 derivatives ``dK_e`` and ``dM_e`` are the element's own matrices formed with the derivative
 section, which is exact because the Timoshenko and Benscoter elements are linear in the
 section's stiffness (6 x 6, or the Benscoter 8 x 8), its mass and its warping inertia. The global responses then follow from the solved job:
@@ -171,8 +172,8 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
     (``M``, ``frequencies_hz``, ``mode_shapes``) or linear buckling (``load_factors``,
     ``mode_shapes``, ``prestress`` ``U_0``, ``fixed_dofs``) job.
 
-    ``thin_walled`` is the per-element ``ThinWalledSectionAnalysis`` (``None`` where the
-    element has no thin-walled section); ``dof_index(node_id, dof)`` maps a response DOF to
+    ``thin_walled`` is the per-element ``ThinWalledSectionAnalysis`` or ``SolidSectionAnalysis``
+    (``None`` where the element has neither); ``dof_index(node_id, dof)`` maps a response DOF to
     its global index.
     """
     import scipy.sparse as sp
@@ -254,7 +255,7 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
             bens = type(el).__name__ in BENSCOTER
             key = (id(tw), p, bens)
             if key not in cache:
-                cache[key] = section_derivative(tw, p, benscoter=bens, geometric=buckling)
+                cache[key] = _section_derivative(tw, p, benscoter=bens, geometric=buckling)
             dsa = element_section_derivative(el.section_analysis, cache[key])
             a, b = element_derivatives(el, dsa, mass=eigen)
             dKe.append(a)
@@ -292,12 +293,34 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
     return rows
 
 
-def _parameter_value(thin_walled, p: LayupParameter) -> float:
-    for tw in thin_walled:
-        if tw is not None and p.laminate_id in tw.laminates:
-            ply = tw.laminates[p.laminate_id].plies[p.ply]
+def _is_solid(an) -> bool:
+    return hasattr(an, "mesh")
+
+
+def _section_derivative(an, p: LayupParameter, benscoter: bool, geometric: bool):
+    """``section_derivative`` of a thin-walled section, ``solid_section_derivative`` of a 2D one."""
+    if _is_solid(an):
+        from pre_processing.section_integration.solid.layup_sensitivity import solid_section_derivative
+
+        return solid_section_derivative(an, p, benscoter=benscoter, geometric=geometric)
+    return section_derivative(an, p, benscoter=benscoter, geometric=geometric)
+
+
+def _parameter_value(sections, p: LayupParameter) -> float:
+    for an in sections:
+        if an is None:
+            continue
+        if _is_solid(an):
+            tags = an.mesh.plies or ()
+            for e, t in enumerate(tags):
+                if t == (p.laminate_id, p.ply):
+                    if p.kind != "angle":
+                        raise NotImplementedError("2D sections take ply-angle sensitivities only")
+                    return float(an.mesh.theta[e])
+        elif p.laminate_id in an.laminates:
+            ply = an.laminates[p.laminate_id].plies[p.ply]
             return float(ply.angle_deg if p.kind == "angle" else ply.thickness)
-    raise ValueError(f"no section uses laminate {p.laminate_id}")
+    raise ValueError(f"no section uses ply {p.ply + 1} of laminate {p.laminate_id}")
 
 
 def _row(p: LayupParameter, value: float, r: Response, J: float, dJ: float) -> dict:
@@ -316,7 +339,11 @@ def write_layup_sensitivity(job_dir: str, job_results_dir: str, element_dictiona
 
     tw = element_dictionary.get("thin_walled_analysis_per_element")
     if tw is None:
-        raise ValueError("layup sensitivities need thin-walled sections (laminate.txt, section_geometry.txt)")
+        raise ValueError("layup sensitivities need thin-walled or 2D sections (laminate.txt, section_geometry.txt "
+                         "or section_mesh_2d.txt)")
+    solid = element_dictionary.get("solid_analysis_per_element")
+    if solid is not None:
+        tw = tuple(s if s is not None else t for t, s in zip(tw, solid))
     dpn = mesh_dof_per_node(element_dictionary)
     names = dof_names(dpn)
 

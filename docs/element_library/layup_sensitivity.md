@@ -2,7 +2,8 @@
 
 With `layup_sensitivity.txt` in a static or eigen job, 1d-fem writes the derivatives of
 chosen responses (nodal displacements, the compliance, natural frequencies) with respect to
-chosen ply angles and ply thicknesses of the thin-walled sections. The derivatives are exact
+chosen ply angles and ply thicknesses of the thin-walled sections, and ply angles of
+sections meshed in 2D. The derivatives are exact
 for the discrete model: the section derivatives are found by differentiating the section
 analysis, not by finite differences, and the beam derivatives follow by the adjoint method
 (static) or the eigenvalue derivative (eigen). One solve gives every derivative.
@@ -78,6 +79,25 @@ With `geometric=True` it carries the derivative of `geometric_terms` \(H\), the 
 resultants of the Saint-Venant stresses against the section geometry. \(H\) is linear in the
 wall law and in the warping fields, so \(\partial H\) takes \(\partial K_e\) and \(\partial\Phi_e\).
 
+### Sections meshed in 2D
+
+A 2D mesh made by `SectionMesh.from_thin_walled` tags each element with its laminate ply
+(`SectionMesh.plies`, `[Section_Element_Ply]` in `section_mesh_2d.txt`). An `angle`
+parameter turns the tagged elements together. The element stiffness is
+\(C = T C_m T^T\) with \(T\) the bond matrix of the material axes \(R\); \(T\) is bilinear in
+\(R\), so \(\partial T = T(\partial R, R) + T(R, \partial R)\) and
+\(\partial C = \partial T\,C_m T^T + T C_m\,\partial T^T\). The Giavotto saddle systems of
+`SolidSectionAnalysis` are linear in \(C\) and are differentiated as above. With
+`benscoter=True` so are the torsional warping solve, its shear-centre shift in the axial
+modulus \(E_x = C_{xx} - C_{xi} C_{ii}^{-1} C_{ix}\), and the relaxed-gradient solve behind
+\(K_{77}\); the second-order terms and axial weights are linear in the stresses and \(E_x\).
+The mass does not depend on ply angles.
+
+`solid_section_derivative(analysis, LayupParameter(laminate_id, ply, "angle"))`
+(`pre_processing/section_integration/solid/layup_sensitivity.py`) returns the same
+`SectionDerivative`, and jobs on `section_mesh_2d.txt` sections use it. A thickness
+parameter moves the mesh nodes and is refused.
+
 ## Beam
 
 The Timoshenko element is linear in the section's 6 x 6 stiffness and mass, and the
@@ -149,7 +169,8 @@ second-order derivatives, and the job derivatives against central differences of
 jobs: static displacements, twist and compliance and eigen frequencies with Timoshenko and
 Benscoter elements, and the first two buckling load factors of a box cantilever under
 compression, shear, torque and bending, and static and eigen responses of a pretwisted,
-prebent box and of a tapered, pretwisted one (all to \(2\times10^{-5}\)). On the IEA 15 MW
+prebent box and of a tapered, pretwisted one, and static (Timoshenko), eigen (Benscoter) and
+buckling responses of the box meshed in 2D, for a ply angle (all to \(2\times10^{-5}\)). On the IEA 15 MW
 outboard segment (tapered, pretwisted, 6 elements) the cap angle derivatives of tip
 deflection, twist, compliance and frequencies agree with re-built jobs to \(10^{-5}\). The web
 core thickness derivatives agree to \(4\times10^{-4}\): the derivative holds the wall
@@ -166,10 +187,12 @@ reaches a target twist per unit flap deflection.
 ## Limits
 
 - Linear static and eigen jobs with `LinearTimoshenkoBeamElement3D` or
-  `LinearBenscoterBeamElement3D` elements on thin-walled sections, and linear buckling jobs
+  `LinearBenscoterBeamElement3D` elements on thin-walled sections or (ply angles only)
+  sections meshed in 2D with ply tags, and linear buckling jobs
   (linear static prestress) with straight Timoshenko elements. Pretwisted, curved and
   tapered elements are included (a tapered one needs `[Section_Taper_Laminate]`). Other
-  element types (GBT, third-order, corotational), 2D sections, nonlinear prestress,
+  element types (GBT, third-order, corotational), ply thicknesses of 2D sections, 2D
+  meshes without ply tags (blade cuts from `section_mesh_from_cut`), nonlinear prestress,
   second-order static and rotating (centrifugal) jobs are refused.
 - Wall mid-lines are held fixed: a thickness change grows the stack about its mid-surface.
 - Eigenvalue derivatives assume simple eigenvalues. For repeated frequencies (a doubly

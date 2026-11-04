@@ -76,8 +76,8 @@ Section constitutive data shared by every beam element: ``SectionAnalysis``.
   Stress transformation ``sigma_section = T sigma_material`` for the rotation ``R`` (columns: material axes in section axes), Voigt order ``VOIGT``.
 - **`material_axes(theta_deg: float, alpha_deg: float) -> npt.NDArray[np.float64]`**
   Columns ``e1, e2, e3`` in section axes ``(x, y, z)`` (see the module notes).
-- **class `SectionMesh(nodes: npt.NDArray[np.float64], elements: List[npt.NDArray[np.int64]], kinds: List[str], material_ids: List[int], theta: List[float], alpha: List[float], materials: Dict[int, SolidMaterial] = <factory>, section_id: Optional[int] = None, ties: Dict[int, List[Tuple[int, float]]] = <factory>) -> None`**
-  SectionMesh(nodes: 'npt.NDArray[np.float64]', elements: 'List[npt.NDArray[np.int64]]', kinds: 'List[str]', material_ids: 'List[int]', theta: 'List[float]', alpha: 'List[float]', materials: 'Dict[int, SolidMaterial]' = <factory>, section_id: 'Optional[int]' = None, ties: 'Dict[int, List[Tuple[int, float]]]' = <factory>)
+- **class `SectionMesh(nodes: npt.NDArray[np.float64], elements: List[npt.NDArray[np.int64]], kinds: List[str], material_ids: List[int], theta: List[float], alpha: List[float], materials: Dict[int, SolidMaterial] = <factory>, section_id: Optional[int] = None, ties: Dict[int, List[Tuple[int, float]]] = <factory>, plies: Optional[List[Optional[Tuple[int, int]]]] = None) -> None`**
+  SectionMesh(nodes: 'npt.NDArray[np.float64]', elements: 'List[npt.NDArray[np.int64]]', kinds: 'List[str]', material_ids: 'List[int]', theta: 'List[float]', alpha: 'List[float]', materials: 'Dict[int, SolidMaterial]' = <factory>, section_id: 'Optional[int]' = None, ties: 'Dict[int, List[Tuple[int, float]]]' = <factory>, plies: 'Optional[List[Optional[Tuple[int, int]]]]' = None)
 - **`parse_section_mesh_2d(path: str, materials: Mapping[int, SolidMaterial]) -> Dict[int, SectionMesh]`**
   Read ``section_mesh_2d.txt``: ``{section_id: SectionMesh}``.
 - **`read_gmsh(path: str)`**
@@ -128,6 +128,17 @@ Conforming 2D section meshes of an implicit-geometry-kernel blade section.
 - **`write_section_mesh_2d(path: str, meshes: Mapping[int, SectionMesh]) -> None`**
   Write ``section_mesh_2d.txt`` for ``{section_id: SectionMesh}``, with its materials.
 
+### `pre_processing.section_integration.solid.layup_sensitivity`
+
+[pre_processing/section_integration/solid/layup_sensitivity.py](../../pre_processing/section_integration/solid/layup_sensitivity.py)
+
+Exact derivatives of a 2D-meshed section's properties with respect to ply angles.
+
+- **`material_derivative(material, theta_deg: float, alpha_deg: float) -> npt.NDArray[np.float64]`**
+  ``d C / d theta`` (6, 6, per degree) of ``SolidMaterial.stiffness_in_section``.
+- **`solid_section_derivative(an, param: LayupParameter, benscoter: bool = False, geometric: bool = False) -> SectionDerivative`**
+  Exact derivatives of a ``SolidSectionAnalysis`` for a ply-angle ``param``.
+
 ### `pre_processing.section_integration.solid.material`
 
 [pre_processing/section_integration/solid/material.py](../../pre_processing/section_integration/solid/material.py)
@@ -147,8 +158,8 @@ Three-dimensional orthotropic materials for 2D section meshes, and their rotatio
 
 2D finite-element meshes of beam cross-sections, with a material and orientation per element.
 
-- **class `SectionMesh(nodes: npt.NDArray[np.float64], elements: List[npt.NDArray[np.int64]], kinds: List[str], material_ids: List[int], theta: List[float], alpha: List[float], materials: Dict[int, SolidMaterial] = <factory>, section_id: Optional[int] = None, ties: Dict[int, List[Tuple[int, float]]] = <factory>) -> None`**
-  SectionMesh(nodes: 'npt.NDArray[np.float64]', elements: 'List[npt.NDArray[np.int64]]', kinds: 'List[str]', material_ids: 'List[int]', theta: 'List[float]', alpha: 'List[float]', materials: 'Dict[int, SolidMaterial]' = <factory>, section_id: 'Optional[int]' = None, ties: 'Dict[int, List[Tuple[int, float]]]' = <factory>)
+- **class `SectionMesh(nodes: npt.NDArray[np.float64], elements: List[npt.NDArray[np.int64]], kinds: List[str], material_ids: List[int], theta: List[float], alpha: List[float], materials: Dict[int, SolidMaterial] = <factory>, section_id: Optional[int] = None, ties: Dict[int, List[Tuple[int, float]]] = <factory>, plies: Optional[List[Optional[Tuple[int, int]]]] = None) -> None`**
+  SectionMesh(nodes: 'npt.NDArray[np.float64]', elements: 'List[npt.NDArray[np.int64]]', kinds: 'List[str]', material_ids: 'List[int]', theta: 'List[float]', alpha: 'List[float]', materials: 'Dict[int, SolidMaterial]' = <factory>, section_id: 'Optional[int]' = None, ties: 'Dict[int, List[Tuple[int, float]]]' = <factory>, plies: 'Optional[List[Optional[Tuple[int, int]]]]' = None)
 - **class `QuadraturePoint(element: int, y: float, z: float, weight: float, N: np.ndarray, dN: np.ndarray, nodes: np.ndarray) -> None`**
   QuadraturePoint(element: 'int', y: 'float', z: 'float', weight: 'float', N: 'np.ndarray', dN: 'np.ndarray', nodes: 'np.ndarray')
 - **`parse_section_mesh_2d(path: str, materials: Mapping[int, SolidMaterial]) -> Dict[int, SectionMesh]`**

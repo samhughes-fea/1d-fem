@@ -147,7 +147,7 @@ def _taper_file(sec) -> str:
     return format_section_taper_file({e: t for e in range(N_EL)})
 
 
-def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D", precurvature=None, taper=False):
+def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D", precurvature=None, taper=False, two_d=False):
     from workflow_orchestrator.run_job import process_job
 
     tip = BUCKLING_TIP if kind == "buckling" else [0.0, 3e3, 20e3, 5e3, 0.0, 0.0]
@@ -155,6 +155,15 @@ def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D", precurvature=
     job = os.path.join(_WORK, "jobs", name)
     common.write_job(job, spec)
     common.write_supports(job, spec)
+    if two_d:
+        from pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
+        from pre_processing.section_integration.solid.mesh import SectionMesh
+
+        tw = common.build_analysis(sec)
+        os.remove(os.path.join(job, "section_geometry.txt"))
+        os.remove(os.path.join(job, "laminate.txt"))
+        write_section_mesh_2d(os.path.join(job, "section_mesh_2d.txt"),
+                              {1: SectionMesh.from_thin_walled(tw.section, tw.laminates, elements_along=4)})
     if taper:
         with open(os.path.join(job, "section_taper.txt"), "w", encoding="utf-8") as f:
             f.write(_taper_file(sec))
@@ -170,7 +179,9 @@ def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D", precurvature=
             f.write("[Simulation]\n[Type]\nbuckling\n\n[Solver]\ntype = direct\n\n[Buckling]\nenabled = true\n"
                     "num_modes = 4\nbuckling_prestress = linear_static\nbuckling_load_factor = 1.0\n")
     with open(os.path.join(job, "layup_sensitivity.txt"), "w", encoding="utf-8") as f:
-        f.write(format_layup_sensitivity_file(JOB_PARAMS, RESPONSES[kind]))
+        # 2D sections take ply angles only
+        f.write(format_layup_sensitivity_file([p for p in JOB_PARAMS if not two_d or p.kind == "angle"],
+                                              RESPONSES[kind]))
     res = common.results_dir(os.path.join(_WORK, "results", name))
     logging.disable(logging.WARNING)
     try:
@@ -279,6 +290,79 @@ def test_buckling_load_sensitivities_match_central_differences_of_re_solved_jobs
                 continue
             fd = (float(rp[label, resp]["response_value"]) - float(rm[label, resp]["response_value"])) / (2 * h)
             assert float(row["derivative"]) == pytest.approx(fd, rel=2e-5), (label, resp)
+
+
+# ------------------------------------------------------------------ 2D sections
+
+def _solid_box(change=None):
+    from pre_processing.section_integration.solid.mesh import SectionMesh
+    from pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
+
+    tw = _box(change)
+    return SolidSectionAnalysis(SectionMesh.from_thin_walled(tw.section, tw.laminates, elements_along=4))
+
+
+@pytest.mark.parametrize("prm", [LayupParameter(1, 3, "angle"), LayupParameter(2, 1, "angle")], ids=lambda p: p.label)
+def test_2d_section_derivatives_match_central_differences(prm):
+    """The 6 x 6 and 8 x 8 stiffness, warping inertia, second-order terms and axial weights."""
+    from pre_processing.section_integration.solid.layup_sensitivity import solid_section_derivative
+
+    h = 1e-2
+    d = solid_section_derivative(_solid_box(), prm, benscoter=True, geometric=True)
+    p, m = _solid_box((prm, h)), _solid_box((prm, -h))
+
+    def close(a, b):
+        assert np.abs(a - b).max() <= 1e-5 * np.abs(b).max()
+
+    close(d.stiffness, (p.stiffness - m.stiffness) / (2 * h))
+    close(d.benscoter_stiffness, (p.benscoter_stiffness - m.benscoter_stiffness) / (2 * h))
+    close(d.geometric_terms, (p.geometric_terms - m.geometric_terms) / (2 * h))
+    close(d.axial_weights, (p.axial_points[:, 2] - m.axial_points[:, 2]) / (2 * h))
+    assert d.warping_inertia == pytest.approx((p.warping_inertia - m.warping_inertia) / (2 * h), rel=1e-6)
+    np.testing.assert_array_equal(d.mass_matrix, 0.0)
+
+
+def test_2d_section_ply_tags_and_limits(tmp_path):
+    from pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
+    from pre_processing.section_integration.solid.layup_sensitivity import solid_section_derivative
+    from pre_processing.section_integration.solid.mesh import parse_section_mesh_2d
+    from pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
+
+    an = _solid_box()
+    path = str(tmp_path / "section_mesh_2d.txt")
+    write_section_mesh_2d(path, {1: an.mesh})
+    back = parse_section_mesh_2d(path, {})[1]
+    assert back.plies == an.mesh.plies
+    assert sum(t == (1, 3) for t in back.plies) == 2 * 4          # two walls, four elements along each
+    with pytest.raises(NotImplementedError, match="angle"):
+        solid_section_derivative(an, LayupParameter(1, 3, "thickness"))
+    back.plies = None
+    with pytest.raises(ValueError, match="ply tags"):
+        solid_section_derivative(SolidSectionAnalysis(back), LayupParameter(1, 3, "angle"))
+    d = solid_section_derivative(an, LayupParameter(7, 0, "angle"))
+    np.testing.assert_array_equal(d.stiffness, 0.0)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("kind, element", [("static", "LinearTimoshenkoBeamElement3D"),
+                                           ("eigen", "LinearBenscoterBeamElement3D"),
+                                           ("buckling", "LinearTimoshenkoBeamElement3D")])
+def test_2d_section_job_sensitivities_match_central_differences(kind, element):
+    """Jobs on the box meshed in 2D (section_mesh_2d.txt with ply tags): ply angles."""
+    prm = JOB_PARAMS[0]
+    tag = f"2d_{kind}"
+    base = _run(tag, _spec(), kind, element, two_d=True)
+    h = 1e-2
+    rp = _run(f"{tag}_p", _spec((prm, h)), kind, element, two_d=True)
+    rm = _run(f"{tag}_m", _spec((prm, -h)), kind, element, two_d=True)
+    n = 0
+    for (label, resp), row in base.items():
+        if label != prm.label:
+            continue
+        fd = (float(rp[label, resp]["response_value"]) - float(rm[label, resp]["response_value"])) / (2 * h)
+        assert float(row["derivative"]) == pytest.approx(fd, rel=2e-5), (label, resp)
+        n += 1
+    assert n == len(RESPONSES[kind])
 
 
 def test_unsupported_elements_are_refused():
