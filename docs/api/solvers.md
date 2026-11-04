@@ -2,9 +2,9 @@
 
 Static, nonlinear, eigen, buckling, harmonic, transient and spectral solvers and their runners.
 
-### `processing.buckling`
+### `onedfem.processing.buckling`
 
-[processing/buckling/__init__.py](../../processing/buckling/__init__.py)
+[src/onedfem/processing/buckling/__init__.py](../../src/onedfem/processing/buckling/__init__.py)
 
 Buckling and stability kernels (taxonomy §5): geometric stiffness and linear buckling eigenpairs.
 
@@ -15,9 +15,9 @@ Buckling and stability kernels (taxonomy §5): geometric stiffness and linear bu
 - **`solve_linear_buckling_eigenpairs(K_mod: csr_matrix, Kg_mod: csr_matrix, num_modes: int, constrained_dofs: Optional[np.ndarray] = None) -> Tuple[np.ndarray, np.ndarray]`**
   Solve the generalized eigenproblem :math:`\mathbf{K}\mathbf{x} = \mu (-\mathbf{K}_g)\mathbf{x}` associated with :math:`(\mathbf{K} + \lambda \mathbf{K}_g)\mathbf{x}=\mathbf{0}`.
 
-### `processing.buckling.p_delta`
+### `onedfem.processing.buckling.p_delta`
 
-[processing/buckling/p_delta.py](../../processing/buckling/p_delta.py)
+[src/onedfem/processing/buckling/p_delta.py](../../src/onedfem/processing/buckling/p_delta.py)
 
 Second-order (P-delta) static solve: ``(K + K_sigma(U)) U = F`` by fixed-point iteration.
 
@@ -26,18 +26,18 @@ Second-order (P-delta) static solve: ``(K + K_sigma(U)) U = F`` by fixed-point i
 - **`solve_p_delta(K, F: np.ndarray, elements: Sequence[Any], fixed_dofs: Sequence[int], *, tolerance: float = 1e-08, max_iterations: int = 50, U0: Optional[np.ndarray] = None, solver: Optional[Callable[[Any, np.ndarray], np.ndarray]] = None) -> PDeltaResult`**
   Solve ``(K + K_sigma(U)) U = F`` with homogeneous constraints on ``fixed_dofs``.
 
-### `processing.common`
+### `onedfem.processing.common`
 
-[processing/common/__init__.py](../../processing/common/__init__.py)
+[src/onedfem/processing/common/__init__.py](../../src/onedfem/processing/common/__init__.py)
 
 Shared processing utilities.
 
 - **`init_stage_logger(class_name: str, job_results_dir: Optional[Union[str, Path]]) -> logging.Logger`**
   Return a logger with optional ``logs/<ClassName>.log`` under the job tree.
 
-### `processing.dynamic`
+### `onedfem.processing.dynamic`
 
-[processing/dynamic/__init__.py](../../processing/dynamic/__init__.py)
+[src/onedfem/processing/dynamic/__init__.py](../../src/onedfem/processing/dynamic/__init__.py)
 
 Deprecated compatibility shim for transient processing.
 
@@ -45,29 +45,29 @@ Deprecated compatibility shim for transient processing.
 - **`apply_boundary_conditions(*args, **kwargs)`**
 - **`newmark_integrate(*args, **kwargs)`**
 
-### `processing.dynamic.operations`
+### `onedfem.processing.dynamic.operations`
 
-[processing/dynamic/operations/__init__.py](../../processing/dynamic/operations/__init__.py)
+[src/onedfem/processing/dynamic/operations/__init__.py](../../src/onedfem/processing/dynamic/operations/__init__.py)
 
 Staged transient dynamics pipeline.
 
 - **class `AssembleDynamicGlobalSystem(elements: List, element_stiffness_matrices, element_mass_matrices, total_dof: int, job_results_dir: Optional[Union[str, Path]] = None, element_damping_matrices=None)`**
 - **class `ModifyDynamicGlobalSystem(fixed_dofs: Optional[Sequence[int]] = None, prescribed_displacements: Optional[dict] = None, job_results_dir: Optional[Union[str, Path]] = None)`**
 - **class `IntegrateTransientSystem(t_grid: np.ndarray, force_func: Callable[[float], np.ndarray], job_results_dir: Optional[Union[str, Path]] = None)`**
-  Wrap :func:`processing.dynamic.time_integration.newmark_integrate`.
+  Wrap :func:`onedfem.processing.dynamic.time_integration.newmark_integrate`.
 
-### `processing.dynamic.operations._logging`
+### `onedfem.processing.dynamic.operations._logging`
 
-[processing/dynamic/operations/_logging.py](../../processing/dynamic/operations/_logging.py)
+[src/onedfem/processing/dynamic/operations/_logging.py](../../src/onedfem/processing/dynamic/operations/_logging.py)
 
 Re-export shared stage logger for transient operations.
 
 - **`init_stage_logger(class_name: str, job_results_dir: Optional[Union[str, Path]]) -> logging.Logger`**
   Return a logger with optional ``logs/<ClassName>.log`` under the job tree.
 
-### `processing.eigen`
+### `onedfem.processing.eigen`
 
-[processing/eigen/__init__.py](../../processing/eigen/__init__.py)
+[src/onedfem/processing/eigen/__init__.py](../../src/onedfem/processing/eigen/__init__.py)
 
 Eigenproblems and spectral assembly helpers (taxonomy §2).
 
@@ -81,20 +81,20 @@ Eigenproblems and spectral assembly helpers (taxonomy §2).
 - **`apply_boundary_conditions(K_global: scipy.sparse._csr.csr_matrix, M_global: scipy.sparse._csr.csr_matrix, fixed_dofs: Union[Sequence[int], numpy.ndarray, NoneType] = None, prescribed_displacements: Optional[dict] = None) -> Tuple[scipy.sparse._csr.csr_matrix, scipy.sparse._csr.csr_matrix, numpy.ndarray]`**
   Apply BCs to both K and M (penalty method): fixed DOFs get zero row/col, diagonal K = penalty, diagonal M = 1.0.
 
-### `processing.eigen.metrics`
+### `onedfem.processing.eigen.metrics`
 
-[processing/eigen/metrics/__init__.py](../../processing/eigen/metrics/__init__.py)
+[src/onedfem/processing/eigen/metrics/__init__.py](../../src/onedfem/processing/eigen/metrics/__init__.py)
 
-Native eigen modal metrics (no processing.static dependency).
+Native eigen modal metrics (no onedfem.processing.static dependency).
 
 - **`global_uz_unit_pattern(total_dof: int, dof_per_node: int) -> np.ndarray`**
   Return a unit-norm vector activating uz on every node (zero if unsupported layout).
 - **`modal_effective_mass_fraction_z(M_mod: csr_matrix, mode_shapes: np.ndarray, *, dof_per_node: int) -> np.ndarray | None`**
   Per mode *j*, scalar ((φ_jᵀ M r)²) / ((rᵀ M r)(φ_jᵀ M φ_j))) with *r* = global uz unit pattern.
 
-### `processing.eigen.rotating_frame`
+### `onedfem.processing.eigen.rotating_frame`
 
-[processing/eigen/rotating_frame.py](../../processing/eigen/rotating_frame.py)
+[src/onedfem/processing/eigen/rotating_frame.py](../../src/onedfem/processing/eigen/rotating_frame.py)
 
 Free vibration of a beam structure spinning at a constant rate, in the rotating frame.
 
@@ -107,9 +107,9 @@ Free vibration of a beam structure spinning at a constant rate, in the rotating 
 - **`campbell(elements, coordinates, connectivity, K, M, bc_dofs, rotation: Rotation, omegas: Sequence[float], num_modes: int, gyroscopic: bool = True, prestress: bool = True) -> npt.NDArray[np.float64]`**
   Rotating-frame frequencies (Hz) at each speed: rows ``[omega, f_1, ..., f_n]``.
 
-### `processing.harmonic`
+### `onedfem.processing.harmonic`
 
-[processing/harmonic/__init__.py](../../processing/harmonic/__init__.py)
+[src/onedfem/processing/harmonic/__init__.py](../../src/onedfem/processing/harmonic/__init__.py)
 
 Frequency-domain dynamics (taxonomy §4): harmonic / steady-state response.
 
@@ -130,9 +130,9 @@ Frequency-domain dynamics (taxonomy §4): harmonic / steady-state response.
 - **`undamped_natural_modes(K_mod: csr_matrix, M_mod: csr_matrix, num_modes: int, *, dense_threshold: int = 512) -> tuple[np.ndarray, np.ndarray]`**
   Lowest undamped natural frequencies (rad/s) and mode shapes (columns), M-normalized.
 
-### `processing.harmonic.operations`
+### `onedfem.processing.harmonic.operations`
 
-[processing/harmonic/operations/__init__.py](../../processing/harmonic/operations/__init__.py)
+[src/onedfem/processing/harmonic/operations/__init__.py](../../src/onedfem/processing/harmonic/operations/__init__.py)
 
 Staged harmonic pipeline (structural assembly, BCs, damping, frequency solve).
 
@@ -144,18 +144,18 @@ Staged harmonic pipeline (structural assembly, BCs, damping, frequency solve).
   HarmonicSweepConfig(use_modal: 'bool', num_modal: 'int', basis_dir: 'Optional[str]', basis_job: 'Optional[str]', zeta: 'float', use_parallel: 'bool', mp_ref: 'str', rayleigh_alpha: 'float', rayleigh_beta: 'float', lin_solver: 'str', zpf: 'Optional[np.ndarray]', ft_tab: 'Any', zt_tab: 'Any')
 - **class `SolveHarmonicFrequencySweep(job_results_dir: Optional[Union[str, Path]] = None, resolve_job_path: Optional[Callable[[str], str]] = None)`**
 
-### `processing.harmonic.operations._logging`
+### `onedfem.processing.harmonic.operations._logging`
 
-[processing/harmonic/operations/_logging.py](../../processing/harmonic/operations/_logging.py)
+[src/onedfem/processing/harmonic/operations/_logging.py](../../src/onedfem/processing/harmonic/operations/_logging.py)
 
 Re-export shared stage logger for harmonic operations.
 
 - **`init_stage_logger(class_name: str, job_results_dir: Optional[Union[str, Path]]) -> logging.Logger`**
   Return a logger with optional ``logs/<ClassName>.log`` under the job tree.
 
-### `processing.spectral`
+### `onedfem.processing.spectral`
 
-[processing/spectral/__init__.py](../../processing/spectral/__init__.py)
+[src/onedfem/processing/spectral/__init__.py](../../src/onedfem/processing/spectral/__init__.py)
 
 Spectral analysis helpers (Sections 2 and 5): diagnostics and staged operations.
 
@@ -164,20 +164,20 @@ Spectral analysis helpers (Sections 2 and 5): diagnostics and staged operations.
 - **`log_spectral_diagnostics(K, M, job_results_dir=None)`**
   Log basic diagnostics for global K and M (shape, nnz, Frobenius norm of data).
 
-### `processing.spectral.operations`
+### `onedfem.processing.spectral.operations`
 
-[processing/spectral/operations/__init__.py](../../processing/spectral/operations/__init__.py)
+[src/onedfem/processing/spectral/operations/__init__.py](../../src/onedfem/processing/spectral/operations/__init__.py)
 
 Staged spectral pipeline (eigen vibration + linear buckling matrix steps).
 
 - **class `PrepareSpectralLocalMatrices(element_stiffness_matrices: Optional[Sequence] = None, element_mass_matrices: Optional[Sequence] = None, job_results_dir: Optional[Union[str, Path]] = None)`**
-  Validate and convert element stiffness / mass matrices to COO float64 lists, mirroring :class:`processing.static.operations.preparation.PrepareLocalSystem` for the stiffness path (mass has no force analogue).
+  Validate and convert element stiffness / mass matrices to COO float64 lists, mirroring :class:`onedfem.processing.static.operations.preparation.PrepareLocalSystem` for the stiffness path (mass has no force analogue).
 - **class `AssembleSpectralGlobalSystem(elements: List, element_stiffness_matrices: List, element_mass_matrices: List, total_dof: int, job_results_dir: Optional[Union[str, Path]] = None)`**
-  Scatter element matrices to global ``K`` and ``M`` (delegates to :func:`processing.eigen.assembly.assemble_global_matrices`), then log diagnostics.
+  Scatter element matrices to global ``K`` and ``M`` (delegates to :func:`onedfem.processing.eigen.assembly.assemble_global_matrices`), then log diagnostics.
 - **class `ModifySpectralGlobalSystem(job_results_dir: Optional[Union[str, Path]] = None, fixed_dofs: Optional[Sequence[int]] = None, prescribed_displacements: Optional[dict] = None)`**
-  Wrap :func:`processing.eigen.boundary_conditions.apply_boundary_conditions`.
+  Wrap :func:`onedfem.processing.eigen.boundary_conditions.apply_boundary_conditions`.
 - **class `SolveGeneralizedEigenproblem(num_modes: int, context: str = 'eigen vibration', dense_threshold: int = 512, job_results_dir: Optional[Union[str, Path]] = None)`**
-  Solve :math:`K x = \lambda M x` for the smallest-magnitude eigenvalues (delegates to :func:`processing.eigen.smallest_generalized_eigenpairs`).
+  Solve :math:`K x = \lambda M x` for the smallest-magnitude eigenvalues (delegates to :func:`onedfem.processing.eigen.smallest_generalized_eigenpairs`).
 - **class `AssembleBucklingGeometricStiffness(elements: List, U_global: np.ndarray, total_dof: int, job_results_dir: Optional[Union[str, Path]] = None)`**
   Build global geometric stiffness from prestress displacements.
 - **class `ModifyBucklingGlobalMatrices(job_results_dir: Optional[Union[str, Path]] = None, prescribed_displacements: Optional[dict] = None, fixed_dofs: Optional[Sequence[int]] = None)`**
@@ -185,9 +185,9 @@ Staged spectral pipeline (eigen vibration + linear buckling matrix steps).
 - **class `SolveLinearBucklingEigenpairs(num_modes: int, job_results_dir: Optional[Union[str, Path]] = None)`**
   Linear buckling eigenproblem on (K, K_sigma) pencil.
 
-### `processing.static`
+### `onedfem.processing.static`
 
-[processing/static/__init__.py](../../processing/static/__init__.py)
+[src/onedfem/processing/static/__init__.py](../../src/onedfem/processing/static/__init__.py)
 
 Static FEM processing: assembly, boundary conditions, condensation, solve, results.
 
@@ -206,9 +206,9 @@ Static FEM processing: assembly, boundary conditions, condensation, solve, resul
 - **class `DisassembleGlobalSystem(*, U_global: numpy.ndarray, R_global: numpy.ndarray, R_residual: numpy.ndarray, local_global_dof_map: Sequence[numpy.ndarray], job_results_dir: str | pathlib._local.Path | None = None, F_e: Optional[Sequence[numpy.ndarray]] = None) -> None`**
   Reverse-assembles global results to each element and writes:
 
-### `processing.static.follower_loads`
+### `onedfem.processing.static.follower_loads`
 
-[processing/static/follower_loads.py](../../processing/static/follower_loads.py)
+[src/onedfem/processing/static/follower_loads.py](../../src/onedfem/processing/static/follower_loads.py)
 
 Nodal follower loads: forces and moments that turn with the node they act on.
 
@@ -218,9 +218,9 @@ Nodal follower loads: forces and moments that turn with the node they act on.
   Follower loads on nodes; ``forces(U)`` and ``stiffness(U)`` on the global DOFs.
 - **`FOLLOWER_LOAD_FILE`** (constant)
 
-### `processing.transient`
+### `onedfem.processing.transient`
 
-[processing/transient/__init__.py](../../processing/transient/__init__.py)
+[src/onedfem/processing/transient/__init__.py](../../src/onedfem/processing/transient/__init__.py)
 
 Transient analysis: canonical Section 3 package name.
 
@@ -231,73 +231,73 @@ Transient analysis: canonical Section 3 package name.
 - **`newmark_integrate(K: scipy.sparse._csr.csr_matrix, M: scipy.sparse._csr.csr_matrix, C: Optional[scipy.sparse._csr.csr_matrix], u0: numpy.ndarray, v0: numpy.ndarray, t_grid: numpy.ndarray, F_func: Callable[[float], numpy.ndarray], beta: float = 0.25, gamma: float = 0.5) -> Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]`**
   Newmark-beta time integration: M u'' + C u' + K u = F(t).
 
-### `processing.transient.assembly`
+### `onedfem.processing.transient.assembly`
 
-[processing/transient/assembly.py](../../processing/transient/assembly.py)
+[src/onedfem/processing/transient/assembly.py](../../src/onedfem/processing/transient/assembly.py)
 
 - **`assemble_global_system(elements: List, element_stiffness_matrices: Optional[List] = None, element_mass_matrices: Optional[List] = None, element_damping_matrices: Optional[List] = None, total_dof: Optional[int] = None, job_results_dir: Optional[str] = None) -> Tuple[scipy.sparse._csr.csr_matrix, scipy.sparse._csr.csr_matrix, Optional[scipy.sparse._csr.csr_matrix], List[numpy.ndarray]]`**
   Assemble global K, M, and optionally C for dynamic analysis.
 - **`assemble_global_force_vector(elements: List, element_force_vectors: Optional[Sequence], total_dof: int, *, job_results_dir: Union[str, pathlib._local.Path, NoneType] = None, local_global_dof_map: Optional[List[numpy.ndarray]] = None) -> numpy.ndarray`**
   Scatter element nodal loads ``F_e`` into a global vector (same pattern as static force assembly).
 
-### `processing.transient.boundary_conditions`
+### `onedfem.processing.transient.boundary_conditions`
 
-[processing/transient/boundary_conditions.py](../../processing/transient/boundary_conditions.py)
+[src/onedfem/processing/transient/boundary_conditions.py](../../src/onedfem/processing/transient/boundary_conditions.py)
 
 - **`apply_boundary_conditions(K_global: scipy.sparse._csr.csr_matrix, M_global: scipy.sparse._csr.csr_matrix, C_global: Optional[scipy.sparse._csr.csr_matrix] = None, fixed_dofs: Union[Sequence[int], numpy.ndarray, NoneType] = None, prescribed_displacements: Optional[dict] = None) -> Tuple[scipy.sparse._csr.csr_matrix, scipy.sparse._csr.csr_matrix, Optional[scipy.sparse._csr.csr_matrix], numpy.ndarray]`**
   Apply BCs to K, M, and optionally C (penalty method).
 
-### `processing.transient.diagnostics.transient_run_diagnostic`
+### `onedfem.processing.transient.diagnostics.transient_run_diagnostic`
 
-[processing/transient/diagnostics/transient_run_diagnostic.py](../../processing/transient/diagnostics/transient_run_diagnostic.py)
+[src/onedfem/processing/transient/diagnostics/transient_run_diagnostic.py](../../src/onedfem/processing/transient/diagnostics/transient_run_diagnostic.py)
 
 - **`log_transient_modified_system(K_mod: csr_matrix, M_mod: csr_matrix, C_mod: Optional[csr_matrix], *, n_bc_dofs: int, job_results_dir: Optional[Union[str, Path]] = None) -> None`**
   Log Frobenius norms and BC counts after dynamic BC application.
 
-### `processing.transient.operations`
+### `onedfem.processing.transient.operations`
 
-[processing/transient/operations/__init__.py](../../processing/transient/operations/__init__.py)
+[src/onedfem/processing/transient/operations/__init__.py](../../src/onedfem/processing/transient/operations/__init__.py)
 
 Staged transient dynamics pipeline.
 
 - **class `AssembleTransientGlobalSystem(elements: List, element_stiffness_matrices, element_mass_matrices, total_dof: int, job_results_dir: Optional[Union[str, Path]] = None, element_damping_matrices=None)`**
 - **class `ModifyTransientGlobalSystem(fixed_dofs: Optional[Sequence[int]] = None, prescribed_displacements: Optional[dict] = None, job_results_dir: Optional[Union[str, Path]] = None)`**
 - **class `IntegrateTransientSystem(t_grid: np.ndarray, force_func: Callable[[float], np.ndarray], job_results_dir: Optional[Union[str, Path]] = None)`**
-  Wrap :func:`processing.dynamic.time_integration.newmark_integrate`.
+  Wrap :func:`onedfem.processing.dynamic.time_integration.newmark_integrate`.
 - **class `AssembleDynamicGlobalSystem(elements: List, element_stiffness_matrices, element_mass_matrices, total_dof: int, job_results_dir: Optional[Union[str, Path]] = None, element_damping_matrices=None)`**
 - **class `ModifyDynamicGlobalSystem(fixed_dofs: Optional[Sequence[int]] = None, prescribed_displacements: Optional[dict] = None, job_results_dir: Optional[Union[str, Path]] = None)`**
 
-### `processing.transient.operations._logging`
+### `onedfem.processing.transient.operations._logging`
 
-[processing/transient/operations/_logging.py](../../processing/transient/operations/_logging.py)
+[src/onedfem/processing/transient/operations/_logging.py](../../src/onedfem/processing/transient/operations/_logging.py)
 
 - **`init_stage_logger(class_name: str, job_results_dir: Optional[Union[str, Path]]) -> logging.Logger`**
   Return a logger with optional ``logs/<ClassName>.log`` under the job tree.
 
-### `processing.transient.operations.integrate_transient_system`
+### `onedfem.processing.transient.operations.integrate_transient_system`
 
-[processing/transient/operations/integrate_transient_system.py](../../processing/transient/operations/integrate_transient_system.py)
+[src/onedfem/processing/transient/operations/integrate_transient_system.py](../../src/onedfem/processing/transient/operations/integrate_transient_system.py)
 
 - **class `IntegrateTransientSystem(t_grid: np.ndarray, force_func: Callable[[float], np.ndarray], job_results_dir: Optional[Union[str, Path]] = None)`**
-  Wrap :func:`processing.dynamic.time_integration.newmark_integrate`.
+  Wrap :func:`onedfem.processing.dynamic.time_integration.newmark_integrate`.
 
-### `processing.transient.time_integration`
+### `onedfem.processing.transient.time_integration`
 
-[processing/transient/time_integration.py](../../processing/transient/time_integration.py)
+[src/onedfem/processing/transient/time_integration.py](../../src/onedfem/processing/transient/time_integration.py)
 
 - **`newmark_integrate(K: scipy.sparse._csr.csr_matrix, M: scipy.sparse._csr.csr_matrix, C: Optional[scipy.sparse._csr.csr_matrix], u0: numpy.ndarray, v0: numpy.ndarray, t_grid: numpy.ndarray, F_func: Callable[[float], numpy.ndarray], beta: float = 0.25, gamma: float = 0.5) -> Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]`**
   Newmark-beta time integration: M u'' + C u' + K u = F(t).
 
-### `processing.transient.transient_forcing`
+### `onedfem.processing.transient.transient_forcing`
 
-[processing/transient/transient_forcing.py](../../processing/transient/transient_forcing.py)
+[src/onedfem/processing/transient/transient_forcing.py](../../src/onedfem/processing/transient/transient_forcing.py)
 
 - **`build_transient_force_func(F_ref: np.ndarray, dyn_config: dict, *, total_dof: int, job_dir: Optional[str], end_time: float) -> Callable[[float], np.ndarray]`**
   Build ``F(t)`` from assembled reference load ``F_ref`` and merged transient settings.
 
-### `simulation_runner.buckling`
+### `onedfem.simulation_runner.buckling`
 
-[simulation_runner/buckling/__init__.py](../../simulation_runner/buckling/__init__.py)
+[src/onedfem/simulation_runner/buckling/__init__.py](../../src/onedfem/simulation_runner/buckling/__init__.py)
 
 §5 Buckling / stability runners.
 
@@ -308,51 +308,51 @@ Staged transient dynamics pipeline.
 - **class `NonlinearBucklingSimulationRunner(settings: dict, job_name: str)`**
   Load-control nonlinear buckling / continuation MVP.
 
-### `simulation_runner.eigen`
+### `onedfem.simulation_runner.eigen`
 
-[simulation_runner/eigen/__init__.py](../../simulation_runner/eigen/__init__.py)
+[src/onedfem/simulation_runner/eigen/__init__.py](../../src/onedfem/simulation_runner/eigen/__init__.py)
 
 §2 Eigen / spectral analysis runners.
 
 - **class `EigenSimulationRunner(settings, job_name)`**
   Natural frequencies and mode shapes (same physics pipeline as legacy modal vibration).
 
-### `simulation_runner.harmonic`
+### `onedfem.simulation_runner.harmonic`
 
-[simulation_runner/harmonic/__init__.py](../../simulation_runner/harmonic/__init__.py)
+[src/onedfem/simulation_runner/harmonic/__init__.py](../../src/onedfem/simulation_runner/harmonic/__init__.py)
 
 §4 Frequency-domain harmonic runners (stub).
 
 - **class `HarmonicSimulationRunner(settings: dict, job_name: str)`**
   Harmonic / frequency-response analysis using direct frequency sweep.
 
-### `simulation_runner.spectral`
+### `onedfem.simulation_runner.spectral`
 
-[simulation_runner/spectral/__init__.py](../../simulation_runner/spectral/__init__.py)
+[src/onedfem/simulation_runner/spectral/__init__.py](../../src/onedfem/simulation_runner/spectral/__init__.py)
 
 Shared spectral analysis backend for eigen vibration and linear buckling (analysis sections 2 and 5).
 
 - **class `VibrationBucklingBackend(settings, job_name)`**
-  Shared implementation for Section 2 eigen vibration and Section 5 linear buckling (undamped :math:`K` / :math:`M` and buckling pencil). Subclass with a concrete ``run()`` in :class:`~simulation_runner.eigen.eigen_simulation.EigenSimulationRunner` or :class:`~simulation_runner.buckling.buckling_simulation.LinearBucklingSimulationRunner`.
+  Shared implementation for Section 2 eigen vibration and Section 5 linear buckling (undamped :math:`K` / :math:`M` and buckling pencil). Subclass with a concrete ``run()`` in :class:`~onedfem.simulation_runner.eigen.eigen_simulation.EigenSimulationRunner` or :class:`~onedfem.simulation_runner.buckling.buckling_simulation.LinearBucklingSimulationRunner`.
 - **`log_spectral_constrained_dofs(bc_dofs, total_dof: int | None = None, job_results_dir=None)`**
   Log penalty / fixed DOF count after spectral matrix modification.
 - **`log_spectral_diagnostics(K, M, job_results_dir=None)`**
   Log basic diagnostics for global K and M (shape, nnz, Frobenius norm of data).
 
-### `simulation_runner.spectral.spectral_diagnostics`
+### `onedfem.simulation_runner.spectral.spectral_diagnostics`
 
-[simulation_runner/spectral/spectral_diagnostics.py](../../simulation_runner/spectral/spectral_diagnostics.py)
+[src/onedfem/simulation_runner/spectral/spectral_diagnostics.py](../../src/onedfem/simulation_runner/spectral/spectral_diagnostics.py)
 
-Re-export spectral diagnostics from :mod:`processing.spectral` (single source of truth).
+Re-export spectral diagnostics from :mod:`onedfem.processing.spectral` (single source of truth).
 
 - **`log_spectral_constrained_dofs(bc_dofs, total_dof: int | None = None, job_results_dir=None)`**
   Log penalty / fixed DOF count after spectral matrix modification.
 - **`log_spectral_diagnostics(K, M, job_results_dir=None)`**
   Log basic diagnostics for global K and M (shape, nnz, Frobenius norm of data).
 
-### `simulation_runner.transient`
+### `onedfem.simulation_runner.transient`
 
-[simulation_runner/transient/__init__.py](../../simulation_runner/transient/__init__.py)
+[src/onedfem/simulation_runner/transient/__init__.py](../../src/onedfem/simulation_runner/transient/__init__.py)
 
 §3 Transient dynamics runners.
 

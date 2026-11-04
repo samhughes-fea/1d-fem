@@ -15,8 +15,8 @@ import numpy as np
 import pytest
 from numpy.polynomial.legendre import leggauss
 
-from pre_processing.section_integration.section_analysis import SectionAnalysis
-from pre_processing.section_integration.thin_walled import (
+from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
+from onedfem.pre_processing.section_integration.thin_walled import (
     Ply,
     PlyMaterial,
     ThinWalledSection,
@@ -120,13 +120,13 @@ def fe_tip(etype, section, L, P, n_el=8, orders=None):
         }
         mat = {k: np.full(n_el, v) for k, v in dict(E=E, G=E / 2.6, nu=NU, rho=0.0).items()}
         sec = {k: np.full(n_el, v) for k, v in dict(A=1e-3, I_x=0.0, I_y=1e-8, I_z=1e-8, J_t=1e-9, kappa=5 / 6, alpha=0.0).items()}
-        from pre_processing.element_library.element_factory import ElementFactory  # noqa: F401  (registry import)
+        from onedfem.pre_processing.element_library.element_factory import ElementFactory  # noqa: F401  (registry import)
         if etype == EB:
-            from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+            from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
                 LinearEulerBernoulliBeamElement3D as Cls,
             )
         else:
-            from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+            from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
                 LinearTimoshenkoBeamElement3D as Cls,
             )
         n_dof = 6 * (n_el + 1)
@@ -263,7 +263,7 @@ def test_isotropic_thin_walled_box_matches_section_txt_element(etype):
     assert not sa.is_coupled
     np.testing.assert_allclose(els[0]["D"], D)
     # same element stiffness as the isotropic section.txt path with these EA, EI, GA, GJ
-    from pre_processing.section_integration.section_analysis import SectionAnalysis as SA
+    from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis as SA
     K = sa.stiffness
     iso = SA(np.diag(np.diag(K)), np.diag(np.diag(sa.classical_stiffness)))
     _, els_iso, _ = fe_tip(etype, iso, 1.0, LOADS["axial"], n_el=1)
@@ -272,7 +272,7 @@ def test_isotropic_thin_walled_box_matches_section_txt_element(etype):
 
 def test_warping_dof_with_thin_walled_section_is_refused():
     sa = SectionAnalysis.from_thin_walled(cas_box())
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
 
@@ -304,7 +304,7 @@ def test_process_job_with_thin_walled_section(tmp_path):
     """End to end: element_section.txt drives a coupled cantilever through process_job."""
     import csv
 
-    from workflow_orchestrator.run_job import process_job, setup_job_results_directory
+    from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
     L, n_el = 2.0, 4
     job = tmp_path / "job_thin_walled"

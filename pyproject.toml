@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "onedfem"
+version = "0.1.0"
+description = "Beam finite elements for thin-walled and composite sections: linear, corotational, GBT, buckling, dynamics and layup sensitivities"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Sam Hughes", email = "samuel.hughes@ed.ac.uk" }]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pandas>=2.0",
+    "matplotlib>=3.7",
+    "tabulate>=0.9",
+    "psutil>=5.9",
+    "pathvalidate>=3.2",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering",
+]
+
+[project.optional-dependencies]
+# blade geometry from implicit-geometry-kernel (Python 3.11 or later)
+geometry = ["implicit-geometry-kernel @ git+https://github.com/samhughes-fea/implicit-geometry-kernel"]
+test = ["pytest>=7.0", "pytest-xdist>=3.5"]
+
+[project.scripts]
+onedfem-run-jobs = "onedfem.workflow_orchestrator.run_job:main"
+
+[project.urls]
+Repository = "https://github.com/samhughes-fea/1d-fem"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = true
+
+[tool.setuptools.package-data]
+onedfem = ["py.typed"]

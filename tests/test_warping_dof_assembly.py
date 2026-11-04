@@ -15,7 +15,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
     LinearTimoshenkoBeamElement3D,
 )
 
@@ -103,7 +103,7 @@ def test_process_job_warping_timoshenko_cantilever_is_assembled_in_element_order
     """
     import csv
 
-    from workflow_orchestrator.run_job import process_job, setup_job_results_directory
+    from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
     L, n_el, E, A, Iz = 2.0, 4, 2.1e11, 1e-3, 2e-6
     Fx, Mx, G, Jt = 1e4, 50.0, 8.1e10, 1e-7

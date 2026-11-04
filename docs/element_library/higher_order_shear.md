@@ -2,7 +2,7 @@
 
 `LinearReddyBeamElement3D` and `LinearLevinsonBeamElement3D` share one kinematic
 model and one element, `ThirdOrderShearBeamElement3D`
-(`pre_processing/element_library/linear/beam/third_order_shear_deformation_theory/third_order_beam.py`).
+(`src/onedfem/pre_processing/element_library/linear/beam/third_order_shear_deformation_theory/third_order_beam.py`).
 They differ only in the weak form. Both take the solid-rectangle inputs of
 `section.txt` or a thin-walled section from `element_section.txt`.
 

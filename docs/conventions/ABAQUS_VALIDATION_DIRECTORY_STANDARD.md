@@ -6,7 +6,7 @@ This document standardizes how Abaqus-based validation is organized across simul
 
 ### Shared Abaqus layer
 
-Keep shared under [`post_processing/validation_visualisers/abaqus/`](../../post_processing/validation_visualisers/abaqus/):
+Keep shared under [`validation/abaqus/`](../../validation/abaqus/):
 
 - Abaqus launcher/config
 - job parsing
@@ -18,11 +18,11 @@ Keep shared under [`post_processing/validation_visualisers/abaqus/`](../../post_
 
 Each simulation family owns its own comparison and reporting logic under:
 
-- [`post_processing/validation_visualisers/static/`](../../post_processing/validation_visualisers/static/)
-- [`post_processing/validation_visualisers/eigen/`](../../post_processing/validation_visualisers/eigen/)
-- [`post_processing/validation_visualisers/buckling/`](../../post_processing/validation_visualisers/buckling/)
-- [`post_processing/validation_visualisers/transient/`](../../post_processing/validation_visualisers/transient/)
-- [`post_processing/validation_visualisers/harmonic/`](../../post_processing/validation_visualisers/harmonic/)
+- [`validation/static/`](../../validation/static/)
+- [`validation/eigen/`](../../validation/eigen/)
+- [`validation/buckling/`](../../validation/buckling/)
+- [`validation/transient/`](../../validation/transient/)
+- [`validation/harmonic/`](../../validation/harmonic/)
 
 ## Required family-local subfolders
 
@@ -54,7 +54,7 @@ and one family README:
 
 ## Naming guidance
 
-- raw Abaqus outputs remain in [`abaqus_results/`](../../post_processing/validation_visualisers/abaqus/config.py)
+- raw Abaqus outputs remain in [`abaqus_results/`](../../validation/abaqus/config.py)
 - family summaries go in each family `output/`
 - generated figures go in each family `plots/`
 - tabulated benchmark results go in each family `tables/`

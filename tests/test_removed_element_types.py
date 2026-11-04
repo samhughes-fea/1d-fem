@@ -11,8 +11,8 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.element_factory import ElementFactory
-from pre_processing.element_library.removed_element_types import (
+from onedfem.pre_processing.element_library.element_factory import ElementFactory
+from onedfem.pre_processing.element_library.removed_element_types import (
     REMOVED_ELEMENT_TYPES,
     ensure_element_type_allowed,
 )

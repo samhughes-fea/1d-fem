@@ -61,7 +61,7 @@ def minimal_mesh_dicts():
 
 
 def test_corotational_fd_vs_elastic_material_frobenius_ratio_bounded(minimal_mesh_dicts):
-    from pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D import (
         CorotationalBeamElement3D,
     )
 

@@ -80,7 +80,7 @@ def analytical_timoshenko_stiffness_terms(E, I_z, L, G, A, kappa):
 
 if __name__ == "__main__":
     # Find latest Timoshenko results
-    results_base = PROJECT_ROOT / "post_processing" / "results"
+    results_base = PROJECT_ROOT / "results"
     job_dirs = list(results_base.glob("job_0001_*"))
     if not job_dirs:
         print("No Timoshenko results found")

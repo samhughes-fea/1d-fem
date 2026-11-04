@@ -35,8 +35,8 @@ for p in (REPO, os.path.dirname(HERE)):
 
 from common import CantileverSpec, Material, SectionSpec, build_analysis, results_dir, write_job, write_supports  # noqa: E402
 
-from pre_processing.parsing.ply_strength_parser import format_ply_strength_file  # noqa: E402
-from pre_processing.section_integration.ply_failure import CRITERIA, PlyStrength  # noqa: E402
+from onedfem.pre_processing.parsing.ply_strength_parser import format_ply_strength_file  # noqa: E402
+from onedfem.pre_processing.section_integration.ply_failure import CRITERIA, PlyStrength  # noqa: E402
 
 CFRP = Material(E1=135e9, E2=10e9, G12=5e9, nu12=0.3, G13=5e9, G23=3.8e9, rho=1550.0)
 # carbon-epoxy strengths (T300/914-like) and Puck's carbon parameters
@@ -60,15 +60,15 @@ def section() -> SectionSpec:
 
 def run_case(work: str, kind: str) -> List[dict]:
     """Solve the spar with ``kind`` sections ("thin_walled" or "2d"); rows of ``ply_failure.csv``."""
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     spec = CantileverSpec(L, N_EL, "LinearTimoshenkoBeamElement3D", section(), LOAD)
     job = os.path.join(work, "jobs", kind)
     write_job(job, spec)
     write_supports(job, spec)
     if kind == "2d":
-        from pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
-        from pre_processing.section_integration.solid.mesh import SectionMesh
+        from onedfem.pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
+        from onedfem.pre_processing.section_integration.solid.mesh import SectionMesh
 
         an = build_analysis(spec.section)
         mesh = SectionMesh.from_thin_walled(an.section, an.laminates, elements_along=12)

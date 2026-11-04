@@ -61,10 +61,10 @@ def _shared_dicts(L: float = 1.0):
 
 
 def test_nonlinear_warping_eb_K0_matches_linear_warping_eb():
-    from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
         LinearEulerBernoulliBeamElement3D,
     )
-    from pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D import (
         NonlinearEulerBernoulliBeamElement3D,
     )
 

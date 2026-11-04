@@ -1,6 +1,6 @@
 # Nonlinear buckling benchmarks and validation status
 
-This note records the current nonlinear buckling validation posture for the continuation workflow implemented by [`NonlinearBucklingSimulationRunner`](../../simulation_runner/buckling/nonlinear_buckling_simulation.py).
+This note records the current nonlinear buckling validation posture for the continuation workflow implemented by [`NonlinearBucklingSimulationRunner`](../../src/onedfem/simulation_runner/buckling/nonlinear_buckling_simulation.py).
 
 ## Scope
 
@@ -35,7 +35,7 @@ Acceptance for the current phase:
 
 - run completes
 - continuation history is written
-- imperfection metadata is present in [`nonlinear_buckling_summary.json`](../../simulation_runner/buckling/nonlinear_buckling_simulation.py)
+- imperfection metadata is present in [`nonlinear_buckling_summary.json`](../../src/onedfem/simulation_runner/buckling/nonlinear_buckling_simulation.py)
 - displacement path is non-trivial and reproducible
 
 ### 2. Arc-length benchmark

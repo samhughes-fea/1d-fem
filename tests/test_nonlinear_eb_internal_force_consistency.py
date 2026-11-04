@@ -50,7 +50,7 @@ def _cantilever_dicts(L=1.0, E=2.1e11, G=8.1e10, A=0.001, I_z=1e-8, I_y=1e-8, J_
 
 def test_nonlinear_eb_internal_force_zero_at_zero_displacement():
     """F_int(U_e=0) should be zero (no precurvature)."""
-    from pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D import (
         NonlinearEulerBernoulliBeamElement3D,
     )
 
@@ -82,7 +82,7 @@ def test_nonlinear_eb_internal_force_zero_at_zero_displacement():
 
 def test_nonlinear_eb_tangent_symmetric_and_internal_force_finite():
     """K_T(U_e) is symmetric; F_int(U_e) is finite for small U."""
-    from pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D import (
         NonlinearEulerBernoulliBeamElement3D,
     )
 

@@ -20,7 +20,7 @@ This document scopes a **future** native implementation of a shear-deformable ge
 
 ## Implementation status
 
-`GeometricallyExactShearDeformableBeam3D` is registered under `pre_processing/element_library/nonlinear/large_rotations/geometrically_exact_shear_deformable_beam/`. The **locked weak form**, Gauss assembly for `F_int` and `K_T`, and Voigt strain hook are documented in [`gesdb_weak_form.md`](gesdb_weak_form.md). The strain map routes through `gesdb_kinematics.gesdb_director_voigt_strain_timoshenko_12`, which for the present 2-node Timoshenko interpolation matches chord-frame Green–Lagrange Voigt strains used by `NonlinearTimoshenkoBeamElement3D`, so regressions against the TL parent remain tight.
+`GeometricallyExactShearDeformableBeam3D` is registered under `src/onedfem/pre_processing/element_library/nonlinear/large_rotations/geometrically_exact_shear_deformable_beam/`. The **locked weak form**, Gauss assembly for `F_int` and `K_T`, and Voigt strain hook are documented in [`gesdb_weak_form.md`](gesdb_weak_form.md). The strain map routes through `gesdb_kinematics.gesdb_director_voigt_strain_timoshenko_12`, which for the present 2-node Timoshenko interpolation matches chord-frame Green–Lagrange Voigt strains used by `NonlinearTimoshenkoBeamElement3D`, so regressions against the TL parent remain tight.
 
 Optional **`gesdb_tl_fallback`** bypasses the GESDB strain hook; **`gesdb_kernel`** selects **`tl_locked`** (chord-frame TL equivalence) versus **`native`** (engineering axial stretch + linear Timoshenko rows; see [`gesdb_weak_form.md`](gesdb_weak_form.md)).
 

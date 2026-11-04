@@ -33,7 +33,7 @@ def strict_shape_env(monkeypatch):
 
 def test_modal_buckling_prestress_secondary_tertiary(strict_shape_env):
     """Modal buckling branch + prestress snapshot U (avoids vibration ARPACK on tiny meshes)."""
-    from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
+    from onedfem.simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
 
     settings, tmp, _ = _build_cantilever_modal_case(8, 2.5, 210e9, 1.0)
     settings["simulation_settings"] = {
@@ -59,7 +59,7 @@ def test_modal_buckling_prestress_secondary_tertiary(strict_shape_env):
 
 
 def test_dynamic_secondary_tertiary(strict_shape_env):
-    from simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
+    from onedfem.simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
 
     settings, tmp, _ = _build_cantilever_modal_case(8, 2.5, 210e9, 1.0)
     eos = list(np.asarray(settings["element_objects"], dtype=object).ravel())
@@ -104,7 +104,7 @@ def test_dynamic_secondary_tertiary(strict_shape_env):
 
 def test_dynamic_multi_snapshot_secondary_tertiary(strict_shape_env):
     """Two time indices produce separate dynamic_post subtrees."""
-    from simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
+    from onedfem.simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
 
     settings, tmp, _ = _build_cantilever_modal_case(8, 2.5, 210e9, 1.0)
     eos = list(np.asarray(settings["element_objects"], dtype=object).ravel())
@@ -148,7 +148,7 @@ def test_dynamic_multi_snapshot_secondary_tertiary(strict_shape_env):
 
 
 def test_parse_post_processing_section(tmp_path):
-    from pre_processing.parsing.simulation_settings_parser import parse_simulation_settings
+    from onedfem.pre_processing.parsing.simulation_settings_parser import parse_simulation_settings
 
     p = tmp_path / "simulation_settings.txt"
     p.write_text(

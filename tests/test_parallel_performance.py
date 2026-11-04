@@ -65,7 +65,7 @@ class TestParallelPerformance:
         
         This test verifies the threshold logic without requiring actual elements.
         """
-        from pre_processing.element_library.parallel_compute import (
+        from onedfem.pre_processing.element_library.parallel_compute import (
             compute_element_stiffness_parallel,
             DEFAULT_PARALLEL_THRESHOLD
         )
@@ -84,7 +84,7 @@ class TestParallelPerformance:
         
         This test verifies the threshold logic without requiring actual elements.
         """
-        from pre_processing.element_library.parallel_compute import (
+        from onedfem.pre_processing.element_library.parallel_compute import (
             compute_element_force_parallel,
             DEFAULT_PARALLEL_THRESHOLD
         )
@@ -99,7 +99,7 @@ class TestParallelPerformance:
     def test_auto_num_processes(self):
         """Test that 'auto' correctly resolves to os.cpu_count()."""
         import os
-        from pre_processing.element_library.parallel_compute import compute_element_stiffness_parallel
+        from onedfem.pre_processing.element_library.parallel_compute import compute_element_stiffness_parallel
         
         # Create a list above threshold
         large_list = [None] * 100
@@ -140,7 +140,7 @@ class TestParallelPerformance:
         This test verifies that results maintain the same order as input,
         even when computed in parallel.
         """
-        from pre_processing.element_library.parallel_compute import (
+        from onedfem.pre_processing.element_library.parallel_compute import (
             compute_element_stiffness_parallel,
             compute_element_force_parallel
         )

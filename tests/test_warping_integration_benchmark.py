@@ -15,7 +15,7 @@ import scipy.sparse as sp
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from pre_processing.element_library.element_factory import ElementFactory
+from onedfem.pre_processing.element_library.element_factory import ElementFactory
 
 
 def test_warping_integration_benchmark_solve():

@@ -87,7 +87,7 @@ def exact_tip(analysis, length: float, load):
 
 
 def main(n_el: int = N_EL, plot: bool = True, work_dir: str = HERE) -> dict:
-    from pre_processing.section_integration.thin_walled.stress_recovery import SaintVenantRecovery
+    from onedfem.pre_processing.section_integration.thin_walled.stress_recovery import SaintVenantRecovery
 
     an = build_analysis(section())
     results = {name: run(spec, work_dir, name.replace(" ", "_").replace(",", "")) for name, spec in cases(n_el).items()}
@@ -151,7 +151,7 @@ def _plots(an, results, element_types, cap, web, root, q_b, n_el):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from post_processing.graphical_visualisers.beam_field_sampling import beam_curve
+    from onedfem.post_processing.graphical_visualisers.beam_field_sampling import beam_curve
 
     sec = an.section
     # section, shear centre and torque shear flow

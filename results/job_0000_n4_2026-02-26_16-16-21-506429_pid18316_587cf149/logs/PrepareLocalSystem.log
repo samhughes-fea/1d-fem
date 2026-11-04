@@ -1,0 +1,7 @@
+2026-02-26 16:16:24,816 [DEBUG] 📁 Log file created at: c:\Users\s1834431\Programs\fem_model\post_processing\results\job_0000_n4_2026-02-26_16-16-21-506429_pid18316_587cf149\logs\PrepareLocalSystem.log (Module: preparation, Line: 58)
+2026-02-26 16:16:24,816 [INFO] 🔎 Starting validation of Ke and Fe (Module: preparation, Line: 94)
+2026-02-26 16:16:24,817 [DEBUG] ✅ Ke[0] and Fe[0] validated and formatted (Module: preparation, Line: 113)
+2026-02-26 16:16:24,817 [DEBUG] ✅ Ke[1] and Fe[1] validated and formatted (Module: preparation, Line: 113)
+2026-02-26 16:16:24,817 [DEBUG] ✅ Ke[2] and Fe[2] validated and formatted (Module: preparation, Line: 113)
+2026-02-26 16:16:24,817 [DEBUG] ✅ Ke[3] and Fe[3] validated and formatted (Module: preparation, Line: 113)
+2026-02-26 16:16:24,817 [INFO] ✅ Successfully validated and formatted 4 elements (Module: preparation, Line: 119)

@@ -11,7 +11,7 @@ A follower load is a nodal force or moment that turns with the node it acts on. 
 
 Nonlinear static jobs turn the load with the node's rotation, `R F_0` and `J^T R M_0`, and
 add its unsymmetric load stiffness to the Newton tangent at every iteration
-(`processing/static/follower_loads.py`).
+(`src/onedfem/processing/static/follower_loads.py`).
 
 ```
 python examples/follower_loads/run.py

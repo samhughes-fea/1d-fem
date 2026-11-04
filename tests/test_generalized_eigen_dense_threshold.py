@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.sparse import csr_matrix, eye
 
-from processing.spectral.operations.solve_generalized_eigenproblem import SolveGeneralizedEigenproblem
+from onedfem.processing.spectral.operations.solve_generalized_eigenproblem import SolveGeneralizedEigenproblem
 
 
 def test_solve_generalized_eigenproblem_ill_scaled_pencil():

@@ -109,7 +109,7 @@ For the first-pass repository gate, the benchmark passes when:
 - `max_load_factor_alignment_error <= 1e-12`
 - `max_abs_error <= 1e-5`
 
-These thresholds are implemented in [`evaluate_benchmark_pass_fail()`](../../post_processing/validation_visualisers/static/run_nonlinear_static_validation.py:13).
+These thresholds are implemented in [`evaluate_benchmark_pass_fail()`](../../validation/static/run_nonlinear_static_validation.py:13).
 
 ### First calibrated observed metrics
 
@@ -123,7 +123,7 @@ This places the first tip-load family inside the frozen tolerance gate and estab
 
 ### Phase-D operational meaning
 
-The suite-level reporting path in [`run_suite()`](../../post_processing/validation_visualisers/static/run_nonlinear_static_validation.py:84) should now surface this calibrated case as:
+The suite-level reporting path in [`run_suite()`](../../validation/static/run_nonlinear_static_validation.py:84) should now surface this calibrated case as:
 
 - `ready = True`
 - `passed = True`

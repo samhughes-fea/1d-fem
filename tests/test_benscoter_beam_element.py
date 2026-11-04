@@ -17,8 +17,8 @@ import tempfile
 import numpy as np
 import pytest
 
-from pre_processing.section_integration.section_analysis import SectionAnalysis
-from pre_processing.section_integration.thin_walled import (
+from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
+from onedfem.pre_processing.section_integration.thin_walled import (
     Ply,
     PlyMaterial,
     ThinWalledSection,
@@ -63,11 +63,11 @@ def cas_box():
 
 def _element_class(etype):
     if etype == BS:
-        from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_benscoter_3D import (
+        from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_benscoter_3D import (
             LinearBenscoterBeamElement3D as Cls,
         )
     else:
-        from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+        from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
             LinearTimoshenkoBeamElement3D as Cls,
         )
     return Cls
@@ -249,8 +249,8 @@ def test_benscoter_needs_thin_walled_section_and_warping():
 
 
 def test_benscoter_is_registered():
-    from pre_processing.element_library.element_factory import ElementFactory
-    from pre_processing.element_library.shape_function_registry import SHAPE_FUNCTION_REGISTRY
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
+    from onedfem.pre_processing.element_library.shape_function_registry import SHAPE_FUNCTION_REGISTRY
 
     assert BS in ElementFactory.ELEMENT_CLASS_MAP
     assert BS in SHAPE_FUNCTION_REGISTRY
@@ -260,7 +260,7 @@ def test_process_job_with_benscoter_elements(tmp_path):
     """End to end: element_section.txt plus [warping] = 1 drive a restrained-torsion cantilever."""
     import csv
 
-    from workflow_orchestrator.run_job import process_job, setup_job_results_directory
+    from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
     L, n_el, T = 20.0, 8, 100.0
     b, h, t = 0.2, 0.3, 2e-3
@@ -323,7 +323,7 @@ def test_process_job_with_benscoter_elements(tmp_path):
         rows = list(csv.reader(f))
     U = np.array([float(r[1]) for r in rows[1:]]) if len(rows) > 2 else np.array([float(x) for x in rows[1][1:]])
     assert U.size == 7 * (n_el + 1)
-    from pre_processing.section_integration.thin_walled.job_input import section_analyses_from_files
+    from onedfem.pre_processing.section_integration.thin_walled.job_input import section_analyses_from_files
 
     tw = section_analyses_from_files(str(job / "laminate.txt"), str(job / "section_geometry.txt"))[1]
     expected_tip, expected_psi, _ = fe_cantilever(BS, SectionAnalysis.from_thin_walled(tw), L, [0, 0, 0, T, 0, 0], n_el=n_el)

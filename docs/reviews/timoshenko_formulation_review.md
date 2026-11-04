@@ -1,7 +1,7 @@
 # Timoshenko 3D beam element – formulation review
 
 **Date:** 2026-02-22  
-**Scope:** `pre_processing/element_library/timoshenko/` (B matrix, D matrix, shape functions, stiffness/force assembly).
+**Scope:** `src/onedfem/pre_processing/element_library/timoshenko/` (B matrix, D matrix, shape functions, stiffness/force assembly).
 
 ---
 

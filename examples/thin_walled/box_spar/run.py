@@ -60,7 +60,7 @@ def cases(n_el: int = N_EL, n_sub: int = 4):
         "Benscoter": CantileverSpec(L, n_el, "LinearBenscoterBeamElement3D", sec, load, warping=1),
         "GBT": CantileverSpec(L, n_el, "LinearGBTBeamElement3D", sec, load, modes=2, shear_modes=6),
     }
-    from pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
+    from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
 
     n_sv = CrossSectionModes(build_analysis(sec)).n_sv_warping
     gbt_extras = tuple(range(1, n_sv + 7))  # all warping amplitudes free at the root
@@ -85,7 +85,7 @@ def exact_tip(analysis, length: float, load):
 
 
 def main(n_el: int = N_EL, plot: bool = True, work_dir: str = HERE) -> dict:
-    from pre_processing.section_integration.thin_walled.stress_recovery import SaintVenantRecovery
+    from onedfem.pre_processing.section_integration.thin_walled.stress_recovery import SaintVenantRecovery
 
     an = build_analysis(section())
     results = {name: run(spec, work_dir, name.replace(" ", "_").replace(",", "")) for name, spec in cases(n_el).items()}
@@ -142,7 +142,7 @@ def _plots(results, element_types, cap, web, root, n_el):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from post_processing.graphical_visualisers.beam_field_sampling import beam_curve
+    from onedfem.post_processing.graphical_visualisers.beam_field_sampling import beam_curve
 
     x = np.linspace(0, L, n_el + 1)
     fig, ax = plt.subplots(1, 2, figsize=(10, 3.8))

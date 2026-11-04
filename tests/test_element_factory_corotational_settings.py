@@ -53,7 +53,7 @@ def _mesh():
 
 
 def test_factory_sets_elastic_material_from_simulation_settings():
-    from pre_processing.element_library.element_factory import ElementFactory
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
 
     gd, ed, md, sd = _mesh()
     td = tempfile.mkdtemp()
@@ -79,7 +79,7 @@ def test_factory_sets_elastic_material_from_simulation_settings():
 
 
 def test_factory_invalid_corotational_mode_raises():
-    from pre_processing.element_library.element_factory import ElementFactory
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
 
     gd, ed, md, sd = _mesh()
     td = tempfile.mkdtemp()
@@ -105,7 +105,7 @@ def test_factory_invalid_corotational_mode_raises():
 
 
 def test_factory_sets_gesdb_tl_fallback_from_simulation_settings():
-    from pre_processing.element_library.element_factory import ElementFactory
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
 
     grid_dictionary = {
         "ids": np.array([0, 1], dtype=np.int32),
@@ -163,7 +163,7 @@ def test_factory_sets_gesdb_tl_fallback_from_simulation_settings():
 
 
 def test_factory_sets_gesdb_kernel_native():
-    from pre_processing.element_library.element_factory import ElementFactory
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
 
     grid_dictionary = {
         "ids": np.array([0, 1], dtype=np.int32),

@@ -1,6 +1,6 @@
 # Non-static production-readiness checklist
 
-This checklist defines the minimum standard required for non-static analysis families to be treated as production-ready at the same operational level as the static stack rooted in [`processing/static/results/RESULTS_DESIGN.md`](../../processing/static/results/RESULTS_DESIGN.md).
+This checklist defines the minimum standard required for non-static analysis families to be treated as production-ready at the same operational level as the static stack rooted in [`src/onedfem/processing/static/results/RESULTS_DESIGN.md`](../../src/onedfem/processing/static/results/RESULTS_DESIGN.md).
 
 It applies to:
 

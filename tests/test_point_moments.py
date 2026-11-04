@@ -24,7 +24,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from pre_processing.element_library.beam_load_interpolation import (
+from onedfem.pre_processing.element_library.beam_load_interpolation import (
     beam_field_interpolation,
     distributed_load_vector,
     point_load_vector,
@@ -76,7 +76,7 @@ def _write_job(job, etype, coords, loads, dist=None, nonlinear=False, iz=IZ):
 
 
 def _run(tmp_path, etype, coords, loads, dist=None, nonlinear=False, iz=IZ):
-    from workflow_orchestrator.run_job import process_job, setup_job_results_directory
+    from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
     job = tmp_path / f"job_{len(list(tmp_path.iterdir()))}"
     _write_job(job, etype, coords, loads, dist, nonlinear, iz)

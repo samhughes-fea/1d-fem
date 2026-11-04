@@ -75,7 +75,7 @@ def _tip_load(beam, dof, value):
 # --------------------------------------------------------------------- #
 @pytest.mark.parametrize("etype", [CR_EB, CR_TS, CR_BS])
 def test_rigid_motion_is_stress_free_and_tangent_is_consistent(etype):
-    from pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section import (
+    from onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_section import (
         rotation_exp,
     )
 

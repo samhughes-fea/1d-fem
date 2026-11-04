@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from pre_processing.parsing.laminate_parser import parse_laminate_file
-from pre_processing.parsing.section_geometry_parser import parse_section_geometry_file
-from pre_processing.section_integration.thin_walled import ThinWalledSection, Wall, WallLaminate
+from onedfem.pre_processing.parsing.laminate_parser import parse_laminate_file
+from onedfem.pre_processing.parsing.section_geometry_parser import parse_section_geometry_file
+from onedfem.pre_processing.section_integration.thin_walled import ThinWalledSection, Wall, WallLaminate
 
 
 def box(n_webs_inside=0):

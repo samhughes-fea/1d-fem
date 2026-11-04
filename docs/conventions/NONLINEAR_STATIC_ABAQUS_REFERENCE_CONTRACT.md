@@ -32,7 +32,7 @@ This phase defines the file contract only. It does not yet implement the final F
 
 The next phase should compare:
 
-- FEM-side [`{job_name}_tip_load_history.csv`](../../processing/static/results/save_nonlinear_static_validation_summary.py)
+- FEM-side [`{job_name}_tip_load_history.csv`](../../src/onedfem/processing/static/results/save_nonlinear_static_validation_summary.py)
 - Abaqus-side `tip_load_history.csv`
 
 at pinned load levels with documented tolerance.

@@ -2,18 +2,18 @@
 
 Result files written after a solve: stresses, failure margins, sensitivities and field sampling for plots.
 
-### `post_processing.failure.ply_failure`
+### `onedfem.post_processing.failure.ply_failure`
 
-[post_processing/failure/ply_failure.py](../../post_processing/failure/ply_failure.py)
+[src/onedfem/post_processing/failure/ply_failure.py](../../src/onedfem/post_processing/failure/ply_failure.py)
 
 Ply failure exposures and margins at the beam elements' Gauss points.
 
 - **`write_ply_failure(job_dir: str, job_results_dir: str, elements: Sequence, element_objects: Sequence, U_global, thin_walled: Optional[Sequence] = None, solid: Optional[Sequence] = None, strengths: Optional[Mapping[int, PlyStrength]] = None, points_per_wall: Optional[int] = None) -> Optional[str]`**
   Write ``ply_failure.csv`` and ``ply_failure_summary.csv``; return the first path, or ``None`` when the job has no ``ply_strength.txt`` (and no ``strengths`` are given).
 
-### `post_processing.sensitivity.layup_sensitivity`
+### `onedfem.post_processing.sensitivity.layup_sensitivity`
 
-[post_processing/sensitivity/layup_sensitivity.py](../../post_processing/sensitivity/layup_sensitivity.py)
+[src/onedfem/post_processing/sensitivity/layup_sensitivity.py](../../src/onedfem/post_processing/sensitivity/layup_sensitivity.py)
 
 Sensitivities of beam responses to ply angles and thicknesses (``layup_sensitivity.txt``).
 
@@ -25,9 +25,9 @@ Sensitivities of beam responses to ply angles and thicknesses (``layup_sensitivi
 - **`write_layup_sensitivity(job_dir: str, job_results_dir: str, element_dictionary, elements, runner, solver_type: str) -> Optional[str]`**
   Write ``layup_sensitivity.csv`` for a job with ``layup_sensitivity.txt``; the path, or ``None``.
 
-### `post_processing.solid.gauss_projection`
+### `onedfem.post_processing.solid.gauss_projection`
 
-[post_processing/solid/gauss_projection.py](../../post_processing/solid/gauss_projection.py)
+[src/onedfem/post_processing/solid/gauss_projection.py](../../src/onedfem/post_processing/solid/gauss_projection.py)
 
 Fields over 2D section elements from their Gauss-point values.
 
@@ -41,9 +41,9 @@ Fields over 2D section elements from their Gauss-point values.
 - **`element_line(gauss_values: npt.ArrayLike, xi: float = 0.0, n: int = 21) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]`**
   ``(eta, value)`` of the projected field along ``xi`` = const, ``eta`` from -1 to 1.
 
-### `post_processing.solid.section_stresses`
+### `onedfem.post_processing.solid.section_stresses`
 
-[post_processing/solid/section_stresses.py](../../post_processing/solid/section_stresses.py)
+[src/onedfem/post_processing/solid/section_stresses.py](../../src/onedfem/post_processing/solid/section_stresses.py)
 
 Write 3D section stresses of a solved job with sections meshed in 2D.
 
@@ -54,9 +54,9 @@ Write 3D section stresses of a solved job with sections meshed in 2D.
 - **`write_section_stresses(job_results_dir: str, elements: Sequence, analyses: Sequence, U_global, stations: Optional[Sequence] = None, modes: Optional[np.ndarray] = None) -> str`**
   Write ``section_stresses.csv`` and ``interface_stresses.csv`` for the elements that have a 2D section; return the path of the first.
 
-### `post_processing.graphical_visualisers.beam_field_sampling`
+### `onedfem.post_processing.graphical_visualisers.beam_field_sampling`
 
-[post_processing/graphical_visualisers/beam_field_sampling.py](../../post_processing/graphical_visualisers/beam_field_sampling.py)
+[src/onedfem/post_processing/graphical_visualisers/beam_field_sampling.py](../../src/onedfem/post_processing/graphical_visualisers/beam_field_sampling.py)
 
 Displacement fields along a straight beam from its nodal solution, through the element shape functions.
 

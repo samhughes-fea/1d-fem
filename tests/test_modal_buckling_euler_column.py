@@ -25,7 +25,7 @@ def _euler_cantilever_P_cr(E: float, I: float, L: float) -> float:
 
 def _build_cantilever_modal_case(n_elem: int, L: float, E: float, P_ref: float):
     """Return (settings dict for LinearBucklingSimulationRunner, temp_dir to rmtree)."""
-    from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
         LinearEulerBernoulliBeamElement3D,
     )
 
@@ -144,7 +144,7 @@ def _build_cantilever_modal_case(n_elem: int, L: float, E: float, P_ref: float):
 @pytest.mark.parametrize("n_elem", [16, 32])
 def test_modal_buckling_cantilever_matches_euler(n_elem: int):
     """Lowest buckling load factor × reference tip compressive load vs Euler cantilever P_cr."""
-    from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
+    from onedfem.simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
 
     L = 2.5
     E = 210.0e9
@@ -170,7 +170,7 @@ def test_modal_buckling_cantilever_matches_euler(n_elem: int):
 
 def test_buckling_load_factor_scales_eigenvalues():
     """Doubling ``buckling_load_factor`` halves λ: same physical critical load λ·(factor·P_ref)."""
-    from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
+    from onedfem.simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
 
     L = 2.5
     E = 210.0e9
@@ -196,7 +196,7 @@ def test_buckling_load_factor_scales_eigenvalues():
 
 
 def test_buckling_prestress_none_raises():
-    from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
+    from onedfem.simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
 
     L = 2.5
     E = 210.0e9
@@ -215,10 +215,10 @@ def test_buckling_prestress_none_raises():
 
 def test_modal_buckling_timoshenko_smoke():
     """Linear Timoshenko mesh supports ``linear_geometric_stiffness_matrix`` — buckling run completes."""
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
-    from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
+    from onedfem.simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
 
     L = 2.0
     E = 200.0e9
@@ -332,10 +332,10 @@ def test_modal_buckling_timoshenko_smoke():
 
 def test_modal_buckling_euler_warping_mesh_smoke():
     """7 DOF/node EB + Γ: linear buckling completes (embedded 12×12 K_σ)."""
-    from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
         LinearEulerBernoulliBeamElement3D,
     )
-    from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
+    from onedfem.simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
 
     L = 2.0
     E = 200.0e9
@@ -462,7 +462,7 @@ def test_processing_modal_buckling_unit_eigenpair():
     """Smoke: K + λ K_g singular pair yields positive λ from generalized eigen."""
     from scipy.sparse import csr_matrix
 
-    from processing.buckling import solve_linear_buckling_eigenpairs
+    from onedfem.processing.buckling import solve_linear_buckling_eigenpairs
 
     K = csr_matrix(np.diag([1.0, 2.0, 3.0]))
     Kg = csr_matrix(np.diag([-0.5, -1.0, -1.5]))

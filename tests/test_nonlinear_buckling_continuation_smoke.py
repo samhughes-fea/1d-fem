@@ -11,15 +11,15 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from workflow_orchestrator.run_job import process_job, setup_job_results_directory
-from processing.common.nonlinear_buckling_continuation import (
+from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
+from onedfem.processing.common.nonlinear_buckling_continuation import (
     ContinuationConfig,
     ImperfectionConfig,
     predictor_load_factor_for_increment,
     seed_initial_imperfection,
 )
-from processing.common.nonlinear_equilibrium import solve_arc_length_corrector
-from simulation_runner.buckling.nonlinear_buckling_simulation import NonlinearBucklingSimulationRunner
+from onedfem.processing.common.nonlinear_equilibrium import solve_arc_length_corrector
+from onedfem.simulation_runner.buckling.nonlinear_buckling_simulation import NonlinearBucklingSimulationRunner
 
 
 @pytest.mark.integration

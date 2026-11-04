@@ -64,4 +64,4 @@ at every Gauss point, for any load.
 The EB element **does not produce shear force from \(\sigma = D\,\varepsilon\)**. In EB theory, shear force is defined by **equilibrium**: \(V = \mathrm{d}M/\mathrm{d}x\). If needed, \(V\) must be obtained by differentiating the computed bending moment \(M\) along the beam, not from the Gauss-point stress resultants.
 
 **References in code:**  
-`pre_processing/element_library/euler_bernoulli/utilities/B_matrix.py` (γ_xy, γ_xz = 0), `D_matrix.py` (shear rows zero).
+`src/onedfem/pre_processing/element_library/euler_bernoulli/utilities/B_matrix.py` (γ_xy, γ_xz = 0), `D_matrix.py` (shear rows zero).

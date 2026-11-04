@@ -14,7 +14,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from workflow_orchestrator.run_job import process_job, setup_job_results_directory
+from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
 
 def _read_u_global_csv(path: Path) -> np.ndarray:

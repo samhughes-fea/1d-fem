@@ -132,7 +132,7 @@ def write_all_jobs() -> list[str]:
 
 
 def run_jobs(job_names: list[str]) -> None:
-    from workflow_orchestrator.run_job import process_job, setup_job_results_directory
+    from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
     job_times: dict = {}
     job_start_end: dict = {}

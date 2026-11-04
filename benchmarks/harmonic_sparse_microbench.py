@@ -21,7 +21,7 @@ import time
 import numpy as np
 from scipy.sparse import eye
 
-from processing.harmonic.frequency_response import harmonic_damping_matrix, sweep_displacements
+from onedfem.processing.harmonic.frequency_response import harmonic_damping_matrix, sweep_displacements
 
 
 def main() -> None:

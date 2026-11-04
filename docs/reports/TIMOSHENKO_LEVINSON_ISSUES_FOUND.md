@@ -22,7 +22,7 @@ Verification of Timoshenko and Levinson element formulations had revealed **crit
 ## 1. Timoshenko Beam Element - CRITICAL ISSUES
 
 ### Issue 1: B-Matrix Missing Shear Terms
-**File:** `pre_processing/element_library/timoshenko/utilities/B_matrix.py`
+**File:** `src/onedfem/pre_processing/element_library/timoshenko/utilities/B_matrix.py`
 
 **Problem:**
 - Current B-matrix is identical to Euler-Bernoulli
@@ -36,7 +36,7 @@ Verification of Timoshenko and Levinson element formulations had revealed **crit
 **Impact:** Timoshenko elements will not account for shear deformation, making them equivalent to Euler-Bernoulli.
 
 ### Issue 2: D-Matrix Missing Shear Stiffness
-**File:** `pre_processing/element_library/timoshenko/utilities/D_matrix.py`
+**File:** `src/onedfem/pre_processing/element_library/timoshenko/utilities/D_matrix.py`
 
 **Problem:**
 - D[3,3] (shear xy) = 0 (should be κ*G*A)
@@ -57,7 +57,7 @@ Verification of Timoshenko and Levinson element formulations had revealed **crit
 ## 2. Levinson Beam Element - CRITICAL ISSUES FOUND
 
 ### Issue 1: Shape Functions Do Not Satisfy Interpolation Properties
-**File:** `pre_processing/element_library/levinson/utilities/shape_functions.py`
+**File:** `src/onedfem/pre_processing/element_library/levinson/utilities/shape_functions.py`
 
 **Problem:**
 - N1_v(-1) = 2.67 ❌ (should be 1.0)
@@ -71,7 +71,7 @@ Verification of Timoshenko and Levinson element formulations had revealed **crit
 **Impact:** Shape functions are incorrectly normalized, which will cause incorrect interpolation and stiffness computation.
 
 ### Issue 2: B-Matrix Missing Shear Terms
-**File:** `pre_processing/element_library/levinson/utilities/B_matrix.py`
+**File:** `src/onedfem/pre_processing/element_library/levinson/utilities/B_matrix.py`
 
 **Problem:**
 - B-matrix is 4x12 (only axial, bending, torsion)
@@ -81,7 +81,7 @@ Verification of Timoshenko and Levinson element formulations had revealed **crit
 **Impact:** Levinson elements will not account for shear deformation.
 
 ### Issue 3: D-Matrix Structure
-**File:** `pre_processing/element_library/levinson/utilities/D_matrix.py`
+**File:** `src/onedfem/pre_processing/element_library/levinson/utilities/D_matrix.py`
 
 **Status:** D-matrix is 4x4 (axial, bending, torsion) - needs verification for shear terms
 - Expected: Should include GA (no κ factor) for shear stiffness
@@ -108,10 +108,10 @@ Verification of Timoshenko and Levinson element formulations had revealed **crit
 
 ## Files Requiring Changes
 
-1. `pre_processing/element_library/timoshenko/utilities/B_matrix.py` - Add shear terms
-2. `pre_processing/element_library/timoshenko/utilities/D_matrix.py` - Add shear stiffness
-3. `pre_processing/element_library/levinson/utilities/B_matrix.py` - Verify higher-order terms
-4. `pre_processing/element_library/levinson/utilities/D_matrix.py` - Verify GA (no κ)
+1. `src/onedfem/pre_processing/element_library/timoshenko/utilities/B_matrix.py` - Add shear terms
+2. `src/onedfem/pre_processing/element_library/timoshenko/utilities/D_matrix.py` - Add shear stiffness
+3. `src/onedfem/pre_processing/element_library/levinson/utilities/B_matrix.py` - Verify higher-order terms
+4. `src/onedfem/pre_processing/element_library/levinson/utilities/D_matrix.py` - Verify GA (no κ)
 
 ## Next Steps
 

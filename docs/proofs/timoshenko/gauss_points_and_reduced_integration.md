@@ -24,5 +24,5 @@ For a cantilever with tip load **F_y = −500 N**, internal shear should be **|V
 
 ## References in code
 
-- Timoshenko stiffness and cache: `pre_processing/element_library/timoshenko/timoshenko_3D.py` (element_stiffness_matrix: gauss_cache from xi_full loop; shear_order = 1 for Ke only).
+- Timoshenko stiffness and cache: `src/onedfem/pre_processing/element_library/timoshenko/timoshenko_3D.py` (element_stiffness_matrix: gauss_cache from xi_full loop; shear_order = 1 for Ke only).
 - Section forces visualiser GP positions: `post_processing/.../section_forces/section_forces_visualisation.py` (GAUSS_3PT_XI, _gauss_point_x_for_element).

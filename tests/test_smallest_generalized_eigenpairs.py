@@ -1,11 +1,11 @@
-"""``processing.eigen.smallest_generalized_eigenpairs`` — parity with dense pencil."""
+"""``onedfem.processing.eigen.smallest_generalized_eigenpairs`` — parity with dense pencil."""
 
 from __future__ import annotations
 
 import numpy as np
 from scipy.sparse import eye
 
-from processing.eigen.smallest_generalized_eigenpairs import smallest_generalized_eigenpairs
+from onedfem.processing.eigen.smallest_generalized_eigenpairs import smallest_generalized_eigenpairs
 
 
 def test_smallest_generalized_sparse_branch_matches_dense() -> None:

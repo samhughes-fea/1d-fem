@@ -31,7 +31,7 @@ TL Timoshenko with Vlasov warping is implemented in a single class: `NonlinearTi
 |------------------------------------|-------------|
 | `NonlinearWarpingTimoshenkoBeamElement3D` | `NonlinearTimoshenkoBeamElement3D` + `[warping]` |
 
-The directory `pre_processing/element_library/nonlinear/timoshenko_with_warp/` is obsolete (reserved empty); shared warping policy lives in `beam_warping.py` and the unified nonlinear Timoshenko module.
+The directory `src/onedfem/pre_processing/element_library/nonlinear/timoshenko_with_warp/` is obsolete (reserved empty); shared warping policy lives in `beam_warping.py` and the unified nonlinear Timoshenko module.
 
 ## Legacy inference in `beam_warping.py`
 

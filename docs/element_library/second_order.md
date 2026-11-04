@@ -2,12 +2,12 @@
 
 Every linear beam element has a geometric stiffness
 `linear_geometric_stiffness_matrix(U_e)` built from its current section forces
-(`pre_processing/element_library/linear/beam/second_order.py`). It drives two analyses:
+(`src/onedfem/pre_processing/element_library/linear/beam/second_order.py`). It drives two analyses:
 
 - **P-delta** (`[Static] second_order = p_delta`): `(K + K_σ(U)) U = F`, iterated from the
-  linear solution (`processing/buckling/p_delta.py`, `LinearStaticSimulationRunner.solve_p_delta`).
+  linear solution (`src/onedfem/processing/buckling/p_delta.py`, `LinearStaticSimulationRunner.solve_p_delta`).
 - **Linear buckling** (`[Type] buckling`): `(K + λ K_σ(U_ref)) x = 0` about the linear
-  state of the reference loads (`processing/buckling/linear_buckling.py`).
+  state of the reference loads (`src/onedfem/processing/buckling/linear_buckling.py`).
 
 Rotations stay small; updating the geometry is the large-displacement analysis.
 

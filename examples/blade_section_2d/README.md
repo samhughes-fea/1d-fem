@@ -35,7 +35,7 @@ The carbon caps carry the bending. The mean axial stress over the suction-side c
 that difference is in the geometry: the 2D mesh follows the true wall outlines, so its
 caps run out to the outer faces of the webs and hold 6.5 % more carbon than the
 thin-walled caps, which end at the web mid-lines. The 2D section is 5.3 % stiffer in flap
-bending for that reason (see `post_processing/validation_visualisers/iea15mw_sections`).
+bending for that reason (see `validation/iea15mw_sections`).
 
 ![Interlaminar shear on the ply interfaces](interface_shear.png)
 
@@ -51,7 +51,7 @@ resolve it: its walls meet at a point on their mid-lines.
 
 The same mesh extruded into a CalculiX prism of fully integrated `C3D20` bricks, two chords
 long and loaded so that a slice at mid-length carries the same section forces
-(`post_processing/validation_visualisers/iea15mw_sections/make_interlaminar_reference.py`,
+(`validation/iea15mw_sections/make_interlaminar_reference.py`,
 committed as `reference/prism_20_interlaminar.json`), gives the interface stresses at the
 same Gauss points. Both are taken to the interfaces by the same fit (`prism_check.py`), at
 the three Gauss stations along each interface, on 2472 points away from the trailing edge:

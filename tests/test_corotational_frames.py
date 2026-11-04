@@ -22,7 +22,7 @@ import tempfile
 import numpy as np
 import pytest
 
-from pre_processing.element_library.element_frame import straight_frame
+from onedfem.pre_processing.element_library.element_frame import straight_frame
 from tests.test_element_frames import Mesh, _line
 from tests.test_second_order import E, channel
 

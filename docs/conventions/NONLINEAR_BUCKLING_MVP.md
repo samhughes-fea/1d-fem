@@ -2,13 +2,13 @@
 
 ## Status
 
-[`NonlinearBucklingSimulationRunner`](../../simulation_runner/buckling/nonlinear_buckling_simulation.py) is an **orchestration shell** only. It does **not** implement arc-length, path-following, or limit-point solvers.
+[`NonlinearBucklingSimulationRunner`](../../src/onedfem/simulation_runner/buckling/nonlinear_buckling_simulation.py) is an **orchestration shell** only. It does **not** implement arc-length, path-following, or limit-point solvers.
 
 ## Dispatch
 
-When **`[Type] buckling`** (or legacy modal buckling) and **`[Buckling]`** contains **`nonlinear_buckling = true`**, [`process_job`](../../workflow_orchestrator/run_job.py) instantiates **`NonlinearBucklingSimulationRunner`** instead of [`LinearBucklingSimulationRunner`](../../simulation_runner/buckling/buckling_simulation.py).
+When **`[Type] buckling`** (or legacy modal buckling) and **`[Buckling]`** contains **`nonlinear_buckling = true`**, [`process_job`](../../src/onedfem/workflow_orchestrator/run_job.py) instantiates **`NonlinearBucklingSimulationRunner`** instead of [`LinearBucklingSimulationRunner`](../../src/onedfem/simulation_runner/buckling/buckling_simulation.py).
 
-Default is **`nonlinear_buckling = false`**: unchanged **linearized** buckling (generalized eigenproblem on **K** and **K_g** after prestress) via **`LinearBucklingSimulationRunner`** / [`VibrationBucklingBackend`](../../simulation_runner/spectral/vibration_buckling_backend.py).
+Default is **`nonlinear_buckling = false`**: unchanged **linearized** buckling (generalized eigenproblem on **K** and **K_g** after prestress) via **`LinearBucklingSimulationRunner`** / [`VibrationBucklingBackend`](../../src/onedfem/simulation_runner/spectral/vibration_buckling_backend.py).
 
 ## Relationship to nonlinear static prestress
 

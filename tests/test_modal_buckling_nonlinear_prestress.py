@@ -16,7 +16,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 
 def _build_nl_ts_cantilever_buckling(n_elem: int, L: float, E: float, P_ref: float, prestress: str):
-    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
         NonlinearTimoshenkoBeamElement3D,
     )
 
@@ -126,7 +126,7 @@ def _build_nl_ts_cantilever_buckling(n_elem: int, L: float, E: float, P_ref: flo
 
 
 def test_modal_buckling_nonlinear_static_prestress_smoke():
-    from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
+    from onedfem.simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
 
     L = 2.0
     E = 200.0e9
@@ -143,10 +143,10 @@ def test_modal_buckling_nonlinear_static_prestress_smoke():
 
 
 def test_modal_buckling_linear_element_rejects_nonlinear_prestress():
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
-    from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
+    from onedfem.simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
 
     L = 1.0
     E = 200.0e9
@@ -249,10 +249,10 @@ def test_modal_buckling_linear_element_rejects_nonlinear_prestress():
 
 def test_modal_buckling_nonlinear_static_with_linear_twins_smoke():
     """nonlinear_static prestress using modal.buckling_nonlinear_prestress_twins on a linear Timoshenko mesh."""
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
-    from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
+    from onedfem.simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
 
     L = 2.0
     E = 200.0e9

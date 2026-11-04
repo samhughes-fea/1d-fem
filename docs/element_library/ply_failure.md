@@ -1,7 +1,7 @@
 # Ply failure criteria
 
-`pre_processing/section_integration/ply_failure.py` checks ply stresses against four
-failure criteria. `post_processing/failure/ply_failure.py` applies them at the Gauss points
+`src/onedfem/pre_processing/section_integration/ply_failure.py` checks ply stresses against four
+failure criteria. `src/onedfem/post_processing/failure/ply_failure.py` applies them at the Gauss points
 of a solved job.
 
 ## Exposure, reserve factor and margin

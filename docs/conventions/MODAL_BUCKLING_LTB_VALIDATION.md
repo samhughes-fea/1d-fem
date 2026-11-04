@@ -23,7 +23,7 @@ In those cases, treat this 1D beam-line buckling eigenvalue as **non-conservativ
 4. **External reference**  
    - Handbook or code formula (e.g. idealised simply supported I-beam **M_cr**) with **matching boundary conditions**.  
    - Higher-fidelity FE (shell/solid or beam with dedicated LTB DOFs in another code).  
-   - Optional workflow: [`post_processing/validation_visualisers/README_VALIDATION_ABAQUS.md`](../../post_processing/validation_visualisers/README_VALIDATION_ABAQUS.md) for comparing critical loads or mode shapes when exporting reference solutions.
+   - Optional workflow: [`validation/README_VALIDATION_ABAQUS.md`](../../validation/README_VALIDATION_ABAQUS.md) for comparing critical loads or mode shapes when exporting reference solutions.
 
 5. **In-repo regressions**  
    [`tests/test_modal_buckling_warping_benchmark.py`](../../tests/test_modal_buckling_warping_benchmark.py) checks embedding of **K_σ** on the first 12 DOFs and a warping-off Euler band — **not** a thin-walled LTB benchmark.

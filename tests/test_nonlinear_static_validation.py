@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from post_processing.validation_visualisers.static.compare_nonlinear_static_tip_history import (
+from validation.static.compare_nonlinear_static_tip_history import (
     benchmark_paths,
     compare_tip_histories,
     infer_abaqus_reference_job_name,
@@ -10,7 +10,7 @@ from post_processing.validation_visualisers.static.compare_nonlinear_static_tip_
     run_nonlinear_static_tip_history_validation_from_benchmark_paths,
     write_tip_history_comparison_csv,
 )
-from post_processing.validation_visualisers.static.run_nonlinear_static_validation import (
+from validation.static.run_nonlinear_static_validation import (
     discover_suite_job_names,
     evaluate_benchmark_pass_fail,
     run_benchmark,
@@ -53,7 +53,7 @@ def test_compare_tip_histories_interpolates_abaqus_to_fem_load_factor(tmp_path):
 
 
 def test_read_tip_history_csv_is_header_aware_for_abaqus_layout(tmp_path):
-    from post_processing.validation_visualisers.static.compare_nonlinear_static_tip_history import read_tip_history_csv
+    from validation.static.compare_nonlinear_static_tip_history import read_tip_history_csv
 
     aba = tmp_path / "abaqus_header_aware.csv"
     aba.write_text(

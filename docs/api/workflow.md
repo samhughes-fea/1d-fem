@@ -2,9 +2,9 @@
 
 Running a job directory end to end.
 
-### `workflow_orchestrator.run_job`
+### `onedfem.workflow_orchestrator.run_job`
 
-[workflow_orchestrator/run_job.py](../../workflow_orchestrator/run_job.py)
+[src/onedfem/workflow_orchestrator/run_job.py](../../src/onedfem/workflow_orchestrator/run_job.py)
 
 - **`configure_logging(log_file_path)`**
   Configures logging for the application.

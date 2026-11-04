@@ -70,10 +70,10 @@ def warping_mesh_common():
 
 
 def test_nonlinear_timoshenko_K0_matches_linear_timoshenko_ke_warping(warping_mesh_common):
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
-    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
         NonlinearTimoshenkoBeamElement3D,
     )
 
@@ -111,10 +111,10 @@ def test_nonlinear_timoshenko_K0_matches_linear_timoshenko_ke_warping(warping_me
 
 
 def test_nonlinear_euler_bernoulli_tangent_at_zero_matches_linear_ke_warping(warping_mesh_common):
-    from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
         LinearEulerBernoulliBeamElement3D,
     )
-    from pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D import (
         NonlinearEulerBernoulliBeamElement3D,
     )
 
@@ -153,7 +153,7 @@ def test_nonlinear_euler_bernoulli_tangent_at_zero_matches_linear_ke_warping(war
 
 
 def test_beam_warping_policy_matches_piecewise_helpers():
-    from pre_processing.element_library.beam_warping import (
+    from onedfem.pre_processing.element_library.beam_warping import (
         beam_warping_policy,
         effective_warping_gamma,
         element_warping_stiffness_on,

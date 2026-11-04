@@ -23,10 +23,10 @@ def _job_dirs(root: str) -> None:
 
 def test_nonlinear_timoshenko_initial_stiffness_vs_linear():
     """At U_e=0, nonlinear Timoshenko tangent K_T equals linear Timoshenko K_e."""
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
-    from pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
         NonlinearTimoshenkoBeamElement3D,
     )
 

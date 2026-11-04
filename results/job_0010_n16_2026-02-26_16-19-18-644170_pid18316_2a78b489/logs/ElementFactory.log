@@ -1,0 +1,37 @@
+2026-02-26 16:19:18,867 [DEBUG]: 🟢 ElementFactory logger initialised.
+2026-02-26 16:19:18,867 [INFO]: 🚩 Starting batch element creation.
+2026-02-26 16:19:18,867 [DEBUG]: Element IDs sanitised: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+2026-02-26 16:19:18,868 [DEBUG]: Module for TimoshenkoBeamElement3D loaded.
+2026-02-26 16:19:18,868 [DEBUG]: ✅ Element 0 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,869 [DEBUG]: ✅ Element 1 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,870 [DEBUG]: ✅ Element 2 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,871 [DEBUG]: ✅ Element 3 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,871 [DEBUG]: ✅ Element 4 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,872 [DEBUG]: ✅ Element 5 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,873 [DEBUG]: ✅ Element 6 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,874 [DEBUG]: ✅ Element 7 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,874 [DEBUG]: ✅ Element 8 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,875 [DEBUG]: ✅ Element 9 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,876 [DEBUG]: ✅ Element 10 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,876 [DEBUG]: ✅ Element 11 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,876 [DEBUG]: ✅ Element 12 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,876 [DEBUG]: ✅ Element 13 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,877 [DEBUG]: ✅ Element 14 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,877 [DEBUG]: ✅ Element 15 (TimoshenkoBeamElement3D) instantiated.
+2026-02-26 16:19:18,878 [DEBUG]: Logging verified for element 0.
+2026-02-26 16:19:18,879 [DEBUG]: Logging verified for element 1.
+2026-02-26 16:19:18,879 [DEBUG]: Logging verified for element 2.
+2026-02-26 16:19:18,879 [DEBUG]: Logging verified for element 3.
+2026-02-26 16:19:18,879 [DEBUG]: Logging verified for element 4.
+2026-02-26 16:19:18,879 [DEBUG]: Logging verified for element 5.
+2026-02-26 16:19:18,879 [DEBUG]: Logging verified for element 6.
+2026-02-26 16:19:18,879 [DEBUG]: Logging verified for element 7.
+2026-02-26 16:19:18,879 [DEBUG]: Logging verified for element 8.
+2026-02-26 16:19:18,879 [DEBUG]: Logging verified for element 9.
+2026-02-26 16:19:18,883 [DEBUG]: Logging verified for element 10.
+2026-02-26 16:19:18,883 [DEBUG]: Logging verified for element 11.
+2026-02-26 16:19:18,883 [DEBUG]: Logging verified for element 12.
+2026-02-26 16:19:18,883 [DEBUG]: Logging verified for element 13.
+2026-02-26 16:19:18,885 [DEBUG]: Logging verified for element 14.
+2026-02-26 16:19:18,885 [DEBUG]: Logging verified for element 15.
+2026-02-26 16:19:18,885 [INFO]: ✅ Batch element creation complete.

@@ -89,7 +89,7 @@ def _write_fork_job(job_dir, etype, length, n_el, warping, loads, settings):
 def _run(job_dir, res_dir):
     import logging
 
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     logging.getLogger().setLevel(logging.WARNING)
     process_job(job_dir, results_dir(res_dir), {}, {}, force_serial=True, max_processes_per_job=1)

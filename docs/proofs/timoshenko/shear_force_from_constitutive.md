@@ -64,4 +64,4 @@ Whenever \(\gamma_{xy} \neq 0\) or \(\gamma_{xz} \neq 0\) (e.g. under transverse
 The Timoshenko element **does produce shear force from \(\sigma = D\,\varepsilon\)** at Gauss points, because it has non-zero shear strains and non-zero shear stiffness in \(D\).
 
 **References in code:**  
-`pre_processing/element_library/timoshenko/utilities/B_matrix.py` (γ_xy, γ_xz from displacement/rotation), `D_matrix.py` (κGA on diagonal entries 3, 4).
+`src/onedfem/pre_processing/element_library/timoshenko/utilities/B_matrix.py` (γ_xy, γ_xz from displacement/rotation), `D_matrix.py` (κGA on diagonal entries 3, 4).

@@ -4,7 +4,7 @@ With the cross-section modes held at zero both are the same Benscoter-type beam;
 modes free, the 2D section's distortional modes (in-plane eigenmodes of the meshed
 walls) catch the local flange modes of the box. The 2D mesh has mitred corners (no ties).
 The reference is a CalculiX C3D20R model of the same box
-(``post_processing/validation_visualisers/gbt_2d_box``).
+(``validation/gbt_2d_box``).
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ import common  # noqa: E402
 
 GBT = "LinearGBTBeamElement3D"
 N_EL = 16
-REFERENCE = os.path.join(HERE, "..", "post_processing", "validation_visualisers", "gbt_2d_box", "reference.json")
+REFERENCE = os.path.join(HERE, "..", "validation", "gbt_2d_box", "reference.json")
 
 
 def _box_section():
@@ -37,15 +37,15 @@ def _box_section():
 
 def box_mesh(junctions="auto"):
     """The box as a 2D section mesh (Q8 elements, 12 along each wall; mitred corners)."""
-    from pre_processing.section_integration.solid.mesh import SectionMesh
+    from onedfem.pre_processing.section_integration.solid.mesh import SectionMesh
 
     tw = common.build_analysis(_box_section())
     return SectionMesh.from_thin_walled(tw.section, tw.laminates, elements_along=12, junctions=junctions)
 
 
 def _run(tmp_path, kind, modes, eigen=False):
-    from pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
-    from workflow_orchestrator.run_job import process_job
+    from onedfem.pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
+    from onedfem.workflow_orchestrator.run_job import process_job
 
     load = [100.0, 300.0, 500.0, 200.0, 50.0, 80.0]
     spec = common.CantileverSpec(1.5, N_EL, GBT, _box_section(), tip_load=load, modes=modes, warping=1)
@@ -75,8 +75,8 @@ def _run(tmp_path, kind, modes, eigen=False):
 
 
 def test_section_mesh_2d_file_keeps_junction_ties(tmp_path):
-    from pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
-    from pre_processing.section_integration.solid.mesh import parse_section_mesh_2d
+    from onedfem.pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
+    from onedfem.pre_processing.section_integration.solid.mesh import parse_section_mesh_2d
 
     mesh = box_mesh("tie")
     assert mesh.ties

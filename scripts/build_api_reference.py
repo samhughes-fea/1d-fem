@@ -26,39 +26,40 @@ import warnings
 from typing import Dict, List, Optional, Tuple
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+SRC = os.path.join(REPO, "src")
 OUT = os.path.join(REPO, "docs", "api")
 
 #: page file -> (title, package roots, intro); a root "+pkg" lists every module under pkg
 PAGES: Dict[str, Tuple[str, Tuple[str, ...], str]] = {
-    "sections.md": ("Section analysis", ("pre_processing.section_integration",),
+    "sections.md": ("Section analysis", ("onedfem.pre_processing.section_integration",),
                     "Thin-walled and 2D (solid) cross-section analysis: stiffness, mass, warping, "
                     "GBT modes, stress recovery, ply failure and layup sensitivities."),
-    "elements.md": ("Elements", ("pre_processing.element_library",),
+    "elements.md": ("Elements", ("onedfem.pre_processing.element_library",),
                     "Beam, bar and truss elements and their shared utilities."),
-    "job_input.md": ("Job input", ("+pre_processing.parsing", "pre_processing.mesh_library",
-                                   "pre_processing.load_library", "pre_processing.containers"),
+    "job_input.md": ("Job input", ("+onedfem.pre_processing.parsing", "onedfem.pre_processing.mesh_library",
+                                   "onedfem.pre_processing.load_library", "onedfem.pre_processing.containers"),
                      "Parsers for the job directory's text files, meshes and loads."),
-    "solvers.md": ("Solvers", ("processing", "simulation_runner"),
+    "solvers.md": ("Solvers", ("onedfem.processing", "onedfem.simulation_runner"),
                    "Static, nonlinear, eigen, buckling, harmonic, transient and spectral solvers and "
                    "their runners."),
-    "post_processing.md": ("Post-processing", ("post_processing.failure", "post_processing.sensitivity",
-                                               "post_processing.solid", "post_processing.graphical_visualisers"),
+    "post_processing.md": ("Post-processing", ("onedfem.post_processing.failure", "onedfem.post_processing.sensitivity",
+                                               "onedfem.post_processing.solid", "onedfem.post_processing.graphical_visualisers"),
                            "Result files written after a solve: stresses, failure margins, "
                            "sensitivities and field sampling for plots."),
-    "workflow.md": ("Running jobs", ("+workflow_orchestrator.run_job",),
+    "workflow.md": ("Running jobs", ("+onedfem.workflow_orchestrator.run_job",),
                     "Running a job directory end to end."),
 }
 SKIP_DIRS = {"__pycache__", "results", "generated", "tests"}
 
 
 def _modules(root: str) -> List[str]:
-    base = os.path.join(REPO, *root.split("."))
+    base = os.path.join(SRC, *root.split("."))
     if os.path.isfile(base + ".py"):
         return [root]
     out = []
     for dirpath, dirnames, filenames in os.walk(base):
         dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
-        rel = os.path.relpath(dirpath, REPO).replace(os.sep, ".")
+        rel = os.path.relpath(dirpath, SRC).replace(os.sep, ".")
         for f in sorted(filenames):
             if f.endswith(".py"):
                 out.append(rel if f == "__init__.py" else f"{rel}.{f[:-3]}")
@@ -66,7 +67,7 @@ def _modules(root: str) -> List[str]:
 
 
 def _path(mod_name: str) -> str:
-    base = os.path.join(REPO, *mod_name.split("."))
+    base = os.path.join(SRC, *mod_name.split("."))
     return os.path.join(base, "__init__.py") if os.path.isdir(base) else base + ".py"
 
 
@@ -138,7 +139,7 @@ def _describe(mod_name: str) -> str:
 
 
 def _element_table() -> str:
-    from pre_processing.element_library.element_factory import ElementFactory
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
 
     rows = ["| Element type | Module | Summary |", "|---|---|---|"]
     for etype, mod_name in sorted(ElementFactory.ELEMENT_CLASS_MAP.items()):
@@ -152,8 +153,9 @@ def _element_table() -> str:
 
 
 def build() -> Dict[str, str]:
-    if REPO not in sys.path:
-        sys.path.insert(0, REPO)
+    for p in (REPO, SRC):
+        if p not in sys.path:
+            sys.path.insert(0, p)
     import logging
 
     logging.disable(logging.CRITICAL)

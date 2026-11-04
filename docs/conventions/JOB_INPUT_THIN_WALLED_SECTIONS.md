@@ -21,7 +21,7 @@ Three optional job files describe anisotropic thin-walled sections from their wa
 - `angle_deg` is measured from the beam axis \(x\) toward the wall direction \(s\).
 - Each laminate gets transverse shear factor 5/6.
 
-Parser: `pre_processing.parsing.laminate_parser.parse_laminate_file` returns `{laminate_id: WallLaminate}`.
+Parser: `onedfem.pre_processing.parsing.laminate_parser.parse_laminate_file` returns `{laminate_id: WallLaminate}`.
 
 ## `section_geometry.txt`
 
@@ -46,7 +46,7 @@ Parser: `pre_processing.parsing.laminate_parser.parse_laminate_file` returns `{l
 - Rejected: unknown point or laminate ids, zero-length walls, two walls on the same pair of points, points on no wall, duplicate ids.
 - Closed cells are counted from the wall graph (`walls - points + components`).
 
-Parser: `pre_processing.parsing.section_geometry_parser.parse_section_geometry_file` returns `{section_id: ThinWalledSection}`.
+Parser: `onedfem.pre_processing.parsing.section_geometry_parser.parse_section_geometry_file` returns `{section_id: ThinWalledSection}`.
 
 ## `element_section.txt`
 
@@ -121,14 +121,14 @@ default) writes both blocks from the loft.
 
 ## Sections from implicit-geometry-kernel, and `region_laminate.txt`
 
-`pre_processing/section_integration/thin_walled/from_geometry.py` turns a blade section
+`src/onedfem/pre_processing/section_integration/thin_walled/from_geometry.py` turns a blade section
 cut by [implicit-geometry-kernel](https://github.com/samhughes-fea/implicit-geometry-kernel)
 (`BladeGeometry.section_at(z)`, an optional dependency that needs Python 3.11 or later)
 into a `ThinWalledSection` and its laminates:
 
 ```python
 from implicit_geometry_kernel import Airfoil, BladeGeometry, Station
-from pre_processing.section_integration.thin_walled.from_geometry import thin_walled_from_cut
+from onedfem.pre_processing.section_integration.thin_walled.from_geometry import thin_walled_from_cut
 
 cut = BladeGeometry(stations, "2D-F", skin_thickness=0.003, spar_cap_thickness=0.008,
                     shear_web_thickness=0.002).section_at(z)
@@ -163,11 +163,11 @@ skin_suction_surface:bay_2    4
 
 ## Blade beam jobs from implicit-geometry-kernel
 
-`pre_processing/mesh_library/blade_beam_job.py` writes a whole cantilever job for a
+`src/onedfem/pre_processing/mesh_library/blade_beam_job.py` writes a whole cantilever job for a
 `BladeGeometry`:
 
 ```python
-from pre_processing.mesh_library.blade_beam_job import blade_beam_job, blade_to_job
+from onedfem.pre_processing.mesh_library.blade_beam_job import blade_beam_job, blade_to_job
 
 job = blade_beam_job("jobs/my_blade", geometry, {"skin": skin, "cap": cap, "web": web},
                      n_elements=24, kind="thin_walled",               # or kind="2d"

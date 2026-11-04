@@ -16,11 +16,11 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 def test_job_to_abaqus_script_generates_file_with_expected_content():
     """Generate Abaqus script for job_0000_n8; assert file exists and contains WirePolyLine, BeamSection, job name."""
-    from post_processing.validation_visualisers.abaqus.job_to_abaqus_script import (
+    from validation.abaqus.job_to_abaqus_script import (
         _parse_job,
         _generate_script_content,
     )
-    from post_processing.validation_visualisers.abaqus.config import (
+    from validation.abaqus.config import (
         ABAQUS_GENERATED_DIR,
         ABAQUS_RESULTS_DIR,
     )
@@ -45,7 +45,7 @@ def test_job_to_abaqus_script_generates_file_with_expected_content():
 
 
 def test_job_to_abaqus_script_parses_transient_benchmark_contract() -> None:
-    from post_processing.validation_visualisers.abaqus.job_to_abaqus_script import _parse_job
+    from validation.abaqus.job_to_abaqus_script import _parse_job
 
     job_dir = PROJECT_ROOT / "jobs" / "job_benchmark_transient_cantilever_multidof"
     if not job_dir.is_dir():
@@ -57,8 +57,8 @@ def test_job_to_abaqus_script_parses_transient_benchmark_contract() -> None:
 
 
 def test_job_to_abaqus_script_emits_transient_step_metadata() -> None:
-    from post_processing.validation_visualisers.abaqus.job_to_abaqus_script import _parse_job, _generate_script_content
-    from post_processing.validation_visualisers.abaqus.config import ABAQUS_RESULTS_DIR
+    from validation.abaqus.job_to_abaqus_script import _parse_job, _generate_script_content
+    from validation.abaqus.config import ABAQUS_RESULTS_DIR
 
     job_dir = PROJECT_ROOT / "jobs" / "job_benchmark_transient_cantilever_multidof"
     if not job_dir.is_dir():
@@ -71,8 +71,8 @@ def test_job_to_abaqus_script_emits_transient_step_metadata() -> None:
 
 
 def test_job_to_abaqus_script_emits_nonlinear_static_tip_history_contract() -> None:
-    from post_processing.validation_visualisers.abaqus.job_to_abaqus_script import _parse_job, _generate_script_content
-    from post_processing.validation_visualisers.abaqus.config import ABAQUS_RESULTS_DIR
+    from validation.abaqus.job_to_abaqus_script import _parse_job, _generate_script_content
+    from validation.abaqus.config import ABAQUS_RESULTS_DIR
 
     job_dir = PROJECT_ROOT / "jobs" / "job_benchmark_nl_static_cantilever_tip"
     if not job_dir.is_dir():
@@ -124,7 +124,7 @@ def test_wave1_pyabaqus_contract_docs_exist() -> None:
 
 
 def test_simulation_type_dispatch_payload_reads_canonical_type() -> None:
-    from post_processing.validation_visualisers.abaqus.simulation_type_dispatch import build_validation_dispatch_payload
+    from validation.abaqus.simulation_type_dispatch import build_validation_dispatch_payload
 
     job_dir = PROJECT_ROOT / "jobs" / "job_smoke_eigen"
     payload = build_validation_dispatch_payload(str(job_dir))
@@ -135,7 +135,7 @@ def test_simulation_type_dispatch_payload_reads_canonical_type() -> None:
 
 
 def test_simulation_type_dispatch_wave1_contracts_cover_core_families() -> None:
-    from post_processing.validation_visualisers.abaqus.simulation_type_dispatch import build_validation_dispatch_payload
+    from validation.abaqus.simulation_type_dispatch import build_validation_dispatch_payload
 
     cases = {
         "job_0000_n8": ("static_reference", "U_global.csv"),
@@ -153,8 +153,8 @@ def test_simulation_type_dispatch_wave1_contracts_cover_core_families() -> None:
 
 
 def test_job_to_abaqus_script_emits_wave1_contract_artifact_metadata() -> None:
-    from post_processing.validation_visualisers.abaqus.job_to_abaqus_script import _parse_job, _generate_script_content
-    from post_processing.validation_visualisers.abaqus.config import ABAQUS_RESULTS_DIR
+    from validation.abaqus.job_to_abaqus_script import _parse_job, _generate_script_content
+    from validation.abaqus.config import ABAQUS_RESULTS_DIR
 
     cases = {
         "job_0000_n8": ["ARTIFACT_CONTRACT_NAME = \"static_reference\"", "artifact_contract.txt"],
@@ -174,44 +174,44 @@ def test_job_to_abaqus_script_emits_wave1_contract_artifact_metadata() -> None:
 
 
 def test_job_to_abaqus_script_has_first_helper_slice() -> None:
-    p = PROJECT_ROOT / "post_processing" / "validation_visualisers" / "abaqus" / "job_to_abaqus_script.py"
+    p = PROJECT_ROOT / "validation" / "abaqus" / "job_to_abaqus_script.py"
     text = p.read_text(encoding="utf-8")
     assert "def _build_script_preamble(" in text
 
 
 def test_job_to_abaqus_script_has_second_helper_slice() -> None:
-    p = PROJECT_ROOT / "post_processing" / "validation_visualisers" / "abaqus" / "job_to_abaqus_script.py"
+    p = PROJECT_ROOT / "validation" / "abaqus" / "job_to_abaqus_script.py"
     text = p.read_text(encoding="utf-8")
     assert "def _build_step_and_model_block(" in text
 
 
 def test_job_to_abaqus_script_has_third_helper_slice() -> None:
-    p = PROJECT_ROOT / "post_processing" / "validation_visualisers" / "abaqus" / "job_to_abaqus_script.py"
+    p = PROJECT_ROOT / "validation" / "abaqus" / "job_to_abaqus_script.py"
     text = p.read_text(encoding="utf-8")
     assert "def _build_loads_and_job_block(" in text
 
 
 def test_job_to_abaqus_script_has_results_export_prologue_helper_slice() -> None:
-    p = PROJECT_ROOT / "post_processing" / "validation_visualisers" / "abaqus" / "job_to_abaqus_script.py"
+    p = PROJECT_ROOT / "validation" / "abaqus" / "job_to_abaqus_script.py"
     text = p.read_text(encoding="utf-8")
     assert "def _build_results_export_prologue_block(" in text
 
 
 def test_job_to_abaqus_script_has_results_export_displacement_helper_slice() -> None:
-    p = PROJECT_ROOT / "post_processing" / "validation_visualisers" / "abaqus" / "job_to_abaqus_script.py"
+    p = PROJECT_ROOT / "validation" / "abaqus" / "job_to_abaqus_script.py"
     text = p.read_text(encoding="utf-8")
     assert "def _build_results_export_displacement_block(" in text
 
 
 def test_extract_odb_results_mentions_tip_history_flag() -> None:
-    p = PROJECT_ROOT / "post_processing" / "validation_visualisers" / "abaqus" / "extract_odb_results.py"
+    p = PROJECT_ROOT / "validation" / "abaqus" / "extract_odb_results.py"
     text = p.read_text(encoding="utf-8")
     assert "export_tip_history" in text
     assert "tip_load_history.csv" in text
 
 
 def test_extract_odb_results_mentions_wave1_placeholder_exports() -> None:
-    p = PROJECT_ROOT / "post_processing" / "validation_visualisers" / "abaqus" / "extract_odb_results.py"
+    p = PROJECT_ROOT / "validation" / "abaqus" / "extract_odb_results.py"
     text = p.read_text(encoding="utf-8")
     assert "frequency_response.csv" in text
     assert "eigen_frequencies.csv" in text
@@ -219,7 +219,7 @@ def test_extract_odb_results_mentions_wave1_placeholder_exports() -> None:
 
 
 def test_extract_odb_results_tip_history_helpers_pick_last_node_u2() -> None:
-    from post_processing.validation_visualisers.abaqus.extract_odb_results import (
+    from validation.abaqus.extract_odb_results import (
         _tip_node_label_from_u_field,
         _tip_u2_from_field_values,
     )
@@ -241,7 +241,7 @@ def test_extract_odb_results_tip_history_helpers_pick_last_node_u2() -> None:
 
 
 def test_extract_odb_results_tip_history_helpers_tolerate_missing_tip() -> None:
-    from post_processing.validation_visualisers.abaqus.extract_odb_results import (
+    from validation.abaqus.extract_odb_results import (
         _tip_node_label_from_u_field,
         _tip_u2_from_field_values,
     )
@@ -252,17 +252,17 @@ def test_extract_odb_results_tip_history_helpers_tolerate_missing_tip() -> None:
 
 def test_deformation_comparison_runs():
     """Run deformation comparison (FEM vs Abaqus); must not raise when abaqus_results empty."""
-    from post_processing.validation_visualisers.deformation.deformation_comparison import (
+    from validation.deformation.deformation_comparison import (
         run_deformation_comparison,
     )
     run_deformation_comparison()
 
 
 def test_wave1_family_validation_runner_entrypoints_exist(tmp_path) -> None:
-    from post_processing.validation_visualisers.static.run_linear_static_validation import run_linear_static_validation
-    from post_processing.validation_visualisers.harmonic.run_harmonic_validation import run_harmonic_validation
-    from post_processing.validation_visualisers.eigen.run_eigen_validation import run_eigen_validation
-    from post_processing.validation_visualisers.buckling.run_buckling_validation import run_buckling_validation
+    from validation.static.run_linear_static_validation import run_linear_static_validation
+    from validation.harmonic.run_harmonic_validation import run_harmonic_validation
+    from validation.eigen.run_eigen_validation import run_eigen_validation
+    from validation.buckling.run_buckling_validation import run_buckling_validation
 
     runners = [
         run_linear_static_validation,
@@ -278,9 +278,9 @@ def test_wave1_family_validation_runner_entrypoints_exist(tmp_path) -> None:
 
 
 def test_wave1_family_validation_runners_report_reference_artifact_presence(tmp_path) -> None:
-    from post_processing.validation_visualisers.harmonic.run_harmonic_validation import run_harmonic_validation
-    from post_processing.validation_visualisers.eigen.run_eigen_validation import run_eigen_validation
-    from post_processing.validation_visualisers.buckling.run_buckling_validation import run_buckling_validation
+    from validation.harmonic.run_harmonic_validation import run_harmonic_validation
+    from validation.eigen.run_eigen_validation import run_eigen_validation
+    from validation.buckling.run_buckling_validation import run_buckling_validation
 
     for runner in [run_harmonic_validation, run_eigen_validation, run_buckling_validation]:
         out = runner(tmp_path)
@@ -297,14 +297,14 @@ def test_gitignore_mentions_local_abaqus_and_validation_hygiene_patterns() -> No
     assert "abaqus.rpy*" in text
     assert "abaqus*.rec" in text
     assert "*_abaqus.odb" in text
-    assert "post_processing/validation_visualisers/abaqus/generated/run_*.py" in text
-    assert "post_processing/validation_visualisers/abaqus_results/*/" in text
-    assert "post_processing/results/validation/" in text
+    assert "validation/abaqus/generated/run_*.py" in text
+    assert "validation/abaqus_results/*/" in text
+    assert "results/validation/" in text
 
 
 def test_section_forces_comparison_runs():
     """Run section forces comparison; must not raise."""
-    from post_processing.validation_visualisers.section_forces.section_forces_comparison import (
+    from validation.section_forces.section_forces_comparison import (
         run_section_forces_comparison,
     )
     run_section_forces_comparison()
@@ -312,7 +312,7 @@ def test_section_forces_comparison_runs():
 
 def test_discover_job_names_from_results_returns_expected_names(tmp_path):
     """discover_job_names_from_results returns sorted unique job_XXXX_nN from mock result dirs."""
-    from post_processing.validation_visualisers.job_discovery import (
+    from validation.job_discovery import (
         discover_job_names_from_results,
     )
 

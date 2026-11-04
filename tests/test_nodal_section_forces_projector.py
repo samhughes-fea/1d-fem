@@ -19,10 +19,10 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 def _minimal_formulation_cache_and_mesh():
     """One Euler-Bernoulli element, formulation cache with shape_functions."""
-    from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
         LinearEulerBernoulliBeamElement3D,
     )
-    from processing.static.results.containers import FormulationResultSet
+    from onedfem.processing.static.results.containers import FormulationResultSet
 
     L = 1.0
     element_dictionary = {
@@ -85,7 +85,7 @@ def _minimal_formulation_cache_and_mesh():
 
 def test_nodal_section_forces_projector_constant_vy():
     """Constant Vy at all GPs yields nodal Vy equal to that value (no boundary spike)."""
-    from processing.static.results.compute_tertiary.nodal_section_forces_projector import (
+    from onedfem.processing.static.results.compute_tertiary.nodal_section_forces_projector import (
         NodalSectionForcesProjector,
     )
 
@@ -116,7 +116,7 @@ def test_nodal_section_forces_projector_constant_vy():
 
 def test_nodal_section_forces_projector_constant_all_components():
     """Constant section forces (all components) at GPs yield same nodal values."""
-    from processing.static.results.compute_tertiary.nodal_section_forces_projector import (
+    from onedfem.processing.static.results.compute_tertiary.nodal_section_forces_projector import (
         NodalSectionForcesProjector,
     )
 

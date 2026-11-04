@@ -8,7 +8,7 @@ consistent with the monomial convention and matches EB ShapeFunctionOperator for
 import numpy as np
 import pytest
 
-from pre_processing.element_library.utilities.shape_function_coefficient_evaluator import (
+from onedfem.pre_processing.element_library.utilities.shape_function_coefficient_evaluator import (
     evaluate_shape_functions_from_coefficients,
 )
 
@@ -42,7 +42,7 @@ def test_evaluator_n1_xi_hand_values():
 
 def test_evaluator_matches_eb_operator():
     """Full EB coefficient arrays (from EB export) should match ShapeFunctionOperator at sample ξ."""
-    from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
         LinearEulerBernoulliBeamElement3D,
     )
     import tempfile
@@ -117,7 +117,7 @@ def test_evaluator_matches_eb_operator():
 
 def test_timoshenko_shape_function_operator_coefficients_match_pointwise():
     """Timoshenko B2 coefficients from ShapeFunctionOperator match pointwise N, dN/dξ, dN/dx, d²N/dx²."""
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.shape_functions import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.shape_functions import (
         ShapeFunctionOperator,
     )
 

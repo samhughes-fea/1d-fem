@@ -1,6 +1,6 @@
 # Linear buckling pyAbaqus reference contract
 
-This document defines the initial pyAbaqus external-reference contract for linear buckling validation using the shared workflow under [`post_processing/validation_visualisers/abaqus/`](../../post_processing/validation_visualisers/abaqus/).
+This document defines the initial pyAbaqus external-reference contract for linear buckling validation using the shared workflow under [`validation/abaqus/`](../../validation/abaqus/).
 
 ## Objective
 
@@ -16,7 +16,7 @@ Initial pinned job:
 
 ## Script-generation contract
 
-The shared Abaqus generator in [`job_to_abaqus_script.py`](../../post_processing/validation_visualisers/abaqus/job_to_abaqus_script.py) must accept canonical linear buckling jobs and generate a CAE script that:
+The shared Abaqus generator in [`job_to_abaqus_script.py`](../../validation/abaqus/job_to_abaqus_script.py) must accept canonical linear buckling jobs and generate a CAE script that:
 
 - creates the buckling extraction step required for the benchmark job
 - applies the prescribed BCs and reference loading
@@ -26,7 +26,7 @@ The shared Abaqus generator in [`job_to_abaqus_script.py`](../../post_processing
 
 Raw Abaqus reference artifacts should be written under:
 
-- `post_processing/validation_visualisers/abaqus_results/<job_name>/`
+- `validation/abaqus_results/<job_name>/`
 
 Required files:
 
@@ -67,7 +67,7 @@ Later phases may add:
 
 ## Family-local ownership
 
-The buckling family layer under [`post_processing/validation_visualisers/buckling/`](../../post_processing/validation_visualisers/buckling/) should own:
+The buckling family layer under [`validation/buckling/`](../../validation/buckling/) should own:
 
 - FEM-vs-Abaqus comparison logic
 - buckling summary tables and plots

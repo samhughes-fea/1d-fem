@@ -7,8 +7,8 @@ import os
 import numpy as np
 import pytest
 
-from pre_processing.section_integration.section_analysis import SectionAnalysis
-from pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
+from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
+from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
 from test_gbt_cross_section_modes import E, G, GBT, NU, box, i_beam
 
 
@@ -56,8 +56,8 @@ def test_wall_load_resultant_hand_values():
 
 
 def test_section_mesh_and_wall_load_parsers(tmp_path):
-    from pre_processing.parsing.section_geometry_parser import parse_section_mesh
-    from pre_processing.parsing.wall_load_parser import parse_wall_load_file
+    from onedfem.pre_processing.parsing.section_geometry_parser import parse_section_mesh
+    from onedfem.pre_processing.parsing.wall_load_parser import parse_wall_load_file
 
     g = tmp_path / "section_geometry.txt"
     g.write_text(
@@ -77,8 +77,8 @@ def test_process_job_with_shear_modes_and_wall_loads(tmp_path):
     """End to end: [shear_modes], [Section_Mesh] and wall_load.txt through process_job."""
     import csv
 
-    from pre_processing.section_integration.thin_walled.job_input import section_analyses_from_files
-    from workflow_orchestrator.run_job import process_job, setup_job_results_directory
+    from onedfem.pre_processing.section_integration.thin_walled.job_input import section_analyses_from_files
+    from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
     L, n_el, p = 2.0, 8, 2.0e3
     b, h, t = 0.6, 0.15, 2e-3
@@ -153,12 +153,12 @@ def test_process_job_with_shear_modes_and_wall_loads(tmp_path):
     f = CrossSectionModes(an).wall_load({3: (0.0, 0.0, p)}, 1, 1)
     # total vertical load: p b over half the span, downward (wall 3 runs -y, normal -z)
     assert f[2] == pytest.approx(-p * b, rel=1e-12)
-    from pre_processing.element_library.element_factory import ElementFactory  # noqa: F401
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory  # noqa: F401
     import importlib
     import shutil
     import tempfile
 
-    from pre_processing.element_library.dof_layout import mesh_dof_per_node
+    from onedfem.pre_processing.element_library.dof_layout import mesh_dof_per_node
 
     Cls = getattr(importlib.import_module(ElementFactory.ELEMENT_CLASS_MAP[GBT]), GBT)
     import test_gbt_cross_section_modes as T
@@ -198,7 +198,7 @@ def test_wall_load_on_timoshenko_and_benscoter_elements_is_lumped_by_halves():
     import tempfile
 
     import test_gbt_cross_section_modes as T
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_benscoter_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_benscoter_3D import (
         LinearBenscoterBeamElement3D,
     )
 

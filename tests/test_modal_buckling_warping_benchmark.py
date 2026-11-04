@@ -25,10 +25,10 @@ def _euler_cantilever_P_cr(E: float, I: float, L: float) -> float:
 
 def test_warping_off_modal_matches_euler_band():
     """6 DOF mesh: lowest buckling load vs Euler cantilever (same as regression suite intent)."""
-    from pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
         LinearEulerBernoulliBeamElement3D,
     )
-    from simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
+    from onedfem.simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
 
     L = 2.0
     E = 200.0e9
@@ -136,7 +136,7 @@ def test_linear_timoshenko_warping_K_sigma_embedding_matches_twelve_dof_slice():
     """14-DOF K_σ top-left 12×12 equals K_σ from first 12 displacement components alone."""
     import tempfile
 
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
 

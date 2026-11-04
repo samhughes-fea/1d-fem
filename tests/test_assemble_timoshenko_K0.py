@@ -20,10 +20,10 @@ def _job_dirs(root: str) -> None:
 
 def test_assemble_timoshenko_K0_matches_linear_element_K_e():
     """Direct ``assemble_timoshenko_K0`` agrees with ``LinearTimoshenkoBeamElement3D.element_stiffness_matrix``."""
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.k0_timoshenko import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.k0_timoshenko import (
         assemble_timoshenko_K0,
         timoshenko_quadrature_orders_from_element_array,
     )
@@ -84,10 +84,10 @@ def test_assemble_timoshenko_K0_matches_linear_element_K_e():
 
 def test_shear_block_order_changes_stiffness():
     """Higher shear-block quadrature changes ``K`` vs default 1-point block."""
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
-    from pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.k0_timoshenko import (
+    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.k0_timoshenko import (
         TimoshenkoQuadratureOrders,
         assemble_timoshenko_K0,
         timoshenko_quadrature_orders_from_element_array,

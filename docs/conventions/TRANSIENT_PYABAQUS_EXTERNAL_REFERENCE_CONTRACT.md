@@ -1,6 +1,6 @@
 # Transient pyAbaqus external-reference contract
 
-This document defines the file and script-generation contract for transient external-reference validation using the existing pyAbaqus workflow under [`post_processing/validation_visualisers/abaqus/`](../../post_processing/validation_visualisers/abaqus/).
+This document defines the file and script-generation contract for transient external-reference validation using the existing pyAbaqus workflow under [`validation/abaqus/`](../../validation/abaqus/).
 
 ## Target benchmark
 
@@ -28,7 +28,7 @@ The external-reference wave will compare FEM transient output against Abaqus-exp
 
 Expected reference location pattern:
 
-- `post_processing/validation_visualisers/abaqus_results/<job_name>/`
+- `validation/abaqus_results/<job_name>/`
 
 Expected future transient reference files:
 

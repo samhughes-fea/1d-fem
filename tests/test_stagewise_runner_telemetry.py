@@ -15,7 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from tests.test_modal_buckling_euler_column import _build_cantilever_modal_case
-from workflow_orchestrator.run_job import process_job, setup_job_results_directory
+from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
 
 def _element_matrix_to_coo(m):
@@ -25,7 +25,7 @@ def _element_matrix_to_coo(m):
 
 
 def test_dynamic_runner_runtime_monitor_telemetry_stages():
-    from simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
+    from onedfem.simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
 
     settings, tmp, _ = _build_cantilever_modal_case(8, 2.5, 210e9, 1.0)
     eos = list(np.asarray(settings["element_objects"], dtype=object).ravel())
@@ -73,7 +73,7 @@ def test_dynamic_runner_runtime_monitor_telemetry_stages():
 
 
 def test_dynamic_runner_stage_log_files_under_logs():
-    from simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
+    from onedfem.simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
 
     settings, tmp, _ = _build_cantilever_modal_case(8, 2.5, 210e9, 1.0)
     eos = list(np.asarray(settings["element_objects"], dtype=object).ravel())

@@ -151,7 +151,7 @@ def compare_job(job_name, results_dir, element_type):
     return u_y_match and theta_z_match, computed_u_y, analytical_u_y
 
 if __name__ == "__main__":
-    results_base = PROJECT_ROOT / "post_processing" / "results"
+    results_base = PROJECT_ROOT / "results"
     
     jobs_config = [
         ("job_0000", "EulerBernoulliBeamElement3D"),

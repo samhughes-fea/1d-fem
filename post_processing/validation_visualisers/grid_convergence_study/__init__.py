@@ -1,1 +1,0 @@
-# post_processing/validation_visualisers/grid_convergence_study

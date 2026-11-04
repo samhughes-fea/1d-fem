@@ -11,14 +11,14 @@ import re
 import numpy as np
 import pytest
 
-from post_processing.validation_visualisers.abaqus.shell_validation import cases as C
-from post_processing.validation_visualisers.abaqus.shell_validation.results import (
+from validation.abaqus.shell_validation import cases as C
+from validation.abaqus.shell_validation.results import (
     ShellFrames,
     read_abaqus_csv,
     read_calculix_dat,
     section_motion,
 )
-from post_processing.validation_visualisers.abaqus.shell_validation.shell_model import write_inp
+from validation.abaqus.shell_validation.shell_model import write_inp
 
 
 @pytest.fixture(params=["S4R", "S8R"])
@@ -36,7 +36,7 @@ def _coords(mesh):
 
 @pytest.mark.parametrize("name", list(C.CASES))
 def test_shell_normals_are_the_wall_normals(name, element):
-    from post_processing.validation_visualisers.abaqus.shell_validation.onedfem import section_analysis
+    from validation.abaqus.shell_validation.onedfem import section_analysis
 
     case = C.build_case(name, fine=0.25)
     case.model.element_type = element
@@ -60,7 +60,7 @@ def test_shell_normals_are_the_wall_normals(name, element):
 
 @pytest.mark.parametrize("make", [C.i_section, C.box_section, C.channel_section])
 def test_laminates_match_the_section_analysis(make):
-    from post_processing.validation_visualisers.abaqus.shell_validation.onedfem import section_analysis
+    from validation.abaqus.shell_validation.onedfem import section_analysis
 
     sec = make()
     an = section_analysis(sec)
@@ -69,7 +69,7 @@ def test_laminates_match_the_section_analysis(make):
 
 
 def test_section_weights_add_up_to_the_axial_stiffness(element):
-    from post_processing.validation_visualisers.abaqus.shell_validation.onedfem import section_analysis
+    from validation.abaqus.shell_validation.onedfem import section_analysis
 
     case = C.build_case("ibeam_large_twist", fine=0.5)
     case.model.element_type = element
@@ -89,7 +89,7 @@ def test_plane_section_forces_have_the_requested_resultant(load, element):
 
 
 def test_compression_at_the_tension_centre_is_a_uniform_stress():
-    from post_processing.validation_visualisers.abaqus.shell_validation.onedfem import tension_centre
+    from validation.abaqus.shell_validation.onedfem import tension_centre
 
     case = C.build_case("channel_ft", fine=0.5)
     mesh = case.model.mesh()
@@ -222,7 +222,7 @@ def test_readers(tmp_path):
 
 
 def test_path_comparison_of_matching_results():
-    from post_processing.validation_visualisers.abaqus.shell_validation.run import compare_path
+    from validation.abaqus.shell_validation.run import compare_path
 
     case = C.build_case("ibeam_large_twist", fine=0.25)
     mesh = case.model.mesh()

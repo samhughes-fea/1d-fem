@@ -1,3 +1,0 @@
-from processing.dynamic.operations.modify_dynamic_global import ModifyDynamicGlobalSystem as ModifyTransientGlobalSystem
-
-ModifyDynamicGlobalSystem = ModifyTransientGlobalSystem
