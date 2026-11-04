@@ -184,8 +184,13 @@ def main(plot: bool = True, work_dir: str = HERE, out_dir: str = HERE, verify: b
 
 
 def figures(result: dict, out_dir: str) -> None:
-    import matplotlib
-    matplotlib.use("Agg")
+    """Sensitivity bars, the adjoint-against-central-difference check (one point per derivative),
+    the design loop (one marker per job) and the section with its coupled layup."""
+    from onedfem.post_processing.graphical_visualisers import figure_style as fs
+
+    from common import build_analysis, plot_section, ply_materials
+
+    fs.use()
     import matplotlib.pyplot as plt
 
     sens = result["sensitivities"]
@@ -201,59 +206,84 @@ def figures(result: dict, out_dir: str) -> None:
 
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
     resp = [f"UZ@{N_EL}", f"RX@{N_EL}", "f1", "f2", "f3", "f4"]
-    cols = ["#2a78d6", "#eb6834", "#1baf7a", "#8b8a83", "#c94f9a", "#e5b400"]
-    for ax, plist, title, key in ((axes[0], angles, "per degree of ply angle (% of the response)", "derivative"),
-                                  (axes[1], thick, "logarithmic, (t / J) dJ/dt", "relative_derivative")):
+    for ax, plist, title, key in ((axes[0], angles, "Per degree of ply angle", "derivative"),
+                                  (axes[1], thick, "Logarithmic thickness derivative", "relative_derivative")):
         x = np.arange(len(plist))
         w = 0.8 / len(resp)
-        for i, (r, c) in enumerate(zip(resp, cols)):
+        for i, r in enumerate(resp):
             vals = []
             for p in plist:
                 d = sens[r][p]
                 vals.append(100 * d["derivative"] / d["value"] if key == "derivative" else d["relative_derivative"])
-            ax.bar(x + (i - len(resp) / 2 + 0.5) * w, vals, w, color=c, label=names[r])
-        ax.axhline(0, color="#52514e", lw=0.6)
+            ax.bar(x + (i - len(resp) / 2 + 0.5) * w, vals, w, color=fs.colour("", i), label=names[r], lw=0)
+        ax.axhline(0, color=fs.MUTED, lw=0.6)
         ax.set_xticks(x)
-        ax.set_xticklabels([lab(p) for p in plist], fontsize=7, rotation=20, ha="right")
-        ax.set_title(title, fontsize=9, loc="left")
-        ax.tick_params(labelsize=7)
-        for s in ("top", "right"):
-            ax.spines[s].set_visible(False)
-    axes[0].legend(fontsize=7, frameon=False, ncol=2)
-    fig.suptitle("Box spar: sensitivities of the tip response and the first four frequencies to the layup",
-                 fontsize=9, x=0.01, ha="left")
+        ax.set_xticklabels([lab(p) for p in plist], rotation=20, ha="right")
+        ax.grid(axis="x", visible=False)
+        fs.panel_title(ax, title, "% of the response per degree" if key == "derivative" else "(t / J) dJ/dt")
+    axes[0].legend(ncol=2, loc="lower left")
+    fig.suptitle("Box spar: adjoint sensitivities of the tip response and the first four frequencies to the layup",
+                 x=0.01, ha="left")
     fig.tight_layout()
-    fig.savefig(os.path.join(out_dir, "sensitivities.png"), dpi=150)
-    plt.close(fig)
+    fs.save(fig, os.path.join(out_dir, "sensitivities.png"))
+
+    fig, ax = plt.subplots(1, 2, figsize=(10.5, 3.9))
+    chk = result["check"]
+    a_ = np.array([abs(c["adjoint"]) for c in chk])
+    f_ = np.array([abs(c["central_difference"]) for c in chk])
+    e_ = np.array([max(c["relative_error"], 1e-16) for c in chk])
+    lo, hi = min(a_.min(), f_.min()) / 3, max(a_.max(), f_.max()) * 3
+    ax[0].plot([lo, hi], [lo, hi], color=fs.MUTED, lw=0.8, zorder=0)
+    fs.solves(ax[0], f_, a_, color=fs.colour("Timoshenko"), label=f"{len(chk)} derivatives")
+    ax[0].set(xscale="log", yscale="log", xlabel="|central difference|", ylabel="|adjoint|")
+    fs.panel_title(ax[0], "Adjoint against central differences", "each derivative from one job's "
+                                                                  "layup_sensitivity.csv")
+    ax[0].legend(loc="upper left")
+    resp_of = sorted({c["response"] for c in chk})
+    for i, r in enumerate(resp_of):
+        sel = [k for k, c in enumerate(chk) if c["response"] == r]
+        fs.solves(ax[1], [i] * len(sel), e_[sel], color=fs.colour("", i), ms=4.5)
+    ax[1].set_xticks(range(len(resp_of)))
+    ax[1].set_xticklabels([names.get(r, r) for r in resp_of], rotation=20, ha="right")
+    ax[1].set(yscale="log", ylabel="relative difference")
+    ax[1].axhline(result["max_relative_error"], color=fs.MUTED, lw=0.6, ls="--")
+    fs.panel_title(ax[1], "Relative difference", f"largest {result['max_relative_error']:.1e}, the step error of "
+                                                 "the differences")
+    fig.tight_layout()
+    fs.save(fig, os.path.join(out_dir, "check.png"))
 
     hist, sweep = result["design"], result["sweep"]
-    fig, ax = plt.subplots(figsize=(6.0, 3.8))
-    ax.plot([h["theta"] for h in sweep], [h["twist_per_flap"] for h in sweep], "o", color="#b7b6ae", ms=5,
-            label="1d-fem job (sweep)")
+    fig, ax = plt.subplots(figsize=(6.4, 4.0))
+    fs.solves(ax, [h["theta"] for h in sweep], [h["twist_per_flap"] for h in sweep], color=fs.GRID, ms=6,
+              label="1d-fem job (sweep at 5° steps)")
     for h in hist:
         th = np.array([h["theta"] - 3.0, h["theta"] + 3.0])
-        ax.plot(th, h["twist_per_flap"] + h["gradient"] * (th - h["theta"]), color="#2a78d6", lw=0.8)
-    ax.plot([h["theta"] for h in hist], [h["twist_per_flap"] for h in hist], "o", color="#2a78d6", ms=6,
-            label="Newton iterate, with its adjoint tangent")
+        ax.plot(th, h["twist_per_flap"] + h["gradient"] * (th - h["theta"]), color=fs.colour("Timoshenko"), lw=0.8)
+    fs.solves(ax, [h["theta"] for h in hist], [h["twist_per_flap"] for h in hist], color=fs.colour("Timoshenko"),
+              label="Newton iterate, with its adjoint tangent")
     shown = []
     for h in hist:                              # one label for iterates that sit on top of each other
-        near = [k for k, t in shown if abs(t - h["theta"]) < 0.3]
-        if near:
+        if [k for k, t in shown if abs(t - h["theta"]) < 0.3]:
             continue
         same = [g["iteration"] for g in hist if abs(g["theta"] - h["theta"]) < 0.3]
         shown.append((h["iteration"], h["theta"]))
         ax.annotate(", ".join(map(str, same)), (h["theta"], h["twist_per_flap"]), textcoords="offset points",
-                    xytext=(5, 4), fontsize=7, color="#2a78d6")
-    ax.axhline(result["target_twist_per_flap"], color="#eb6834", lw=1, label="target")
-    ax.set_xlabel("off-axis ply angle θ (bottom cap +θ, top cap −θ), deg", fontsize=8)
-    ax.set_ylabel("tip twist per flap deflection, deg / 100 mm", fontsize=8)
-    ax.tick_params(labelsize=7)
-    for s in ("top", "right"):
-        ax.spines[s].set_visible(False)
-    ax.legend(fontsize=7, frameon=False)
+                    xytext=(5, 4), fontsize=7, color=fs.colour("Timoshenko"))
+    ax.axhline(result["target_twist_per_flap"], color=fs.colour("GBT"), lw=1, label="target")
+    ax.set(xlabel="off-axis ply angle θ (bottom cap +θ, top cap −θ), deg",
+           ylabel="tip twist per flap deflection (deg / 100 mm)")
+    fs.panel_title(ax, "Design loop on θ", "each step is one job; gradient from the job's own sensitivities")
+    ax.legend(loc="upper right")
     fig.tight_layout()
-    fig.savefig(os.path.join(out_dir, "design.png"), dpi=150)
-    plt.close(fig)
+    fs.save(fig, os.path.join(out_dir, "design.png"))
+
+    sec = section()
+    an = build_analysis(sec)
+    plot_section(an, ply_materials(sec, {k: "CFRP" for k in sec.materials}), os.path.join(out_dir, "section.png"),
+                 "Box spar with bend-twist coupled caps",
+                 f"caps [45, −45, θ, θ, 0₄, −45, 45] at θ = {THETA0:g}° (+θ bottom, −θ top in wall axes)",
+                 (B / 2 - 0.03, H / 2 - 0.025, 0.045, 0.035), "Rear web at the top cap", figsize=(10, 4.6),
+                 width_ratios=(1.7, 1))
 
 
 if __name__ == "__main__":

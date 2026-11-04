@@ -24,7 +24,8 @@ solved by shooting from the tip with continuation in the load.
 
 ![Follower and dead tip loads](follower_cantilever.png)
 
-The markers are the nodes of the deformed beam. The lines are the elastica.
+The markers are the nodes of the deformed beam. The lines are the elastica. The right
+panel gives the tip error at each load step.
 
 | P L²/EI | Follower: tip error / L | Follower: tip rotation error (rad) | Dead: tip error / L | Dead: tip rotation error (rad) |
 |---|---|---|---|---|

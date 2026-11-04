@@ -16,4 +16,19 @@ python examples/thin_walled/channel_buckling/run.py
    `e (sec(kL/2) − 1)` to 0.4 % up to 0.8 `P_v`; the linear solution misses the
    amplification (`p_delta.png`).
 
+![Buckled sections and the mode along the column](buckling.png)
+
+Left and middle: the section at mid-span (grey, at true wall thickness) and the
+same section moved by the computed mode (rigid section, as Benscoter keeps it).
+The flexural mode translates the section along the symmetry axis; the
+flexural-torsional mode translates and twists it about the beam axis on the
+web. Right: lateral deflection and twist of the flexural-torsional mode along
+the column, each element through its own interpolation, nodes as triangles.
+
+![P-delta](p_delta.png)
+
+Left: the deflected shape at each load, P-delta (solid) and linear (dotted),
+against the exact beam-column shape `e (cos(k(x − L/2)) / cos(kL/2) − 1)`.
+Right: mid-span deflection, one marker per solve, against the secant formula.
+
 Results are in `summary.json`. Method: [docs/element_library/second_order.md](../../../docs/element_library/second_order.md).

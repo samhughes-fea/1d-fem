@@ -28,6 +28,12 @@ from common import (  # noqa: E402
     by_ply,
     build_analysis,
     contour,
+    plot_deflection,
+    plot_interlaminar,
+    plot_ply_stresses,
+    plot_section,
+    plot_section_fields,
+    ply_materials,
     run,
 )
 
@@ -129,67 +135,62 @@ def main(n_el: int = N_EL, plot: bool = True, work_dir: str = HERE) -> dict:
     with open(os.path.join(work_dir, "summary.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
     if plot:
-        _plots(results, {k: c.element_type for k, c in cases(n_el).items()}, cap_dense, web_dense, root, n_el)
+        _plots(an, rec, results, {k: c.element_type for k, c in cases(n_el).items()}, cap_dense, web_dense, root,
+               n_el, (w_ex, tw_ex))
     return summary
 
 
-def _plots(results, element_types, cap, web, root, n_el):
-    """Figures. Curves along the beam are each element's shape-function field (``beam_curve``),
-    nodal values are triangles; through-thickness curves are drawn per ply, and the root
-    contour values from the job's CSV are shown as the discrete points they are."""
-    import matplotlib
+def _plots(an, rec, results, element_types, cap, web, root, n_el, exact):
+    """Figures. Fields around the section are the section's own element fields, sampled inside
+    each wall element; curves along the beam are each element's shape-function field
+    (``beam_curve``); through-thickness curves are drawn ply by ply; the root contour values
+    from the job's CSV are shown as the discrete points they are."""
+    from onedfem.post_processing.graphical_visualisers import figure_style as fs
+    from onedfem.post_processing.graphical_visualisers.thin_walled_drawing import unrolled_field
 
-    matplotlib.use("Agg")
+    fs.use()
     import matplotlib.pyplot as plt
 
-    from onedfem.post_processing.graphical_visualisers.beam_field_sampling import beam_curve
+    sec = section()
+    mats = ply_materials(sec, {1: "CFRP"})
+    plot_section(an, mats, os.path.join(HERE, "section.png"), "CFRP box spar, walls at true thickness",
+                 f"{an.n_sub} cubic elements per wall (ticks: element ends); caps 6 mm, webs 2 mm",
+                 (B / 2 - 0.03, H / 2 - 0.025, 0.045, 0.035), "Rear web at the top cap", figsize=(10, 4.6),
+                 width_ratios=(1.7, 1))
+    F_T = [0, 0, 0, 0, 0, T]
+    F_root = [0.0, -P * L, 0.0, 0.0, P, 0.0]
+    labels = [(w, an.section.length(an.section.wall(w)) / 2, off,
+               f"{rec.at(w, an.section.length(an.section.wall(w)) / 2, F_T).resultants[2] / 1e3:.2f} "
+               f"(Bredt {q / 1e3:.2f})")
+              for (w, off), q in zip(((1, (0, -0.06)), (2, (0.0, 0.1)), (3, (0, 0.06)), (4, (0.0, -0.1))),
+                                     bredt_multicell(an, T).values())]
+    plot_section_fields(an, rec, mats, [
+        ("Torque shear flow N_xs, T = 5 kN·m", F_T, 2, 1e3, "kN/m"),
+        ("Root N_xx, 20 kN flap force", F_root, 0, 1e3, "kN/m"),
+        ("Root N_xs, 20 kN flap force", F_root, 2, 1e3, "kN/m"),
+    ], os.path.join(HERE, "section_fields.png"), 0.07, (13, 4.6), ylim=(-0.27, 0.27), xlim=(-0.45, 0.45),
+        labels={0: labels}, across=True)
+    plot_deflection(results, element_types, L, n_el, exact, os.path.join(HERE, "deflection.png"),
+                    "root warping restraint stiffens torsion by 0.2 %")
 
-    x = np.linspace(0, L, n_el + 1)
-    fig, ax = plt.subplots(1, 2, figsize=(10, 3.8))
-    for i, (k, r) in enumerate(results.items()):
-        c = f"C{i}"
-        for a, comp, scale in ((ax[0], 2, 1e3), (ax[1], 3, np.rad2deg(1.0))):
-            xs, v = beam_curve(x, r.U, comp, element_types[k])
-            a.plot(xs, v * scale, color=c, lw=1.0, ls="--" if "free" in k else "-", label=k)
-            a.plot(x, r.U[:, comp] * scale, "^", color=c, ms=3, mfc=c)
-    ax[0].set(xlabel="x (m)", ylabel="flapwise deflection w (mm)")
-    ax[1].set(xlabel="x (m)", ylabel="twist (deg)")
-    ax[0].legend(fontsize=8, title="lines: element shape functions; ▲ nodes", title_fontsize=7)
-    for a in ax:
-        a.grid(alpha=0.3)
+    fig, ax = plt.subplots(1, 2, figsize=(10.5, 3.9), gridspec_kw={"width_ratios": [1.3, 1]})
+    x0 = 0.5 * L / n_el
+    for i, (k, pts) in enumerate(root.items()):
+        s_, n = np.array(pts).T
+        (fs.solves if k == "GBT" else fs.projected)(ax[0], s_, n / 1e3, color=fs.colour(k, i),
+                                                    label=f"{k} (wall_stresses.csv)", ms=4.5)
+    unrolled_field(ax[0], an, lambda w, s_: rec.at(w, s_, [0, P * (x0 - L), 0, 0, P, T]).resultants[0] / 1e3, [3],
+                   color=fs.MUTED, label=f"Saint-Venant section field at x = {x0:.3f} m", shade=False)
+    ax[0].set(xlabel="s along the top cap, rear to front (m)", ylabel="N_xx (kN/m)")
+    fs.panel_title(ax[0], "Root element: shear lag in the top cap",
+                   "GBT with the root warping fixed loads the corners 10 % more")
+    ax[0].legend(loc="lower center")
+    plot_interlaminar(ax[1], [(cap, "top cap centre"), (web, "rear web centre")])
     fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "deflection.png"), dpi=150)
-
-    fig, ax = plt.subplots(1, 2, figsize=(10, 3.8))
-    for k, pts in root.items():
-        s, n = np.array(pts).T
-        ax[0].plot(s, n / 1e3, "o", ms=4, label=k)
-    ax[0].set(xlabel="s along the top cap (m)", ylabel="N_xx (kN/m)", title="Root element: shear lag in the cap")
-    ax[0].legend()
-    for i, (q, lab) in enumerate(((cap, "top cap centre"), (web, "rear web centre"))):
-        for j, ply in enumerate(by_ply(q.plies)):
-            n = [p.n * 1e3 for p in ply]
-            ax[1].plot([p.tau_xn / 1e3 for p in ply], n, color=f"C{2 * i}", lw=1.0,
-                       label=f"tau_xn, {lab}" if j == 0 else None)
-            ax[1].plot([p.tau_sn / 1e3 for p in ply], n, color=f"C{2 * i + 1}", lw=1.0, ls="--",
-                       label=f"tau_sn, {lab}" if j == 0 else None)
-    ax[1].set(xlabel="interlaminar shear (kPa)", ylabel="n (mm)", title="Mid-span, through the thickness, per ply")
-    ax[1].legend(fontsize=7)
-    for a in ax:
-        a.grid(alpha=0.3)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "cap_stresses.png"), dpi=150)
-
-    fig, ax = plt.subplots(1, 3, figsize=(11, 3.8), sharey=True)
-    for i, lab in enumerate(("sigma_11", "sigma_22", "tau_12")):
-        for ply in by_ply(cap.plies):
-            ax[i].plot([p.stress_ply[i] / 1e6 for p in ply], [p.n * 1e3 for p in ply], color="C0", lw=1.2)
-        ax[i].set(xlabel=f"{lab} (MPa)")
-        ax[i].grid(alpha=0.3)
-    ax[0].set_ylabel("n through the top cap (mm)")
-    fig.suptitle("Ply-axis stresses at mid-span, top cap centre (each ply drawn on its own)")
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "ply_stresses.png"), dpi=150)
+    fs.save(fig, os.path.join(HERE, "cap_stresses.png"))
+    plot_ply_stresses(an.laminates[1], cap, os.path.join(HERE, "ply_stresses.png"),
+                      "Ply-axis stresses at mid-span, top cap centre (compression side), each ply drawn on its own",
+                      {135: "CFRP"})
     plt.close("all")
 
 

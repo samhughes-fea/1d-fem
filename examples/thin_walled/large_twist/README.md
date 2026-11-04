@@ -21,5 +21,12 @@ reference is the nonlinear Vlasov equation `GJφ' − EΓφ''' + ½EI_nφ'³ = T
 collocation. The corotational elements stay within 0.25 % of it; the difference is the
 warping shear flexibility that Benscoter has and Vlasov leaves out.
 
-Results are in `summary.json` and `twist.png`. Method:
+![Large twist](twist.png)
+
+Left: tip torque against tip twist, one marker per job. Middle: the twist along
+the beam at each torque, through each element's interpolation, against the
+nonlinear Vlasov solution. Right: the tip section turned by the computed twist
+at 6 kN·m.
+
+Results are in `summary.json`. Method:
 [docs/element_library/corotational_section_beams.md](../../../docs/element_library/corotational_section_beams.md).

@@ -318,4 +318,6 @@ def test_thin_walled_examples_run(example, tmp_path):
     assert s["tip"]["Timoshenko"]["twist"] == pytest.approx(s["exact_saint_venant_tip"]["twist"], rel=1e-6)
     assert s["tip"]["Timoshenko"]["w"] == pytest.approx(s["exact_saint_venant_tip"]["w"], rel=2e-2)
     a, b = s["csv_vs_direct_N_xx"]
-    assert a == pytest.approx(b, rel=1e-9)
+    # the CSV uses the beam solution's section forces, the direct value the exact ones; on the
+    # 40-wall airfoil section they differ by round-off of the beam solve (a few 1e-9)
+    assert a == pytest.approx(b, rel=1e-7)

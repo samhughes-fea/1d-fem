@@ -122,44 +122,50 @@ def whirl(work: str) -> dict:
 
 
 def figures(summary: dict, out_dir: str) -> None:
-    """Computed frequencies are markers at the speeds solved; reference values are markers,
-    and only the exact whirl relation ``omega_1 -+ Omega`` is drawn as lines."""
-    import matplotlib
+    """Campbell diagrams: one marker per solved speed, references as hollow markers or exact
+    lines, and the difference from the reference at every speed."""
+    from onedfem.post_processing.graphical_visualisers import figure_style as fs
 
-    matplotlib.use("Agg")
+    fs.use()
     import matplotlib.pyplot as plt
 
     h, wh = summary["hodges"], summary["whirl"]
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+    fig, axes = plt.subplots(1, 3, figsize=(13, 4.0), gridspec_kw={"width_ratios": [1.2, 1.2, 1]})
     ax = axes[0]
     b = np.array(h["omega_bar"], dtype=float)
-    ax.plot(b, h["hodges_flap"], "s", mfc="none", mec="#0b0b0b", ms=8, label="flap, Hodges & Rutkowski")
-    ax.plot(b, h["flap"], "o", color="#2a78d6", ms=4.5, label="flap, 1d-fem")
-    ax.plot(b, h["lag_exact"], "^", mfc="none", mec="#0b0b0b", ms=8, label="lag, √(flap² − Ω̄²)")
-    ax.plot(b, h["lag"], "o", color="#eb6834", ms=4.5, label="lag, 1d-fem")
-    ax.set_xlabel("rotation speed Ω̄ = Ω √(m L⁴ / EI)", fontsize=8)
-    ax.set_ylabel("first frequency ω̄ (rotating frame)", fontsize=8)
-    ax.set_title(f"Uniform cantilever rotating about its root, {N_EL} Euler-Bernoulli elements", fontsize=9,
-                 loc="left")
-    ax.legend(fontsize=7, frameon=False)
+    fs.reference(ax, b, h["hodges_flap"], label="flap, Hodges & Rutkowski (1981)", ms=7)
+    fs.solves(ax, b, h["flap"], color=fs.colour("Timoshenko"), label="flap, 1d-fem")
+    ax.plot(b, h["lag_exact"], "^", ls="none", mfc="white", mec=fs.INK, ms=7, mew=0.9, label="lag, √(flap² − Ω̄²)")
+    fs.solves(ax, b, h["lag"], color=fs.colour("GBT"), label="lag, 1d-fem")
+    ax.set(xlabel="rotation speed Ω̄ = Ω √(m L⁴ / EI)", ylabel="first frequency ω̄ (rotating frame)")
+    fs.panel_title(ax, "Cantilever rotating about its root", f"{N_EL} Euler-Bernoulli elements, one eigen job per speed")
+    ax.legend(loc="upper left")
     ax = axes[1]
     r = np.array(wh["omega_over_omega1"])
     rr = np.linspace(0, r.max(), 2)
-    ax.plot(rr, 1 - rr, "-", color="#c3c2b7", lw=1, label="exact: ω₁ − Ω and ω₁ + Ω")
-    ax.plot(rr, 1 + rr, "-", color="#c3c2b7", lw=1)
-    ax.plot(r, wh["backward"], "o", color="#eb6834", ms=4.5, label="backward whirl, 1d-fem")
-    ax.plot(r, wh["forward"], "o", color="#2a78d6", ms=4.5, label="forward whirl, 1d-fem")
-    ax.set_xlabel("spin Ω / ω₁", fontsize=8)
-    ax.set_ylabel("frequency / ω₁ (rotating frame)", fontsize=8)
-    ax.set_title("Shaft spinning about its own axis (Coriolis terms)", fontsize=9, loc="left")
-    ax.legend(fontsize=7, frameon=False)
-    for ax in axes:
-        for s in ("top", "right"):
-            ax.spines[s].set_visible(False)
-        ax.tick_params(labelsize=7)
+    fs.analytic(ax, rr, 1 - rr, label="exact: ω₁ − Ω and ω₁ + Ω")
+    fs.analytic(ax, rr, 1 + rr, label=None)
+    fs.solves(ax, r, wh["backward"], color=fs.colour("GBT"), label="backward whirl, 1d-fem")
+    fs.solves(ax, r, wh["forward"], color=fs.colour("Timoshenko"), label="forward whirl, 1d-fem")
+    ax.set(xlabel="spin Ω / ω₁", ylabel="frequency / ω₁ (rotating frame)")
+    fs.panel_title(ax, "Shaft spinning about its own axis", "Coriolis (gyroscopic) terms")
+    ax.legend(loc="upper left")
+    ax = axes[2]
+    bd = b[-len(h["flap_difference"]):]
+    fs.solves(ax, bd / b.max(), 100 * np.array(h["flap_difference"]), color=fs.colour("Timoshenko"),
+              label="flap, against Hodges")
+    fs.solves(ax, bd / b.max(), 100 * np.array(h["lag_difference"]), color=fs.colour("GBT"), label="lag, against exact")
+    rd = r[-len(wh["backward_difference"]):]
+    fs.solves(ax, rd / r.max(), 100 * np.array(wh["backward_difference"]), color=fs.colour("Benscoter"), marker="s",
+              label="whirl, backward (of ω₁)")
+    fs.solves(ax, rd / r.max(), 100 * np.array(wh["forward_difference"]), color=fs.colour("2D sections"), marker="s",
+              label="whirl, forward (of ω₁)")
+    ax.axhline(0, color=fs.MUTED, lw=0.6)
+    ax.set(xlabel="speed / largest speed solved", ylabel="difference (%)")
+    fs.panel_title(ax, "Difference from the reference", "flap and lag within 0.02 %, whirl within 0.03 % of ω₁")
+    ax.legend(loc="lower left")
     fig.tight_layout()
-    fig.savefig(os.path.join(out_dir, "campbell.png"), dpi=150)
-    plt.close(fig)
+    fs.save(fig, os.path.join(out_dir, "campbell.png"))
 
 
 def main(plot: bool = True, work_dir: str = HERE, out_dir: str = HERE) -> dict:

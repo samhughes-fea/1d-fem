@@ -26,6 +26,11 @@ committed prism reference, so it does not need CalculiX.
 | Mesh | `section_mesh_from_cut(cut, laminates, rows_per_ply=2)`: 2196 `Q8` elements |
 | Section forces | `[N, M_y, M_z, V_y, V_z, T] = [0, -4 MN·m, 0, 0, 200 kN, 100 kN·m]` |
 
+![Section mesh](section_mesh.png)
+
+The mesh coloured by material, with close-ups of the rear web at the pressure-side cap and
+of the sharp trailing edge (element edges in white).
+
 ## Results
 
 ![Axial stress](axial_stress.png)

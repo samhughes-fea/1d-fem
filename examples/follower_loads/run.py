@@ -158,32 +158,36 @@ def main(plot: bool = True, work_dir: str = HERE, out_dir: str = HERE) -> dict:
 
 def figures(out: dict, out_dir: str) -> None:
     """Nodes of the deformed beam are triangles (explicit nodal values); the elastica
-    reference is a line from its own ODE solution."""
-    import matplotlib
+    (ODE solution) is the reference line; the tip error of each load step is a marker."""
+    from onedfem.post_processing.graphical_visualisers import figure_style as fs
 
-    matplotlib.use("Agg")
+    fs.use()
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4.2))
-    for ax, key, title in zip(axes, ("follower", "dead"), ("follower tip force (stays normal to the tip)",
-                                                          "dead tip force (stays vertical)")):
+    fig, axes = plt.subplots(1, 3, figsize=(13.5, 4.3), gridspec_kw={"width_ratios": [1.15, 1.15, 1]})
+    for ax, key, title in zip(axes, ("follower", "dead"), ("Follower tip force", "Dead tip force")):
         for i, r in enumerate(out[key]):
+            c = fs.colour("", i)
             _, xr, yr, _ = elastica(r["k"], key == "follower")
-            ax.plot(xr, yr, "-", color="#c3c2b7", lw=1.0, label="elastica (ODE solution)" if i == 0 else None)
+            fs.analytic(ax, xr / L, yr / L, label="elastica (ODE solution)" if i == 0 else None, lw=0.9)
             nd = np.array(r["nodes"])
-            ax.plot(nd[:, 0], nd[:, 1], "^", ms=3, color="#2a78d6",
-                    label=f"1d-fem nodes, {N_EL} corotational Timoshenko elements" if i == 0 else None)
+            fs.nodal(ax, nd[:, 0] / L, nd[:, 1] / L, color=c, label=f"P L² / EI = {r['k']:g}", ms=3.4)
         ax.set_aspect("equal")
-        ax.set_title(f"P L² / EI = {', '.join(f'{k:g}' for k in out['steps'])}: {title}", fontsize=8, loc="left")
-        ax.set_xlabel("x / L", fontsize=8)
-        ax.set_ylabel("y / L", fontsize=8)
-        ax.tick_params(labelsize=7)
-        for s in ("top", "right"):
-            ax.spines[s].set_visible(False)
-    axes[1].legend(fontsize=7, frameon=False, loc="upper left")
+        ax.set(xlabel="x / L", ylabel="y / L")
+        fs.panel_title(ax, title, ("stays normal to the tip" if key == "follower" else "stays vertical")
+                       + f"; {N_EL} corotational Timoshenko elements, nodes shown")
+    axes[1].legend(loc="upper left", ncol=1)
+    ax = axes[2]
+    for key, c, m in (("follower", fs.colour("Timoshenko"), "o"), ("dead", fs.colour("GBT"), "s")):
+        k = [r["k"] for r in out[key]]
+        fs.solves(ax, k, [r["error_tip_over_L"] for r in out[key]], color=c, marker=m, label=f"{key}: tip position / L")
+        ax.plot(k, [abs(r["error_theta"]) for r in out[key]], m, ls="none", mfc="white", mec=c, ms=5, mew=0.9,
+                label=f"{key}: tip rotation (rad)")
+    ax.set(yscale="log", xlabel="P L² / EI", ylabel="error against the elastica")
+    fs.panel_title(ax, "Tip error at each load step", "discretisation error, falls as h⁴")
+    ax.legend(loc="lower right")
     fig.tight_layout()
-    fig.savefig(os.path.join(out_dir, "follower_cantilever.png"), dpi=150)
-    plt.close(fig)
+    fs.save(fig, os.path.join(out_dir, "follower_cantilever.png"))
 
 
 if __name__ == "__main__":

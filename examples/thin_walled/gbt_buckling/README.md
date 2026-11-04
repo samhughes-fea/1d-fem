@@ -21,6 +21,9 @@ It takes about 4 minutes.
 
 ![Buckling stress against length](signature.png)
 
+Top: one marker per column length solved. Bottom: the share of the buckling
+mode's in-plane displacement that is local, distortional or global.
+
 | Length | GBT | Finite strip | GBT / strip | Mode |
 |---|---|---|---|---|
 | 0.04 m | 224.3 MPa | 223.4 MPa | 1.004 | local |

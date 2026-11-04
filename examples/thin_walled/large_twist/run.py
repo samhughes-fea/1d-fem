@@ -50,8 +50,9 @@ def section() -> SectionSpec:
     )
 
 
-def vlasov_nonlinear(T: float) -> float:
-    """Tip twist of the nonlinear Vlasov equation (root: phi = phi' = 0, tip: phi'' = 0)."""
+def vlasov_nonlinear(T: float, along: bool = False):
+    """Tip twist of the nonlinear Vlasov equation (root: phi = phi' = 0, tip: phi'' = 0);
+    with ``along``, the collocation solution ``phi(x)`` as a callable."""
     from numpy.polynomial.legendre import leggauss
     from scipy.integrate import solve_bvp
 
@@ -73,6 +74,8 @@ def vlasov_nonlinear(T: float) -> float:
     y0 = np.zeros((3, s.size))
     y0[1] = T / GJ * (1 - np.exp(-5 * s))
     sol = solve_bvp(rhs, lambda a, b: np.array([a[0], a[1], b[2]]), s, y0, tol=1e-10, max_nodes=100000)
+    if along:
+        return lambda xx: sol.sol(xx)[0]
     return float(sol.sol(L)[0])
 
 
@@ -101,7 +104,11 @@ def _run_job(work_dir, name, etype, T, nonlinear):
             raise RuntimeError(f"{name}: Newton did not reach the full load (last row {last})")
     with open(os.path.join(res, "primary_results", "global", "U_global.csv"), newline="") as fh:
         U = np.array([float(r[1]) for r in list(csv.reader(fh))[1:]]).reshape(N_EL + 1, -1)
+    _FIELDS[name] = U
     return float(U[-1, 3])
+
+
+_FIELDS: dict = {}
 
 
 def main(n_el: int = N_EL, plot: bool = True, work_dir: str = HERE, torques=TORQUES) -> dict:
@@ -119,26 +126,68 @@ def main(n_el: int = N_EL, plot: bool = True, work_dir: str = HERE, torques=TORQ
     with open(os.path.join(work_dir, "summary.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
     if plot:
-        import matplotlib
-
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-
-        Ts = np.linspace(0, max(torques), 40)
-        fig, ax = plt.subplots(figsize=(5.5, 3.8))
-        ax.plot([0] + [vlasov_nonlinear(t) for t in Ts[1:]], Ts / 1e3, "k-", label="nonlinear Vlasov")
-        ax.plot([r["corotational"] for r in rows], [r["torque"] / 1e3 for r in rows], "o",
-                label="1d-fem corotational Benscoter")
-        ax.plot([r["linear"] for r in rows], [r["torque"] / 1e3 for r in rows], "s", mfc="none",
-                label="1d-fem linear Benscoter")
-        ax.set_xlabel("tip twist (rad)")
-        ax.set_ylabel("tip torque (kN m)")
-        ax.set_title("I-beam, warping restrained at the root")
-        ax.legend()
-        fig.tight_layout()
-        fig.savefig(os.path.join(work_dir, "twist.png"), dpi=130)
-        plt.close(fig)
+        _plots(rows, torques, work_dir)
     return summary
+
+
+def _plots(rows, torques, out_dir):
+    """Torque against tip twist (one marker per solve), twist along the beam through each
+    element's interpolation, and the tip section turned by the computed twist."""
+    from onedfem.post_processing.graphical_visualisers import figure_style as fs
+    from onedfem.post_processing.graphical_visualisers.beam_field_sampling import beam_curve
+    from onedfem.post_processing.graphical_visualisers.thin_walled_drawing import draw_section
+
+    from common import ply_materials
+
+    fs.use()
+    import matplotlib.pyplot as plt
+
+    fig = plt.figure(figsize=(12, 3.9))
+    gs = fig.add_gridspec(1, 3, width_ratios=[1, 1.25, 0.8])
+    ax = fig.add_subplot(gs[0])
+    Ts = np.linspace(0, max(torques), 40)
+    fs.analytic(ax, [0] + [vlasov_nonlinear(t) for t in Ts[1:]], Ts / 1e3, label="nonlinear Vlasov (collocation)")
+    fs.solves(ax, [r["corotational"] for r in rows], [r["torque"] / 1e3 for r in rows],
+              color=fs.colour("corotational"), label="corotational Benscoter, one job per torque")
+    fs.solves(ax, [r["linear"] for r in rows], [r["torque"] / 1e3 for r in rows], color=fs.colour("linear"),
+              marker="s", label="linear Benscoter")
+    ax.set(xlabel="tip twist (rad)", ylabel="tip torque (kN·m)")
+    fs.panel_title(ax, "Wagner stiffening", "27 % less twist than linear at 6 kN·m")
+    ax.legend(loc="lower right")
+
+    ax = fig.add_subplot(gs[1])
+    x = np.linspace(0, L, N_EL + 1)
+    xa = np.linspace(0, L, 101)
+    for i, r in enumerate(rows):
+        c = fs.colour("", i)
+        U = _FIELDS.get(f"cr_{r['torque']:.0f}")
+        if U is None:
+            continue
+        xs, v = beam_curve(x, U, 3, "LinearBenscoterBeamElement3D")
+        fs.field(ax, xs, v, color=c, label=f"{r['torque'] / 1e3:.0f} kN·m")
+        fs.nodal(ax, x, U[:, 3], color=c)
+        fs.analytic(ax, xa, vlasov_nonlinear(r["torque"], along=True)(xa), label="Vlasov" if i == 0 else None,
+                    lw=0.8)
+    ax.set(xlabel="x (m)", ylabel="twist φ (rad)")
+    fs.panel_title(ax, "Twist along the beam, corotational", f"{N_EL} elements, linear interpolation in each; "
+                                                            "warping restrained at the root")
+    ax.legend(loc="upper left")
+    fs.marks_legend(ax, ("field", "nodal", "analytic"), loc="lower right")
+
+    ax = fig.add_subplot(gs[2])
+    an = build_analysis(section())
+    mats = ply_materials(section(), {1: "steel"})
+    draw_section(ax, an, mats, legend=False, nodes=False)
+    phi = rows[-1]["corotational"]
+    R = np.array([[np.cos(phi), -np.sin(phi)], [np.sin(phi), np.cos(phi)]])
+    for w in an.section.walls:
+        a_, b_ = an.section.endpoints(w)
+        p = np.array([R @ a_, R @ b_])
+        ax.plot(p[:, 0], p[:, 1], color=fs.colour("corotational"), lw=1.8, zorder=5)
+    ax.set(xlabel="y (m)", ylabel="z (m)", xlim=(-0.2, 0.2), ylim=(-0.2, 0.2))
+    fs.panel_title(ax, "Tip section", f"turned by the computed {phi:.3f} rad at {rows[-1]['torque'] / 1e3:.0f} kN·m")
+    fig.tight_layout()
+    fs.save(fig, os.path.join(out_dir, "twist.png"))
 
 
 if __name__ == "__main__":
