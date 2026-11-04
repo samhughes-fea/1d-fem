@@ -521,6 +521,8 @@ class VibrationBucklingBackend:
                     )
                 U_global = nl_runner.U_global
         self._buckling_prestress_u = np.asarray(U_global, dtype=np.float64).copy()
+        self.buckling_prestress_u = self._buckling_prestress_u
+        self.buckling_stiffness = K_global
         total_dof = self._total_dof()
 
         with _stage("AssembleBucklingGeometricStiffness"):
@@ -538,6 +540,7 @@ class VibrationBucklingBackend:
                 prescribed_displacements=prescribed,
                 fixed_dofs=buck_fixed,
             ).run(K_global, Kg_global)
+        self.buckling_constrained_dofs = np.asarray(bc_dofs)
         with _stage("SolveLinearBucklingEigenpairs"):
             lambdas, modes = SolveLinearBucklingEigenpairs(
                 num_modes=num_modes,

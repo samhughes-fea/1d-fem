@@ -13,11 +13,13 @@ Format::
     displacement 24 RX -
     compliance - - -
     frequency - - 1
+    buckling - - 1
 
 - ``ply`` counts from 1 at the bottom of the laminate (as ``[ply]`` in ``laminate.txt``);
   ``kind`` is ``angle`` (derivative per degree) or ``thickness`` (per metre).
 - Responses: ``displacement`` (a nodal DOF ``UX`` ... ``RZ`` or ``Qk``) and ``compliance``
-  (``F^T U``) in static jobs; ``frequency`` (mode number from 1, in Hz) in eigen jobs.
+  (``F^T U``) in static jobs; ``frequency`` (mode number from 1, in Hz) in eigen jobs;
+  ``buckling`` (the load factor of buckling mode number from 1) in linear buckling jobs.
 
 Public API
 ----------
@@ -33,7 +35,7 @@ from typing import List, Optional, Sequence, Tuple
 from pre_processing.section_integration.thin_walled.layup_sensitivity import LayupParameter
 
 LAYUP_SENSITIVITY_FILE = "layup_sensitivity.txt"
-RESPONSE_TYPES = ("displacement", "compliance", "frequency")
+RESPONSE_TYPES = ("displacement", "compliance", "frequency", "buckling")
 
 
 @dataclass(frozen=True)
@@ -50,8 +52,8 @@ class Response:
             raise ValueError(f"response type must be one of {RESPONSE_TYPES}, got {self.type!r}")
         if self.type == "displacement" and (self.node_id is None or self.dof is None):
             raise ValueError("a displacement response needs a node_id and a dof")
-        if self.type == "frequency" and (self.mode is None or self.mode < 1):
-            raise ValueError("a frequency response needs a mode number from 1")
+        if self.type in ("frequency", "buckling") and (self.mode is None or self.mode < 1):
+            raise ValueError(f"a {self.type} response needs a mode number from 1")
 
     @property
     def label(self) -> str:
@@ -59,6 +61,8 @@ class Response:
             return f"{self.dof}@{self.node_id}"
         if self.type == "frequency":
             return f"f{self.mode}"
+        if self.type == "buckling":
+            return f"lambda{self.mode}"
         return "compliance"
 
 

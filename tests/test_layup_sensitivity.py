@@ -114,6 +114,11 @@ WEB = [45.0, -45.0, -45.0, 45.0]
 JOB_PARAMS = [LayupParameter(1, 4, "angle"), LayupParameter(1, 2, "thickness")]
 STATIC = [Response("displacement", N_EL, "UZ"), Response("displacement", N_EL, "RX"), Response("compliance")]
 EIGEN = [Response("frequency", mode=1), Response("frequency", mode=3)]
+BUCKLING = [Response("buckling", mode=1), Response("buckling", mode=2)]
+RESPONSES = {"static": STATIC, "eigen": EIGEN, "buckling": BUCKLING}
+#: tip load of the buckling jobs: compression with shear, torque and bending, so every
+#: second-order term of the prestress is present
+BUCKLING_TIP = [-2e5, 4e3, 6e3, 3e3, 2e3, -1e3]
 
 
 def _spec(change=None):
@@ -128,15 +133,20 @@ def _spec(change=None):
 def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D"):
     from workflow_orchestrator.run_job import process_job
 
-    spec = common.CantileverSpec(4.0, N_EL, element, sec, [0.0, 3e3, 20e3, 5e3, 0.0, 0.0])
+    tip = BUCKLING_TIP if kind == "buckling" else [0.0, 3e3, 20e3, 5e3, 0.0, 0.0]
+    spec = common.CantileverSpec(4.0, N_EL, element, sec, tip, warping=int("Benscoter" in element))
     job = os.path.join(_WORK, "jobs", name)
     common.write_job(job, spec)
     common.write_supports(job, spec)
     if kind == "eigen":
         with open(os.path.join(job, "simulation_settings.txt"), "w", encoding="utf-8") as f:
             f.write("[Simulation]\n[Type]\neigen\n\n[Solver]\ntype = direct\n\n[Eigen]\nnum_modes = 4\n")
+    if kind == "buckling":
+        with open(os.path.join(job, "simulation_settings.txt"), "w", encoding="utf-8") as f:
+            f.write("[Simulation]\n[Type]\nbuckling\n\n[Solver]\ntype = direct\n\n[Buckling]\nenabled = true\n"
+                    "num_modes = 4\nbuckling_prestress = linear_static\nbuckling_load_factor = 1.0\n")
     with open(os.path.join(job, "layup_sensitivity.txt"), "w", encoding="utf-8") as f:
-        f.write(format_layup_sensitivity_file(JOB_PARAMS, STATIC if kind == "static" else EIGEN))
+        f.write(format_layup_sensitivity_file(JOB_PARAMS, RESPONSES[kind]))
     res = common.results_dir(os.path.join(_WORK, "results", name))
     logging.disable(logging.WARNING)
     try:
@@ -148,15 +158,29 @@ def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D"):
         return {(r["parameter"], r["response"]): r for r in csv.DictReader(f)}
 
 
+@pytest.mark.parametrize("prm, h", PARAMS, ids=[p.label for p, _ in PARAMS])
+def test_benscoter_derivative_matches_central_differences(prm, h):
+    """The 8 x 8 Benscoter stiffness and the warping inertia, both hoop options."""
+    for hoop in ("free", "restrained"):
+        d = section_derivative(_box(hoop=hoop), prm, benscoter=True)
+        p, m = _box((prm, h), hoop), _box((prm, -h), hoop)
+        fd = (p.benscoter_stiffness - m.benscoter_stiffness) / (2 * h)
+        assert np.abs(d.benscoter_stiffness - fd).max() <= 1e-6 * np.abs(fd).max()
+        assert d.warping_inertia == pytest.approx((p.warping_inertia - m.warping_inertia) / (2 * h), rel=1e-6)
+        np.testing.assert_allclose(d.benscoter_stiffness[:6, :6], d.stiffness)
+
+
 @pytest.mark.slow
+@pytest.mark.parametrize("element", ["LinearTimoshenkoBeamElement3D", "LinearBenscoterBeamElement3D"])
 @pytest.mark.parametrize("kind", ["static", "eigen"])
-def test_job_sensitivities_match_central_differences_of_re_solved_jobs(kind):
-    base = _run(kind, _spec(), kind)
-    assert len(base) == len(JOB_PARAMS) * (len(STATIC) if kind == "static" else len(EIGEN))
+def test_job_sensitivities_match_central_differences_of_re_solved_jobs(kind, element):
+    tag = f"{kind}_{element[6:10]}"
+    base = _run(tag, _spec(), kind, element)
+    assert len(base) == len(JOB_PARAMS) * len(RESPONSES[kind])
     for prm in JOB_PARAMS:
         h = 1e-3 if prm.kind == "angle" else 1e-8
-        rp = _run(f"{kind}_p", _spec((prm, h)), kind)
-        rm = _run(f"{kind}_m", _spec((prm, -h)), kind)
+        rp = _run(f"{tag}_p", _spec((prm, h)), kind, element)
+        rm = _run(f"{tag}_m", _spec((prm, -h)), kind, element)
         for (label, resp), row in base.items():
             if label != prm.label:
                 continue
@@ -165,6 +189,22 @@ def test_job_sensitivities_match_central_differences_of_re_solved_jobs(kind):
             if prm.kind == "thickness":
                 rel = 0.5e-3 / float(row["response_value"]) * float(row["derivative"])
                 assert float(row["relative_derivative"]) == pytest.approx(rel, rel=1e-12)
+
+
+@pytest.mark.slow
+def test_buckling_load_sensitivities_match_central_differences_of_re_solved_jobs():
+    """Load factors of a cantilever under compression, shear, torque and bending."""
+    base = _run("buckling", _spec(), "buckling")
+    assert len(base) == len(JOB_PARAMS) * len(BUCKLING)
+    for prm in JOB_PARAMS:
+        h = 1e-3 if prm.kind == "angle" else 1e-8
+        rp = _run("buckling_p", _spec((prm, h)), "buckling")
+        rm = _run("buckling_m", _spec((prm, -h)), "buckling")
+        for (label, resp), row in base.items():
+            if label != prm.label:
+                continue
+            fd = (float(rp[label, resp]["response_value"]) - float(rm[label, resp]["response_value"])) / (2 * h)
+            assert float(row["derivative"]) == pytest.approx(fd, rel=2e-5), (label, resp)
 
 
 def test_unsupported_elements_are_refused():

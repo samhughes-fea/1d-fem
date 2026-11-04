@@ -56,9 +56,32 @@ matrix is linear in the mass moments, so its derivative is exact by construction
 central differences the stiffness derivative agrees to about \(10^{-9}\), with the hoop
 free or restrained.
 
+### Benscoter stiffness and warping inertia
+
+With `benscoter=True` the derivative also carries the 8 x 8 Benscoter stiffness and the
+warping inertia. The torsional warping \(\omega\) is one more solve with the same wall-law
+matrices (\(E\,\omega = -R_\phi\)), and its rigid part is removed by a 3 x 3 solve in the walls'
+axial stiffness; both are differentiated. Then
+
+\[
+\partial K_B = \sum_e w_e\left(\partial G_e^T K_e G_e + G_e^T K_e\,\partial G_e + G_e^T\,\partial K_e\,G_e\right),
+\qquad
+\partial I_\omega = \sum_e w_e\left(\partial m_e\,\omega_e^2 + 2 m_e\,\omega_e\,\partial\omega_e\right),
+\]
+
+with \(G\) the wall strains of the beam strains, \(\omega_s\,d\) and \(\omega\,\psi'\). Both
+agree with central differences to about \(10^{-9}\).
+
+### Second-order terms
+
+With `geometric=True` it carries the derivative of `geometric_terms` \(H\), the wall
+resultants of the Saint-Venant stresses against the section geometry. \(H\) is linear in the
+wall law and in the warping fields, so \(\partial H\) takes \(\partial K_e\) and \(\partial\Phi_e\).
+
 ## Beam
 
-The Timoshenko element is linear in the section's 6 x 6 stiffness and mass, so the element
+The Timoshenko element is linear in the section's 6 x 6 stiffness and mass, and the
+Benscoter element in its 8 x 8 stiffness, mass and warping inertia, so the element
 derivatives \(\partial K_e\) and \(\partial M_e\) are the element's own matrices formed with
 the derivative section in place of its own. From the solved job:
 
@@ -67,6 +90,14 @@ the derivative section in place of its own. From the solved job:
   DOFs. The compliance \(C = F^T U\) is self-adjoint: \(\partial C = -U^T \partial K\,U\).
 - **eigen:** \(\partial(\omega^2) = \varphi^T(\partial K - \omega^2 \partial M)\varphi\,/\,\varphi^T M \varphi\)
   for each (simple) mode, and \(\partial f = \partial(\omega^2) / (8\pi^2 f)\).
+- **linear buckling:** \((K + \lambda K_g(U_0))\varphi = 0\) about the prestress \(K U_0 = F\), so
+  \(\partial\lambda = -\varphi^T(\partial K + \lambda\,\partial K_g)\varphi\,/\,\varphi^T K_g\varphi\).
+  \(K_g\) changes with the section at fixed \(U_0\): its section forces \(D e\) and its
+  second-order terms \(H\) enter linearly, so that part is the element's \(K_g\) formed with
+  \(\partial D\) plus the one formed with \(\partial H\). It also changes through the prestress:
+  \(K_g\) is linear in \(U_0\), so \(\varphi^T K_g(\partial U_0)\varphi = g^T \partial U_0\) with
+  \(g_i = \varphi^T K_g(e_i)\varphi\) (element by element), and one adjoint solve \(K\mu = g\) gives
+  \(g^T\partial U_0 = -\mu^T \partial K\,U_0\).
 
 The products are formed element by element (\(\lambda_e^T \partial K_e U_e\)), so no
 global derivative matrix is assembled.
@@ -86,12 +117,14 @@ displacement 12 UZ -
 displacement 12 RX -
 compliance - - -
 frequency - - 1
+buckling - - 1
 ```
 
 - `ply` counts from 1 at the bottom of the laminate, as `[ply]` in `laminate.txt`; `kind` is
   `angle` (derivative per degree) or `thickness` (per metre).
 - `displacement` and `compliance` responses are for static jobs, `frequency` (mode number
-  from 1, in Hz) for eigen jobs.
+  from 1, in Hz) for eigen jobs, `buckling` (the load factor of a mode, from 1) for linear
+  buckling jobs with a linear static prestress.
 
 The job writes `secondary_results/sensitivity/layup_sensitivity.csv` with columns
 `parameter, laminate_id, ply, kind, value, response, response_value, derivative,
@@ -100,9 +133,11 @@ parameters `relative_derivative` is the logarithmic derivative \((t / J)\,\parti
 
 ## Checks
 
-`tests/test_layup_sensitivity.py` checks the section stiffness and mass derivatives and the
-job derivatives (static displacements, twist, compliance; eigen frequencies) against
-central differences of re-solved jobs.
+`tests/test_layup_sensitivity.py` checks the section stiffness, mass, Benscoter and
+second-order derivatives, and the job derivatives against central differences of re-solved
+jobs: static displacements, twist and compliance and eigen frequencies with Timoshenko and
+Benscoter elements, and the first two buckling load factors of a box cantilever under
+compression, shear, torque and bending (all to \(2\times10^{-5}\)).
 
 ## Example
 
@@ -114,9 +149,11 @@ reaches a target twist per unit flap deflection.
 
 ## Limits
 
-- Linear static and eigen jobs with `LinearTimoshenkoBeamElement3D` elements on thin-walled
-  sections. Other element types, 2D sections, pretwisted and tapered elements, second-order
-  and rotating (centrifugal) jobs are refused.
+- Linear static and eigen jobs with `LinearTimoshenkoBeamElement3D` or
+  `LinearBenscoterBeamElement3D` elements on thin-walled sections, and linear buckling jobs
+  (linear static prestress) with Timoshenko elements. Other element types (GBT, third-order,
+  corotational), 2D sections, pretwisted and tapered elements, nonlinear prestress,
+  second-order static and rotating (centrifugal) jobs are refused.
 - Eigenvalue derivatives assume simple eigenvalues. For repeated frequencies (a doubly
   symmetric section) the derivative of each of them depends on the chosen modes.
 - Loads are taken as independent of the layup, so gravity and inertial loads, whose
