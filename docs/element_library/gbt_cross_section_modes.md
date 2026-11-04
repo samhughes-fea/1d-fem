@@ -288,6 +288,52 @@ strains, so the distortional modes carry no wall-level geometric stiffness. Chec
 level (tangent, objectivity) and as a job: at small load it is the linear GBT element, and at
 a tip deflection of 14 % of the span it stiffens as the corotational Timoshenko beam does.
 
+### Brazier flattening
+
+A mode moves the walls in the section plane by \(\mathbf d_k(s)\), so the beam curvature
+\(\boldsymbol\kappa = (\kappa_y, \kappa_z)\) strains the moved fibre axially by
+
+\[
+e_B = \sum_k a_k\, \mathbf g_k \cdot \boldsymbol\kappa, \qquad \mathbf g_k = (d_{z,k},\ -d_{y,k}).
+\]
+
+Its work against the wall force of the GBT strains and its own energy are added to the
+element's local energy at each Gauss point:
+
+\[
+\Pi_B = \sum_k a_k\, \boldsymbol\kappa^T \mathbf T_k \mathbf E
+  + \tfrac12 \sum_{kl} a_k a_l\, \boldsymbol\kappa^T \mathbf Q_{kl} \boldsymbol\kappa,
+\qquad
+\mathbf T_k = \int \mathbf g_k N_{xx}\, ds,\quad \mathbf Q_{kl} = \int A_{11}\, \mathbf g_k \mathbf g_l^T ds,
+\]
+
+where \(N_{xx}\) is the wall force per unit GBT strain \(\mathbf E\) (on 2D sections, the
+integrals are over the mesh with \(\sigma_{xx}\) and the axial modulus). The bent section's
+compressed and stretched flanges are pushed towards the neutral axis, the modes take that
+up, and the bending stiffness falls (Brazier 1927). The terms are of third and fourth order
+in the local DOFs, like the other corotational terms. `SectionAnalysis.gbt_brazier_terms`
+builds them (`CrossSectionModes.brazier_tensor`, `SolidCrossSectionModes.brazier_tensor`).
+Linear GBT has none.
+
+| Check | Reference | Agreement |
+|---|---|---|
+| Energy gradient and Hessian | central differences | 1e-7 |
+| Isotropic tube (24-sided, R/t = 50) under a tip moment | Brazier's ovalisation \(\zeta = (1-\nu^2)\kappa^2R^4/t^2\) | 1 % at \(\zeta\) = 1.2 %, 4 % at 5.5 % |
+| Same tube | bending stiffness falls by \(1.5\zeta\) | within 10 % of the drop |
+| CAS composite box, flattening at 1 P (19 % span deflection) | CalculiX `C3D20R` `NLGEOM` solid | 86 % of the solid's |
+| CAS box, tip deflection up to 2 P (35 % span) | same solid | within 0.3 % (rigid section: 1.3 %) |
+| CAS box, tip deflection at 3 P (49 % span) | same solid | −3.5 % (rigid section: −5.3 %) |
+
+The composite box is
+[nonlinear_solid_box](../../post_processing/validation_visualisers/nonlinear_solid_box/README.md).
+The beam's flattening agrees with a frame estimate of the flanges (rigid corners, Brazier
+pressure \(N_{xx}\kappa\)): 0.28 mm at a quarter span at P with four modes, 0.34 mm with
+eight, against 0.39 mm in the solid. Between 2 P and 3 P the solid's flattening grows faster
+than the square of the curvature, to 3.3 mm, while the beam's reaches 2.2 mm. So at 3 P the
+beam is still 3.5 % stiff, against a 2 % target. Modes beyond eight and finer wall meshes
+change it by less than 0.1 %. Adding the modes' wall geometric stiffness changes it by less
+than 0.1 %, and on a coarse mesh it loses convergence near 2.75 P. It is left out.
+
 ## Buckling
 
 The element's geometric stiffness takes the wall stresses of the GBT strains, so the

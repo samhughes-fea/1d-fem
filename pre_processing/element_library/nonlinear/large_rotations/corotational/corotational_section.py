@@ -362,11 +362,51 @@ class CorotationalGBTBeamElement3D(CorotationalMixin, LinearGBTBeamElement3D):
     the Wagner, offset and stretch effects of moderate local rotation. The distortional
     modes have no wall-level geometric stiffness, so local and distortional buckling are
     not captured here (``LinearGBTBeamElement3D.linear_geometric_stiffness_matrix`` has them).
+
+    **Brazier flattening.** A mode moves the walls in the section plane, so the beam
+    curvature strains the moved fibres: ``e_B = sum_k a_k g_k . kappa``
+    (``SectionAnalysis.gbt_brazier_terms``). Its work against the wall stresses of the GBT
+    strains, ``sum_k a_k kappa^T T_k E``, and its own energy
+    ``1/2 sum_kl a_k a_l kappa^T Q_kl kappa`` are added to the local energy at the Gauss
+    points: the compressed flange of a bent box bows towards the neutral axis and the
+    bending stiffness falls (Brazier 1927). Both are of third and fourth order in the local
+    DOFs, as the other corotational terms.
     """
 
     element_type_name = "Corotational-GBT-3D"
 
     linear_geometric_stiffness_matrix = GeometricStiffnessMixin.linear_geometric_stiffness_matrix
+
+    def _cr_setup(self) -> None:
+        if getattr(self, "_cr_ready", False):
+            return
+        super()._cr_setup()
+        bz = self.section_analysis.gbt_brazier_terms(self.n_modes, self.n_shear) if self.n_modes else None
+        self._brazier = None
+        if bz is not None:
+            m, p = self.n_modes, self.n_warping
+            r = self._reduced_rows
+            rows = []
+            for x in _GAUSS_X:
+                B = self._B_at(float(x))[0].copy()
+                B[r] = self._B_at(0.0)[0][r]
+                Na = self._field_interpolation(float(x))[6 + p:6 + p + m]
+                rows.append(np.vstack([Na, B[1:3], B]))
+            self._brazier = (bz[0], bz[1], rows)
+
+    def _local_force_and_tangent(self, p: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        f, H = super()._local_force_and_tangent(p)
+        if self._brazier is None:
+            return f, H
+        T, Q, rows = self._brazier
+        m = T.shape[0]
+        nE = T.shape[2]
+        detJ = 0.5 * self._l0
+        for Z, wg in zip(rows, _GAUSS_W):
+            g, Hz = brazier_energy_derivatives(T, Q, Z @ p)
+            f = f + wg * detJ * Z.T @ g
+            H = H + wg * detJ * Z.T @ Hz @ Z
+        return f, H
 
     def _geometric_state(self, xi: float, U_e: np.ndarray):
         """Timoshenko rows of ``[v', w', phi', phi]`` and the terms of the GBT section forces.
@@ -382,6 +422,37 @@ class CorotationalGBTBeamElement3D(CorotationalMixin, LinearGBTBeamElement3D):
         e[:6] -= self._E_0_voigt
         F = self._D_gbt[:6] @ e
         return _linear_rows(self.L, float(xi), self._n_dof), self._geometric_terms_matrix() @ F
+
+
+def brazier_energy_derivatives(T: np.ndarray, Q: np.ndarray, z: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Gradient and Hessian of ``W = a^T (kappa . T E) + 1/2 a a kappa kappa . Q`` in ``z = [a, kappa, E]``.
+
+    ``T`` is ``(m, 2, n)`` and ``Q`` ``(m, m, 2, 2)`` (``SectionAnalysis.gbt_brazier_terms``).
+    """
+    m, n = T.shape[0], T.shape[2]
+    a, k, E = z[:m], z[m:m + 2], z[m + 2:]
+    ia, ik, ie = slice(0, m), slice(m, m + 2), slice(m + 2, m + 2 + n)
+    TE = T @ E                                   # (m, 2)
+    Tk = np.einsum("kce,c->ke", T, k)            # (m, n)
+    g = np.zeros(m + 2 + n)
+    H = np.zeros((m + 2 + n, m + 2 + n))
+    g[ia] = TE @ k
+    g[ik] = a @ TE
+    g[ie] = a @ Tk
+    H[ia, ik] = TE
+    H[ia, ie] = Tk
+    H[ik, ie] = np.einsum("k,kce->ce", a, T)
+    # quartic part
+    Qkk = np.einsum("klcd,c,d->kl", Q, k, k)     # (m, m)
+    Qaa = np.einsum("klcd,k,l->cd", Q, a, a)     # (2, 2)
+    Qak = np.einsum("klcd,l,d->kc", Q, a, k) + np.einsum("klcd,l,c->kd", Q, a, k)
+    g[ia] += Qkk @ a
+    g[ik] += Qaa @ k
+    H[ia, ia] += Qkk
+    H[ik, ik] += Qaa
+    H[ia, ik] += Qak
+    H = np.triu(H) + np.triu(H, 1).T
+    return g, H
 
 
 class _CorotationalThirdOrder(CorotationalMixin):

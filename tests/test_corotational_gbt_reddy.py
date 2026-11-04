@@ -147,7 +147,11 @@ def test_corotational_gbt_job_small_load_is_the_linear_gbt(tmp_path):
     load = [0.0, 0.0, 50.0, 0.0, 0.0, 0.0]
     lin = _box_job(tmp_path, "LinearGBTBeamElement3D", load, False)
     cr = _box_job(tmp_path, "CorotationalGBTBeamElement3D", load, True, increments=1)
-    assert np.abs(cr - lin).max() < 1e-3 * np.abs(lin).max()
+    # the two modes' amplitudes and slopes (last four columns) also take the Brazier
+    # flattening, which is quadratic in the load and absent from the linear element
+    beam = slice(0, cr.shape[1] - 4)
+    assert np.abs(cr[:, beam] - lin[:, beam]).max() < 1e-3 * np.abs(lin).max()
+    assert np.abs(cr[:, -4:]).max() < 1e-2 * np.abs(lin).max()
 
 
 def test_corotational_gbt_job_large_deflection_follows_the_timoshenko_beam(tmp_path):
