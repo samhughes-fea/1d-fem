@@ -102,3 +102,7 @@ export FEM_FORMULATION_CACHE_STRICT_SHAPE=1
 Smoke jobs with warping are under [`jobs/`](jobs/README_JOBS.md)
 (`job_smoke_nl_eb_warp`, `job_smoke_nl_ts_warp`).
 
+
+## License
+
+MIT, see [LICENSE](LICENSE).
