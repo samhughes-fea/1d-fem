@@ -54,12 +54,7 @@ def _material_colour(mat, materials: Sequence[Tuple[str, object]], seen: Dict[in
 
 def gauss_s(analysis, wall_id: int) -> Array:
     """Distances along a wall of the section analysis's Gauss points."""
-    from onedfem.pre_processing.section_integration.thin_walled.section_analysis import _GAUSS_X
-
-    sec = analysis.section
-    L = sec.length(sec.wall(wall_id))
-    le = L / analysis.n_sub
-    return np.concatenate([le * (k + 0.5 * (1.0 + _GAUSS_X)) for k in range(analysis.n_sub)])
+    return analysis.gauss_s(wall_id)
 
 
 def wall_samples(analysis, wall_id: int, per_element: int = 9) -> List[Array]:
@@ -108,7 +103,7 @@ def draw_section(ax, analysis, materials: Sequence[Tuple[str, object]] = (), nod
                 ax.plot([p0[0], p1[0]], [p0[1], p1[1]], color=fs.INK, lw=0.35, zorder=zorder + 0.1)
         if nodes:
             t = sec.tangent(w)
-            s_nodes = analysis._wall_node_s[w.wall_id][::3]
+            s_nodes = analysis.element_ends(w.wall_id)
             pts = np.array([a + s * t for s in s_nodes])
             ax.plot(pts[:, 0], pts[:, 1], "|", color="white", ms=3, mew=0.7, zorder=zorder + 0.2)
     ax.set_aspect("equal")
