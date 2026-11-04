@@ -296,7 +296,7 @@ def figures(result, ref, out_dir):
     ax2.set_aspect("equal")
     ax2.set(xlabel="y (m)", ylabel="z (m)")
     fs.panel_title(ax2, "Root, mid and tip cuts", "wall mid-lines; caps and webs thicker")
-    ax2.legend(loc="lower center", ncol=3, fontsize=7)
+    ax2.legend(loc="upper center", bbox_to_anchor=(0.5, -0.55), ncol=3, fontsize=7)
     fig.tight_layout()
     fs.save(fig, os.path.join(out_dir, "loft.png"))
 
