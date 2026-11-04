@@ -107,7 +107,7 @@ def test_tip_moment_rolls_up_as_the_timoshenko_beam(etype):
 
 # --- whole jobs: the corotational GBT box cantilever ----------------------------------
 
-_NL = ("[Simulation]\n[Type]\nstatic_nonlinear\n\n[Newton]\ntolerance = 1e-8\nrelative_tolerance = 1e-10\n"
+_NL = ("[Simulation]\n[Type]\nstatic_nonlinear\n\n[Newton]\ntolerance = 1e-6\nrelative_tolerance = 1e-10\n"
        "relative_reference = first_residual\nmax_iterations = 40\ntolerance_delta_u = 1e-14\n\n[Solver]\n"
        "type = direct\ntolerance = 1e-12\n\n[Nonlinear]\nnum_increments = {n}\nline_search = false\n")
 
@@ -140,6 +140,10 @@ def _box_job(tmp_path, etype, load, nonlinear, increments=8):
     res = common.results_dir(str(tmp_path / "res" / name))
     logging.getLogger().setLevel(logging.WARNING)
     process_job(jd, res, {}, {}, force_serial=True, max_processes_per_job=1)
+    if nonlinear:
+        with open(os.path.join(res, "logs", "newton_history.csv"), newline="", encoding="utf-8") as fh:
+            last = list(csv.DictReader(fh))[-1]
+        assert float(last["load_factor"]) == pytest.approx(1.0) and last["residual_ok"] == "1", last
     with open(os.path.join(res, "primary_results", "global", "U_global.csv"), newline="", encoding="utf-8") as f:
         U = np.array([float(r[1]) for r in list(csv.reader(f))[1:]])
     return U.reshape(spec.n_el + 1, -1)
