@@ -53,8 +53,8 @@ MODELS = {TW: ("thin_walled", "LinearTimoshenkoBeamElement3D"),
 NAMES = {TW: "Timoshenko, thin-walled", BENSCOTER: "Benscoter, thin-walled", TS_2D: "Timoshenko, 2D sections",
          "shell": "CLM shell"}
 # torsion modes with the sections' own distortion: GBT on the 2D sections, against the same
-# beam without the modes. GBT takes neither taper nor pretwist, so both are untapered,
-# unpretwisted beams of the elements' mid-span sections
+# beam without the modes. Both are untapered, unpretwisted beams of the elements'
+# mid-span sections
 TS_2D_PLAIN, GBT_2D = "timoshenko_2d_untapered", "gbt_2d_untapered"
 GBT_MODES = 4
 MODAL_MODELS = {TW: {}, BENSCOTER: {},

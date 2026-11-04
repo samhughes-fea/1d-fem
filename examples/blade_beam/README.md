@@ -92,8 +92,10 @@ torsion-distortion modes between 11 and 13 Hz, which the plane-section beams do 
 It now overshoots: the second torsion mode is 8 % low. Two things are not like for like
 here:
 
-- GBT takes neither taper nor pretwist yet, so both 2D beams are untapered and
-  unpretwisted, while the shell is tapered and twisted.
+- Both 2D beams here are untapered and unpretwisted, while the shell is tapered and
+  twisted. GBT now takes both (its bases are aligned from section to section,
+  `gbt_alignment`); with the modes held it gives the tapered, pretwisted Timoshenko 2D
+  tip deflections within 0.3 % in flap and edge.
 - GBT with the thin-walled sections' modes (not shown) leaves the first torsion frequency
   where the Timoshenko beam has it (10.66 Hz with 4 modes on 6 elements). The two mode
   sets are built differently (the thin-walled modes are orthogonal to the rigid-section

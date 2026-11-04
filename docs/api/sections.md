@@ -17,6 +17,22 @@ Section integration: geometry to A, I_y, I_z, J_t, kappa, shear centre (y_sc, z_
 - **`section_properties_from_geometry(section_type: str, **kwargs: float) -> Dict[str, float]`**
   Compute section properties from geometry (closed-form).
 
+### `pre_processing.section_integration.gbt_alignment`
+
+[pre_processing/section_integration/gbt_alignment.py](../../pre_processing/section_integration/gbt_alignment.py)
+
+Consistent GBT bases on a beam whose sections change along it.
+
+- **`MIN_MATCH`** (constant)
+- **`align_gbt_sections(per_element: Sequence, connectivity: npt.ArrayLike, gbt_elements: Optional[Sequence[bool]] = None) -> Tuple[tuple, Dict[int, dict]]`**
+  Turn the GBT bases of each element's section to its neighbour's (module docstring).
+- **`gbt_signature(sa) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]`**
+  ``(S_w, S_m)``: one row per warping mode and per distortional mode of ``sa``.
+- **`mass_transform(sa, Rw: np.ndarray, Rm: np.ndarray) -> np.ndarray`**
+  ``T`` on the GBT mass order: a generalised load ``f`` of the old basis is ``T^T f`` in the new.
+- **`rotate_gbt_basis(sa, Rw: np.ndarray, Rm: np.ndarray)`**
+  ``sa`` with its warping basis turned by ``Rw`` and its mode basis by ``Rm``.
+
 ### `pre_processing.section_integration.ply_failure`
 
 [pre_processing/section_integration/ply_failure.py](../../pre_processing/section_integration/ply_failure.py)
@@ -45,7 +61,7 @@ Section constitutive data shared by every beam element: ``SectionAnalysis``.
 
 - **`to_element_voigt(K_rh: npt.ArrayLike) -> npt.NDArray[np.float64]`**
   Map a right-handed 6 x 6 section stiffness to the element sign convention.
-- **class `SectionAnalysis(stiffness: npt.NDArray[np.float64], classical_stiffness: npt.NDArray[np.float64], warping_stiffness: float = 0.0, shear_centre: Tuple[float, float] = (0.0, 0.0), tension_centre: Tuple[float, float] = (0.0, 0.0), mass: Dict[str, float] = <factory>, source: str = 'isotropic', section_id: Optional[int] = None, benscoter_stiffness: Optional[npt.NDArray[np.float64]] = None, warping_inertia: float = 0.0, gbt_modes: int = 0, gbt_stiffness: Optional[npt.NDArray[np.float64]] = None, gbt_mass: Optional[npt.NDArray[np.float64]] = None, gbt_shear_modes: int = 0, gbt_sv_modes: int = 0, third_order_stiffness: Optional[npt.NDArray[np.float64]] = None, third_order_rate: Optional[npt.NDArray[np.float64]] = None, geometric_terms: Optional[npt.NDArray[np.float64]] = None, benscoter_geometric_terms: Optional[npt.NDArray[np.float64]] = None, third_order_geometric_terms: Optional[npt.NDArray[np.float64]] = None, axial_points: Optional[npt.NDArray[np.float64]] = None, gbt_geometric: Optional[Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]] = None) -> None`**
+- **class `SectionAnalysis(stiffness: npt.NDArray[np.float64], classical_stiffness: npt.NDArray[np.float64], warping_stiffness: float = 0.0, shear_centre: Tuple[float, float] = (0.0, 0.0), tension_centre: Tuple[float, float] = (0.0, 0.0), mass: Dict[str, float] = <factory>, source: str = 'isotropic', section_id: Optional[int] = None, benscoter_stiffness: Optional[npt.NDArray[np.float64]] = None, warping_inertia: float = 0.0, gbt_modes: int = 0, gbt_stiffness: Optional[npt.NDArray[np.float64]] = None, gbt_mass: Optional[npt.NDArray[np.float64]] = None, gbt_shear_modes: int = 0, gbt_sv_modes: int = 0, third_order_stiffness: Optional[npt.NDArray[np.float64]] = None, third_order_rate: Optional[npt.NDArray[np.float64]] = None, geometric_terms: Optional[npt.NDArray[np.float64]] = None, benscoter_geometric_terms: Optional[npt.NDArray[np.float64]] = None, third_order_geometric_terms: Optional[npt.NDArray[np.float64]] = None, axial_points: Optional[npt.NDArray[np.float64]] = None, gbt_geometric: Optional[Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]] = None, gbt_moments: Optional[npt.NDArray[np.float64]] = None) -> None`**
   Section stiffness and properties in the element convention.
 
 ### `pre_processing.section_integration.solid`

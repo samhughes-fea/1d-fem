@@ -253,6 +253,32 @@ An earlier version of this check compared tied boxes. The 1.5 % agreement it fir
 came from boxes that had lost their ties, and the 2.4 % and 4.2 % that replaced it came from
 tied boxes. Both are withdrawn.
 
+## Tapered and pretwisted beams
+
+Neighbouring GBT elements share the warping amplitudes \(b_j\) and the mode amplitudes
+\(a_k\), so on a beam with its own section per element the \(j\)-th field of one section must
+continue the \(j\)-th field of the next. Each section builds its bases on its own (an
+eigen-decomposition each), and between two close sections a basis can come out turned within
+its span, two modes can swap, or a mode can change sign.
+
+`gbt_alignment.align_gbt_sections` walks the beam from its first element and turns each
+section's warping block and mode block to the neighbour's already aligned, by the orthogonal
+\(R = \operatorname{polar}(S_{\mathrm{ref}} S^T)\) (Procrustes, regularised towards the
+identity). A row of \(S\) holds one field's shape moments over its section
+(`SectionAnalysis.gbt_moments`: its displacements against the monomials up to degree 3 in the
+section's bounding-box coordinates), which vary smoothly along a smoothly varying beam. A
+turn within a block changes the basis, not the span, so every GBT matrix becomes
+\(T^T K T\) with \(T\) the block-diagonal of \(R^T\) and each section's model is unchanged.
+A match below 0.9 (the lowest cosine between turned and reference rows) is logged: refine the
+mesh or change the number of modes. Thin-walled and 2D section jobs align their GBT sections
+automatically.
+
+The Resal taper coupling and the pretwist coupling (`with_taper`, `with_pretwist`) act on the
+beam strains only, so they are added to the leading 6×6 block of `gbt_stiffness`, as for the
+Benscoter section. On the IEA 15 MW outboard segment (20 elements, 2D sections, tapered and
+pretwisted), GBT with the modes held gives the Timoshenko 2D tip deflections within 0.28 % in
+flap and 0.09 % in edge; in torsion it is 3.7 % stiffer, from the root's warping restraint.
+
 ## Corotational GBT
 
 `CorotationalGBTBeamElement3D` puts the GBT element in the corotational frame of
