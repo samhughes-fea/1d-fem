@@ -121,7 +121,9 @@ def _box_job(tmp_path, etype, load, nonlinear, increments=8):
 
     from workflow_orchestrator.run_job import process_job
 
-    b, h, t = 0.3, 0.12, 2e-3
+    # stocky walls (b/t = 7.5): at the large-deflection load the Brazier flattening of
+    # CorotationalGBT stays small, so the test isolates the large-rotation kinematics
+    b, h, t = 0.06, 0.06, 8e-3
     pts = {1: (-b / 2, -h / 2), 2: (b / 2, -h / 2), 3: (b / 2, h / 2), 4: (-b / 2, h / 2)}
     walls = [(1, 1, 2, 1), (2, 2, 3, 1), (3, 3, 4, 1), (4, 4, 1, 1)]
     mat = {1: common.Material(70e9, 70e9, 26.9e9, 0.3, 26.9e9, 26.9e9, 2700.0)}
@@ -144,7 +146,7 @@ def _box_job(tmp_path, etype, load, nonlinear, increments=8):
 
 
 def test_corotational_gbt_job_small_load_is_the_linear_gbt(tmp_path):
-    load = [0.0, 0.0, 50.0, 0.0, 0.0, 0.0]
+    load = [0.0, 0.0, 12.0, 0.0, 0.0, 0.0]
     lin = _box_job(tmp_path, "LinearGBTBeamElement3D", load, False)
     cr = _box_job(tmp_path, "CorotationalGBTBeamElement3D", load, True, increments=1)
     # the two modes' amplitudes and slopes (last four columns) also take the Brazier
@@ -157,7 +159,7 @@ def test_corotational_gbt_job_small_load_is_the_linear_gbt(tmp_path):
 def test_corotational_gbt_job_large_deflection_follows_the_timoshenko_beam(tmp_path):
     """At a tip deflection of ~14 % of the span the corotational GBT box shortens its
     deflection relative to its linear solution as the corotational Timoshenko beam does."""
-    load = [0.0, 0.0, 6.0e4, 0.0, 0.0, 0.0]
+    load = [0.0, 0.0, 1.4e4, 0.0, 0.0, 0.0]
     ratio = {}
     for core in ("GBT", "Timoshenko"):
         lin = _box_job(tmp_path, f"Linear{core}BeamElement3D", load, False)
