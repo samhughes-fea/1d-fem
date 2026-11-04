@@ -94,10 +94,21 @@ within 1 % of plate theory for the first local mode.
   2e-5.
 - **2D sections:** on a 300 × 120 × 2 mm box meshed in 2D, the Euler loads are the 2D
   Timoshenko beam's to 4e-4. The geometric term of the first local mode
-  (\(X_{kk}/N\)) equals the thin-walled section's within 0.4 %. The local buckling stress is
-  10 % above the thin-walled GBT and finite strip values (17.3 against 15.7 MPa), because
-  the 2D modes' wall bending stiffness is higher (`C` +22 %, `B` +8 % for the same mode):
-  that difference is in the 2D section modes, not in the geometric stiffness.
+  (\(X_{kk}/N\)) equals the thin-walled section's within 0.4 %, and its warping stiffness
+  `C` equals it to 0.03 %. The local buckling stress of a 0.3 m half-wave converges on the
+  thin-walled GBT and finite strip value (15.70 MPa) from above as the 2D mesh is refined:
+
+  | Elements along each wall, rows through it | 2D local buckling stress | Against thin-walled |
+  |---|---|---|
+  | 12, 1 (`box_mesh`) | 16.67 MPa | +6.2 % |
+  | 24, 2 | 16.00 MPa | +1.9 % |
+  | 48, 2 | 15.84 MPa | +0.9 % |
+
+  What is left is the transverse bending `B` of the coarse mesh (+9 % at 12 elements along,
+  +1.2 % at 48). It was 10 % high (17.3 MPa) before the modes' walls were free to thin:
+  the axial strain of \(a_k''\) held the wall in plane strain, so `C` was
+  \((1-\nu)/((1+\nu)(1-2\nu))\) times the plate value instead of \(1/(1-\nu^2)\), 22 % high
+  (`gbt_cross_section_modes.md`).
 
 ## Example
 

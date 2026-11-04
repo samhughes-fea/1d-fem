@@ -78,6 +78,35 @@ def _pinned_column(etype, sa, L, n_el, modes, n_lowest=3):
     return lam[:n_lowest], K[np.ix_(free, free)], Kg[np.ix_(free, free)], els, U, dofs
 
 
+def _first_local_mode(sa, m, half_wave=0.3):
+    """Terms of the single mode with the lowest buckling strain at a ``half_wave`` (m): the
+    critical axial strain and its ``C``, ``D``, ``B`` and geometric term ``X``, all over ``X``
+    of the axial strain (``X`` itself over that of the rigid section)."""
+    Kd, _ = sa.gbt_matrices(m)
+    TX, _ = sa.gbt_geometric_terms(m)
+    E0 = np.zeros(Kd.shape[0])
+    E0[0] = 1.0
+    X = TX @ E0
+    oa = 6 + 2 * sa.gbt_sv_modes
+    kk = np.pi / half_wave
+    best = None
+    for j in range(m):
+        C, D, B = (Kd[oa + i * m + j, oa + i * m + j] for i in range(3))
+        CB = Kd[oa + j, oa + 2 * m + j]
+        x = X[3 + j, 3 + j]
+        strain = (C * kk**4 + D * kk**2 + B - 2 * CB * kk**2) / (x * kk**2)
+        if best is None or strain < best["strain"]:
+            best = dict(strain=strain, C=C / x, D=D / x, B=B / x, X=x / X[0, 0])
+    return best
+
+
+def _thin_walled(spec):
+    sys.path.insert(0, os.path.join(HERE, "..", "examples", "thin_walled"))
+    import common
+
+    return common.build_analysis(spec)
+
+
 def teardown_module(module):
     shutil.rmtree(_WORK, ignore_errors=True)
 
@@ -166,23 +195,28 @@ def test_2d_section_geometric_terms_match_thin_walled():
     lam_t = _pinned_column(TS, SectionAnalysis.from_solid(an), 6.0, 12, 0)[0]
     np.testing.assert_allclose(lam_g[:2], lam_t[:2], rtol=1e-3)    # shear warping vs shear factor
 
-    def first_mode_terms(sa, m):
-        Kd, _ = sa.gbt_matrices(m)
-        TX, _ = sa.gbt_geometric_terms(m)
-        E0 = np.zeros(Kd.shape[0])
-        E0[0] = 1.0
-        X = TX @ E0
-        oa = 6 + 2 * sa.gbt_sv_modes
-        kk = np.pi / 0.3                                     # a 0.3 m half-wave: the local mode is lowest
-
-        def single(j):
-            C, D, B = (Kd[oa + i * m + j, oa + i * m + j] for i in range(3))
-            CB = Kd[oa + j, oa + 2 * m + j]
-            return (C * kk**4 + D * kk**2 + B - 2 * CB * kk**2) / (X[3 + j, 3 + j] * kk**2)
-
-        k = int(np.argmin([single(j) for j in range(m)]))
-        return X[3 + k, 3 + k] / X[0, 0]
-
-    x2 = first_mode_terms(SectionAnalysis.from_solid(an, gbt_modes=4), 4)
-    xt = first_mode_terms(SectionAnalysis.from_thin_walled(box(0.3, 0.12, 2e-3, n_sub=4), gbt_modes=8), 8)
+    x2 = _first_local_mode(SectionAnalysis.from_solid(an, gbt_modes=4), 4)["X"]
+    xt = _first_local_mode(SectionAnalysis.from_thin_walled(box(0.3, 0.12, 2e-3, n_sub=4), gbt_modes=8), 8)["X"]
     assert x2 == pytest.approx(xt, rel=0.01)
+
+
+@pytest.mark.slow
+def test_2d_local_buckling_converges_to_thin_walled():
+    """The 2D modes' wall bending is the plate's: ``C`` of the first local mode equals the
+    thin-walled value (it was the plane-strain value, 22 % higher, before ``sigma_nn = 0``),
+    and the local buckling stress of a 0.3 m half-wave is within 2 % of thin-walled GBT on a
+    mesh with 24 elements along each wall and two rows through it."""
+    from test_gbt_2d_sections import _box_section
+
+    from pre_processing.section_integration.solid.mesh import SectionMesh
+    from pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
+
+    tw = _thin_walled(_box_section())
+    ref = _first_local_mode(SectionAnalysis.from_thin_walled(tw, gbt_modes=8), 8)
+    out = {}
+    for along, rows in ((12, 1), (24, 2)):
+        mesh = SectionMesh.from_thin_walled(tw.section, tw.laminates, elements_along=along, rows_per_ply=rows)
+        out[along] = _first_local_mode(SectionAnalysis.from_solid(SolidSectionAnalysis(mesh), gbt_modes=4), 4)
+    assert out[12]["C"] == pytest.approx(ref["C"], rel=2e-3)
+    assert out[24]["strain"] == pytest.approx(ref["strain"], rel=0.02)
+    assert out[24]["strain"] < out[12]["strain"]                      # converging from above

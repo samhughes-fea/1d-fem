@@ -354,6 +354,8 @@ Corotational beam elements on any SectionAnalysis, with third- and fourth-order 
   Corotational Benscoter beam: restrained warping and large twist on thin-walled sections.
 - **class `CorotationalGBTBeamElement3D(**kwargs)`**
   Corotational GBT beam: large rotations of the section, with its warping and distortional modes linear in the element's own frame.
+- **`brazier_energy_derivatives(T: np.ndarray, Q: np.ndarray, z: np.ndarray) -> Tuple[np.ndarray, np.ndarray]`**
+  Gradient and Hessian of ``W = a^T (kappa . T E) + 1/2 a a kappa kappa . Q`` in ``z = [a, kappa, E]``.
 - **class `CorotationalReddyBeamElement3D(**kwargs)`**
   Corotational Reddy beam: third-order shear (shear lag of the slaved warping) at large rotation.
 - **class `CorotationalLevinsonBeamElement3D(**kwargs)`**

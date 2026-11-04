@@ -20,6 +20,14 @@ mass orders, so ``LinearGBTBeamElement3D`` takes either), with the walls replace
   rigid in-plane motions removed. ``u_k`` is the axial warping that goes with them, the
   field that minimises the out-of-plane shear energy of ``a_k'`` (the continuum form of the
   Vlasov hypothesis of no membrane shear), with zero mean.
+- The axial strain of ``a_k''`` (``N_x u_k``) comes with a slaved through-thickness strain
+  that makes the stress across the wall zero (``sigma_nn = 0``, ``n`` normal to the wall
+  direction ``alpha`` of each element), as in plate theory. Without it the wall's
+  longitudinal bending is held in plane strain: ``C`` is ``(1 - nu) / ((1 + nu)(1 - 2 nu))``
+  times the plate value instead of ``1 / (1 - nu^2)``, 22 % stiff for ``nu = 0.3``, and
+  local buckling 6 to 10 % high. The membrane part of ``N_x u_k`` keeps its hoop strain
+  restrained (the thin-walled modes release it, ``N_ss = 0``), so for a membrane-dominated
+  mode ``C`` is up to ``1 / (1 - nu^2)`` above the thin-walled value.
 
 3D strains, Voigt ``[xx, yy, zz, yz, xz, xy]``, per generalised strain
 ``[psi6, b'(p), b(p), a''(m), a'(m), a(m)]``, with ``B`` and ``N_x`` the section's
@@ -264,8 +272,13 @@ class SolidCrossSectionModes:
         Om, D, U, S = self._fields(n_modes)
         return self._H(p, Om, D, U, S)
 
-    @staticmethod
-    def _H(p, Om, D, U, S):
+    def _wall_normal(self, element: int) -> np.ndarray:
+        """Voigt strain of a unit ``eps_nn`` across the wall of ``element`` (``n`` at ``alpha + 90``)."""
+        a = np.radians(self.analysis.mesh.alpha[element])
+        ny, nz = -np.sin(a), np.cos(a)
+        return np.array([0.0, ny * ny, nz * nz, 2.0 * ny * nz, 0.0, 0.0])
+
+    def _H(self, p, Om, D, U, S):
         P, m = Om.shape[1], D.shape[1]
         oa = 6 + 2 * P
         d = p.dofs
@@ -273,7 +286,12 @@ class SolidCrossSectionModes:
         H[:, :6] = p.Z + p.B @ S[d]
         H[:, 6:6 + P] = p.Nx @ Om[d]
         H[:, 6 + P:oa] = p.B @ Om[d]
-        H[:, oa:oa + m] = p.Nx @ U[d]
+        Ha = p.Nx @ U[d]
+        if m:                                   # sigma_nn = 0: the wall is free to thin
+            n = self._wall_normal(p.element)
+            Cn = p.C @ n
+            Ha = Ha - np.outer(n, (Ha.T @ Cn) / (n @ Cn))
+        H[:, oa:oa + m] = Ha
         H[:, oa + m:oa + 2 * m] = p.B @ U[d] + p.Nx @ D[d]
         H[:, oa + 2 * m:] = p.B @ D[d]
         return H
@@ -313,6 +331,31 @@ class SolidCrossSectionModes:
             M += p.weight * rho * Pi.T @ Pi
         return 0.5 * (M + M.T)
 
+    def shape_moments(self, n_modes: int, n_shear: int = 0) -> npt.NDArray[np.float64]:
+        """Moments of each field of the mass order, as ``CrossSectionModes.shape_moments``."""
+        from pre_processing.section_integration.thin_walled.cross_section_modes import _box, _monomials
+
+        self._check(n_modes, n_shear)
+        an = self.analysis
+        Om, D, U, _ = self._fields(n_modes)
+        P, m = Om.shape[1], n_modes
+        n = 6 + P + 2 * m
+        c, h = _box(np.array([[p.y, p.z] for p in an._points]))
+        out = np.zeros((n, 30))
+        for p in an._points:
+            N, d = p.N, p.dofs
+            y, z = p.y, p.z
+            Pi = np.zeros((3, n))
+            Pi[0, [0, 4, 5]] = [1.0, z, -y]
+            Pi[1, [1, 3]] = [1.0, -z]
+            Pi[2, [2, 3]] = [1.0, y]
+            Pi[0, 6:6 + P] = N @ Om[d[0::3]]
+            Pi[1, 6 + P:6 + P + m] = N @ D[d[1::3]]
+            Pi[2, 6 + P:6 + P + m] = N @ D[d[2::3]]
+            Pi[0, 6 + P + m:] = N @ U[d[0::3]]
+            out += p.weight * np.kron(Pi.T, _monomials((np.array([y, z]) - c) / h)[None, :]).reshape(n, 30)
+        return out
+
     def geometric_tensor(self, n_modes: int, n_shear: int = 0) -> Tuple[np.ndarray, np.ndarray]:
         """Second-order terms of the in-plane motion ``q = [v, w, theta_x, a(m)]``, as
         ``CrossSectionModes.geometric_tensor``: ``X = int sigma_xx Pi^T Pi dA`` and
@@ -343,6 +386,25 @@ class SolidCrossSectionModes:
             TX += p.weight * np.einsum("ia,ib,e->abe", Pi, Pi, sig[0])
             TY += p.weight * (np.einsum("ia,ib,e->abe", Pi, Py, sig[5]) + np.einsum("ia,ib,e->abe", Pi, Pz, sig[4]))
         return TX, TY
+
+    def brazier_tensor(self, n_modes: int, n_shear: int = 0) -> Tuple[np.ndarray, np.ndarray]:
+        """Brazier terms ``(T, Q)`` as ``CrossSectionModes.brazier_tensor``: ``T = int g sigma_xx dA``
+        and ``Q = int E_x g g dA`` with ``g_k = (d_z, -d_y)`` the mode's in-plane motion and
+        ``E_x`` the axial modulus (in-plane stresses free), right-handed."""
+        self._check(n_modes, n_shear)
+        Om, D, U, S = self._fields(n_modes)
+        m = n_modes
+        nE = 6 + 2 * Om.shape[1] + 3 * m
+        T = np.zeros((m, 2, nE))
+        Q = np.zeros((m, m, 2, 2))
+        Ex = self.analysis._axial_modulus
+        for p in self.analysis._points:
+            sig = p.C @ self._H(p, Om, D, U, S)
+            d = p.dofs
+            gk = np.stack([p.N @ D[d[2::3]], -(p.N @ D[d[1::3]])], axis=1)      # (m, 2)
+            T += p.weight * np.einsum("kc,e->kce", gk, sig[0])
+            Q += p.weight * Ex[p.element] * np.einsum("kc,ld->klcd", gk, gk)
+        return T, Q
 
 
 def _orthonormal(W: np.ndarray, A) -> np.ndarray:

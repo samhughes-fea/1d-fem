@@ -62,3 +62,18 @@ def test_solid_flattens_like_brazier(ref):
     assert f[-1] == pytest.approx(0.0033, rel=0.1)
     assert np.all(np.diff(f) > 0)
     assert f[lv.tolist().index(2.0)] / f[lv.tolist().index(1.0)] > 3.0
+
+
+@pytest.mark.slow
+def test_gbt_beam_flattens_like_the_solid(tmp_path, ref):
+    """The corotational GBT beam's Brazier term flattens the flanges: at P its quarter-span
+    flattening is 86 % of the solid's, and its tip deflection is within 0.2 %."""
+    from post_processing.validation_visualisers.nonlinear_solid_box.run import (GBT_MODES, N_EL, flattening,
+                                                                                gbt_modes, run_gbt_job)
+
+    modes = gbt_modes()
+    U = run_gbt_job(str(tmp_path), 1.0, modes)
+    k = ref["nlgeom"]["levels"].index(1.0)
+    assert U[-1, 2] == pytest.approx(_solid_tip(ref, 1.0)[2], rel=2e-3)
+    a = U[N_EL // 4, 6 + modes.n_sv_warping::2][:GBT_MODES]
+    assert flattening(modes, a) / ref["nlgeom"]["flattening"]["0.25"][k] == pytest.approx(0.86, abs=0.03)

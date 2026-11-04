@@ -104,8 +104,9 @@ def test_box_mesh_has_mitred_corners():
 
 def test_2d_gbt_beam_frequencies_match_calculix_box(tmp_path):
     """Without distortional modes, edge bending is within 1.5 % of the CalculiX box. With
-    four modes the lowest eight frequencies are within 5 % (flap within 2 %), except the
-    torsion-distortion mode, which is 8 % high (83.0 Hz against 76.9 Hz)."""
+    four modes the lowest eight frequencies are within 5 % (flap within 1 %); the
+    torsion-distortion mode is 4 % high (80.0 Hz against 76.9 Hz; 8 % before the modes'
+    walls were free to thin, ``sigma_nn = 0``)."""
     with open(REFERENCE, encoding="utf-8") as f:
         ref = json.load(f)
     f0 = _run(tmp_path, "2d", 0, eigen=True)
@@ -113,6 +114,6 @@ def test_2d_gbt_beam_frequencies_match_calculix_box(tmp_path):
     f4 = _run(tmp_path, "2d", 4, eigen=True)
     fc = np.array(ref["frequencies_hz"][:8])
     err = f4[:8] / fc - 1.0
-    assert abs(err[0]) < 0.02
-    assert 0.0 < err[1] < 0.10
+    assert abs(err[0]) < 0.01
+    assert 0.0 < err[1] < 0.05
     assert np.all(np.abs(err[2:]) < 0.05)

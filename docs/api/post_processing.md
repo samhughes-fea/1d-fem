@@ -20,8 +20,8 @@ Sensitivities of beam responses to ply angles and thicknesses (``layup_sensitivi
 - **`LAYUP_SENSITIVITY_COLUMNS`** (constant)
 - **`element_derivatives(el, d_section, mass: bool = False) -> Tuple[np.ndarray, Optional[np.ndarray]]`**
   ``dK_e`` (and ``dM_e``) of element ``el`` for the derivative section ``d_section``.
-- **`layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter], *, K, U=None, F=None, fixed_dofs=(), M=None, frequencies_hz=None, mode_shapes=None, responses: Sequence[Response] = (), dof_index=None) -> List[dict]`**
-  Rows of ``LAYUP_SENSITIVITY_COLUMNS`` for a solved static (``U``, ``F``) or eigen (``M``, ``frequencies_hz``, ``mode_shapes``) job.
+- **`layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter], *, K, U=None, F=None, fixed_dofs=(), M=None, frequencies_hz=None, mode_shapes=None, responses: Sequence[Response] = (), dof_index=None, load_factors=None, prestress=None) -> List[dict]`**
+  Rows of ``LAYUP_SENSITIVITY_COLUMNS`` for a solved static (``U``, ``F``), eigen (``M``, ``frequencies_hz``, ``mode_shapes``) or linear buckling (``load_factors``, ``mode_shapes``, ``prestress`` ``U_0``, ``fixed_dofs``) job.
 - **`write_layup_sensitivity(job_dir: str, job_results_dir: str, element_dictionary, elements, runner, solver_type: str) -> Optional[str]`**
   Write ``layup_sensitivity.csv`` for a job with ``layup_sensitivity.txt``; the path, or ``None``.
 
