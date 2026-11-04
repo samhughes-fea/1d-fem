@@ -17,6 +17,27 @@ carry a section twist about their axis, and be curved and pretwisted. Code:
   reference twist rate `k_x0` and bending curvatures `k_y0`, `k_z0`, in its own axes. The
   element is then the arc of that curvature between its nodes, stress free.
 
+### Blade terms
+
+"Precurvature" in 1d-fem means the whole reference curvature `[k_x0, k_y0, k_z0]`. In
+blade terms that is three separate things. In the axes of a blade job (`X` span, `Y`
+chord towards the trailing edge, `Z` flap with the suction side positive, see
+[JOB_INPUT_THIN_WALLED_SECTIONS.md](../conventions/JOB_INPUT_THIN_WALLED_SECTIONS.md#blade-beam-jobs-from-implicit-geometry-kernel)),
+an element along the span has `y = Y` and `z = Z`, so:
+
+| Blade term | What it is | 1d-fem quantity | How `blade_beam_job` builds it |
+|---|---|---|---|
+| Twist | the section's angle about the span | `[twist]` column of `element.txt` (degrees) | not used: the cuts are already twisted |
+| Pretwist | the rate of twist along the span | `k_x0` (rad/m) | `precurvature.txt`, one rate per element |
+| Prebend | out-of-plane (flapwise) curvature of the reference axis | `k_y0` (1/m); `k_y0 > 0` bends the axis towards `−Z`, the pressure side | node offsets, a chain of straight elements |
+| Presweep | in-plane (edgewise) curvature of the reference axis | `k_z0` (1/m); `k_z0 > 0` bends the axis towards `+Y`, the trailing edge | node offsets, a chain of straight elements |
+
+The signs follow from the frame `R(s) = R_mid exp(s [k]×)`: the axis turns as
+`dx/ds = k × x`. A prebent or swept blade can be given either way: as node offsets on
+straight elements (what `blade_beam_job` does), or as curved elements with `k_y0`,
+`k_z0` in `precurvature.txt`. Nodes on the curve give the same geometry in both, and
+the curved elements' chords then run between those nodes.
+
 ## Straight elements in any direction
 
 Each kernel runs in the element's own axes, and the results are rotated to global axes

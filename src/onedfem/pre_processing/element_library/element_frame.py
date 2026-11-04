@@ -18,6 +18,8 @@ Curved and twisted elements
 ---------------------------
 ``precurvature.txt`` gives an element a constant reference curvature
 ``k = [k_x0, k_y0, k_z0]`` in its own axes: twist rate and the two bending curvatures.
+On a blade along the span (``y`` chordwise, ``z`` flapwise) these are the pretwist,
+prebend and presweep curvatures (docs/element_library/element_frames.md, "Blade terms").
 The element is then the arc of that curvature between its nodes, its frame along the
 arc ``R(s) = R_mid exp(s [k]x)`` for arc length ``s`` measured from the middle. ``R_mid``
 is chosen so that the arc's chord runs from node 1 to node 2 and the twist ``beta`` sets
