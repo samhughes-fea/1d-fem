@@ -88,13 +88,14 @@ def tie_equations(ties, nid, corner, n_along: int, elements=None) -> list:
 
 
 def write_deck(mesh: SectionMesh, length: float, n_along: int, path: str, stations: Tuple[int, int],
-               steps: Optional[List[str]] = None) -> Dict:
+               steps: Optional[List[str]] = None, element: str = "C3D20R") -> Dict:
     """Write the ``.inp`` deck; return the node bookkeeping needed to read the results.
 
     ``stations`` are two element layer indices (0..n_along) bounding the elements whose
     energy is printed. ``steps``, when given, replaces the unit load steps with these deck
     lines (the tip reference node is ``REF`` and its rotation node ``ROT`` in them; the
-    returned ids say which nodes those are).
+    returned ids say which nodes those are). ``element`` is ``C3D20R`` (reduced integration,
+    the stiffness runs) or ``C3D20`` (full integration, for stresses in thin plies).
     """
     nodes2d = mesh.nodes
     n2 = nodes2d.shape[0]
@@ -118,7 +119,7 @@ def write_deck(mesh: SectionMesh, length: float, n_along: int, path: str, statio
     lines.append(f"{ref}, {_fmt(length)}, 0.0, 0.0")
     lines.append(f"{rot}, {_fmt(length)}, 0.0, 0.0")
 
-    out = ["*HEADING", "2D section extruded into a C3D20R prism", "*NODE"] + lines
+    out = ["*HEADING", f"2D section extruded into a {element} prism", "*NODE"] + lines
     # elements grouped by (material, theta, alpha)
     groups: Dict[tuple, list] = {}
     eid = 1
@@ -133,7 +134,7 @@ def write_deck(mesh: SectionMesh, length: float, n_along: int, path: str, statio
             elem_lines.append((key, eid, c))
             groups.setdefault(key, []).append(eid)
             eid += 1
-    out.append("*ELEMENT, TYPE=C3D20R, ELSET=EALL")
+    out.append(f"*ELEMENT, TYPE={element}, ELSET=EALL")
     for _, e_, c in elem_lines:
         out.append(f"{e_}, " + ", ".join(map(str, c[:15])) + ",")
         out.append(", ".join(map(str, c[15:])))

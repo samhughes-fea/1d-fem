@@ -12,7 +12,8 @@ python examples/blade_section_2d/run.py
 ```
 
 It needs implicit-geometry-kernel (`pip install -r requirements-geometry.txt`, Python 3.11 or later) and takes about 30 s.
-The figures and `summary.json` are written here.
+The figures and `summary.json` are written here. The comparison with the 3D solid reads the
+committed prism reference, so it does not need CalculiX.
 
 ## Model
 
@@ -43,6 +44,31 @@ interfaces from the two element rows of each ply next to the interface. The larg
 interlaminar shear, 2.4 MPa (τxn) with σnn = 1.2 MPa, is on the skin-to-cap interface
 of the pressure-side cap where the rear web meets it. A thin-walled section cannot
 resolve it: its walls meet at a point on their mid-lines.
+
+### Against a 3D solid
+
+![2D against the CalculiX prism](prism_interlaminar.png)
+
+The same mesh extruded into a CalculiX prism of fully integrated `C3D20` bricks, two chords
+long and loaded so that a slice at mid-length carries the same section forces
+(`post_processing/validation_visualisers/iea15mw_sections/make_interlaminar_reference.py`,
+committed as `reference/prism_20_interlaminar.json`), gives the interface stresses at the
+same Gauss points. Both are taken to the interfaces by the same fit (`prism_check.py`), at
+the three Gauss stations along each interface, on 2472 points away from the trailing edge:
+
+- The largest interlaminar shear is at the same place in both, the pressure-side
+  skin-to-cap interface by the rear web: 2.75 MPa in the 2D section and 3.00 MPa in the
+  prism, so the 2D section is 8 % low there. Along that cap's interface the 2D values are
+  8 to 12 % below the prism's.
+- Over all points the RMS difference is 0.8 % of the largest value for τxn, 1.5 % for σnn
+  and 3.1 % for τsn. The few points off the line in σnn and τsn are at the ends of the
+  caps, where 1 mm elements meet the cap's corner.
+- The prism converges along the span: 16 bricks along it instead of 12 change the
+  interface shear by 0.02 %. A prism one chord long is too short: its ends reach the
+  mid-length slice.
+- Reduced-integration `C3D20R` bricks (used for the stiffness prisms) do not give these
+  stresses: the interlaminar shear alternates in sign from one thin ply element to the
+  next, since the bricks are up to 500 times longer than a ply row is thick.
 
 The sharp trailing edge is drawn apart (open red rings). There the skin plies close on
 each other at a zero-radius corner, so the interface stresses of the last elements grow
