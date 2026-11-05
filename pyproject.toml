@@ -28,8 +28,8 @@ classifiers = [
 [project.optional-dependencies]
 # the default section provider (onedfem.sections); see requirements-sections.txt
 sections = [
-    "laminate-constitutive-model @ git+https://github.com/samhughes-fea/laminate-constitutive-model@6d25ab06b8dc79c7c7a6c4b6d40604b8441b6264",
-    "anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@945fc68eb91df51805a9630947b41ba2c70fa5de",
+    "laminate-constitutive-model @ git+https://github.com/samhughes-fea/laminate-constitutive-model@v0.3.0",
+    "anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@v0.2.0",
 ]
 # blade geometry from implicit-geometry-kernel
 geometry = ["implicit-geometry-kernel @ git+https://github.com/samhughes-fea/implicit-geometry-kernel@v0.2.0"]
