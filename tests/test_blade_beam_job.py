@@ -179,6 +179,16 @@ def test_prismatic_wing_matches_the_shell(case, tmp_path):
 
 
 @pytest.mark.slow
+@pytest.mark.parametrize("etype", ["LinearReddyBeamElement3D", "LinearLevinsonBeamElement3D"])
+def test_third_order_beams_take_a_blade(etype, tmp_path):
+    """Every type with ``supports_element_frame`` takes a blade: the third-order beams'
+    extra DOFs are clamped at the root, and their flap tip follows the Timoshenko beam's."""
+    ref = _tip("prismatic", "flap", tmp_path / "timo")
+    tip = _tip("prismatic", "flap", tmp_path / etype, element_type=etype)
+    assert tip[1] == pytest.approx(ref[1], rel=0.03)
+
+
+@pytest.mark.slow
 def test_twisted_wing_matches_the_shell(tmp_path):
     """The pretwist rate gives the edge-twist coupling of the twisted wing; without it there is none."""
     flap, edge = _tip("twisted", "flap", tmp_path), _tip("twisted", "edge", tmp_path)
@@ -259,7 +269,7 @@ def test_gbt_blade_job_files(tmp_path):
 def test_rejects_types_without_frames(tmp_path):
     geo = geometry([Station(0.0, 1.0, AF), Station(1.0, 1.0, AF)])
     with pytest.raises(ValueError, match="element_type"):
-        blade_beam_job(str(tmp_path / "x"), geo, LAMS, 1, element_type="LinearReddyBeamElement3D")
+        blade_beam_job(str(tmp_path / "x"), geo, LAMS, 1, element_type="NonlinearTimoshenkoBeamElement3D")
     with pytest.raises(ValueError, match="gbt_modes needs"):
         blade_beam_job(str(tmp_path / "x"), geo, LAMS, 1, gbt_modes=2)
     with pytest.raises(ValueError, match="no node"):
