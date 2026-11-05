@@ -31,7 +31,7 @@ LENGTH_CHORDS, N_ALONG, STATIONS = 2.0, 40, (13, 27)
 
 
 def run(index: int, work_dir: str, length_chords: float = LENGTH_CHORDS, stations=STATIONS) -> dict:
-    from onedfem.pre_processing.section_integration.solid.from_geometry import section_mesh_from_cut
+    from onedfem.interfaces.blade.solid_sections import section_mesh_from_cut
 
     m = S.station_model(index)
     mesh = section_mesh_from_cut(S.geometry(index).section_at(0.5), S.laminates(index))

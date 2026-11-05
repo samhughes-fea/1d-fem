@@ -193,19 +193,3 @@ Parse ``wall_load.txt``: uniform surface loads on the walls of thin-walled secti
 
 - **`parse_wall_load_file(filepath: str) -> Dict[int, Dict[int, Tuple[float, float, float]]]`**
   Return ``{element_id: {wall_id: (p_x, p_s, p_n)}}``.
-
-### `onedfem.pre_processing.mesh_library.blade_beam_job`
-
-[src/onedfem/pre_processing/mesh_library/blade_beam_job.py](../../src/onedfem/pre_processing/mesh_library/blade_beam_job.py)
-
-A 1d-fem beam job for a blade or wing lofted by implicit-geometry-kernel.
-
-- **class `BladeBeamJob(job_dir: str, kind: str, z: np.ndarray, nodes: np.ndarray, z_cut: np.ndarray, twist: np.ndarray, pretwist: np.ndarray, sections: Dict[int, object], element_type: str, loads: Dict[int, np.ndarray] = <factory>, tapers: Dict[int, object] = <factory>) -> None`**
-  What ``blade_beam_job`` wrote.
-- **`blade_beam_job(job_dir: str, geometry, laminates: Mapping[str, object], n_elements: Optional[int] = None, kind: str = 'thin_walled', *, z_nodes: Optional[Sequence[float]] = None, library: Optional[Mapping[int, object]] = None, element_type: str = 'LinearTimoshenkoBeamElement3D', pretwist: bool = True, taper: bool = True, n_sub: int = 1, mesh_options: Optional[Mapping[str, object]] = None, loads: Optional[Mapping[float, Sequence[float]]] = None, line_loads: Optional[Mapping[float, Sequence[float]]] = None, thickness_tol: float = 0.01, settings: Optional[str] = None, gbt_modes: int = 0) -> BladeBeamJob`**
-  Write a cantilever beam job for ``geometry`` into ``job_dir`` (replaced).
-- **`blade_to_job(v: Sequence[float]) -> np.ndarray`**
-  Blade-frame ``(x, y, z)`` components (or a force-moment 6-vector) in job axes ``(X, Y, Z)``.
-- **`job_to_blade(v: Sequence[float]) -> np.ndarray`**
-  Job-axis ``(X, Y, Z)`` components (or a 6-vector) in the blade frame ``(x, y, z)``.
-- **`NONLINEAR_SETTINGS`** (constant)

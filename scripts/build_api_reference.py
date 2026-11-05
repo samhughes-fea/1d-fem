@@ -46,6 +46,9 @@ PAGES: Dict[str, Tuple[str, Tuple[str, ...], str]] = {
                                                "onedfem.post_processing.solid", "onedfem.post_processing.graphical_visualisers"),
                            "Result files written after a solve: stresses, failure margins, "
                            "sensitivities and field sampling for plots."),
+    "interfaces.md": ("Interfaces", ("+onedfem.interfaces",),
+                      "Adapters from other repositories' data (a blade's geometry, duck typed) to sections "
+                      "and jobs. The core does not depend on them."),
     "workflow.md": ("Running jobs", ("+onedfem.workflow_orchestrator.run_job",),
                     "Running a job directory end to end."),
 }

@@ -19,7 +19,7 @@ pytest.importorskip("implicit_geometry_kernel")
 
 from implicit_geometry_kernel import Airfoil, BladeGeometry, Station  # noqa: E402
 
-from onedfem.pre_processing.mesh_library.blade_beam_job import blade_beam_job, blade_to_job, job_to_blade  # noqa: E402
+from onedfem.interfaces.blade.blade_beam_job import blade_beam_job, blade_to_job, job_to_blade  # noqa: E402
 from onedfem.pre_processing.section_integration.thin_walled import Ply, PlyMaterial, WallLaminate  # noqa: E402
 
 GLASS = PlyMaterial(E1=38.6e9, E2=8.27e9, G12=4.14e9, nu12=0.26, G13=4.14e9, G23=3.063e9, rho=1800.0)
@@ -64,7 +64,7 @@ def test_straight_loft_matches_a_hand_written_job(tmp_path):
     """A prismatic, untwisted loft gives the job one would write by hand from its section."""
     from onedfem.pre_processing.parsing.laminate_parser import parse_laminate_file
     from onedfem.pre_processing.parsing.section_geometry_parser import parse_section_geometry_file
-    from onedfem.pre_processing.section_integration.thin_walled.from_geometry import thin_walled_from_cut
+    from onedfem.interfaces.blade.thin_walled_sections import thin_walled_from_cut
     from onedfem.pre_processing.section_integration.thin_walled.section_analysis import ThinWalledSectionAnalysis
 
     geo = geometry([Station(0.0, 1.0, AF, pitch_axis=0.3), Station(4.0, 1.0, AF, pitch_axis=0.3)])

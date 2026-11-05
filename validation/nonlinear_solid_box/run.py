@@ -62,7 +62,7 @@ def run_job(work: str, section: str, level: float, linear: bool = False) -> np.n
     from validation.abaqus.shell_validation import onedfem
     from validation.abaqus.shell_validation.cases import box_section
     from validation.nonlinear_solid_box.make_reference import box_mesh
-    from onedfem.pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
+    from onedfem.interfaces.blade.solid_sections import write_section_mesh_2d
 
     element = "LinearTimoshenkoBeamElement3D" if linear else "CorotationalTimoshenkoBeamElement3D"
     beam = _beam(level, element)

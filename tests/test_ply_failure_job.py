@@ -41,7 +41,7 @@ def _run(tmp_path, name, load, kind="thin_walled"):
     common.write_job(job, spec)
     common.write_supports(job, spec)
     if kind == "2d":
-        from onedfem.pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
+        from onedfem.interfaces.blade.solid_sections import write_section_mesh_2d
         from onedfem.pre_processing.section_integration.solid.mesh import SectionMesh
 
         an = common.build_analysis(spec.section)

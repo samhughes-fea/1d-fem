@@ -117,17 +117,6 @@ Quadratic 2D section elements: 6-node triangles (``T6``) and 8-node quadrilatera
 - **`quadrature(kind: str) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]`**
   Points ``(m, 2)`` and weights ``(m,)``: 3 x 3 Gauss on ``Q8``, 7-point (degree 5) on ``T6``.
 
-### `onedfem.pre_processing.section_integration.solid.from_geometry`
-
-[src/onedfem/pre_processing/section_integration/solid/from_geometry.py](../../src/onedfem/pre_processing/section_integration/solid/from_geometry.py)
-
-Conforming 2D section meshes of an implicit-geometry-kernel blade section.
-
-- **`section_mesh_from_cut(cut, laminates: Mapping[str, object], library: Optional[Mapping[int, object]] = None, element_size: Optional[float] = None, rows_per_ply: int = 1, thickness_tol: float = 0.01, origin: str = 'pitch_axis', materials: Optional[Mapping[object, SolidMaterial]] = None, section_id: Optional[int] = None) -> SectionMesh`**
-  Layered ``Q8`` mesh of an implicit-geometry-kernel ``SectionCut``.
-- **`write_section_mesh_2d(path: str, meshes: Mapping[int, SectionMesh]) -> None`**
-  Write ``section_mesh_2d.txt`` for ``{section_id: SectionMesh}``, with its materials.
-
 ### `onedfem.pre_processing.section_integration.solid.layup_sensitivity`
 
 [src/onedfem/pre_processing/section_integration/solid/layup_sensitivity.py](../../src/onedfem/pre_processing/section_integration/solid/layup_sensitivity.py)
@@ -235,19 +224,6 @@ Wall and ply stresses at a point of a beam element with a thin-walled section.
 - **`element_wall_stress(element, U_e: npt.ArrayLike, xi: float, analysis, wall_id: int, s: float, points_per_ply: int = 3) -> WallPointStress`**
   Recovered wall and ply state at ``xi`` of an element and ``s`` along a wall.
 
-### `onedfem.pre_processing.section_integration.thin_walled.from_geometry`
-
-[src/onedfem/pre_processing/section_integration/thin_walled/from_geometry.py](../../src/onedfem/pre_processing/section_integration/thin_walled/from_geometry.py)
-
-Thin-walled sections cut from an implicit-geometry-kernel blade.
-
-- **class `GeometrySection(section: ThinWalledSection, laminates: Dict[int, WallLaminate], wall_names: Dict[int, str], wall_layers: Dict[int, Tuple[str, ...]], stack_names: Dict[int, str], origin: Tuple[float, float], z: float) -> None`**
-  A thin-walled section built from a ``SectionCut``.
-- **`thin_walled_from_cut(cut, laminates: LaminateMap, library: Optional[Mapping[int, WallLaminate]] = None, thickness_tol: float = 0.01, origin: str = 'pitch_axis', section_id: int = 0) -> GeometrySection`**
-  ``GeometrySection`` of an implicit-geometry-kernel ``SectionCut``.
-- **`laminate_lookup(wall, laminates: LaminateMap, library: Optional[Mapping[int, WallLaminate]] = None) -> WallLaminate`**
-  The laminate of a ``SectionWall``: by label, then region, then kind.
-
 ### `onedfem.pre_processing.section_integration.thin_walled.laminate`
 
 [src/onedfem/pre_processing/section_integration/thin_walled/laminate.py](../../src/onedfem/pre_processing/section_integration/thin_walled/laminate.py)
@@ -332,8 +308,6 @@ Taper coupling of a thin-walled section: the Resal effect.
   Right-handed taper coupling of one section.
 - **`section_taper(start: ThinWalledSection, end: ThinWalledSection, laminates: Mapping[int, WallLaminate], distance: float, n_gauss: int = 3) -> SectionTaper`**
   Taper coupling of the section midway between ``start`` and ``end``.
-- **`section_taper_from_geometry(geometry, z: float, laminates, step: float, library: Optional[Mapping[int, WallLaminate]] = None, thickness_tol: float = 0.01) -> SectionTaper`**
-  Taper coupling at span ``z`` of an implicit-geometry-kernel blade, from cuts at ``z -+ step``.
 
 ### `onedfem.pre_processing.section_integration.thin_walled.thin_walled_geometry`
 
