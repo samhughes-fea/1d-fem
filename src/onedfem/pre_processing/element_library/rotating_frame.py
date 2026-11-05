@@ -169,7 +169,7 @@ def _section_mass(element) -> Dict[str, float]:
 
 
 def _bending_kind(element) -> str:
-    return "hermite" if "EulerBernoulli" in type(element).__name__ else "linear"
+    return getattr(element, "bending_interpolation", "linear")
 
 
 def _twist_rotation(R0: np.ndarray, R1: np.ndarray):

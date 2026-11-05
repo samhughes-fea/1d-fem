@@ -66,6 +66,10 @@ class LinearGBTBeamElement3D(LinearTimoshenkoBeamElement3D):
     """
 
     supports_element_frame = True    # mode amplitudes are scalars: they map to themselves
+    restrained_warping = True
+    cross_section_modes = True
+    layup_sensitivity = "gbt"
+    layup_buckling_sensitivity = True
 
     element_type_name = "GBT-3D"
     _thin_walled_warping_dof = True

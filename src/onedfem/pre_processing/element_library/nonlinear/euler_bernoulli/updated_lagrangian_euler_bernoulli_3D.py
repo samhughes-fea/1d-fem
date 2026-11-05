@@ -113,6 +113,8 @@ class UpdatedLagrangianEulerBernoulliBeamElement3D(Element1DBase):
     LinearEulerBernoulliBeamElement3D
     """
 
+    bending_interpolation = "hermite"
+
     element_type_name = "EulerBernoulli-3D-UpdatedLagrangian"
 
     def __init__(

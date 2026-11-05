@@ -69,6 +69,8 @@ class NonlinearEulerBernoulliBeamElement3D(Element1DBase):
     ``N``, ``M_y``, ``M_z`` for ``K_sigma`` from ``section_forces_from_strain(E, D)``. Full weak forms: module docstring.
     """
 
+    bending_interpolation = "hermite"
+
     element_type_name = "Euler-Bernoulli-3D-Nonlinear"
 
     def __init__(

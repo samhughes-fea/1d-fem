@@ -91,6 +91,8 @@ class LinearEulerBernoulliBeamElement3D(GeometricStiffnessMixin, Element1DBase):
     #: Builds ``D`` from ``self.section_analysis`` (thin-walled anisotropic sections).
     supports_section_analysis = True
     supports_element_frame = True
+    bending_interpolation = "hermite"
+    nonlinear_counterpart = "NonlinearEulerBernoulliBeamElement3D"
     
     # Element formulation identifier for tracking in multi-element meshes
     element_type_name = "Euler-Bernoulli-3D"
