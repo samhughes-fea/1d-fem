@@ -680,7 +680,8 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
 
         elif solver_type in ("transient", "dynamic"):
             from onedfem.simulation_runner.transient.dynamic_simulation import TransientSimulationRunner
-            element_stiffness_matrices_dyn = np.array([obj.K_e for obj in element_objects], dtype=object)
+            # a list, not np.array(..., dtype=object): equal-shaped matrices would stack into one 3D array
+            element_stiffness_matrices_dyn = [obj.K_e for obj in element_objects]
             dynamic_settings = {
                 "elements": all_elements,
                 "mesh_dictionary": {
@@ -688,10 +689,19 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
                     "coordinates": grid_dictionary.get("coordinates", []),
                 },
                 "element_dictionary": element_dictionary,
+                "grid_dictionary": grid_dictionary,
+                "material_dictionary": material_dictionary,
+                "section_dictionary": section_dictionary,
                 "element_stiffness_matrices": element_stiffness_matrices_dyn,
                 "element_mass_matrices": element_mass_matrices,
+                "point_load_array": point_load_array,
+                "distributed_load_array": distributed_load_array,
+                "element_objects": element_objects,
+                "force_objects": force_objects,
+                "prescribed_displacement_dict": prescribed_displacement_dict,
                 "job_results_dir": job_results_dir,
                 "simulation_settings": simulation_settings,
+                "job_dir": job_dir,
             }
             runner = TransientSimulationRunner(settings=dynamic_settings, job_name=case_name)
 

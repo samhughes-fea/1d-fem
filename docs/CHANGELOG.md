@@ -48,6 +48,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- **Transient jobs run through `process_job` again.** `process_job` passed the elements as a list (the runner called `.size` on it) and the element matrices stacked into one object array, and left out the point loads, sections and element objects. Every transient job, `jobs/job_benchmark_transient_cantilever_multidof` included, failed, and the error went only to `logs/traceback.log`. `tests/test_transient_job_runs.py` runs the benchmark job end to end.
+
 - **2D-section local buckling was 10 % high** ([element_library/gbt_buckling.md](element_library/gbt_buckling.md#checks)). The axial strain of each 2D distortional mode's `a''` held the wall in plane strain, so its longitudinal plate bending stiffness `C` was 22 % high (\(\nu = 0.3\)). `SolidCrossSectionModes` now adds a slaved strain across the wall that makes \(\sigma_{nn} = 0\), as in plate theory, and `C` equals the thin-walled value to 0.03 %. The 2D local buckling stress of the 300 × 120 × 2 mm box converges on the thin-walled GBT and finite strip value from above, +0.9 % at 48 elements along each wall (it was +10 %). Against the CalculiX box, the torsion-distortion frequency of the 2D GBT beam is 4 % high instead of 8 %.
 
 - **Linear static diagnostics on large systems.** The dense SVD for the rank and condition number now runs up to 1500 equations (and once instead of twice); a 3500-DOF job spent minutes in it.
