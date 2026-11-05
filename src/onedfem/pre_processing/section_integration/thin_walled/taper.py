@@ -24,7 +24,8 @@ the coupling is ``C[kappa_y, gamma_xz] = (h'/h) EI_y`` and ``Q = (h'/h)^2 EI_y``
 shear strain is the classical tapered-beam result ``gamma_xz = (V_z - M_y h'/h) / GA``.
 
 ``section_taper`` takes two sections of the same topology (point ids and walls) a distance
-apart, such as cuts close either side of an element's mid-point; ``section_taper_from_geometry``
+apart, such as cuts close either side of an element's mid-point;
+``interfaces.blade.thin_walled_sections.section_taper_from_geometry``
 cuts them from an implicit-geometry-kernel ``BladeGeometry``. The rates are those of the
 material fibres in fixed axes, so a section that turns along the beam (pretwist ``k``) adds
 ``r' = k (-z, y)``: the helical fibres' share of the same coupling. Their stretch under a twist
@@ -43,7 +44,7 @@ from onedfem.pre_processing.section_integration.thin_walled.laminate import Wall
 from onedfem.pre_processing.section_integration.thin_walled.thin_walled_geometry import ThinWalledSection
 from onedfem.pre_processing.section_integration.thin_walled.wall_stiffness import beam_wall_stiffness
 
-__all__ = ["SectionTaper", "section_taper", "section_taper_from_geometry"]
+__all__ = ["SectionTaper", "section_taper"]
 
 
 @dataclass(frozen=True)
@@ -147,30 +148,3 @@ def section_taper(
         row = np.concatenate([Cw.ravel(), [Qw[0, 0], 0.5 * (Qw[0, 1] + Qw[1, 0]), Qw[1, 1]]])
         parts[wa.laminate_id] = parts.get(wa.laminate_id, 0.0) + row
     return SectionTaper(C, 0.5 * (Q + Q.T), parts)
-
-
-def section_taper_from_geometry(
-    geometry,
-    z: float,
-    laminates,
-    step: float,
-    library: Optional[Mapping[int, WallLaminate]] = None,
-    thickness_tol: float = 0.01,
-) -> SectionTaper:
-    """Taper coupling at span ``z`` of an implicit-geometry-kernel blade, from cuts at ``z -+ step``.
-
-    ``laminates`` and ``library`` are as for ``thin_walled_from_cut``. The two cuts must have
-    the same wall topology, which a small ``step`` gives; if they do not the step is halved,
-    up to four times.
-    """
-    from onedfem.pre_processing.section_integration.thin_walled.from_geometry import thin_walled_from_cut
-
-    h = float(step)
-    for _ in range(5):
-        a = thin_walled_from_cut(geometry.section_at(z - h), laminates, library, thickness_tol=thickness_tol)
-        b = thin_walled_from_cut(geometry.section_at(z + h), laminates, library, thickness_tol=thickness_tol)
-        try:
-            return section_taper(a.section, b.section, a.laminates, 2.0 * h)
-        except ValueError:
-            h *= 0.5
-    raise ValueError(f"cuts either side of z = {z} differ in topology; no taper coupling")

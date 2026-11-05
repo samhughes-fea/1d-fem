@@ -61,7 +61,7 @@ Write 3D section stresses of a solved job with sections meshed in 2D.
 Displacement fields along a straight beam from its nodal solution, through the element shape functions.
 
 - **`interpolation_kind(element_type: str) -> str`**
-  ``"hermite"`` for Euler-Bernoulli element types, else ``"linear"`` (as ``_bending_kind``).
+  The type's ``bending_interpolation`` (``"hermite"`` or ``"linear"``), as ``_bending_kind`` uses.
 - **`beam_curve(x_nodes: Sequence[float], U: npt.ArrayLike, component: int, element_type: str, n_per_element: int = 11) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]`**
   ``(x, value)`` of one field component along a straight beam on the ``x`` axis.
 

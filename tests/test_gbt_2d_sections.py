@@ -44,7 +44,7 @@ def box_mesh(junctions="auto"):
 
 
 def _run(tmp_path, kind, modes, eigen=False):
-    from onedfem.pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
+    from onedfem.interfaces.blade.solid_sections import write_section_mesh_2d
     from onedfem.workflow_orchestrator.run_job import process_job
 
     load = [100.0, 300.0, 500.0, 200.0, 50.0, 80.0]
@@ -75,7 +75,7 @@ def _run(tmp_path, kind, modes, eigen=False):
 
 
 def test_section_mesh_2d_file_keeps_junction_ties(tmp_path):
-    from onedfem.pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
+    from onedfem.interfaces.blade.solid_sections import write_section_mesh_2d
     from onedfem.pre_processing.section_integration.solid.mesh import parse_section_mesh_2d
 
     mesh = box_mesh("tie")

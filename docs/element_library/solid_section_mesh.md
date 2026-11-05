@@ -65,7 +65,7 @@ element was cut from, so that ply-angle sensitivities can turn the ply's element
 
 ## Meshes of blade sections from implicit-geometry-kernel
 
-`section_mesh_from_cut(cut, laminates)` (`solid/from_geometry.py`) meshes a
+`section_mesh_from_cut(cut, laminates)` (`interfaces/blade/solid_sections.py`) meshes a
 `SectionCut` of an implicit-geometry-kernel blade with layered `Q8` elements that
 follow the true wall geometry, one or more rows per ply, with no overlaps and no ties.
 Unlike `from_thin_walled`, junctions are not counted twice.

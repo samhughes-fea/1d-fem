@@ -14,7 +14,7 @@ region (the label without the ``:part`` suffix), then its kind (``skin``, ``cap`
     web                           3
     skin_suction_surface:bay_2    4      # a core panel aft of the rear web
 
-See ``pre_processing/section_integration/thin_walled/from_geometry.py`` and
+See ``interfaces/blade/thin_walled_sections.py`` and
 docs/conventions/JOB_INPUT_THIN_WALLED_SECTIONS.md.
 """
 
