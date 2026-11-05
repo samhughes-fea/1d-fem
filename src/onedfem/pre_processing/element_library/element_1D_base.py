@@ -176,6 +176,10 @@ class Element1DBase(ABC):
             self.grid_array = np.array([[0.0, 0.0, 0.0], [L_chord, 0.0, 0.0]])
         pretwist = element_dictionary.get("pretwist_rate")
         self._pretwist_rate = 0.0 if pretwist is None else float(np.asarray(pretwist)[idx])
+        # bending curvature (k_y, k_z) of the curved element this one is a sub-element of
+        curv = element_dictionary.get("section_curvature")
+        self._section_curvature = (0.0, 0.0) if curv is None else \
+            tuple(float(v) for v in np.asarray(curv, dtype=np.float64)[idx])
 
         # Thin-walled anisotropic section assigned through element_section.txt (None if absent).
         per_element = element_dictionary.get("section_analysis_per_element")
@@ -209,11 +213,12 @@ class Element1DBase(ABC):
         """
         base = self._base_section_analysis()
         k = getattr(self, "_pretwist_rate", 0.0)
-        if not k:
+        ky, kz = getattr(self, "_section_curvature", (0.0, 0.0))
+        if not k and not ky and not kz:
             return base
         cached = self.__dict__.get("_pretwisted_section_analysis")
         if cached is None:
-            cached = base.with_pretwist(k)
+            cached = base.with_pretwist(k).with_curvature(ky, kz)
             self._pretwisted_section_analysis = cached
         return cached
 
