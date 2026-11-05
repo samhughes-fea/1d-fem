@@ -2,7 +2,7 @@
 
 The 70 % span section idealisation of ``stations.py`` (station 20) is lofted with the
 published chord taper (4.07 m to 3.27 m) and twist (1.47 deg to -0.36 deg) of the
-r = 64.5 m and 84.7 m stations, the segment composite-laminate-model example 25 uses.
+r = 64.5 m and 84.7 m stations, the segment shell-fem example 25 uses.
 ``prismatic=True`` keeps the r = 84.7 m section all along, untwisted.
 """
 

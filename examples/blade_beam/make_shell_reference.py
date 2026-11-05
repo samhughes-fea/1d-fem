@@ -1,7 +1,7 @@
 """Shell reference for the blade_beam example: the IEA outboard segment as a
-composite-laminate-model shell blade.
+shell-fem shell blade.
 
-Needs composite-laminate-model, implicit-geometry-kernel and CalculiX (``ccx``), none of
+Needs shell-fem, implicit-geometry-kernel and CalculiX (``ccx``), none of
 which 1d-fem depends on, so the output, ``data/shell_reference.json``, is committed. To
 regenerate it (about 15 minutes)::
 
@@ -11,7 +11,7 @@ The blade is meshed from the same IGK loft as the beams (``examples/iea15mw/segm
 with curved Quad8 FSDT shells on the walls' mid-surfaces, 40 elements along the span, and
 clamped at the root. Three analyses:
 
-- **static** (composite-laminate-model's own solver): 10 kN flap and edge tip forces and a
+- **static** (shell-fem's own solver): 10 kN flap and edge tip forces and a
   10 kN m torque through a rigid tip (RBE2 on the translations), for the tapered,
   twisted segment and for a prismatic, untwisted one;
 - **modal** (CalculiX ``*FREQUENCY`` of the same shell deck): eight frequencies and the
@@ -44,9 +44,9 @@ P_NONLINEAR = 1.8e6
 
 
 def build(prismatic: bool = False):
-    from composite_laminate_model import BladeBuilder, FSDTModel, Laminate, Ply
-    from composite_laminate_model.laminate_materials import MaterialCard
-    from composite_laminate_model.laminate_materials_3d import ElasticProperties3D, StrengthProperties3D
+    from shell_fem import BladeBuilder, FSDTModel, Laminate, Ply
+    from laminate_constitutive_model.laminate_materials import MaterialCard
+    from laminate_constitutive_model.laminate_materials_3d import ElasticProperties3D, StrengthProperties3D
 
     big = 1e12      # strengths are not used
     cards = {n: MaterialCard(n, ElasticProperties3D.transversely_isotropic(p["E1"], p["E2"], p["nu12"], p["G12"], S.NU23),
@@ -58,8 +58,8 @@ def build(prismatic: bool = False):
 
 
 def static(prismatic: bool = False) -> dict:
-    from composite_laminate_model.laminate_connectors import add_reference_node, rigid_link
-    from composite_laminate_model.laminate_solver_pipeline import BoundaryConditions, LoadCase, StructuralGlobalSolver
+    from shell_fem.laminate_connectors import add_reference_node, rigid_link
+    from shell_fem.laminate_solver_pipeline import BoundaryConditions, LoadCase, StructuralGlobalSolver
 
     blade = build(prismatic)
     mesh = blade.mesh.copy()
@@ -73,9 +73,9 @@ def static(prismatic: bool = False) -> dict:
 
 
 def _ccx(mode: str, work: Path) -> dict:
-    from composite_laminate_model.kernels.base import AnalysisModel
-    from composite_laminate_model.kernels.calculix import CalculiXDeckWriter
-    from composite_laminate_model.laminate_solver_pipeline import BoundaryConditions, LoadCase
+    from shell_fem.kernels.base import AnalysisModel
+    from shell_fem.kernels.calculix import CalculiXDeckWriter
+    from shell_fem.laminate_solver_pipeline import BoundaryConditions, LoadCase
 
     blade = build()
     bcs = BoundaryConditions().clamp(blade.nodes("root"))

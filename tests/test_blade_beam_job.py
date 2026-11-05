@@ -1,6 +1,6 @@
 """Blade beam jobs written from an implicit-geometry-kernel loft (``blade_beam_job``).
 
-Shell reference: composite-laminate-model 0.1, ``BladeBuilder.from_geometry`` on the same
+Shell reference: shell-fem 0.1 (then shell-fem), ``BladeBuilder.from_geometry`` on the same
 lofts (curved Quad8 FSDT shells on the wall mid-surfaces), root clamped, tip loads through
 a rigid tip diaphragm at the pitch axis. ``SHELL_TIP`` holds the tip reference-node
 displacements, blade frame.
@@ -142,7 +142,7 @@ def test_pretwist_rate_from_the_twist_gradient(tmp_path):
     assert turn == pytest.approx(-(job.twist[1] - (job.twist[0] + job.twist[1]) / 2), abs=1e-9)
 
 
-# composite-laminate-model shell (12 x 1260 curved Quad8; 24 spans moves these < 0.1 %),
+# shell-fem shell (12 x 1260 curved Quad8; 24 spans moves these < 0.1 %),
 # blade frame (x, y, z, rx, ry, rz) of the tip reference node under 1 kN or 1 kN m at the tip.
 SHELL_TIP = {
     # prismatic, untwisted (chord 1 m, 6 m)

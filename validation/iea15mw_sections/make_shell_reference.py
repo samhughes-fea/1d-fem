@@ -1,6 +1,6 @@
-"""composite-laminate-model shell segments of the idealised IEA 15 MW stations.
+"""shell-fem shell segments of the idealised IEA 15 MW stations.
 
-Needs composite-laminate-model and implicit-geometry-kernel, which 1d-fem does not
+Needs shell-fem and implicit-geometry-kernel, which 1d-fem does not
 depend on, so the output, ``reference/shell_<index>.json``, is committed. To regenerate::
 
     python validation/iea15mw_sections/make_shell_reference.py [index ...]
@@ -29,8 +29,8 @@ LENGTH_CHORDS, N_SPAN = 8.0, 32
 
 
 def shell_cards():
-    from composite_laminate_model.laminate_materials import MaterialCard
-    from composite_laminate_model.laminate_materials_3d import ElasticProperties3D, StrengthProperties3D
+    from laminate_constitutive_model.laminate_materials import MaterialCard
+    from laminate_constitutive_model.laminate_materials_3d import ElasticProperties3D, StrengthProperties3D
 
     big = 1e12      # strengths are not used
     return {n: MaterialCard(n, ElasticProperties3D.transversely_isotropic(p["E1"], p["E2"], p["nu12"], p["G12"], S.NU23),
@@ -40,15 +40,15 @@ def shell_cards():
 
 def shell_laminates(model):
     """Laminates per wall kind, inside first (the bottom face of an outward-normal shell)."""
-    from composite_laminate_model import Laminate, Ply
+    from shell_fem import Laminate, Ply
 
     cards = shell_cards()
     return {k: Laminate([Ply(cards[n], t, 0.0) for n, t in v]) for k, v in model.laminae.items()}
 
 
 def run(index: int) -> dict:
-    from composite_laminate_model import BladeBuilder, FSDTModel
-    from composite_laminate_model.laminate_blade import beam_section_properties
+    from shell_fem import BladeBuilder, FSDTModel
+    from shell_fem.laminate_blade import beam_section_properties
 
     m = S.station_model(index)
     geo = S.geometry(index, length=LENGTH_CHORDS * m.chord)

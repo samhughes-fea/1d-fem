@@ -19,9 +19,9 @@ python examples/blade_beam/run.py
 It needs implicit-geometry-kernel (`pip install -r requirements-geometry.txt`, Python 3.11 or later). It takes about 40
 minutes, mostly writing wall stresses, and writes the figures and `summary.json` here.
 The shell results are committed in `data/shell_reference.json`. They come from
-`make_shell_reference.py`, which needs composite-laminate-model and CalculiX:
+`make_shell_reference.py`, which needs shell-fem and CalculiX:
 
-- static runs of a composite-laminate-model shell blade (4360 curved `Quad8` elements);
+- static runs of a shell-fem shell blade (4360 curved `Quad8` elements);
 - modal and `NLGEOM` runs of the same mesh in CalculiX.
 
 ![Loft](loft.png)
@@ -155,7 +155,7 @@ CalculiX stopped converging at 45 % of the planned 1.8 MN load, so the plan's ch
 | | |
 |---|---|
 | `run.py` | builds and runs every job, compares and plots |
-| `make_shell_reference.py` | the shell blade runs (composite-laminate-model, CalculiX) |
+| `make_shell_reference.py` | the shell blade runs (shell-fem, CalculiX) |
 | `data/shell_reference.json` | shell results at the tip |
 | `sandwich_strip_check.py`, `data/sandwich_strip.json` | the skin strip in CalculiX: composite shell against bricks and sandwich theory |
 | `summary.json` | the beam results and the comparisons |
