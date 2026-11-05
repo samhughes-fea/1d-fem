@@ -73,6 +73,7 @@ class ThirdOrderShearBeamElement3D(LinearTimoshenkoBeamElement3D):
     """Shared Reddy / Levinson element (see module docstring). Subclasses set ``variational``."""
 
     supports_element_frame = True
+    extra_dofs = 2              # the slopes v', w'
     # the slopes v', w' (Q1, Q2) are section components of a node vector (framed_element)
     frame_slope_dofs = ((12, 0), (14, 1))
 

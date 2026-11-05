@@ -52,6 +52,8 @@ class LinearBenscoterBeamElement3D(LinearTimoshenkoBeamElement3D):
 
     element_type_name = "Benscoter-3D"
     _thin_walled_warping_dof = True
+    restrained_warping = True
+    layup_sensitivity = "benscoter"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

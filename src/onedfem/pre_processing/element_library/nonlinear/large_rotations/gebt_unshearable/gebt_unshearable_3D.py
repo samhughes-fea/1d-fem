@@ -20,4 +20,6 @@ from onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_
 class GEBTUnshearableBeamElement3D(NonlinearEulerBernoulliBeamElement3D):
     """Unshearable large-rotation beam using the nonlinear EB TL pipeline."""
 
+    bending_interpolation = "linear"   # as before: line loads and plots use linear interpolation
+
     element_type_name = "GEBTUnshearable-3D"

@@ -32,10 +32,11 @@ from onedfem.pre_processing.element_library.dof_layout import mesh_dof_per_node
 
 logger = logging.getLogger(__name__)
 
-_LINEAR_TO_NONLINEAR_PRESTRESS_TWINS = {
-    "LinearTimoshenkoBeamElement3D": "NonlinearTimoshenkoBeamElement3D",
-    "LinearEulerBernoulliBeamElement3D": "NonlinearEulerBernoulliBeamElement3D",
-}
+def _nonlinear_twin(type_name: str):
+    """The type's ``nonlinear_counterpart`` (declared on its own class), or ``None``."""
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
+
+    return ElementFactory.capability(type_name, "nonlinear_counterpart", None, own=True)
 
 
 def _nonlinear_twin_element_dictionary(element_dictionary: dict) -> dict:
@@ -45,13 +46,16 @@ def _nonlinear_twin_element_dictionary(element_dictionary: dict) -> dict:
     types = np.asarray(ed["types"], dtype=object).copy()
     for i, t in enumerate(types):
         ts = str(t)
-        if ts not in _LINEAR_TO_NONLINEAR_PRESTRESS_TWINS:
+        twin = _nonlinear_twin(ts)
+        if twin is None:
+            from onedfem.pre_processing.element_library.element_factory import ElementFactory
+
             raise ValueError(
                 "modal.buckling_nonlinear_prestress_twins: unsupported element type "
                 f"{ts!r}; registered twins for "
-                f"{sorted(_LINEAR_TO_NONLINEAR_PRESTRESS_TWINS.keys())}"
+                f"{sorted(t for t in ElementFactory.ELEMENT_CLASS_MAP if _nonlinear_twin(t))}"
             )
-        types[i] = _LINEAR_TO_NONLINEAR_PRESTRESS_TWINS[ts]
+        types[i] = twin
     ed["types"] = types
     return ed
 

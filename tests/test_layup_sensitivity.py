@@ -397,6 +397,7 @@ def test_unsupported_elements_are_refused():
 
     class LinearTimoshenkoBeamElement3D:
         element_id = 1
+        layup_sensitivity = "section"  # the capability flag, as on the registered class
 
         class _assigned_section_analysis:
             tapered = True
