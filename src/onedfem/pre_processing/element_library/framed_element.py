@@ -355,6 +355,7 @@ class _Chain:
         idx = int(np.where(np.asarray(ed["ids"]) == element.element_id)[0][0])
         prec = np.array(ed["precurvature_per_element"], dtype=np.float64, copy=True)
         k_twist = float(prec[idx, 0])
+        arc_k = prec[idx].copy()
         prec[idx] = 0.0
         ed["precurvature_per_element"] = prec
         if "twist" in ed:
@@ -364,6 +365,12 @@ class _Chain:
         pt = np.zeros(len(ed["ids"]))
         pt[idx] = k_twist
         ed["pretwist_rate"] = pt
+        winkler = ed.get("winkler_curvature")
+        if winkler is None or bool(np.asarray(winkler)[idx]):
+            # the sub-elements are straight; their section carries the arc's curvature (Winkler)
+            kc = np.zeros((len(ed["ids"]), 2))
+            kc[idx] = arc_k[1:3]
+            ed["section_curvature"] = kc
         ed.pop("_frame_cache", None)
         gd = dict(kw["grid_dictionary"])
         xyz = np.array(gd["coordinates"], dtype=np.float64, copy=True)

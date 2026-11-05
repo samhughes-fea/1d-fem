@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file. The format foll
 ### Added
 
 - `reduced_blade_beam_job` writes a cantilever from kernel stations (span, twist, offset) and one reduced beam section per element. It does not read a wall graph: there is no section geometry, laminate or element-section file. `I_y` and `I_z` are the centroidal moments, and the shear centre and warping constant are the reduced section's.
+- **Winkler curvature correction of curved elements' sections** ([element_library/element_frames.md](element_library/element_frames.md)). Fibres inside a bend are shorter than those outside, so a curved element's sub-elements now integrate the axial and bending block of their section as `∫ E a aᵀ / g dA` with `g = 1 − z k_y − y k_z` (`section_curvature.with_curvature`, applied to the section provider's `SectionAnalysis`). A thick quarter-circle bar (`h = R/2`) under a tip moment then turns as the Winkler-Bach curved beam within 0.2 %, where the straight-section value is 1.4 % off. `precurvature.txt` takes an optional `[winkler]` column (default 1) to leave it out. Layup sensitivities carry it, as it is linear in the section's axial weights. For `section.txt` sections the correction is integrated on 5 × 5 Gauss points of the same rectangle; the provider's stored 3 × 3 points, exact for the pretwist terms, are unchanged.
 
 ### Fixed
 

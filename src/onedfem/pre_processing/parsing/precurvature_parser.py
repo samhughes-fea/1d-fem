@@ -19,7 +19,8 @@ SECTION_PATTERN = re.compile(r"^\[Precurvature\]$", re.IGNORECASE)
 def parse_precurvature(
     file_path: Optional[str],
     element_ids: npt.NDArray[np.int64],
-) -> npt.NDArray[np.float64]:
+    with_winkler: bool = False,
+):
     """
     Read ``precurvature.txt`` and return ``(N_e, 3)`` columns ``[k_x0, k_y0, k_z0]`` (1/m),
     row order matching *element_ids* (same order as ``element_dictionary['ids']``).
@@ -32,12 +33,19 @@ def parse_precurvature(
         [element_id] [k_x0] [k_y0] [k_z0]
         1  0.0  0.0  0.0
 
+    An optional fifth column ``[winkler]`` (1 or 0, default 1) turns the curvature correction
+    of a curved element's section (``section_curvature.with_curvature``) on or off per element.
+    With ``with_winkler=True`` the result is ``(curvatures, winkler)``, ``winkler`` a boolean
+    array in the same row order.
+
     Lines starting with ``#`` and blank lines are ignored. Inline ``#`` comments are stripped.
     """
     n_e = int(element_ids.size)
     out = np.zeros((n_e, 3), dtype=np.float64)
+    winkler = np.ones(n_e, dtype=bool)
     if not file_path or not os.path.isfile(file_path):
-        return out
+        return (out, winkler) if with_winkler else out
+    id_to_winkler: Dict[int, bool] = {}
 
     id_to_row: Dict[int, npt.NDArray[np.float64]] = {}
     in_section = False
@@ -63,9 +71,14 @@ def parse_precurvature(
                 # First data row (no bracket subheader in file)
                 header_skipped = True
 
+            if len(parts) == 5:
+                if parts[4] not in ("0", "1"):
+                    raise ValueError(f"precurvature.txt line {line_no}: [winkler] is 1 or 0, got {parts[4]!r}")
+                id_to_winkler[int(parts[0])] = parts[4] == "1"
+                parts = parts[:4]
             if len(parts) != 4:
                 logger.warning(
-                    "precurvature.txt line %d: expected 4 tokens (element_id k_x0 k_y0 k_z0), got %d; skipping",
+                    "precurvature.txt line %d: expected 4 or 5 tokens (element_id k_x0 k_y0 k_z0 [winkler]), got %d; skipping",
                     line_no,
                     len(parts),
                 )
@@ -87,6 +100,7 @@ def parse_precurvature(
             missing.append(int(eid))
             continue
         out[i, :] = row
+        winkler[i] = id_to_winkler.get(int(eid), True)
 
     if missing:
         logger.info(
@@ -99,7 +113,7 @@ def parse_precurvature(
     if extra:
         logger.warning("precurvature.txt: ignoring %d unknown element id(s)", len(extra))
 
-    return out
+    return (out, winkler) if with_winkler else out
 
 
 def element_reference_strain_voigt(

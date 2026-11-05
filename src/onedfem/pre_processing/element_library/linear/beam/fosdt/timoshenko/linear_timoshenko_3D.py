@@ -367,7 +367,7 @@ class LinearTimoshenkoBeamElement3D(GeometricStiffnessMixin, Element1DBase):
 
     def _D6(self) -> np.ndarray:
         """Section ``D`` (6, 6): the assigned thin-walled ``SectionAnalysis`` stiffness, else the isotropic operator."""
-        if self.has_thin_walled_section or self._pretwist_rate:
+        if self.has_thin_walled_section or self._pretwist_rate or any(self._section_curvature):
             return self.section_analysis.stiffness
         return self.material_stiffness_operator.assembly_form()
 
