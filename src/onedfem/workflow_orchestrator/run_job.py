@@ -235,13 +235,14 @@ def _write_stress_files(job_dir, job_results_dir, element_dictionary, elements, 
         U = np.zeros(np.asarray(modes).shape[0])
     else:
         return
-    from onedfem.post_processing.stations import read_stress_stations
+    from onedfem.post_processing.stations import read_stress_stations, read_wall_points
 
     stations = read_stress_stations(job_dir)
     if tw is not None:
         from onedfem.post_processing.thin_walled.wall_stresses import write_wall_stresses
 
-        write_wall_stresses(job_results_dir, elements, tw, U, stations=stations, modes=modes)
+        write_wall_stresses(job_results_dir, elements, tw, U, stations=stations, modes=modes,
+                            wall_points=read_wall_points(job_dir))
     if solid is not None:
         from onedfem.post_processing.solid.section_stresses import write_section_stresses
 

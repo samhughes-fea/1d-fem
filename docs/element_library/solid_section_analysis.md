@@ -112,6 +112,8 @@ and `interface_stresses.csv`. They are written at every element's mid-point, or 
 stations of `stress_stations.txt` (`src/onedfem/post_processing/stations.py`): a row `[x]` is where the
 axis crosses the plane `X = x`, and a row `[x] [y] [z]` is the nearest point of the axis.
 The `x` column is the global `X` of the axis point, and `xi` is its element coordinate.
+`point_kind` is `section_gauss` (the 2D section's quadrature points) in `section_stresses.csv`
+and `interface_edge_mid` (the middle of each ply-interface edge) in `interface_stresses.csv`.
 A linear Timoshenko element's shear strain is exact only at its mid-point, so put
 stations for shear and interlaminar stresses at element mid-points.
 

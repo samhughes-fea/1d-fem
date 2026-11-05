@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 STRESS_HEADER_RESULTANTS = "N,Vy,Vz,T,My,Mz"
 STRESS_HEADER_BAR = "N_axial,T"
 STRESS_HEADER_TRUSS = "N_axial,V_trans,T"
-STRAIN_HEADER_6 = "ε_xx,ε_yy,ε_zz,γ_xy,γ_yz,γ_xz"
+# beam generalised strains, in the order of the B matrix rows (not 3D strain components)
+STRAIN_HEADER_6 = "ε_x,κ_y,κ_z,γ_xy,γ_xz,φ_x"
 
 
 def _stress_formulation_to_resultants(stress: np.ndarray) -> np.ndarray:
@@ -137,6 +138,11 @@ class SaveSecondaryResults:
 
         for d in [strain_dir, stress_dir, energy_dir]:
             d.mkdir(parents=True, exist_ok=True)
+
+        # where each row of the per-element files is: row k of element e's files is Gauss point k
+        if gauss_res.gauss_points:
+            pd.DataFrame(gauss_res.gauss_points, columns=["element_id", "gauss_point", "xi", "weight"]).to_csv(
+                self.gaussian_dir / "gauss_points.csv", index=False, float_format="%.16e")
 
         # Save strain at Gauss points (variable components: bar 2, truss 3, beam 6)
         if gauss_res.strain:
