@@ -6,7 +6,7 @@ Shared input for the blade examples ([blade_beam](../blade_beam/README.md),
 
 - The stations themselves are blade input data, so they are not in this public
   repository. `stations.py` reads them from the private reference-blades catalogue
-  (`iea15/derived/precomp_sections.json`: the IEA Wind 15 MW blade as PreComp sees it,
+  (`iea15/derived/sections/precomp/precomp_sections.json`: the IEA Wind 15 MW blade as PreComp sees it,
   taken from the turbine's ontology file via WISDEM) through `reference_blades.py`. Clone
   the catalogue to `reference_blades/` at the repository root (git-ignored) or set
   `REFERENCE_BLADES_DIR`. Without it the blade examples, the section validation and their

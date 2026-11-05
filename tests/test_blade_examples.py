@@ -17,7 +17,7 @@ def _skip_without_reference_blades():
     blades = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(blades)
     try:
-        blades.reference_blade_file("iea15/derived/precomp_sections.json")
+        blades.reference_blade_file("iea15/derived/sections/precomp/precomp_sections.json")
     except blades.ReferenceBladesUnavailable as exc:
         pytest.skip(str(exc), allow_module_level=True)
 
