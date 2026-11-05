@@ -1,8 +1,9 @@
 """IEA 15 MW blade stations as implicit-geometry-kernel sections, and their 1d-fem models.
 
-``data/iea15mw_stations.json`` holds three stations of the IEA Wind 15 MW reference blade
-(root, maximum chord and 70 % span) as PreComp sees them: profile, sector layups, web
-positions and PreComp's section properties (from shell-fem example 24).
+``iea15/derived/precomp_sections.json`` in the private reference-blades catalogue (see
+``reference_blades.py``) holds stations of the IEA Wind 15 MW reference blade as PreComp
+sees them: profile, sector layups, web positions and PreComp's section properties. The
+examples use three of them: root (index 0), maximum chord (6) and 70 % span (20).
 
 implicit-geometry-kernel (IGK) builds each station with one skin thickness per section.
 The idealisation, used by every model compared here, is:
@@ -22,13 +23,18 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = json.load(open(os.path.join(HERE, "data", "iea15mw_stations.json"), encoding="utf-8"))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+from reference_blades import ReferenceBladesUnavailable, reference_blade_file  # noqa: E402,F401
+
+DATA = json.loads(reference_blade_file("iea15/derived/precomp_sections.json").read_text(encoding="utf-8"))
 NU23 = 0.3          # transversely isotropic plies, as laminate-constitutive-model takes them
 TE_CLOSE = 0.015    # trailing-edge gaps below this fraction of the chord are closed
 NAMES = {0: "root", 6: "max chord", 20: "70 % span"}

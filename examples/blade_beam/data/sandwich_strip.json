@@ -1,22 +1,4 @@
 {
- "layup": [
-  [
-   "glass_triax",
-   0.002
-  ],
-  [
-   "medium_density_foam",
-   0.013669950738916255
-  ],
-  [
-   "glass_triax",
-   0.002
-  ],
-  [
-   "Gelcoat",
-   0.001
-  ]
- ],
  "rows": [
   {
    "span": 0.5,
