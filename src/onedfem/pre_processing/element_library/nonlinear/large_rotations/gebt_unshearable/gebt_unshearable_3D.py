@@ -27,6 +27,8 @@ from onedfem.pre_processing.element_library.nonlinear.large_rotations.gebt_unshe
 class GEBTUnshearableBeamElement3D(LinearEulerBernoulliBeamElement3D):
     """Unshearable GEBT: Kirchhoff stretch and curvature, linear EB section law."""
 
+    bending_interpolation = "linear"   # as before: line loads and plots use linear interpolation
+
     element_type_name = "GEBTUnshearable-3D"
 
     def __init__(self, **kwargs):

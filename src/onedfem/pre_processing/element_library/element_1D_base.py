@@ -50,6 +50,24 @@ class Element1DBase(ABC):
     supports_section_analysis: bool = False
     #: Element types that may be rotated off the global axes or curved (``framed_element``).
     supports_element_frame: bool = False
+    #: Extra nodal DOFs the type always carries (``dof_layout``), e.g. the slopes of third-order beams.
+    extra_dofs: int = 0
+    #: How the type's transverse fields are interpolated: ``"hermite"`` (cubic, slopes from
+    #: rotations) or ``"linear"``. Line loads and field plots use the same interpolation.
+    bending_interpolation: str = "linear"
+    #: The type carries a warping amplitude (the ``[warping]`` column of ``element.txt``).
+    restrained_warping: bool = False
+    #: The type carries cross-section (GBT) mode amplitudes (``[modes]`` in ``element_section.txt``).
+    cross_section_modes: bool = False
+    #: The geometrically nonlinear type that prestressed vibration swaps this type for. Read
+    #: from the class itself only (``ElementFactory.capability(..., own=True)``), not inherited.
+    nonlinear_counterpart: Optional[str] = None
+    #: How layup sensitivities differentiate this type: ``"section"`` (stiffness and mass linear
+    #: in the section's 6 x 6), ``"benscoter"`` or ``"gbt"``; ``None`` = not supported. Own class only.
+    layup_sensitivity: Optional[str] = None
+    #: Whether buckling-load sensitivities are supported (geometric stiffness linear in the
+    #: section terms). Own class only.
+    layup_buckling_sensitivity: bool = False
 
     def __init_subclass__(cls, **kwargs):
         """Wrap each subclass's element kernels so rotated and curved elements answer in global axes."""

@@ -141,15 +141,21 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
         raise ValueError(f"element_section.txt names unknown sections {unknown_sec}")
     types = element_dictionary.get("types")
     type_of = {} if types is None else {e: str(t) for e, t in zip(ids, np.asarray(types).ravel())}
-    gbt_rows = {e for e in assignment if "GBT" in type_of.get(e, "") or modes_of[e] or shear_of[e]}
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
+
+    def has_modes(e):
+        t = type_of.get(e, "")
+        return bool(t) and bool(ElementFactory.capability(t, "cross_section_modes", False))
+
+    gbt_rows = {e for e in assignment if has_modes(e) or modes_of[e] or shear_of[e]}
     gbt_solid_shear = sorted(e for e in gbt_rows if assignment[e] in solid and shear_of[e])
     if gbt_solid_shear:
         raise ValueError(f"2D sections offer no extra shear-lag modes; elements {gbt_solid_shear} ask for [shear_modes]")
-    not_gbt = sorted(e for e in gbt_rows if type_of and "GBT" not in type_of.get(e, ""))
+    not_gbt = sorted(e for e in gbt_rows if type_of and not has_modes(e))
     if not_gbt:
         raise ValueError(
-            f"element_section.txt gives [modes] / [shear_modes] to elements that are not "
-            f"LinearGBTBeamElement3D: {not_gbt}"
+            f"element_section.txt gives [modes] / [shear_modes] to elements whose type has no cross-section "
+            f"modes ({', '.join(ElementFactory.types_with('cross_section_modes'))}): {not_gbt}"
         )
     for sid in {assignment[e] for e in gbt_rows} - set(solid):
         if analyses[sid].hoop != "restrained":

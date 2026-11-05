@@ -59,23 +59,35 @@ __all__ = ["LAYUP_SENSITIVITY_COLUMNS", "element_derivatives", "layup_sensitivit
 LAYUP_SENSITIVITY_COLUMNS = ("parameter", "laminate_id", "ply", "kind", "value", "response", "response_value",
                              "derivative", "relative_derivative")
 
-#: elements whose stiffness and mass are linear in the section's 6 x 6 stiffness and mass
-SUPPORTED = ("LinearTimoshenkoBeamElement3D", "LinearBenscoterBeamElement3D", "LinearGBTBeamElement3D")
-BENSCOTER = ("LinearBenscoterBeamElement3D",)
-#: elements on the GBT section matrices (derivatives with the cross-section modes held fixed)
-GBT = ("LinearGBTBeamElement3D",)
-#: elements whose geometric stiffness is linear in the section stiffness and second-order terms
-#: (or, for GBT, in its geometric tensors)
-BUCKLING = ("LinearTimoshenkoBeamElement3D", "LinearGBTBeamElement3D")
+# Which element types take layup sensitivities, and how, is declared on each element class
+# (``Element1DBase.layup_sensitivity`` and ``layup_buckling_sensitivity``, own class only):
+# "section" for types whose stiffness and mass are linear in the section's 6 x 6 stiffness
+# and mass, "benscoter" for the Benscoter beam, "gbt" for the GBT section matrices.
+
+
+def _kind(el) -> Optional[str]:
+    """How element ``el`` is differentiated (its own class's ``layup_sensitivity``), or ``None``."""
+    return type(el).__dict__.get("layup_sensitivity")
+
+
+def _buckling_ok(el) -> bool:
+    return bool(type(el).__dict__.get("layup_buckling_sensitivity", False))
+
+
+def _supported(capability: str = "layup_sensitivity") -> List[str]:
+    """Registered type names that declare ``capability`` on their own class."""
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
+
+    return [t for t in sorted(ElementFactory.ELEMENT_CLASS_MAP) if ElementFactory.capability(t, capability, None, own=True)]
 
 
 def _check_element(el) -> None:
     name = type(el).__name__
-    if name not in SUPPORTED:
+    if _kind(el) is None:
         raise NotImplementedError(
-            f"layup sensitivities need {', '.join(SUPPORTED)} elements; element {el.element_id} is {name}")
+            f"layup sensitivities need {', '.join(_supported())} elements; element {el.element_id} is {name}")
     sa = getattr(el, "_assigned_section_analysis", None)
-    if name in GBT:
+    if _kind(el) == "gbt":
         if _curved(el) or np.any(getattr(el, "_E_0_voigt", 0.0)):
             raise NotImplementedError(f"element {el.element_id}: layup sensitivities of GBT elements need straight "
                                       "elements without precurvature or pretwist")
@@ -209,13 +221,13 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
     eigen = mode_shapes is not None and not buckling
     for el in elements:
         _check_element(el)
-        if buckling and (type(el).__name__ not in BUCKLING or _curved(el)):
-            raise NotImplementedError(f"buckling-load sensitivities need straight {', '.join(BUCKLING)} elements; "
+        if buckling and (not _buckling_ok(el) or _curved(el)):
+            raise NotImplementedError(f"buckling-load sensitivities need straight {', '.join(_supported('layup_buckling_sensitivity'))} elements; "
                                       f"element {el.element_id} is {type(el).__name__}"
                                       + (", curved or pretwisted" if _curved(el) else ""))
     cache: Dict[Tuple[int, LayupParameter], object] = {}
     modes_cache: Dict[int, object] = {}
-    gbt_sections = {id(tw) for el, tw in zip(elements, thin_walled) if type(el).__name__ in GBT and tw is not None}
+    gbt_sections = {id(tw) for el, tw in zip(elements, thin_walled) if _kind(el) == "gbt" and tw is not None}
     if len(gbt_sections) > 1:
         raise NotImplementedError("layup sensitivities of GBT elements need one section along the beam (the "
                                   "alignment of several sections' mode bases is not differentiated)")
@@ -281,8 +293,8 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
                 dMe.append(np.zeros((el._n_dof, el._n_dof)))
                 dGe.append((None, None, None))
                 continue
-            bens = type(el).__name__ in BENSCOTER
-            gbt = type(el).__name__ in GBT
+            bens = _kind(el) == "benscoter"
+            gbt = _kind(el) == "gbt"
             sa = el.section_analysis
             key = (id(tw), p, bens, (sa.gbt_modes, sa.gbt_shear_modes) if gbt else None)
             if key not in cache:
@@ -392,7 +404,7 @@ def write_layup_sensitivity(job_dir: str, job_results_dir: str, element_dictiona
         raise ValueError("layup sensitivities need thin-walled or 2D sections (laminate.txt, section_geometry.txt "
                          "or section_mesh_2d.txt)")
     loads = element_dictionary.get("wall_load_per_element")
-    if loads is not None and any(f is not None and type(el).__name__ in GBT for el, f in zip(elements, loads)):
+    if loads is not None and any(f is not None and _kind(el) == "gbt" for el, f in zip(elements, loads)):
         raise NotImplementedError("layup sensitivities with wall loads on GBT elements: their generalised load "
                                   "moves with the cross-section modes and is not differentiated")
     solid = element_dictionary.get("solid_analysis_per_element")

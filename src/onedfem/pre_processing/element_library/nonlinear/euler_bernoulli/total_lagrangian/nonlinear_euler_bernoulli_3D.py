@@ -38,6 +38,7 @@ class NonlinearEulerBernoulliBeamElement3D(LinearEulerBernoulliBeamElement3D):
     #: The tangent and internal force are not rotated by ``framed_element``: refuse rotated or
     #: curved meshes rather than inherit the linear parent's frame support.
     supports_element_frame = False
+    bending_interpolation = "hermite"
 
     element_type_name = "Euler-Bernoulli-3D-Nonlinear"
 
