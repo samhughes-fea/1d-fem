@@ -15,7 +15,9 @@ carry a section twist about their axis, and be curved and pretwisted. Code:
   unchanged.
 - **`precurvature.txt`** (`[element_id] [k_x0] [k_y0] [k_z0]`) gives an element a constant
   reference twist rate `k_x0` and bending curvatures `k_y0`, `k_z0`, in its own axes. The
-  element is then the arc of that curvature between its nodes, stress free.
+  element is then the arc of that curvature between its nodes, stress free. An optional
+  fifth column `[winkler]` (1 or 0, default 1) turns the curvature correction of the
+  element's section on or off (see below).
 
 ### Blade terms
 
@@ -80,9 +82,24 @@ These are the extension-twist coupling of a pretwisted strip (Rosen 1980; Hodges
 The integrals use the section's `axial_points`: the wall quadrature of a thin-walled
 section, or for `section.txt` inputs the rectangle with the same `A`, `I_y` and `I_z`.
 
-The curvature's effect on the section itself is left out: fibres on the inside of a bend
-being shorter than those outside (the Winkler correction). That is a `(k h)²` effect,
-small for a slender beam.
+The curvature also acts on the section itself: fibres on the inside of the bend are
+shorter than those outside. A fibre at `(y, z)` has length `g = 1 − z k_y − y k_z` per length
+of the axis and strain `a·e / g`, with `a = (1, −z, −y)` the fibre strain operator of
+`(ε, κ_y, κ_z)`. Its energy per length of the axis is `½ ∫ E (a·e)² / g dA`, so the
+sub-elements' sections take (`SectionAnalysis.with_curvature`):
+
+    D[i, j] += ∫ E a_i a_j (1/g − 1) dA,    i, j ∈ (ε, κ_y, κ_z)
+
+This is the Winkler-Bach curved beam. To first order it couples extension and bending by
+`−k EI`; otherwise it is a `(k h)²` change, small for a slender beam. On a bar of depth
+`h = R/2` under a tip moment the beam turns as Winkler-Bach's `M L / (E A e R)`
+(`e` the centroid to neutral-axis distance), 1.4 % more than `M L / EI`
+(`tests/test_winkler_curvature.py`). The shear, torsion and warping terms and the mass
+keep their straight-beam values. The integrals use the section's `axial_points`: the wall
+quadrature of a thin-walled section, the 2D section's quadrature, or for `section.txt`
+inputs 5 × 5 Gauss points of the rectangle with the same `A`, `I_y` and `I_z`. A curvature
+that puts the centre of curvature inside the section is refused. `[winkler] 0` leaves the
+correction out, so a curved element is again exactly its chain of straight sub-elements.
 
 ## Loads and limits
 

@@ -54,11 +54,12 @@ def to_element_voigt(K_rh: npt.ArrayLike) -> npt.NDArray[np.float64]:
 
 
 def _rectangle_points(E: float, A: float, I_y: float, I_z: float) -> Optional[npt.NDArray[np.float64]]:
-    """3 x 3 Gauss points ``[y, z, E dA]`` of the rectangle with the given ``A``, ``I_y``, ``I_z``."""
+    """5 x 5 Gauss points ``[y, z, E dA]`` of the rectangle with the given ``A``, ``I_y``, ``I_z``
+    (exact for the pretwist's ``r^4``, and for the Winkler ``1 / g`` to ``(k h / 2)^10``)."""
     if A <= 0 or I_y <= 0 or I_z <= 0:
         return None
     h, b = np.sqrt(12.0 * I_y / A), np.sqrt(12.0 * I_z / A)
-    x, w = np.polynomial.legendre.leggauss(3)
+    x, w = np.polynomial.legendre.leggauss(5)
     return np.array([[0.5 * b * yi, 0.5 * h * zi, E * 0.25 * b * h * wy * wz]
                      for yi, wy in zip(x, w) for zi, wz in zip(x, w)])
 
@@ -469,6 +470,56 @@ class SectionAnalysis:
             benscoter_stiffness=add(self.benscoter_stiffness, (0, 1, 2), 5),
             third_order_stiffness=add(self.third_order_stiffness, (0, 1, 2), 5),
             gbt_stiffness=add(self.gbt_stiffness, (0, 1, 2), 5),
+        )
+
+    def with_curvature(self, k_y: float, k_z: float) -> "SectionAnalysis":
+        """This section on a beam curved at ``(k_y, k_z)`` (1/m, element axes): the Winkler correction.
+
+        On a curved axis the fibres on the inside of the bend are shorter than those outside:
+        a fibre at ``(y, z)`` has length ``g = 1 + a_2 k_y + a_3 k_z = 1 - z k_y - y k_z`` per
+        length of the axis, with ``a = (1, -z, -y)`` the element-signed fibre strain operator
+        of ``(eps_x, kappa_y, kappa_z)``. Its strain is ``a . e / g`` and its energy, per length
+        of the axis, ``1/2 int E (a . e)^2 / g dA``, so the axial and bending block becomes::
+
+            D[i, j] += int E a_i a_j (1 / g - 1) dA      for i, j in (eps_x, kappa_y, kappa_z)
+
+        in every stiffness (the 6 x 6, classical, Benscoter, third-order and GBT ones). This is
+        the Winkler-Bach curved beam: for a bar of depth ``h`` on radius ``R`` it puts the
+        neutral axis at ``h / ln(R_o / R_i)`` under pure bending. To first order it couples
+        extension and bending by ``-k EI`` and is otherwise a ``(k h)^2`` change. The integrals
+        use ``axial_points``. The shear, torsion and warping terms and the mass are not
+        corrected (their changes are ``(k h)^2`` too).
+        """
+        import dataclasses
+
+        if not k_y and not k_z:
+            return self
+        if self.axial_points is None:
+            raise ValueError("the curvature correction needs the section's axial_points "
+                             "(a section with area and inertias)")
+        y, z, wE = np.asarray(self.axial_points, dtype=np.float64).T
+        g = 1.0 - z * float(k_y) - y * float(k_z)
+        if np.any(g <= 0.0):
+            raise ValueError(f"curvature ({k_y:g}, {k_z:g}) 1/m puts the centre of curvature inside "
+                             "the section (1 - z k_y - y k_z <= 0 at a section point)")
+        a = np.stack([np.ones_like(y), -z, -y])
+        dD = (a * (wE * (1.0 / g - 1.0))) @ a.T
+        dD = 0.5 * (dD + dD.T)
+
+        def add(K):
+            if K is None:
+                return None
+            K = np.array(K, dtype=np.float64, copy=True)
+            K[:3, :3] += dD
+            return K
+
+        return dataclasses.replace(
+            self,
+            stiffness=add(self.stiffness),
+            classical_stiffness=add(self.classical_stiffness),
+            benscoter_stiffness=add(self.benscoter_stiffness),
+            third_order_stiffness=add(self.third_order_stiffness),
+            gbt_stiffness=add(self.gbt_stiffness),
         )
 
     def with_taper(self, taper) -> "SectionAnalysis":
