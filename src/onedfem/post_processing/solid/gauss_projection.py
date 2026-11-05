@@ -25,7 +25,7 @@ from typing import List, Sequence, Tuple
 import numpy as np
 import numpy.typing as npt
 
-from onedfem.pre_processing.section_integration.solid.elements import quadrature, shape
+from onedfem.sections import section_import
 
 __all__ = ["GAUSS_1D", "gauss_lagrange_q8", "project_q8", "element_patches", "element_line"]
 
@@ -57,6 +57,7 @@ def project_q8(gauss_values: npt.ArrayLike, xi: float, eta: float) -> npt.NDArra
 
 
 def _check_order() -> None:
+    quadrature = section_import("solid.elements", "quadrature")
     pts, _ = quadrature("Q8")
     for k, (x, e) in enumerate(pts):
         if not (np.isclose(x, GAUSS_1D[k // 3]) and np.isclose(e, GAUSS_1D[k % 3])):
@@ -73,6 +74,7 @@ def element_patches(nodes: npt.ArrayLike, connectivity: Sequence[int], gauss_val
     The sub-cell corners come from the element's own map ``x(xi, eta) = N(xi, eta) X``, so the
     patches tile the curved element exactly as the element sees it.
     """
+    shape = section_import("solid.elements", "shape")
     X = np.asarray(nodes, dtype=np.float64)[list(connectivity)]
     t = np.linspace(-1.0, 1.0, n_sub + 1)
     c = 0.5 * (t[:-1] + t[1:])

@@ -1,6 +1,6 @@
 # Cross-section modes and the GBT element
 
-`CrossSectionModes` (`src/onedfem/pre_processing/section_integration/thin_walled/cross_section_modes.py`)
+`CrossSectionModes` (`anisotropic_section_model/thin_walled/cross_section_modes.py`)
 finds the conventional (Vlasov) deformation modes and the warping modes of any open,
 closed or multi-cell thin-walled section. `LinearGBTBeamElement3D` is a beam with
 plane-section kinematics, the warping modes (Saint-Venant warping plus optional
@@ -159,7 +159,7 @@ orthogonality), the wall-load resultants by hand, and the parsers.
 
 ## GBT on 2D sections
 
-`SolidCrossSectionModes` (`src/onedfem/pre_processing/section_integration/solid/cross_section_modes.py`)
+`SolidCrossSectionModes` (`anisotropic_section_model/solid/cross_section_modes.py`)
 gives the same generalised strains, stiffness and mass for a section meshed in 2D, so
 `LinearGBTBeamElement3D` takes either kind of section. Each section point moves as
 

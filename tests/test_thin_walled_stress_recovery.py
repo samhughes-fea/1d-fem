@@ -12,16 +12,16 @@ import numpy as np
 import pytest
 
 from onedfem.pre_processing.element_library.dof_layout import mesh_dof_per_node
-from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
-from onedfem.pre_processing.section_integration.thin_walled import (
+from anisotropic_section_model.section_analysis import SectionAnalysis
+from anisotropic_section_model.thin_walled import (
     ThinWalledSection,
     ThinWalledSectionAnalysis,
     Wall,
     WallLaminate,
 )
-from onedfem.pre_processing.section_integration.thin_walled.element_recovery import element_wall_stress
-from onedfem.pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
-from onedfem.pre_processing.section_integration.thin_walled.stress_recovery import (
+from onedfem.post_processing.thin_walled.element_recovery import element_wall_stress
+from anisotropic_section_model.thin_walled.laminate import Ply, PlyMaterial
+from anisotropic_section_model.thin_walled.stress_recovery import (
     SaintVenantRecovery,
     mid_surface_strains,
     through_thickness,

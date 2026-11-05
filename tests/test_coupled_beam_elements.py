@@ -15,8 +15,8 @@ import numpy as np
 import pytest
 from numpy.polynomial.legendre import leggauss
 
-from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
-from onedfem.pre_processing.section_integration.thin_walled import (
+from anisotropic_section_model.section_analysis import SectionAnalysis
+from anisotropic_section_model.thin_walled import (
     Ply,
     PlyMaterial,
     ThinWalledSection,
@@ -263,7 +263,7 @@ def test_isotropic_thin_walled_box_matches_section_txt_element(etype):
     assert not sa.is_coupled
     np.testing.assert_allclose(els[0]["D"], D)
     # same element stiffness as the isotropic section.txt path with these EA, EI, GA, GJ
-    from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis as SA
+    from anisotropic_section_model.section_analysis import SectionAnalysis as SA
     K = sa.stiffness
     iso = SA(np.diag(np.diag(K)), np.diag(np.diag(sa.classical_stiffness)))
     _, els_iso, _ = fe_tip(etype, iso, 1.0, LOADS["axial"], n_el=1)

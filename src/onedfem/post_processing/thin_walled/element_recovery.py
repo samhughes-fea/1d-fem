@@ -1,4 +1,4 @@
-# pre_processing/section_integration/thin_walled/element_recovery.py
+# onedfem/post_processing/thin_walled/element_recovery.py
 """Wall and ply stresses at a point of a beam element with a thin-walled section.
 
 Each element type gives the wall strains it carries at ``xi`` from its nodal
@@ -37,12 +37,7 @@ from typing import Tuple
 import numpy as np
 import numpy.typing as npt
 
-from onedfem.pre_processing.section_integration.thin_walled.stress_recovery import (
-    KeptField,
-    SaintVenantRecovery,
-    WallPointStress,
-    wall_point_stress,
-)
+from onedfem.sections import section_import
 
 _FD = 1e-4  # relative step in xi for rates along the element
 
@@ -74,8 +69,9 @@ def element_wall_field(element, U_e: npt.ArrayLike, xi: float, analysis, wall_id
 
     Returns the field and the hoop condition to complete it with.
     """
+    SaintVenantRecovery = section_import("thin_walled.stress_recovery", "SaintVenantRecovery")
     from onedfem.pre_processing.element_library.framed_element import local_state
-    from onedfem.pre_processing.section_integration.thin_walled.section_analysis import T_RATE
+    T_RATE = section_import("thin_walled.section_analysis", "T_RATE")
 
     # a rotated element's displacements in its own axes; a curved one's sub-element at xi
     element, U, xi = local_state(element, U_e, xi)
@@ -136,7 +132,7 @@ def element_wall_field(element, U_e: npt.ArrayLike, xi: float, analysis, wall_id
         return field, analysis.hoop
 
     # GBT
-    from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
+    CrossSectionModes = section_import("thin_walled.cross_section_modes", "CrossSectionModes")
 
     cm = getattr(analysis, "_cross_section_modes", None)
     if cm is None:
@@ -178,6 +174,7 @@ def element_wall_stress(
     wall_id, s : int, float
         Wall and distance along it.
     """
+    SaintVenantRecovery, wall_point_stress = section_import("thin_walled.stress_recovery", "SaintVenantRecovery", "wall_point_stress")
     field, hoop = element_wall_field(element, U_e, xi, analysis, wall_id)
     rec = SaintVenantRecovery(analysis)
     w = analysis.section.wall(wall_id)

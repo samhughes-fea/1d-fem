@@ -88,7 +88,7 @@ def _run(tmp_path, moment, name):
 
 @pytest.mark.slow
 def test_tube_ovalises_as_brazier(tmp_path, monkeypatch):
-    from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
+    from anisotropic_section_model.section_analysis import SectionAnalysis
 
     M = 1.0e4                                   # zeta about 1.2 %
     U = _run(tmp_path, M, "brazier")

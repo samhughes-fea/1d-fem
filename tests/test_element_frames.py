@@ -27,7 +27,7 @@ import pytest
 from onedfem.pre_processing.element_library.dof_layout import mesh_dof_per_node
 from onedfem.pre_processing.element_library.element_factory import ElementFactory
 from onedfem.pre_processing.element_library.element_frame import arc_geometry, rotation_exp, straight_frame
-from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
+from anisotropic_section_model.section_analysis import SectionAnalysis
 from tests.test_second_order import E, G, NU, channel
 
 EB, TS, BS = "LinearEulerBernoulliBeamElement3D", "LinearTimoshenkoBeamElement3D", "LinearBenscoterBeamElement3D"
@@ -369,7 +369,7 @@ def test_curved_cantilever_job(tmp_path):
 
 
 def test_wall_stresses_of_a_turned_beam():
-    from onedfem.pre_processing.section_integration.thin_walled.element_recovery import element_wall_stress
+    from onedfem.post_processing.thin_walled.element_recovery import element_wall_stress
 
     sa = channel()
     d = np.array([0.3, 0.9, -0.4])

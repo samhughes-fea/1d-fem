@@ -45,7 +45,7 @@ def box_mesh():
     """The composite box section as a conforming layered 2D mesh with mitred corners."""
     from validation.abaqus.shell_validation.cases import box_section
     from validation.abaqus.shell_validation.onedfem import section_analysis
-    from onedfem.pre_processing.section_integration.solid.mesh import SectionMesh
+    from anisotropic_section_model.solid.mesh import SectionMesh
 
     tw = section_analysis(box_section())
     return SectionMesh.from_thin_walled(tw.section, tw.laminates, elements_along=ELEMENTS_ALONG_WALL,

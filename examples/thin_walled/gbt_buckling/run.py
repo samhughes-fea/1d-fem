@@ -120,7 +120,7 @@ class SectionShape:
     """
 
     def __init__(self, modes: int):
-        from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
+        from anisotropic_section_model.thin_walled.cross_section_modes import CrossSectionModes
 
         self.cm = CrossSectionModes(build_analysis(section()))
         self.X = self.cm._modes[1][:, :modes]
@@ -182,7 +182,7 @@ def in_plane_dofs(U: np.ndarray, n_warping: int, modes: int) -> np.ndarray:
 
 # --------------------------------------------------------------------------- #
 def main(plot: bool = True, work_dir: str = HERE, out_dir: str = HERE, lengths=LENGTHS) -> dict:
-    from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
+    from anisotropic_section_model.thin_walled.cross_section_modes import CrossSectionModes
 
     area = T * (H + 2 * B + 2 * C)
     p = CrossSectionModes(build_analysis(section())).n_sv_warping

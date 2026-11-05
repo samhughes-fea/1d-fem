@@ -24,8 +24,8 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from onedfem.pre_processing.section_integration.solid.material import material_axes
-from onedfem.pre_processing.section_integration.solid.mesh import SectionMesh
+from anisotropic_section_model.solid.material import material_axes
+from anisotropic_section_model.solid.mesh import SectionMesh
 
 LOADS = np.eye(6)          # unit load cases in FORCES order: N, M_y, M_z, V_y, V_z, T
 

@@ -175,7 +175,7 @@ def _mid(an, wall_id: int) -> float:
 
 
 def main(n_el: int = N_EL, plot: bool = True, work_dir: str = HERE) -> dict:
-    from onedfem.pre_processing.section_integration.thin_walled.stress_recovery import SaintVenantRecovery
+    from anisotropic_section_model.thin_walled.stress_recovery import SaintVenantRecovery
 
     an = build_analysis(section())
     results = {name: run(spec, work_dir, name.replace(" ", "_").replace(",", "")) for name, spec in cases(n_el).items()}

@@ -99,7 +99,7 @@ def _stiff_core_laminates() -> dict:
     """The station laminates with the core's transverse shear moduli times ``STIFF_CORE``."""
     import dataclasses
 
-    from onedfem.pre_processing.section_integration.thin_walled import Ply, WallLaminate
+    from anisotropic_section_model.thin_walled import Ply, WallLaminate
 
     out = {}
     for k, lam in S.laminates(20).items():

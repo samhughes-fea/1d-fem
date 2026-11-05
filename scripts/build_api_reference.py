@@ -31,9 +31,12 @@ OUT = os.path.join(REPO, "docs", "api")
 
 #: page file -> (title, package roots, intro); a root "+pkg" lists every module under pkg
 PAGES: Dict[str, Tuple[str, Tuple[str, ...], str]] = {
-    "sections.md": ("Section analysis", ("onedfem.pre_processing.section_integration",),
-                    "Thin-walled and 2D (solid) cross-section analysis: stiffness, mass, warping, "
-                    "GBT modes, stress recovery, ply failure and layup sensitivities."),
+    "sections.md": ("Section analysis", ("onedfem.sections", "onedfem.pre_processing.section_job",
+                                         "onedfem.post_processing.thin_walled"),
+                    "The section provider seam and the section input and recovery that 1d-fem keeps. "
+                    "The cross-section analysis itself (thin-walled and 2D sections, GBT modes, stress "
+                    "recovery, ply failure, layup sensitivities) comes from the section provider, "
+                    "anisotropic-section-model by default."),
     "elements.md": ("Elements", ("onedfem.pre_processing.element_library",),
                     "Beam, bar and truss elements and their shared utilities."),
     "job_input.md": ("Job input", ("+onedfem.pre_processing.parsing", "onedfem.pre_processing.mesh_library",

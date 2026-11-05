@@ -22,19 +22,19 @@ displacements down to ply stresses and failure margins at every Gauss point.
 
 ## Install
 
-Python 3.10 or later. 1d-fem is the `onedfem` package (`src/onedfem`). There is no release
+Python 3.11 or later. 1d-fem is the `onedfem` package (`src/onedfem`). There is no release
 on PyPI yet; install it from GitHub:
 
 ```bash
-pip install "onedfem @ git+https://github.com/samhughes-fea/1d-fem"
-pip install "onedfem[geometry] @ git+https://github.com/samhughes-fea/1d-fem"   # Python 3.11+: blade geometry
+pip install "onedfem[sections] @ git+https://github.com/samhughes-fea/1d-fem"            # with the default section provider
+pip install "onedfem[sections,geometry] @ git+https://github.com/samhughes-fea/1d-fem"   # and blade geometry
 ```
 
 or, to run the examples, validation and tests, from a clone:
 
 ```bash
+pip install -r requirements-sections.txt -r requirements-geometry.txt
 pip install -e ".[test]"
-pip install -e ".[geometry]"   # optional, Python 3.11+
 ```
 
 The repository keeps the code in `src/onedfem` and, outside the package, the examples, the
@@ -91,13 +91,18 @@ the beam, Gauss-point values and their shape-function projections on sections.
 | Repository | Owns | Relation to 1d-fem |
 |---|---|---|
 | implicit-geometry-kernel | blade and section geometry (airfoils, lofts, `section_at(z)`) | optional; `src/onedfem` reads its geometry duck typed and never imports it |
-| laminate-constitutive-model | materials, plies, laminates, ABD, failure criteria | not used yet (1d-fem has its own laminate code) |
+| laminate-constitutive-model | materials, plies, laminates, ABD, failure criteria | used through anisotropic-section-model (ply failure criteria; its laminates plug into the section walls) |
 | shell-fem | shell and solid FE, blade shell models (linear static) | shell reference in examples and validation only |
-| anisotropic-section-model | blade 6×6 / 7×7 section properties, small exact beam references | cross-checks in examples and validation only |
-| 1d-fem | beam solver for all analysis types, with its own thin-walled, 2D and GBT section analysis | depends on none of the others |
+| anisotropic-section-model | cross-section analysis: thin-walled, 2D and GBT sections, stress recovery, ply failure, layup sensitivities | the default **section provider**, loaded at run time through `onedfem.sections` |
+| 1d-fem | beam solver for all analysis types, section job input and stress output | imports none of the others |
 
-`tests/test_repo_boundaries.py` fails if library code imports any of them. Tests that use
-them skip when they are not installed.
+`tests/test_repo_boundaries.py` fails if library code imports any of them. Sections are a
+plug-in: `onedfem.sections` defines what 1d-fem needs from a section provider
+(`PROVIDER_MODULES`) and imports the provider the first time a section is used.
+anisotropic-section-model is the default and can be swapped with
+`set_section_provider("other_package")`. The provider works in 1d-fem's beam axes (beam
+axis x, strains `[eps, kappa_y, kappa_z, gamma_xy, gamma_xz, phi]`); for BeamDyn's order
+see [docs/conventions/SECTION_STIFFNESS_ORDER.md](docs/conventions/SECTION_STIFFNESS_ORDER.md).
 
 ## Documentation
 
@@ -115,8 +120,8 @@ pip install -e ".[test]"
 python -m pytest tests -q -n auto
 ```
 
-CI ([.github/workflows/pytest.yml](.github/workflows/pytest.yml)) runs on Python 3.10 and
-3.11 with `FEM_FORMULATION_CACHE_STRICT_SHAPE=1`, so a missing Gauss `shape_functions` cache
+CI ([.github/workflows/pytest.yml](.github/workflows/pytest.yml)) runs on Python 3.11 and
+3.12 with `FEM_FORMULATION_CACHE_STRICT_SHAPE=1`, so a missing Gauss `shape_functions` cache
 fails fast. Set it locally to match:
 
 ```bash

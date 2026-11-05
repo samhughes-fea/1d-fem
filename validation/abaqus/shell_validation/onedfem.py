@@ -28,13 +28,13 @@ STANDARD_DOFS = ("UX", "UY", "UZ", "RX", "RY", "RZ")
 
 def section_analysis(sec: ShellSection, n_sub: int = 2):
     """1d-fem's ``ThinWalledSectionAnalysis`` of a shell-model section."""
-    from onedfem.pre_processing.section_integration.thin_walled import (
+    from anisotropic_section_model.thin_walled import (
         ThinWalledSection,
         ThinWalledSectionAnalysis,
         Wall,
         WallLaminate,
     )
-    from onedfem.pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
+    from anisotropic_section_model.thin_walled.laminate import Ply, PlyMaterial
 
     mats = {}
     lams = {}

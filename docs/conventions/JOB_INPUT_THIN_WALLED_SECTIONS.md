@@ -121,14 +121,14 @@ default) writes both blocks from the loft.
 
 ## Sections from implicit-geometry-kernel, and `region_laminate.txt`
 
-`src/onedfem/pre_processing/section_integration/thin_walled/from_geometry.py` turns a blade section
+`anisotropic_section_model/thin_walled/from_geometry.py` turns a blade section
 cut by [implicit-geometry-kernel](https://github.com/samhughes-fea/implicit-geometry-kernel)
 (`BladeGeometry.section_at(z)`, an optional dependency that needs Python 3.11 or later)
 into a `ThinWalledSection` and its laminates:
 
 ```python
 from implicit_geometry_kernel import Airfoil, BladeGeometry, Station
-from onedfem.pre_processing.section_integration.thin_walled.from_geometry import thin_walled_from_cut
+from anisotropic_section_model.thin_walled.from_geometry import thin_walled_from_cut
 
 cut = BladeGeometry(stations, "2D-F", skin_thickness=0.003, spar_cap_thickness=0.008,
                     shear_web_thickness=0.002).section_at(z)

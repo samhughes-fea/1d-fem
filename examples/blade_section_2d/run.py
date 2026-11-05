@@ -49,9 +49,9 @@ def section_forces() -> np.ndarray:
 
 
 def build(rows_per_ply: int = 2, element_size=None):
-    from onedfem.pre_processing.section_integration.solid.from_geometry import section_mesh_from_cut
-    from onedfem.pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
-    from onedfem.pre_processing.section_integration.thin_walled.from_geometry import thin_walled_from_cut
+    from anisotropic_section_model.solid.from_geometry import section_mesh_from_cut
+    from anisotropic_section_model.solid.section_analysis import SolidSectionAnalysis
+    from anisotropic_section_model.thin_walled.from_geometry import thin_walled_from_cut
 
     cut = S.geometry(INDEX).section_at(0.5)
     lams = S.laminates(INDEX)
@@ -97,7 +97,7 @@ def panel_profile(sa, mesh, column, forces, n_line: int = 21):
     the order ``sigma_xx, tau_xs, tau_xn``.
     """
     from onedfem.post_processing.solid.gauss_projection import GAUSS_1D, element_line
-    from onedfem.pre_processing.section_integration.solid.elements import shape
+    from anisotropic_section_model.solid.elements import shape
 
     by_el = {}
     for p in sa.point_stresses(forces=forces):
@@ -127,7 +127,7 @@ def thin_walled_panel(tw, gs, y_target: float, forces, points_per_ply: int = 21)
     the inner face. Within a ply the recovered stress is the laminate's own (linear in ``n``
     for the membrane stresses), so each ply is sampled densely and drawn on its own.
     """
-    from onedfem.pre_processing.section_integration.thin_walled.stress_recovery import SaintVenantRecovery
+    from anisotropic_section_model.thin_walled.stress_recovery import SaintVenantRecovery
 
     sec = tw.section
     best = None
@@ -153,8 +153,8 @@ def thin_walled_panel(tw, gs, y_target: float, forces, points_per_ply: int = 21)
 def cap_check(sa, mesh, tw, gs, forces):
     """Mean sigma_xx over the suction-side cap carbon: 2D (area-weighted over the cap
     elements) against thin-walled (the carbon plies' stresses, length-weighted over the cap walls)."""
-    from onedfem.pre_processing.section_integration.solid.elements import shape
-    from onedfem.pre_processing.section_integration.thin_walled.stress_recovery import SaintVenantRecovery
+    from anisotropic_section_model.solid.elements import shape
+    from anisotropic_section_model.thin_walled.stress_recovery import SaintVenantRecovery
 
     g, wg = np.polynomial.legendre.leggauss(2)
     num = den = 0.0

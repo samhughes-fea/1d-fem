@@ -7,14 +7,14 @@ import os
 import numpy as np
 import pytest
 
-from onedfem.pre_processing.section_integration.section_analysis import ELEMENT_SIGN, SectionAnalysis
-from onedfem.pre_processing.section_integration.solid.material import SolidMaterial
-from onedfem.pre_processing.section_integration.solid.mesh import SectionMesh
-from onedfem.pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
-from onedfem.pre_processing.section_integration.thin_walled import ThinWalledSection, Wall, WallLaminate
-from onedfem.pre_processing.section_integration.thin_walled.job_input import attach_section_analyses
-from onedfem.pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
-from onedfem.pre_processing.section_integration.thin_walled.section_analysis import (
+from anisotropic_section_model.section_analysis import ELEMENT_SIGN, SectionAnalysis
+from anisotropic_section_model.solid.material import SolidMaterial
+from anisotropic_section_model.solid.mesh import SectionMesh
+from anisotropic_section_model.solid.section_analysis import SolidSectionAnalysis
+from anisotropic_section_model.thin_walled import ThinWalledSection, Wall, WallLaminate
+from onedfem.pre_processing.section_job import attach_section_analyses
+from anisotropic_section_model.thin_walled.laminate import Ply, PlyMaterial
+from anisotropic_section_model.thin_walled.section_analysis import (
     ThinWalledSectionAnalysis,
     stiffness_about,
 )

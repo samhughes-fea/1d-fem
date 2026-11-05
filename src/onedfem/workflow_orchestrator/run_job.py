@@ -43,7 +43,7 @@ from onedfem.pre_processing.parsing.point_load_parser import parse_point_load
 from onedfem.pre_processing.parsing.distributed_load_parser import parse_distributed_load
 from onedfem.pre_processing.parsing.prescribed_displacement_parser import parse_prescribed_displacement
 from onedfem.pre_processing.element_library.dof_layout import mesh_dof_per_node
-from onedfem.pre_processing.section_integration.thin_walled.job_input import attach_section_analyses
+from onedfem.pre_processing.section_job import attach_section_analyses
 from onedfem.pre_processing.parsing.precurvature_parser import parse_precurvature
 
 #from onedfem.pre_processing.element_library.element_factory import ElementFactory # lazy import in process job

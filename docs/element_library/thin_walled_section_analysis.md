@@ -2,7 +2,7 @@
 
 `ThinWalledSectionAnalysis` turns a thin-walled section (walls of laminates, see [thin_walled_section_walls.md](thin_walled_section_walls.md)) into the fully coupled 6 × 6 Timoshenko section stiffness, plus the shear centre, tension centre, torsional warping, the Vlasov warping stiffness \(E\Gamma\) and mass properties.
 
-Code: `src/onedfem/pre_processing/section_integration/thin_walled/section_analysis.py`. Derivation: [../proofs/section/saint_venant_thin_walled.md](../proofs/section/saint_venant_thin_walled.md).
+Code: `anisotropic_section_model/thin_walled/section_analysis.py`. Derivation: [../proofs/section/saint_venant_thin_walled.md](../proofs/section/saint_venant_thin_walled.md).
 
 ## What it solves
 

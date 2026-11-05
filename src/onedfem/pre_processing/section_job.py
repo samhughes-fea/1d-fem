@@ -1,4 +1,4 @@
-# pre_processing/section_integration/thin_walled/job_input.py
+# onedfem/pre_processing/section_job.py
 """Build section analyses from a job's ``laminate.txt`` and ``section_geometry.txt`` (thin-walled)
 and ``section_mesh_2d.txt`` (sections meshed in 2D)."""
 
@@ -8,9 +8,7 @@ from typing import Dict
 
 from onedfem.pre_processing.parsing.laminate_parser import parse_laminate_file
 from onedfem.pre_processing.parsing.section_geometry_parser import parse_section_geometry_file, parse_section_mesh
-from onedfem.pre_processing.section_integration.thin_walled.section_analysis import (
-    ThinWalledSectionAnalysis,
-)
+from onedfem.sections import section_import
 
 
 def section_analyses_from_files(
@@ -20,6 +18,7 @@ def section_analyses_from_files(
 
     ``n_sub`` is the default wall subdivision; a ``[Section_Mesh]`` block overrides it per section.
     """
+    ThinWalledSectionAnalysis = section_import("thin_walled.section_analysis", "ThinWalledSectionAnalysis")
     laminates = parse_laminate_file(laminate_path)
     sections = parse_section_geometry_file(geometry_path, laminates.keys())
     mesh = parse_section_mesh(geometry_path)
@@ -36,9 +35,9 @@ def solid_analyses_from_files(mesh_path: str, laminate_path=None) -> Dict[int, "
     ``laminate.txt`` (``SolidMaterial.from_ply``).
     """
     from onedfem.pre_processing.parsing.laminate_parser import parse_ply_material_file
-    from onedfem.pre_processing.section_integration.solid.material import SolidMaterial
-    from onedfem.pre_processing.section_integration.solid.mesh import parse_section_mesh_2d
-    from onedfem.pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
+    SolidMaterial = section_import("solid.material", "SolidMaterial")
+    parse_section_mesh_2d = section_import("solid.mesh", "parse_section_mesh_2d")
+    SolidSectionAnalysis = section_import("solid.section_analysis", "SolidSectionAnalysis")
 
     mats = {}
     if laminate_path is not None:
@@ -98,12 +97,13 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
     load per length of each loaded element (``None`` for the rest), in the order of the
     section's GBT mass for GBT rows, else ``[N, F_y, F_z, M_x, M_y, M_z, psi load]``.
     """
+    ThinWalledSectionAnalysis = section_import("thin_walled.section_analysis", "ThinWalledSectionAnalysis")
     import os
 
     import numpy as np
 
     from onedfem.pre_processing.parsing.element_section_parser import parse_element_section_modes
-    from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
+    SectionAnalysis = section_import("section_analysis", "SectionAnalysis")
 
     paths = [os.path.join(job_dir, f) for f in (LAMINATE_FILE, SECTION_GEOMETRY_FILE, ELEMENT_SECTION_FILE)]
     present = [os.path.exists(p) for p in paths]
@@ -184,7 +184,7 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
         per_element = tuple(sa.with_taper(tapers[e]) if e in tapers else sa for e, sa in zip(ids, per_element))
     align = {}
     if gbt_rows and "connectivity" in element_dictionary and len({assignment[e] for e in gbt_rows}) > 1:
-        from onedfem.pre_processing.section_integration.gbt_alignment import align_gbt_sections
+        align_gbt_sections = section_import("gbt_alignment", "align_gbt_sections")
 
         per_element, align = align_gbt_sections(per_element, element_dictionary["connectivity"],
                                                 [e in gbt_rows for e in ids])
@@ -209,7 +209,7 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
     wl_path = os.path.join(job_dir, WALL_LOAD_FILE)
     if os.path.exists(wl_path):
         from onedfem.pre_processing.parsing.wall_load_parser import parse_wall_load_file
-        from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
+        CrossSectionModes = section_import("thin_walled.cross_section_modes", "CrossSectionModes")
 
         loads = parse_wall_load_file(wl_path)
         not_thin = sorted(e for e in loads if e not in assignment or assignment[e] not in analyses)
@@ -228,7 +228,7 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
                 f = modes_cache[sid].wall_load(loads[e], max_modes[sid], max_shear[sid])
                 k = ids.index(e)
                 if k in align:                       # the element's bases were turned (gbt_alignment)
-                    from onedfem.pre_processing.section_integration.gbt_alignment import mass_transform
+                    mass_transform = section_import("gbt_alignment", "mass_transform")
 
                     f = mass_transform(per_element[k], align[k]["Rw"], align[k]["Rm"]).T @ f
                 per_load.append(f)

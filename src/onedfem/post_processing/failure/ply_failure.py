@@ -6,7 +6,7 @@ a static job writes ``secondary_results/ply_failure/ply_failure.csv``. For every
 with a thin-walled or 2D section, at each Gauss point of its stiffness integration (the
 ``xi`` of the cached element object's ``gauss_data``), the section stresses are recovered
 and every ply point with a strength is checked by the four criteria of
-``pre_processing/section_integration/ply_failure.py``:
+``anisotropic_section_model/ply_failure.py``:
 
 - thin-walled sections: the bottom and top of every ply, at ``points_per_wall`` points along
   each wall (as ``wall_stresses.csv``), with the transverse shears turned to ply axes;
@@ -29,7 +29,7 @@ from typing import Dict, List, Mapping, Optional, Sequence
 
 import numpy as np
 
-from onedfem.pre_processing.section_integration.ply_failure import CRITERIA, PlyStrength, exposures, ply_stress_from_wall
+from onedfem.sections import section_import
 
 PLY_FAILURE_COLUMNS = (
     "element_id", "gauss_point", "xi", "x", "wall_id", "s", "section_element", "ply", "n", "y", "z",
@@ -65,7 +65,8 @@ def _gauss_xi(element_object) -> List[float]:
 
 
 def _thin_walled_points(element, U_e, xi, analysis, keys, points_per_wall):
-    from onedfem.pre_processing.section_integration.thin_walled.element_recovery import element_wall_stress
+    ply_stress_from_wall = section_import("ply_failure", "ply_stress_from_wall")
+    from onedfem.post_processing.thin_walled.element_recovery import element_wall_stress
 
     for w in analysis.section.walls:
         lam = analysis.laminates[w.laminate_id]
@@ -82,7 +83,7 @@ def _thin_walled_points(element, U_e, xi, analysis, keys, points_per_wall):
 
 
 def _solid_points(element, U_e, xi, analysis, strengths):
-    from onedfem.pre_processing.section_integration.solid.element_recovery import element_section_stresses
+    from onedfem.post_processing.solid.element_recovery import element_section_stresses
 
     mesh = analysis.mesh
     for p in element_section_stresses(element, U_e, xi, analysis):
@@ -99,6 +100,7 @@ def write_ply_failure(job_dir: str, job_results_dir: str, elements: Sequence, el
                       points_per_wall: Optional[int] = None) -> Optional[str]:
     """Write ``ply_failure.csv`` and ``ply_failure_summary.csv``; return the first path, or
     ``None`` when the job has no ``ply_strength.txt`` (and no ``strengths`` are given)."""
+    CRITERIA, exposures = section_import("ply_failure", "CRITERIA", "exposures")
     from onedfem.post_processing.stations import axis_point
     from onedfem.post_processing.thin_walled.wall_stresses import MANY_WALLS
 

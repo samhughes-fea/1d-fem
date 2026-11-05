@@ -18,11 +18,11 @@ import sys
 import numpy as np
 import pytest
 
-from onedfem.pre_processing.section_integration.solid.material import SolidMaterial
-from onedfem.pre_processing.section_integration.solid.mesh import SectionMesh
-from onedfem.pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
-from onedfem.pre_processing.section_integration.thin_walled import ThinWalledSection, Wall, WallLaminate
-from onedfem.pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
+from anisotropic_section_model.solid.material import SolidMaterial
+from anisotropic_section_model.solid.mesh import SectionMesh
+from anisotropic_section_model.solid.section_analysis import SolidSectionAnalysis
+from anisotropic_section_model.thin_walled import ThinWalledSection, Wall, WallLaminate
+from anisotropic_section_model.thin_walled.laminate import Ply, PlyMaterial
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "examples", "thin_walled"))
 import common  # noqa: E402

@@ -52,11 +52,7 @@ from onedfem.pre_processing.parsing.layup_sensitivity_parser import (
     Response,
     parse_layup_sensitivity_file,
 )
-from onedfem.pre_processing.section_integration.thin_walled.layup_sensitivity import (
-    LayupParameter,
-    element_section_derivative,
-    section_derivative,
-)
+from onedfem.sections import section_import
 
 __all__ = ["LAYUP_SENSITIVITY_COLUMNS", "element_derivatives", "layup_sensitivities", "write_layup_sensitivity"]
 
@@ -203,6 +199,7 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
     (``None`` where the element has neither); ``dof_index(node_id, dof)`` maps a response DOF to
     its global index.
     """
+    element_section_derivative = section_import("thin_walled.layup_sensitivity", "element_section_derivative")
     import scipy.sparse as sp
     import scipy.sparse.linalg as spla
 
@@ -298,7 +295,7 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
             dKe.append(a)
             dMe.append(b)
             if buckling:
-                from onedfem.pre_processing.section_integration.section_analysis import ELEMENT_SIGN
+                ELEMENT_SIGN = section_import("section_analysis", "ELEMENT_SIGN")
 
                 # GBT: K_g is linear in the GBT geometric tensors alone (in dsa)
                 dH = None if gbt else dataclasses.replace(
@@ -336,8 +333,8 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
 
 def _gbt_derivative(modes_cache, tw, d, sa) -> dict:
     """The ``SectionDerivative`` GBT fields for section ``tw`` in the layout of ``sa``."""
-    from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
-    from onedfem.pre_processing.section_integration.thin_walled.layup_sensitivity import gbt_section_derivative
+    CrossSectionModes = section_import("thin_walled.cross_section_modes", "CrossSectionModes")
+    gbt_section_derivative = section_import("thin_walled.layup_sensitivity", "gbt_section_derivative")
 
     if id(tw) not in modes_cache:
         modes_cache[id(tw)] = CrossSectionModes(tw)
@@ -351,8 +348,9 @@ def _is_solid(an) -> bool:
 
 def _section_derivative(an, p: LayupParameter, benscoter: bool, geometric: bool):
     """``section_derivative`` of a thin-walled section, ``solid_section_derivative`` of a 2D one."""
+    section_derivative = section_import("thin_walled.layup_sensitivity", "section_derivative")
     if _is_solid(an):
-        from onedfem.pre_processing.section_integration.solid.layup_sensitivity import solid_section_derivative
+        solid_section_derivative = section_import("solid.layup_sensitivity", "solid_section_derivative")
 
         return solid_section_derivative(an, p, benscoter=benscoter, geometric=geometric)
     return section_derivative(an, p, benscoter=benscoter, geometric=geometric)

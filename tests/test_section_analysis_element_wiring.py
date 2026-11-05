@@ -11,12 +11,12 @@ import pytest
 
 from onedfem.pre_processing.element_library.shape_function_registry import get_shape_function_operator
 from onedfem.pre_processing.parsing.element_section_parser import parse_element_section_file
-from onedfem.pre_processing.section_integration.section_analysis import (
+from anisotropic_section_model.section_analysis import (
     ELEMENT_SIGN,
     SectionAnalysis,
     to_element_voigt,
 )
-from onedfem.pre_processing.section_integration.thin_walled import (
+from anisotropic_section_model.thin_walled import (
     Ply,
     PlyMaterial,
     ThinWalledSection,
@@ -24,7 +24,7 @@ from onedfem.pre_processing.section_integration.thin_walled import (
     Wall,
     WallLaminate,
 )
-from onedfem.pre_processing.section_integration.thin_walled.job_input import attach_section_analyses
+from onedfem.pre_processing.section_job import attach_section_analyses
 
 E, NU = 70e9, 0.3
 G = E / (2 * (1 + NU))
