@@ -158,7 +158,7 @@ def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D", precurvature=
     common.write_job(job, spec)
     common.write_supports(job, spec)
     if two_d:
-        from anisotropic_section_model.solid.from_geometry import write_section_mesh_2d
+        from onedfem.interfaces.blade.solid_sections import write_section_mesh_2d
         from anisotropic_section_model.solid.mesh import SectionMesh
 
         tw = common.build_analysis(sec)
@@ -325,7 +325,7 @@ def test_2d_section_derivatives_match_central_differences(prm):
 
 
 def test_2d_section_ply_tags_and_limits(tmp_path):
-    from anisotropic_section_model.solid.from_geometry import write_section_mesh_2d
+    from onedfem.interfaces.blade.solid_sections import write_section_mesh_2d
     from anisotropic_section_model.solid.layup_sensitivity import solid_section_derivative
     from anisotropic_section_model.solid.mesh import parse_section_mesh_2d
     from anisotropic_section_model.solid.section_analysis import SolidSectionAnalysis

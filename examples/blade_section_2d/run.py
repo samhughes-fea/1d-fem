@@ -57,9 +57,9 @@ def section_forces() -> np.ndarray:
 
 
 def build(rows_per_ply: int = 2, element_size=None):
-    from anisotropic_section_model.solid.from_geometry import section_mesh_from_cut
+    from onedfem.interfaces.blade.solid_sections import section_mesh_from_cut
+    from onedfem.interfaces.blade.thin_walled_sections import thin_walled_from_cut
     from anisotropic_section_model.solid.section_analysis import SolidSectionAnalysis
-    from anisotropic_section_model.thin_walled.from_geometry import thin_walled_from_cut
 
     cut = S.geometry(INDEX).section_at(0.5)
     lams = S.laminates(INDEX)

@@ -126,14 +126,15 @@ default) writes both blocks from the loft.
 
 ## Sections from implicit-geometry-kernel, and `region_laminate.txt`
 
-`anisotropic_section_model/thin_walled/from_geometry.py` turns a blade section
+`onedfem.interfaces.blade.thin_walled_sections.thin_walled_from_cut` (the section
+provider's `thin_walled.from_geometry`, re-exported) turns a blade section
 cut by [implicit-geometry-kernel](https://github.com/samhughes-fea/implicit-geometry-kernel)
 (`BladeGeometry.section_at(z)`, an optional dependency that needs Python 3.11 or later)
 into a `ThinWalledSection` and its laminates:
 
 ```python
 from implicit_geometry_kernel import Airfoil, BladeGeometry, Station
-from anisotropic_section_model.thin_walled.from_geometry import thin_walled_from_cut
+from onedfem.interfaces.blade.thin_walled_sections import thin_walled_from_cut
 
 cut = BladeGeometry(stations, "2D-F-LC-0R", skin_thickness=0.003, spar_cap_thickness=0.008,
                     shear_web_thickness=0.002, pivot_fraction=0.3).section_at(z)
@@ -168,11 +169,11 @@ skin_suction_surface:bay_2    4
 
 ## Blade beam jobs from implicit-geometry-kernel
 
-`src/onedfem/pre_processing/mesh_library/blade_beam_job.py` writes a whole cantilever job for a
+`src/onedfem/interfaces/blade/blade_beam_job.py` writes a whole cantilever job for a
 `BladeGeometry`:
 
 ```python
-from onedfem.pre_processing.mesh_library.blade_beam_job import blade_beam_job, blade_to_job
+from onedfem.interfaces.blade.blade_beam_job import blade_beam_job, blade_to_job
 
 job = blade_beam_job("jobs/my_blade", geometry, {"skin": skin, "cap": cap, "web": web},
                      n_elements=24, kind="thin_walled",               # or kind="2d"
