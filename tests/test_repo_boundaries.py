@@ -1,6 +1,7 @@
 """1d-fem's library code imports none of its sibling repositories.
 
-implicit-geometry-kernel, composite-laminate-model and anisotropic-section-model may
+implicit-geometry-kernel, laminate-constitutive-model, shell-fem and
+anisotropic-section-model may
 appear in examples, validation and tests (as optional references), never in
 ``src/onedfem``. Blade geometry is accepted duck typed.
 """
@@ -8,8 +9,8 @@ appear in examples, validation and tests (as optional references), never in
 import ast
 from pathlib import Path
 
-SIBLINGS = ("implicit_geometry_kernel", "composite_laminate_model", "anisotropic_section_model",
-            "laminate_fem", "laminate_modelling_package")
+SIBLINGS = ("implicit_geometry_kernel", "laminate_constitutive_model", "shell_fem", "anisotropic_section_model",
+            "composite_laminate_model", "laminate_fem", "laminate_modelling_package")
 SRC = Path(__file__).resolve().parents[1] / "src" / "onedfem"
 
 

@@ -1,5 +1,5 @@
 """IEA 15 MW blade-section validation: 1d-fem's 2D and thin-walled sections against a
-composite-laminate-model shell segment, PreComp and a CalculiX C3D20R prism.
+shell-fem shell segment, PreComp and a CalculiX C3D20R prism.
 
 Run from the repository root (needs implicit-geometry-kernel, ``1d-fem[geometry]``)::
 
@@ -11,7 +11,7 @@ are cut by implicit-geometry-kernel with the idealisation of
 
 - **thin-walled:** ``thin_walled_from_cut`` (``hoop="free"``), computed here;
 - **2D:** ``section_mesh_from_cut`` (layered ``Q8``), computed here;
-- **shell:** composite-laminate-model shell segments, ``reference/shell_*.json``
+- **shell:** shell-fem shell segments, ``reference/shell_*.json``
   (``make_shell_reference.py``);
 - **PreComp:** WISDEM's PreComp on the same idealised layups,
   ``reference/precomp_idealised.json`` (``make_precomp_reference.py``);
@@ -76,7 +76,7 @@ def summary_1dfem(K6: np.ndarray, tension_centre, shear_centre, chord: float) ->
 
 
 def summary_shell(ref: dict, chord: float) -> Dict[str, object]:
-    """composite-laminate-model 4 x 4 [N, M_x, M_y, M_z] (x chordwise, y flapwise)."""
+    """shell-fem 4 x 4 [N, M_x, M_y, M_z] (x chordwise, y flapwise)."""
     out = summary_4x4(ref["K4"], ref["tension_centre"], ref["shear_centre"], chord)
     out["GA_edge"], out["GA_flap"] = float(ref["K6"][0][0]), float(ref["K6"][1][1])
     return out

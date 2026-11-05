@@ -2,7 +2,7 @@
 
 ``data/iea15mw_stations.json`` holds three stations of the IEA Wind 15 MW reference blade
 (root, maximum chord and 70 % span) as PreComp sees them: profile, sector layups, web
-positions and PreComp's section properties (from composite-laminate-model example 24).
+positions and PreComp's section properties (from shell-fem example 24).
 
 implicit-geometry-kernel (IGK) builds each station with one skin thickness per section.
 The idealisation, used by every model compared here, is:
@@ -29,7 +29,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = json.load(open(os.path.join(HERE, "data", "iea15mw_stations.json"), encoding="utf-8"))
-NU23 = 0.3          # transversely isotropic plies, as composite-laminate-model takes them
+NU23 = 0.3          # transversely isotropic plies, as laminate-constitutive-model takes them
 TE_CLOSE = 0.015    # trailing-edge gaps below this fraction of the chord are closed
 NAMES = {0: "root", 6: "max chord", 20: "70 % span"}
 

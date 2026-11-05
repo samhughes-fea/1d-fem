@@ -2,7 +2,7 @@
 
 Validates 1d-fem's two section models on three stations of the IEA Wind 15 MW reference blade: the root (r = 4.0 m), maximum chord (r = 28.2 m) and 70 % span (r = 84.7 m). The models are the thin-walled section (`thin_walled_from_cut`, `hoop="free"`) and the 2D layered `Q8` section (`section_mesh_from_cut`). Each station is checked against three independent models:
 
-- a composite-laminate-model (CLM) shell segment;
+- a shell-fem shell segment;
 - PreComp;
 - a CalculiX `C3D20R` prism.
 
@@ -20,7 +20,7 @@ implicit-geometry-kernel (IGK) cuts each station with one idealised layup (`exam
 - the carbon of the spar caps inside the skin between the webs;
 - the two foam-cored webs.
 
-There is no trailing-edge reinforcement. The layups come from the PreComp inputs of the published blade, copied from composite-laminate-model example 24.
+There is no trailing-edge reinforcement. The layups come from the PreComp inputs of the published blade, copied from shell-fem example 24.
 
 Every model, PreComp included, uses this geometry and these layups. The comparisons therefore test the mechanics, not how each model describes the blade.
 

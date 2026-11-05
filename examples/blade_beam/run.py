@@ -8,7 +8,7 @@ The outboard 20.2 m of the IEA Wind 15 MW blade (r = 64.5 m to 84.7 m; chord 4.0
 3.27 m, twist 1.5 deg to -0.4 deg, ``examples/iea15mw/segment.py``) is lofted once by
 implicit-geometry-kernel. ``blade_beam_job`` cuts a section at every element mid-point and
 writes the 1d-fem job: the reference axis, the element frames, the twist and pretwist all
-come from the loft. Three beam models are compared with a composite-laminate-model shell
+come from the loft. Three beam models are compared with a shell-fem shell
 blade meshed from the same loft (``data/shell_reference.json``, ``make_shell_reference.py``):
 
 1. **Static:** flap and edge tip forces and a tip torque, for Timoshenko and Benscoter

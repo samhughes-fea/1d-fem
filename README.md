@@ -91,7 +91,8 @@ the beam, Gauss-point values and their shape-function projections on sections.
 | Repository | Owns | Relation to 1d-fem |
 |---|---|---|
 | implicit-geometry-kernel | blade and section geometry (airfoils, lofts, `section_at(z)`) | optional; `src/onedfem` reads its geometry duck typed and never imports it |
-| composite-laminate-model | laminate theory, shell FEA, ply failure and damage (linear static) | shell reference in examples and validation only |
+| laminate-constitutive-model | materials, plies, laminates, ABD, failure criteria | not used yet (1d-fem has its own laminate code) |
+| shell-fem | shell and solid FE, blade shell models (linear static) | shell reference in examples and validation only |
 | anisotropic-section-model | blade 6×6 / 7×7 section properties, small exact beam references | cross-checks in examples and validation only |
 | 1d-fem | beam solver for all analysis types, with its own thin-walled, 2D and GBT section analysis | depends on none of the others |
 

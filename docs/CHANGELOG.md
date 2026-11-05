@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Changed
+
+- **Shell references use shell-fem.** composite-laminate-model was split into laminate-constitutive-model and shell-fem. The shell reference scripts (`examples/blade_beam/make_shell_reference.py`, `validation/iea15mw_sections/make_shell_reference.py`) import `shell_fem`, and `tests/test_repo_boundaries.py` also forbids `shell_fem` and `laminate_constitutive_model` in `src/onedfem`. The stored reference results are unchanged.
+
 ### Added
 
 - **Example figures redrawn from the sections' own solutions** ([examples/thin_walled/three_cell_blade](../examples/thin_walled/three_cell_blade/README.md)). `graphical_visualisers.figure_style` gives every example one style at 200 dpi and one mark per kind of value (shape-function field, nodal, Gauss point, projected, one solve, analytic, reference). `graphical_visualisers.thin_walled_drawing` draws thin-walled sections at true laminate thickness, ply by ply, and wall fields such as `N_xx` and the shear flow normal to each wall through the wall elements' cubic shape functions, with the Gauss points marked. The three-cell example now uses a NACA 4418 section with 40 walls.
