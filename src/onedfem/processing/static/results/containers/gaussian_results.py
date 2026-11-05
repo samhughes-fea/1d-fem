@@ -29,13 +29,16 @@ class GaussianResults:
     # Shape: List[element] -> np.ndarray(n_gauss_points, dim)
     # Physical coordinates of integration points
 
+    gauss_points: Optional[List[tuple]] = None
+    # One (element_id, gauss_point, xi, weight) per Gauss point, in the order of the strain rows
+
     strain: Optional[List[List[np.ndarray]]] = None
     # Shape: List[element] -> List[gauss_point] -> np.ndarray(shape=(n_strain_components,))
-    # Strain tensor components [ε_xx, ε_yy, ε_zz, γ_xy, γ_yz, γ_xz]
+    # Beam generalised strains [ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x] (bar 2, truss 3 components)
 
     stress: Optional[List[List[np.ndarray]]] = None
     # Shape: List[element] -> List[gauss_point] -> np.ndarray(shape=(n_stress_components,))
-    # Stress tensor components [σ_xx, σ_yy, σ_zz, τ_xy, τ_yz, τ_xz]
+    # Beam stress resultants [N, M_y, M_z, V_y, V_z, T], conjugate to the strains
 
     internal_energy_density: Optional[List[List[np.ndarray]]] = None
     # Shape: List[element] -> List[gauss_point] -> np.ndarray(shape=(1,)) or float

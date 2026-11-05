@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- **Wall stresses at the wall elements' nodes and Gauss points, and the kind of every output point.** A `[Wall_Points]` block in `stress_stations.txt` (`nodes`, `gauss`, `uniform n`) picks where along each wall `wall_stresses.csv` is written, in place of the fixed 5 points (2 above 64 walls), which stay the default. `wall_stresses.csv`, `section_stresses.csv` and `interface_stresses.csv` gain a `point_kind` column (`wall_node`, `wall_gauss`, `uniform`, `section_gauss`, `interface_edge_mid`). Static jobs write `secondary_results/gaussian/gauss_points.csv`, which gives each row of the per-element Gauss point files its element, Gauss point, `xi` and weight. The beam strain files' header now names the generalised strains (`ε_x, κ_y, κ_z, γ_xy, γ_xz, φ_x`) that the columns hold, where it named 3D strain components.
 - `reduced_blade_beam_job` writes a cantilever from kernel stations (span, twist, offset) and one reduced beam section per element. It does not read a wall graph: there is no section geometry, laminate or element-section file. `I_y` and `I_z` are the centroidal moments, and the shear centre and warping constant are the reduced section's.
 
 ### Fixed

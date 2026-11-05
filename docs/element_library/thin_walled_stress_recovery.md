@@ -66,15 +66,28 @@ the values are the equilibrium residuals: `-(N_xx,x + N_xs,s)` and
 
 When a linear static job has thin-walled sections, `process_job` writes
 `secondary_results/wall_stresses/wall_stresses.csv` with one row per element,
-wall point (`points_per_wall = 5` along each wall), ply and ply face, at each
-element centre:
+wall point, ply and ply face, at each element centre (or at the stations of
+`stress_stations.txt`):
 
 ```
 element_id, x, wall_id, s, y, z,
 N_xx, N_ss, N_xs, M_xx, M_ss, M_xs,
 ply, n, sigma_xx, sigma_ss, tau_xs, sigma_11, sigma_22, tau_12,
-tau_xn, tau_sn, sigma_nn
+tau_xn, tau_sn, sigma_nn, xi, mode, point_kind
 ```
+
+By default the wall points are 5 evenly spaced along each wall, or the wall ends on
+sections of more than 64 walls (`point_kind` `uniform`). A `[Wall_Points]` block in
+`stress_stations.txt` picks them instead:
+
+```
+[Wall_Points]
+nodes gauss
+```
+
+`nodes` gives the wall elements' end nodes (`wall_node`), `gauss` the section's Gauss
+points, where its stiffness was integrated (`wall_gauss`), and `uniform n` gives `n` evenly
+spaced points. Several kinds can be listed together. The file may hold only this block.
 
 Elements without wall recovery are skipped.
 
