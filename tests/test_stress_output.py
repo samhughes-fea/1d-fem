@@ -134,6 +134,52 @@ def test_stations_pick_points_along_the_beam(tmp_path):
     assert xi == {round(2 * (0.6 - 0.5) / 0.25 - 1, 9)}          # element 2 runs from 0.5 to 0.75
 
 
+def test_wall_points_pick_nodes_and_gauss_points(tmp_path):
+    """``[Wall_Points] nodes gauss`` writes each wall at its wall elements' nodes and the section's
+    Gauss points; the node rows agree with evenly spaced rows at the same ``s``."""
+    gauss_x = np.polynomial.legendre.leggauss(5)[0]        # the section's 5 Gauss points per wall element
+    spec = _box("LinearTimoshenkoBeamElement3D", [0, 300.0, -800.0, 50.0, 0, 0])
+    _write(str(tmp_path / "uni"), spec)                     # 5 evenly spaced points: s = 0, L/4, ..., L
+    job = tmp_path / "wp"
+    _write(str(job), spec)
+    (job / "stress_stations.txt").write_text("[Wall_Points]\nnodes gauss\n")
+    uni = _rows(_run(str(tmp_path / "uni"), str(tmp_path / "uni_res")), "wall_stresses", "wall_stresses.csv")
+    wp = _rows(_run(str(job), str(tmp_path / "wp_res")), "wall_stresses", "wall_stresses.csv")
+    assert {r["point_kind"] for r in uni} == {"uniform"}
+    assert {r["point_kind"] for r in wp} == {"wall_node", "wall_gauss"}
+    one = [r for r in wp if r["element_id"] == wp[0]["element_id"] and r["wall_id"] == "1" and r["ply"] == "0"
+           and r["n"] == wp[0]["n"]]
+    n_sub = 2
+    L = 0.3
+    nodes = sorted(float(r["s"]) for r in one if r["point_kind"] == "wall_node")
+    gauss = sorted(float(r["s"]) for r in one if r["point_kind"] == "wall_gauss")
+    np.testing.assert_allclose(nodes, np.linspace(0.0, L, n_sub + 1), atol=1e-12)
+    expect = sorted(L / n_sub * (k + 0.5 * (1.0 + g)) for k in range(n_sub) for g in gauss_x)
+    np.testing.assert_allclose(gauss, expect, atol=1e-12)
+    key = ("element_id", "wall_id", "ply", "n")
+    at = {tuple(r[k] for k in key) + (round(float(r["s"]), 9),): r for r in uni}
+    for r in wp:
+        if r["point_kind"] == "wall_node":
+            u = at.get(tuple(r[k] for k in key) + (round(float(r["s"]), 9),))
+            if u is not None:
+                assert float(r["sigma_xx"]) == pytest.approx(float(u["sigma_xx"]), rel=1e-10, abs=1e-6)
+
+
+def test_wall_points_block_is_checked(tmp_path):
+    from onedfem.post_processing.stations import read_stress_stations, read_wall_points
+
+    (tmp_path / "stress_stations.txt").write_text("[Stress_Station]\n[x]\n0.5\n\n[Wall_Points]\nuniform 7 gauss\n")
+    assert read_wall_points(str(tmp_path)) == [("uniform", 7), ("gauss", 0)]
+    assert [float(s[0]) for s in read_stress_stations(str(tmp_path))] == [0.5]
+    (tmp_path / "stress_stations.txt").write_text("[Wall_Points]\nuniform\n")
+    with pytest.raises(ValueError, match="point count"):
+        read_wall_points(str(tmp_path))
+    (tmp_path / "stress_stations.txt").write_text("[Wall_Points]\nmidpoints\n")
+    with pytest.raises(ValueError, match="not one of"):
+        read_wall_points(str(tmp_path))
+    assert read_stress_stations(str(tmp_path)) is None     # only the block: element mid-points
+
+
 def test_corotational_job_writes_the_linear_stresses_at_small_load(tmp_path):
     load = [0, 30.0, -80.0, 5.0, 0, 0]
     nl = ("[Simulation]\n[Type]\nstatic_nonlinear\n\n[Newton]\ntolerance = 1e-6\nrelative_tolerance = 1e-9\n"
@@ -210,3 +256,25 @@ def test_two_d_section_job_writes_ply_interface_stresses(tmp_path):
         k = int(np.argmin(np.abs(bounds - z)))
         # the Timoshenko element's shear force is exact under a tip load
         assert abs(float(r["tau_xn"])) == pytest.approx(tau(bounds[k]), rel=1e-4)
+
+
+def test_gauss_point_files_say_where_each_row_is(tmp_path):
+    """``gaussian/gauss_points.csv`` gives each row of the per-element strain files its element and
+    ``xi``, and the beam strain header names generalised strains."""
+    spec = _box("LinearTimoshenkoBeamElement3D", [0, 300.0, -800.0, 50.0, 0, 0])
+    _write(str(tmp_path / "job"), spec)
+    res = _run(str(tmp_path / "job"), str(tmp_path / "res"))
+    pts = _rows(res, "gaussian", "gauss_points.csv")
+    assert pts and {"element_id", "gauss_point", "xi", "weight"} <= set(pts[0])
+    by_el = {}
+    for r in pts:
+        by_el.setdefault(int(r["element_id"]), []).append(float(r["xi"]))
+    assert sorted(by_el) == list(range(spec.n_el))
+    for xis in by_el.values():
+        assert all(-1.0 < x < 1.0 for x in xis)
+    strain = os.path.join(res, "secondary_results", "gaussian", "strain", "strain_elem_000000.csv")
+    with open(strain, encoding="utf-8") as f:
+        header = f.readline().strip().split(",")
+        n_rows = sum(1 for _ in f)
+    assert header == ["ε_x", "κ_y", "κ_z", "γ_xy", "γ_xz", "φ_x"]
+    assert n_rows == len(by_el[0])

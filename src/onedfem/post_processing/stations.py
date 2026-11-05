@@ -13,9 +13,21 @@ A row with one value is the plane ``X = x``: the station is where the beam axis 
 (the first element, in element order, whose axis does). A row with three values
 ``[x] [y] [z]`` is the nearest point of the beam axis to that point.
 
+An optional ``[Wall_Points]`` block picks where along each wall of a thin-walled section
+``wall_stresses.csv`` is written (by default 5 evenly spaced points, or the wall ends on
+sections of more than 64 walls)::
+
+    [Wall_Points]
+    nodes gauss
+
+``nodes`` are the wall elements' end nodes, ``gauss`` the section's Gauss points (where the
+section stiffness was integrated), and ``uniform n`` ``n`` evenly spaced points. Several
+kinds on one line are all written; the ``point_kind`` column says which each row is. The
+file may hold only this block, and then the stations are the element mid-points.
+
 Public API
 ----------
-read_stress_stations, axis_point, locate_station, element_points.
+read_stress_stations, read_wall_points, wall_point_list, axis_point, locate_station, element_points.
 """
 
 from __future__ import annotations
@@ -28,21 +40,89 @@ import numpy as np
 FILENAME = "stress_stations.txt"
 
 
-def read_stress_stations(job_dir: str) -> Optional[List[np.ndarray]]:
-    """Stations of ``stress_stations.txt`` (each (1,) or (3,)), or ``None`` without the file."""
+BLOCKS = ("[stress_station]", "[wall_points]")
+WALL_POINT_KINDS = ("nodes", "gauss", "uniform")
+
+
+def _blocks(job_dir: str) -> Optional[dict]:
+    """Data lines of ``stress_stations.txt`` by block (lines before any block are stations),
+    and under ``"seen"`` the blocks the file names."""
     path = os.path.join(job_dir, FILENAME)
     if not os.path.isfile(path):
         return None
-    out = []
+    out = {b: [] for b in BLOCKS}
+    out["seen"] = set()
+    block = "[stress_station]"
     with open(path, encoding="utf-8") as f:
         for line in f:
             s = line.split("#", 1)[0].strip()
-            if not s or s.startswith("["):
+            if not s:
                 continue
-            v = np.array([float(t) for t in s.replace(",", " ").split()], dtype=np.float64)
-            if v.size not in (1, 3):
-                raise ValueError(f"{FILENAME}: a station is [x] or [x] [y] [z], got {s!r}")
-            out.append(v)
+            if s.lower() in BLOCKS:
+                block = s.lower()
+                out["seen"].add(block)
+            elif not s.startswith("["):                 # else a column header such as [x] [y] [z]
+                out[block].append(s)
+    return out
+
+
+def read_stress_stations(job_dir: str) -> Optional[List[np.ndarray]]:
+    """Stations of ``stress_stations.txt`` (each (1,) or (3,)), or ``None`` without the file or
+    when it holds no stations (only a ``[Wall_Points]`` block)."""
+    blocks = _blocks(job_dir)
+    if blocks is None:
+        return None
+    out = []
+    for s in blocks["[stress_station]"]:
+        v = np.array([float(t) for t in s.replace(",", " ").split()], dtype=np.float64)
+        if v.size not in (1, 3):
+            raise ValueError(f"{FILENAME}: a station is [x] or [x] [y] [z], got {s!r}")
+        out.append(v)
+    if not out and "[wall_points]" in blocks["seen"]:
+        return None
+    return out
+
+
+def read_wall_points(job_dir: str) -> Optional[List[Tuple[str, int]]]:
+    """The ``[Wall_Points]`` block of ``stress_stations.txt`` as ``[(kind, n), ...]``, or ``None``.
+
+    ``kind`` is ``"nodes"``, ``"gauss"`` or ``"uniform"``; ``n`` is the point count of
+    ``uniform`` (0 for the others).
+    """
+    blocks = _blocks(job_dir)
+    if blocks is None or not blocks["[wall_points]"]:
+        return None
+    words = " ".join(blocks["[wall_points]"]).replace(",", " ").split()
+    spec, k = [], 0
+    while k < len(words):
+        w = words[k].lower()
+        if w not in WALL_POINT_KINDS:
+            raise ValueError(f"{FILENAME} [Wall_Points]: {words[k]!r} is not one of {', '.join(WALL_POINT_KINDS)}")
+        if w == "uniform":
+            if k + 1 >= len(words) or not words[k + 1].isdigit() or int(words[k + 1]) < 2:
+                raise ValueError(f"{FILENAME} [Wall_Points]: 'uniform' needs a point count of 2 or more")
+            spec.append(("uniform", int(words[k + 1])))
+            k += 2
+        else:
+            spec.append((w, 0))
+            k += 1
+    return spec
+
+
+def wall_point_list(analysis, wall_id: int, spec: Sequence[Tuple[str, int]]) -> List[Tuple[float, str]]:
+    """``[(s, point_kind), ...]`` along wall ``wall_id`` for a ``read_wall_points`` spec.
+
+    ``point_kind`` is ``"wall_node"``, ``"wall_gauss"`` or ``"uniform"``.
+    """
+    out: List[Tuple[float, str]] = []
+    for kind, n in spec:
+        if kind == "nodes":
+            out += [(float(s), "wall_node") for s in analysis.element_ends(wall_id)]
+        elif kind == "gauss":
+            out += [(float(s), "wall_gauss") for s in analysis.gauss_s(wall_id)]
+        else:
+            L = analysis.section.length(analysis.section.wall(wall_id))
+            out += [(float(s), "uniform") for s in np.linspace(0.0, L, n)]
     return out
 
 
