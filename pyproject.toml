@@ -27,7 +27,7 @@ classifiers = [
 
 [project.optional-dependencies]
 # blade geometry from implicit-geometry-kernel (Python 3.11 or later)
-geometry = ["implicit-geometry-kernel @ git+https://github.com/samhughes-fea/implicit-geometry-kernel@409fbfa854e835092695988b33b02dfdb34eed37"]
+geometry = ["implicit-geometry-kernel @ git+https://github.com/samhughes-fea/implicit-geometry-kernel@v0.2.0"]
 test = ["pytest>=7.0", "pytest-xdist>=3.5"]
 
 [project.scripts]
