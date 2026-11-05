@@ -22,7 +22,7 @@ from __future__ import annotations
 import os
 from typing import Dict, Mapping
 
-from onedfem.pre_processing.section_integration.ply_failure import PlyStrength
+from onedfem.sections import section_import
 
 PLY_STRENGTH_FILE = "ply_strength.txt"
 _REQUIRED = ("material_id", "Xt", "Xc", "Yt", "Yc", "S12")
@@ -31,6 +31,7 @@ _OPTIONAL = ("S23", "Zt", "Zc", "F_star", "p_TL_t", "p_TL_c", "p_TT")
 
 def parse_ply_strength_file(path: str) -> Dict[int, PlyStrength]:
     """``{material_id: PlyStrength}`` from ``path``; an empty dict when the file is absent."""
+    PlyStrength = section_import("ply_failure", "PlyStrength")
     if not os.path.exists(path):
         return {}
     with open(path, encoding="utf-8") as f:

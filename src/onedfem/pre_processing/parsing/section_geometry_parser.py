@@ -35,10 +35,7 @@ from onedfem.pre_processing.parsing.laminate_parser import (
     split_blocks,
     tokens_match,
 )
-from onedfem.pre_processing.section_integration.thin_walled.thin_walled_geometry import (
-    ThinWalledSection,
-    Wall,
-)
+from onedfem.sections import section_import
 
 POINT_HEADER = "[section_point]"
 WALL_HEADER = "[section_wall]"
@@ -79,6 +76,7 @@ def parse_section_geometry_file(
     laminate_ids : iterable of int, optional
         Known laminate ids (from ``laminate.txt``); walls naming others are rejected.
     """
+    ThinWalledSection, Wall = section_import("thin_walled.thin_walled_geometry", "ThinWalledSection", "Wall")
     blocks = split_blocks(preprocess_lines(filepath), [POINT_HEADER, WALL_HEADER, MESH_HEADER])
     for h in (POINT_HEADER, WALL_HEADER):
         if h not in blocks:

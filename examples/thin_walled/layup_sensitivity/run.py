@@ -42,7 +42,7 @@ for p in (REPO, os.path.dirname(HERE)):
 from common import CantileverSpec, Material, SectionSpec, results_dir, write_job, write_supports  # noqa: E402
 
 from onedfem.pre_processing.parsing.layup_sensitivity_parser import Response, format_layup_sensitivity_file  # noqa: E402
-from onedfem.pre_processing.section_integration.thin_walled.layup_sensitivity import LayupParameter  # noqa: E402
+from anisotropic_section_model.thin_walled.layup_sensitivity import LayupParameter  # noqa: E402
 
 CFRP = Material(E1=135e9, E2=10e9, G12=5e9, nu12=0.3, G13=5e9, G23=3.8e9, rho=1550.0)
 B, H, T_PLY = 0.6, 0.3, 0.5e-3

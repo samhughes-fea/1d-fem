@@ -32,7 +32,7 @@ import os
 from dataclasses import dataclass
 from typing import List, Optional, Sequence, Tuple
 
-from onedfem.pre_processing.section_integration.thin_walled.layup_sensitivity import LayupParameter
+from onedfem.sections import section_import
 
 LAYUP_SENSITIVITY_FILE = "layup_sensitivity.txt"
 RESPONSE_TYPES = ("displacement", "compliance", "frequency", "buckling")
@@ -72,6 +72,7 @@ def _opt(v: str, cast):
 
 def parse_layup_sensitivity_file(path: str) -> Tuple[List[LayupParameter], List[Response]]:
     """Parameters and responses from ``path``; two empty lists when the file is absent."""
+    LayupParameter = section_import("thin_walled.layup_sensitivity", "LayupParameter")
     if not os.path.exists(path):
         return [], []
     with open(path, encoding="utf-8") as f:

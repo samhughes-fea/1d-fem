@@ -1,0 +1,6 @@
+# The default section provider (onedfem.sections): anisotropic-section-model and the
+# laminate-constitutive-model it builds on. Neither is on PyPI yet, so both are pinned
+# to commits on main until they are tagged (laminate-constitutive-model v0.3.0,
+# anisotropic-section-model v0.2.0).
+laminate-constitutive-model @ git+https://github.com/samhughes-fea/laminate-constitutive-model@6d25ab06b8dc79c7c7a6c4b6d40604b8441b6264
+anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@945fc68eb91df51805a9630947b41ba2c70fa5de

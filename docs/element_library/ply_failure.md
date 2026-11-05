@@ -1,6 +1,6 @@
 # Ply failure criteria
 
-`src/onedfem/pre_processing/section_integration/ply_failure.py` checks ply stresses against four
+`anisotropic_section_model/ply_failure.py` checks ply stresses against four
 failure criteria. `src/onedfem/post_processing/failure/ply_failure.py` applies them at the Gauss points
 of a solved job.
 

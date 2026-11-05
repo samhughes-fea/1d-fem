@@ -4,7 +4,7 @@
 finite-element mesh of it (`solid_section_mesh.md`), with 3D anisotropic materials. It
 works for any shape: solid, thick-walled, laminated, sandwich, or a mix. The method is
 Giavotto et al. (1983) as implemented in BECAS (Blasques and Stolpe 2012). Code:
-`src/onedfem/pre_processing/section_integration/solid/section_analysis.py`.
+`anisotropic_section_model/solid/section_analysis.py`.
 
 It gives the same quantities as the thin-walled analysis, in the same order and right-handed
 signs:

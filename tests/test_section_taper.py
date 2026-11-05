@@ -7,11 +7,11 @@ import os
 import numpy as np
 import pytest
 
-from onedfem.pre_processing.section_integration.section_analysis import ELEMENT_SIGN, SectionAnalysis
-from onedfem.pre_processing.section_integration.thin_walled.laminate import WallLaminate
-from onedfem.pre_processing.section_integration.thin_walled.section_analysis import ThinWalledSectionAnalysis
-from onedfem.pre_processing.section_integration.thin_walled.taper import SectionTaper, section_taper
-from onedfem.pre_processing.section_integration.thin_walled.thin_walled_geometry import ThinWalledSection, Wall
+from anisotropic_section_model.section_analysis import ELEMENT_SIGN, SectionAnalysis
+from anisotropic_section_model.thin_walled.laminate import WallLaminate
+from anisotropic_section_model.thin_walled.section_analysis import ThinWalledSectionAnalysis
+from anisotropic_section_model.thin_walled.taper import SectionTaper, section_taper
+from anisotropic_section_model.thin_walled.thin_walled_geometry import ThinWalledSection, Wall
 
 E, NU, T = 70e9, 0.3, 0.004
 LAM = {1: WallLaminate.isotropic(E, NU, T)}
@@ -107,7 +107,7 @@ def test_attach_applies_the_taper(tmp_path):
     from onedfem.pre_processing.parsing.laminate_parser import format_laminate_file
     from onedfem.pre_processing.parsing.section_geometry_parser import format_section_geometry
     from onedfem.pre_processing.parsing.section_taper_parser import format_section_taper_file
-    from onedfem.pre_processing.section_integration.thin_walled.job_input import attach_section_analyses
+    from onedfem.pre_processing.section_job import attach_section_analyses
 
     sec = box(0.3, 0.2)
     sec.section_id = 1

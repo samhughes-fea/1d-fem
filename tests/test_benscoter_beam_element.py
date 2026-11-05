@@ -17,8 +17,8 @@ import tempfile
 import numpy as np
 import pytest
 
-from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
-from onedfem.pre_processing.section_integration.thin_walled import (
+from anisotropic_section_model.section_analysis import SectionAnalysis
+from anisotropic_section_model.thin_walled import (
     Ply,
     PlyMaterial,
     ThinWalledSection,
@@ -323,7 +323,7 @@ def test_process_job_with_benscoter_elements(tmp_path):
         rows = list(csv.reader(f))
     U = np.array([float(r[1]) for r in rows[1:]]) if len(rows) > 2 else np.array([float(x) for x in rows[1][1:]])
     assert U.size == 7 * (n_el + 1)
-    from onedfem.pre_processing.section_integration.thin_walled.job_input import section_analyses_from_files
+    from onedfem.pre_processing.section_job import section_analyses_from_files
 
     tw = section_analyses_from_files(str(job / "laminate.txt"), str(job / "section_geometry.txt"))[1]
     expected_tip, expected_psi, _ = fe_cantilever(BS, SectionAnalysis.from_thin_walled(tw), L, [0, 0, 0, T, 0, 0], n_el=n_el)

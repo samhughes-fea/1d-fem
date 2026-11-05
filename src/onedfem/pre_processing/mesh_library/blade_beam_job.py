@@ -74,6 +74,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Mapping, Optional, Sequence, Union
 
 import numpy as np
+from onedfem.sections import section_import
 
 __all__ = ["BladeBeamJob", "blade_beam_job", "blade_to_job", "job_to_blade", "NONLINEAR_SETTINGS"]
 
@@ -285,8 +286,8 @@ def blade_beam_job(
     if kind == "thin_walled":
         from onedfem.pre_processing.parsing.laminate_parser import format_laminate_file
         from onedfem.pre_processing.parsing.section_geometry_parser import format_section_geometry
-        from onedfem.pre_processing.section_integration.thin_walled.from_geometry import thin_walled_from_cut
-        from onedfem.pre_processing.section_integration.thin_walled.thin_walled_geometry import ThinWalledSection, Wall
+        thin_walled_from_cut = section_import("thin_walled.from_geometry", "thin_walled_from_cut")
+        ThinWalledSection, Wall = section_import("thin_walled.thin_walled_geometry", "ThinWalledSection", "Wall")
 
         lam_ids: Dict[object, int] = {}
         lam_by_id: Dict[int, object] = {}
@@ -308,8 +309,8 @@ def blade_beam_job(
         write("laminate.txt", format_laminate_file(lam_by_id))
         write("section_geometry.txt", format_section_geometry(renumbered, {sid: n_sub for sid in renumbered}))
     else:
-        from onedfem.pre_processing.section_integration.solid.from_geometry import section_mesh_from_cut, write_section_mesh_2d
-        from onedfem.pre_processing.section_integration.solid.material import SolidMaterial
+        section_mesh_from_cut, write_section_mesh_2d = section_import("solid.from_geometry", "section_mesh_from_cut", "write_section_mesh_2d")
+        SolidMaterial = section_import("solid.material", "SolidMaterial")
 
         shared: Dict[object, SolidMaterial] = {}
         for value in list(laminates.values()) + list((library or {}).values()):
@@ -343,7 +344,7 @@ def blade_beam_job(
     tapers: Dict[int, object] = {}
     if taper:
         from onedfem.pre_processing.parsing.section_taper_parser import format_section_taper_file
-        from onedfem.pre_processing.section_integration.thin_walled.taper import section_taper_from_geometry
+        section_taper_from_geometry = section_import("thin_walled.taper", "section_taper_from_geometry")
 
         for e, zc in enumerate(z_cut):
             tapers[e] = section_taper_from_geometry(geometry, float(zc), laminates, 1e-3 * float(L[e]), library,

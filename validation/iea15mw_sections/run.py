@@ -102,9 +102,9 @@ def _load(name: str) -> Optional[dict]:
 # ---------------------------------------------------------------------------
 def models(index: int, rows_per_ply: int = 1, with_2d: bool = True):
     """Thin-walled and 2D analyses of one station (2D is ``None`` where the mesher fails)."""
-    from onedfem.pre_processing.section_integration.solid.from_geometry import section_mesh_from_cut
-    from onedfem.pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
-    from onedfem.pre_processing.section_integration.thin_walled.from_geometry import thin_walled_from_cut
+    from anisotropic_section_model.solid.from_geometry import section_mesh_from_cut
+    from anisotropic_section_model.solid.section_analysis import SolidSectionAnalysis
+    from anisotropic_section_model.thin_walled.from_geometry import thin_walled_from_cut
 
     cut = S.geometry(index).section_at(0.5)
     lams = S.laminates(index)
@@ -131,9 +131,9 @@ def models(index: int, rows_per_ply: int = 1, with_2d: bool = True):
 def carbon_matched_2d(index: int, ratio: float):
     """The 2D section with the cap material scaled by ``ratio`` (a diagnostic: equal carbon
     stiffness to the thin-walled cap, whose carbon is narrower)."""
-    from onedfem.pre_processing.section_integration.solid.from_geometry import section_mesh_from_cut
-    from onedfem.pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
-    from onedfem.pre_processing.section_integration.thin_walled import Ply, PlyMaterial, WallLaminate
+    from anisotropic_section_model.solid.from_geometry import section_mesh_from_cut
+    from anisotropic_section_model.solid.section_analysis import SolidSectionAnalysis
+    from anisotropic_section_model.thin_walled import Ply, PlyMaterial, WallLaminate
 
     m = S.station_model(index)
     c = S.ply_materials()["CarbonUD"]
@@ -146,7 +146,7 @@ def carbon_matched_2d(index: int, ratio: float):
 
 def carbon_areas(index: int, built) -> Dict[str, float]:
     """Carbon area of the 2D mesh and of the thin-walled cap walls."""
-    from onedfem.pre_processing.section_integration.solid.elements import shape
+    from anisotropic_section_model.solid.elements import shape
 
     mesh, gs = built["mesh"], built["thin_walled_geometry"]
     t_c = sum(t for _, t in S.station_model(index).laminae["cap"])

@@ -10,14 +10,14 @@ import numpy as np
 import pytest
 
 from onedfem.pre_processing.element_library.dof_layout import mesh_dof_per_node
-from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
-from onedfem.pre_processing.section_integration.thin_walled import (
+from anisotropic_section_model.section_analysis import SectionAnalysis
+from anisotropic_section_model.thin_walled import (
     ThinWalledSection,
     ThinWalledSectionAnalysis,
     Wall,
     WallLaminate,
 )
-from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
+from anisotropic_section_model.thin_walled.cross_section_modes import CrossSectionModes
 
 E, NU = 70e9, 0.3
 G = E / (2 * (1 + NU))

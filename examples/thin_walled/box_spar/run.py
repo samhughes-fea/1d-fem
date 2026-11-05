@@ -66,7 +66,7 @@ def cases(n_el: int = N_EL, n_sub: int = 4):
         "Benscoter": CantileverSpec(L, n_el, "LinearBenscoterBeamElement3D", sec, load, warping=1),
         "GBT": CantileverSpec(L, n_el, "LinearGBTBeamElement3D", sec, load, modes=2, shear_modes=6),
     }
-    from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
+    from anisotropic_section_model.thin_walled.cross_section_modes import CrossSectionModes
 
     n_sv = CrossSectionModes(build_analysis(sec)).n_sv_warping
     gbt_extras = tuple(range(1, n_sv + 7))  # all warping amplitudes free at the root
@@ -91,7 +91,7 @@ def exact_tip(analysis, length: float, load):
 
 
 def main(n_el: int = N_EL, plot: bool = True, work_dir: str = HERE) -> dict:
-    from onedfem.pre_processing.section_integration.thin_walled.stress_recovery import SaintVenantRecovery
+    from anisotropic_section_model.thin_walled.stress_recovery import SaintVenantRecovery
 
     an = build_analysis(section())
     results = {name: run(spec, work_dir, name.replace(" ", "_").replace(",", "")) for name, spec in cases(n_el).items()}

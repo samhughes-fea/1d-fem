@@ -9,7 +9,7 @@ description = "Beam finite elements for thin-walled and composite sections: line
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "Sam Hughes", email = "samuel.hughes@ed.ac.uk" }]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
@@ -26,7 +26,12 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# blade geometry from implicit-geometry-kernel (Python 3.11 or later)
+# the default section provider (onedfem.sections); see requirements-sections.txt
+sections = [
+    "laminate-constitutive-model @ git+https://github.com/samhughes-fea/laminate-constitutive-model@6d25ab06b8dc79c7c7a6c4b6d40604b8441b6264",
+    "anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@945fc68eb91df51805a9630947b41ba2c70fa5de",
+]
+# blade geometry from implicit-geometry-kernel
 geometry = ["implicit-geometry-kernel @ git+https://github.com/samhughes-fea/implicit-geometry-kernel@v0.2.0"]
 test = ["pytest>=7.0", "pytest-xdist>=3.5"]
 

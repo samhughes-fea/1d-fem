@@ -22,14 +22,14 @@ from onedfem.pre_processing.parsing.layup_sensitivity_parser import (  # noqa: E
     format_layup_sensitivity_file,
     parse_layup_sensitivity_file,
 )
-from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis  # noqa: E402
-from onedfem.pre_processing.section_integration.thin_walled import ThinWalledSection, Wall  # noqa: E402
-from onedfem.pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial, WallLaminate  # noqa: E402
-from onedfem.pre_processing.section_integration.thin_walled.layup_sensitivity import (  # noqa: E402
+from anisotropic_section_model.section_analysis import SectionAnalysis  # noqa: E402
+from anisotropic_section_model.thin_walled import ThinWalledSection, Wall  # noqa: E402
+from anisotropic_section_model.thin_walled.laminate import Ply, PlyMaterial, WallLaminate  # noqa: E402
+from anisotropic_section_model.thin_walled.layup_sensitivity import (  # noqa: E402
     LayupParameter,
     section_derivative,
 )
-from onedfem.pre_processing.section_integration.thin_walled.section_analysis import ThinWalledSectionAnalysis  # noqa: E402
+from anisotropic_section_model.thin_walled.section_analysis import ThinWalledSectionAnalysis  # noqa: E402
 
 CF = PlyMaterial(135e9, 10e9, 5e9, 0.3, 5e9, 3.8e9, 1550.0)
 GF = PlyMaterial(40e9, 10e9, 4e9, 0.28, 4e9, 3.5e9, 1900.0)
@@ -134,7 +134,7 @@ def _taper_file(sec) -> str:
     """``section_taper.txt`` for every element: the box's depth growing by 10 % per metre and
     its width shrinking by 5 % per metre, cut either side of the section."""
     from onedfem.pre_processing.parsing.section_taper_parser import format_section_taper_file
-    from onedfem.pre_processing.section_integration.thin_walled.taper import section_taper
+    from anisotropic_section_model.thin_walled.taper import section_taper
 
     an = common.build_analysis(sec)
     d = 0.01
@@ -158,8 +158,8 @@ def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D", precurvature=
     common.write_job(job, spec)
     common.write_supports(job, spec)
     if two_d:
-        from onedfem.pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
-        from onedfem.pre_processing.section_integration.solid.mesh import SectionMesh
+        from anisotropic_section_model.solid.from_geometry import write_section_mesh_2d
+        from anisotropic_section_model.solid.mesh import SectionMesh
 
         tw = common.build_analysis(sec)
         os.remove(os.path.join(job, "section_geometry.txt"))
@@ -267,7 +267,7 @@ def test_tapered_pretwisted_job_sensitivities_match_central_differences(kind):
 
 def test_taper_split_by_laminate_sums_to_the_coupling(tmp_path):
     from onedfem.pre_processing.parsing.section_taper_parser import parse_section_taper_file
-    from onedfem.pre_processing.section_integration.thin_walled.wall_stiffness import beam_wall_stiffness
+    from anisotropic_section_model.thin_walled.wall_stiffness import beam_wall_stiffness
 
     sec = _spec()
     p = tmp_path / "section_taper.txt"
@@ -297,8 +297,8 @@ def test_buckling_load_sensitivities_match_central_differences_of_re_solved_jobs
 # ------------------------------------------------------------------ 2D sections
 
 def _solid_box(change=None):
-    from onedfem.pre_processing.section_integration.solid.mesh import SectionMesh
-    from onedfem.pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
+    from anisotropic_section_model.solid.mesh import SectionMesh
+    from anisotropic_section_model.solid.section_analysis import SolidSectionAnalysis
 
     tw = _box(change)
     return SolidSectionAnalysis(SectionMesh.from_thin_walled(tw.section, tw.laminates, elements_along=4))
@@ -307,7 +307,7 @@ def _solid_box(change=None):
 @pytest.mark.parametrize("prm", [LayupParameter(1, 3, "angle"), LayupParameter(2, 1, "angle")], ids=lambda p: p.label)
 def test_2d_section_derivatives_match_central_differences(prm):
     """The 6 x 6 and 8 x 8 stiffness, warping inertia, second-order terms and axial weights."""
-    from onedfem.pre_processing.section_integration.solid.layup_sensitivity import solid_section_derivative
+    from anisotropic_section_model.solid.layup_sensitivity import solid_section_derivative
 
     h = 1e-2
     d = solid_section_derivative(_solid_box(), prm, benscoter=True, geometric=True)
@@ -325,10 +325,10 @@ def test_2d_section_derivatives_match_central_differences(prm):
 
 
 def test_2d_section_ply_tags_and_limits(tmp_path):
-    from onedfem.pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
-    from onedfem.pre_processing.section_integration.solid.layup_sensitivity import solid_section_derivative
-    from onedfem.pre_processing.section_integration.solid.mesh import parse_section_mesh_2d
-    from onedfem.pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
+    from anisotropic_section_model.solid.from_geometry import write_section_mesh_2d
+    from anisotropic_section_model.solid.layup_sensitivity import solid_section_derivative
+    from anisotropic_section_model.solid.mesh import parse_section_mesh_2d
+    from anisotropic_section_model.solid.section_analysis import SolidSectionAnalysis
 
     an = _solid_box()
     path = str(tmp_path / "section_mesh_2d.txt")

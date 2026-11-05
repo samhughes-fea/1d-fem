@@ -21,7 +21,7 @@ def test_every_listed_module_imports_and_every_page_has_content():
         assert "Not imported here" not in text or "implicit_geometry_kernel" in text, name
     assert "`LinearTimoshenkoBeamElement3D`" in pages["elements.md"]
     assert "process_job(" in pages["workflow.md"]
-    assert "section_derivative(" in pages["sections.md"]
+    assert "set_section_provider(" in pages["sections.md"]
 
 
 def test_committed_reference_lists_the_same_modules():

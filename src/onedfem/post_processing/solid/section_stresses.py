@@ -24,7 +24,7 @@ from typing import List, Optional, Sequence
 
 import numpy as np
 
-from onedfem.pre_processing.section_integration.solid.element_recovery import element_section_state, element_section_stresses
+from onedfem.post_processing.solid.element_recovery import element_section_state, element_section_stresses
 
 SECTION_STRESS_COLUMNS = (
     "element_id", "x", "section_element", "y", "z",

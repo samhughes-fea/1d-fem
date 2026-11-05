@@ -112,7 +112,7 @@ def n_extra_dofs(spec: CantileverSpec) -> int:
         return 2
     if "GBT" not in spec.element_type:
         return 1 if spec.warping else 0
-    from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
+    from anisotropic_section_model.thin_walled.cross_section_modes import CrossSectionModes
 
     return CrossSectionModes(build_analysis(spec.section)).n_sv_warping + spec.shear_modes + 2 * spec.modes
 
@@ -125,13 +125,13 @@ def write_supports(job_dir: str, spec: CantileverSpec) -> None:
 
 
 def build_analysis(sec: SectionSpec):
-    from onedfem.pre_processing.section_integration.thin_walled import (
+    from anisotropic_section_model.thin_walled import (
         ThinWalledSection,
         ThinWalledSectionAnalysis,
         Wall,
         WallLaminate,
     )
-    from onedfem.pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
+    from anisotropic_section_model.thin_walled.laminate import Ply, PlyMaterial
 
     mats = {i: PlyMaterial(m.E1, m.E2, m.G12, m.nu12, m.G13, m.G23, m.rho) for i, m in sec.materials.items()}
     lams = {lid: WallLaminate([Ply(mats[mid], a, t) for mid, a, t in plies]) for lid, plies in sec.laminates.items()}
@@ -276,7 +276,7 @@ def by_ply(points) -> List[list]:
 
 def ply_materials(sec: SectionSpec, names: Dict[int, str]):
     """``[(label, PlyMaterial)]`` of the section's materials, for ``draw_section``."""
-    from onedfem.pre_processing.section_integration.thin_walled.laminate import PlyMaterial
+    from anisotropic_section_model.thin_walled.laminate import PlyMaterial
 
     return [(names[i], PlyMaterial(m.E1, m.E2, m.G12, m.nu12, m.G13, m.G23, m.rho)) for i, m in sec.materials.items()]
 

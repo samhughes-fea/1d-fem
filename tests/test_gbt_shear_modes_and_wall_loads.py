@@ -7,8 +7,8 @@ import os
 import numpy as np
 import pytest
 
-from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
-from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
+from anisotropic_section_model.section_analysis import SectionAnalysis
+from anisotropic_section_model.thin_walled.cross_section_modes import CrossSectionModes
 from test_gbt_cross_section_modes import E, G, GBT, NU, box, i_beam
 
 
@@ -77,7 +77,7 @@ def test_process_job_with_shear_modes_and_wall_loads(tmp_path):
     """End to end: [shear_modes], [Section_Mesh] and wall_load.txt through process_job."""
     import csv
 
-    from onedfem.pre_processing.section_integration.thin_walled.job_input import section_analyses_from_files
+    from onedfem.pre_processing.section_job import section_analyses_from_files
     from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results_directory
 
     L, n_el, p = 2.0, 8, 2.0e3

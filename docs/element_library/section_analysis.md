@@ -1,6 +1,6 @@
 # SectionAnalysis: section stiffness for every element
 
-`src/onedfem/pre_processing/section_integration/section_analysis.py` defines `SectionAnalysis`. Every element can read it as `self.section_analysis`.
+`anisotropic_section_model/section_analysis.py` defines `SectionAnalysis`. Every element can read it as `self.section_analysis`.
 
 It holds:
 

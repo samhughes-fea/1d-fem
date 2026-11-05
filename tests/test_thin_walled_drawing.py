@@ -13,14 +13,14 @@ from onedfem.post_processing.graphical_visualisers.thin_walled_drawing import ( 
     unrolled_field,
     wall_samples,
 )
-from onedfem.pre_processing.section_integration.thin_walled import (  # noqa: E402
+from anisotropic_section_model.thin_walled import (  # noqa: E402
     ThinWalledSection,
     ThinWalledSectionAnalysis,
     Wall,
     WallLaminate,
 )
-from onedfem.pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial  # noqa: E402
-from onedfem.pre_processing.section_integration.thin_walled.stress_recovery import SaintVenantRecovery  # noqa: E402
+from anisotropic_section_model.thin_walled.laminate import Ply, PlyMaterial  # noqa: E402
+from anisotropic_section_model.thin_walled.stress_recovery import SaintVenantRecovery  # noqa: E402
 
 
 def _box():

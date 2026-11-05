@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 import os
 from onedfem.pre_processing.element_library.base_logger_operator import BaseLoggerOperator
 from onedfem.pre_processing.parsing.precurvature_parser import element_reference_strain_voigt
+from onedfem.sections import section_import
 
 # Configure module-level logger
 logger = logging.getLogger(__name__)
@@ -222,7 +223,7 @@ class Element1DBase(ABC):
             return self._assigned_section_analysis
         cached = getattr(self, "_isotropic_section_analysis", None)
         if cached is None:
-            from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
+            SectionAnalysis = section_import("section_analysis", "SectionAnalysis")
 
             sa = self.section_array
             E, G, _nu, rho = (float(v) for v in self.material_array)

@@ -12,14 +12,14 @@ import pytest
 
 from onedfem.pre_processing.element_library.dof_layout import mesh_dof_per_node, row_extra_dofs
 from onedfem.pre_processing.element_library.element_factory import ElementFactory
-from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
-from onedfem.pre_processing.section_integration.thin_walled import (
+from anisotropic_section_model.section_analysis import SectionAnalysis
+from anisotropic_section_model.thin_walled import (
     ThinWalledSection,
     ThinWalledSectionAnalysis,
     Wall,
     WallLaminate,
 )
-from onedfem.pre_processing.section_integration.thin_walled.laminate import Ply, PlyMaterial
+from anisotropic_section_model.thin_walled.laminate import Ply, PlyMaterial
 
 REDDY, LEVINSON, TIMO = "LinearReddyBeamElement3D", "LinearLevinsonBeamElement3D", "LinearTimoshenkoBeamElement3D"
 E, NU = 2.0e11, 0.3
@@ -241,8 +241,8 @@ def test_coupled_section_levinson_is_unsymmetric_reddy_symmetric():
 
 
 def test_wall_stress_recovery_reddy_matches_saint_venant():
-    from onedfem.pre_processing.section_integration.thin_walled.element_recovery import element_wall_stress
-    from onedfem.pre_processing.section_integration.thin_walled.stress_recovery import SaintVenantRecovery
+    from onedfem.post_processing.thin_walled.element_recovery import element_wall_stress
+    from anisotropic_section_model.thin_walled.stress_recovery import SaintVenantRecovery
 
     an = composite_box(angles_cap=(0, 0, 0, 0), angles_web=(45, -45))
     sa = SectionAnalysis.from_thin_walled(an)

@@ -37,14 +37,14 @@ def _box_section():
 
 def box_mesh(junctions="auto"):
     """The box as a 2D section mesh (Q8 elements, 12 along each wall; mitred corners)."""
-    from onedfem.pre_processing.section_integration.solid.mesh import SectionMesh
+    from anisotropic_section_model.solid.mesh import SectionMesh
 
     tw = common.build_analysis(_box_section())
     return SectionMesh.from_thin_walled(tw.section, tw.laminates, elements_along=12, junctions=junctions)
 
 
 def _run(tmp_path, kind, modes, eigen=False):
-    from onedfem.pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
+    from anisotropic_section_model.solid.from_geometry import write_section_mesh_2d
     from onedfem.workflow_orchestrator.run_job import process_job
 
     load = [100.0, 300.0, 500.0, 200.0, 50.0, 80.0]
@@ -75,8 +75,8 @@ def _run(tmp_path, kind, modes, eigen=False):
 
 
 def test_section_mesh_2d_file_keeps_junction_ties(tmp_path):
-    from onedfem.pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
-    from onedfem.pre_processing.section_integration.solid.mesh import parse_section_mesh_2d
+    from anisotropic_section_model.solid.from_geometry import write_section_mesh_2d
+    from anisotropic_section_model.solid.mesh import parse_section_mesh_2d
 
     mesh = box_mesh("tie")
     assert mesh.ties

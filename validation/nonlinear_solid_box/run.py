@@ -62,7 +62,7 @@ def run_job(work: str, section: str, level: float, linear: bool = False) -> np.n
     from validation.abaqus.shell_validation import onedfem
     from validation.abaqus.shell_validation.cases import box_section
     from validation.nonlinear_solid_box.make_reference import box_mesh
-    from onedfem.pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
+    from anisotropic_section_model.solid.from_geometry import write_section_mesh_2d
 
     element = "LinearTimoshenkoBeamElement3D" if linear else "CorotationalTimoshenkoBeamElement3D"
     beam = _beam(level, element)
@@ -90,8 +90,8 @@ def gbt_modes():
     """The thin-walled section's GBT modes, as the 1d-fem job builds them (hoop restrained)."""
     from validation.abaqus.shell_validation import onedfem
     from validation.abaqus.shell_validation.cases import box_section
-    from onedfem.pre_processing.section_integration.thin_walled.cross_section_modes import CrossSectionModes
-    from onedfem.pre_processing.section_integration.thin_walled.section_analysis import ThinWalledSectionAnalysis
+    from anisotropic_section_model.thin_walled.cross_section_modes import CrossSectionModes
+    from anisotropic_section_model.thin_walled.section_analysis import ThinWalledSectionAnalysis
 
     tw = onedfem.section_analysis(box_section())
     return CrossSectionModes(ThinWalledSectionAnalysis(tw.section, tw.laminates, hoop="restrained", n_sub=tw.n_sub))

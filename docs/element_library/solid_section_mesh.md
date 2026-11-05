@@ -3,7 +3,7 @@
 The 2D section solver (Giavotto, as in BECAS; see `solid_section_analysis.md`) works on a
 finite-element mesh of the cross-section. This page covers its inputs: the mesh and the
 materials. Code:
-`src/onedfem/pre_processing/section_integration/solid/`.
+`anisotropic_section_model/solid/`.
 
 ## Elements
 

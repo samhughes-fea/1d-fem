@@ -20,7 +20,7 @@ pytest.importorskip("implicit_geometry_kernel")
 from implicit_geometry_kernel import Airfoil, BladeGeometry, Station  # noqa: E402
 
 from onedfem.pre_processing.mesh_library.blade_beam_job import blade_beam_job, blade_to_job, job_to_blade  # noqa: E402
-from onedfem.pre_processing.section_integration.thin_walled import Ply, PlyMaterial, WallLaminate  # noqa: E402
+from anisotropic_section_model.thin_walled import Ply, PlyMaterial, WallLaminate  # noqa: E402
 
 GLASS = PlyMaterial(E1=38.6e9, E2=8.27e9, G12=4.14e9, nu12=0.26, G13=4.14e9, G23=3.063e9, rho=1800.0)
 CARBON = PlyMaterial(E1=181e9, E2=10.3e9, G12=7.17e9, nu12=0.28, G13=7.17e9, G23=3.679e9, rho=1600.0)
@@ -64,8 +64,8 @@ def test_straight_loft_matches_a_hand_written_job(tmp_path):
     """A prismatic, untwisted loft gives the job one would write by hand from its section."""
     from onedfem.pre_processing.parsing.laminate_parser import parse_laminate_file
     from onedfem.pre_processing.parsing.section_geometry_parser import parse_section_geometry_file
-    from onedfem.pre_processing.section_integration.thin_walled.from_geometry import thin_walled_from_cut
-    from onedfem.pre_processing.section_integration.thin_walled.section_analysis import ThinWalledSectionAnalysis
+    from anisotropic_section_model.thin_walled.from_geometry import thin_walled_from_cut
+    from anisotropic_section_model.thin_walled.section_analysis import ThinWalledSectionAnalysis
 
     geo = geometry([Station(0.0, 1.0, AF, pitch_axis=0.3), Station(4.0, 1.0, AF, pitch_axis=0.3)])
     F = 1000.0
@@ -220,13 +220,13 @@ def test_line_load_on_a_bent_blade(tmp_path):
 
 def test_two_d_sections(tmp_path):
     """``kind="2d"`` writes layered 2D section meshes; the stiffness is the thin-walled one's within 1.5 %."""
-    from onedfem.pre_processing.section_integration.solid.mesh import parse_section_mesh_2d
+    from anisotropic_section_model.solid.mesh import parse_section_mesh_2d
 
     geo = geometry([Station(0.0, 1.0, AF, pitch_axis=0.3), Station(2.0, 1.0, AF, pitch_axis=0.3)])
     job = blade_beam_job(str(tmp_path / "solid"), geo, LAMS, 1, kind="2d", mesh_options={"element_size": 0.02})
     meshes = parse_section_mesh_2d(os.path.join(job.job_dir, "section_mesh_2d.txt"), {})
     assert set(meshes) == {1}
-    from onedfem.pre_processing.section_integration.solid.section_analysis import SolidSectionAnalysis
+    from anisotropic_section_model.solid.section_analysis import SolidSectionAnalysis
 
     K2 = SolidSectionAnalysis(meshes[1]).classical_stiffness
     Kt = blade_beam_job(str(tmp_path / "tw"), geo, LAMS, 1).sections[1].analysis().classical_stiffness

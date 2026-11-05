@@ -20,11 +20,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Sequence, Tuple
 
-from onedfem.pre_processing.section_integration.thin_walled.laminate import (
-    Ply,
-    PlyMaterial,
-    WallLaminate,
-)
+from onedfem.sections import section_import
 
 PLY_MATERIAL_HEADER = "[ply_material]"
 LAMINATE_HEADER = "[laminate]"
@@ -94,6 +90,7 @@ def to_int(tok: str, what: str, line: str) -> int:
 
 
 def parse_ply_materials(sub: str, rows: Sequence[str]) -> Dict[int, PlyMaterial]:
+    PlyMaterial = section_import("thin_walled.laminate", "PlyMaterial")
     if tokens_match(sub, PLY_MATERIAL_SUBHEADER_RHO):
         ncol = 8
     elif tokens_match(sub, PLY_MATERIAL_SUBHEADER):
@@ -120,6 +117,7 @@ def parse_ply_materials(sub: str, rows: Sequence[str]) -> Dict[int, PlyMaterial]
 
 
 def parse_laminates(sub: str, rows: Sequence[str], materials: Dict[int, PlyMaterial]) -> Dict[int, WallLaminate]:
+    Ply, WallLaminate = section_import("thin_walled.laminate", "Ply", "WallLaminate")
     if not tokens_match(sub, LAMINATE_SUBHEADER):
         raise ValueError(
             f"[Laminate] sub-header must be (case-insensitive): {' '.join(LAMINATE_SUBHEADER)}"
@@ -176,7 +174,7 @@ def format_laminate_file(laminates: Dict[int, WallLaminate]) -> str:
     id). The file has no shear correction column, so every laminate must use the
     default 5/6.
     """
-    from onedfem.pre_processing.section_integration.thin_walled.laminate import DEFAULT_SHEAR_CORRECTION
+    DEFAULT_SHEAR_CORRECTION = section_import("thin_walled.laminate", "DEFAULT_SHEAR_CORRECTION")
 
     mat_id: Dict[PlyMaterial, int] = {}
     rows = []

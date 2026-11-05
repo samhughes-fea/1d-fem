@@ -21,7 +21,7 @@ from typing import Iterable, List, Optional, Sequence
 
 import numpy as np
 
-from onedfem.pre_processing.section_integration.thin_walled.element_recovery import element_wall_stress
+from onedfem.post_processing.thin_walled.element_recovery import element_wall_stress
 
 MANY_WALLS = 64
 

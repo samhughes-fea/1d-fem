@@ -25,6 +25,17 @@ Sensitivities of beam responses to ply angles and thicknesses (``layup_sensitivi
 - **`write_layup_sensitivity(job_dir: str, job_results_dir: str, element_dictionary, elements, runner, solver_type: str) -> Optional[str]`**
   Write ``layup_sensitivity.csv`` for a job with ``layup_sensitivity.txt``; the path, or ``None``.
 
+### `onedfem.post_processing.solid.element_recovery`
+
+[src/onedfem/post_processing/solid/element_recovery.py](../../src/onedfem/post_processing/solid/element_recovery.py)
+
+3D stresses over a 2D-meshed section at a point of a beam element.
+
+- **`element_section_state(element, U_e: npt.ArrayLike, xi: float, analysis) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]`**
+  ``(forces, benscoter)`` at ``xi``: right-handed section forces (6,) for Euler-Bernoulli and Timoshenko elements, or right-handed Benscoter strains (8,) for Benscoter elements (the other entry ``None``).
+- **`element_section_stresses(element, U_e: npt.ArrayLike, xi: float, analysis) -> List`**
+  ``PointStress`` at every quadrature point of the section at ``xi`` of an element.
+
 ### `onedfem.post_processing.solid.gauss_projection`
 
 [src/onedfem/post_processing/solid/gauss_projection.py](../../src/onedfem/post_processing/solid/gauss_projection.py)

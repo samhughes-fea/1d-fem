@@ -17,7 +17,7 @@ if REPO not in sys.path:
 
 from examples.thin_walled import common  # noqa: E402
 from onedfem.pre_processing.parsing.ply_strength_parser import format_ply_strength_file, parse_ply_strength_file  # noqa: E402
-from onedfem.pre_processing.section_integration.ply_failure import CRITERIA, PlyStrength, exposures  # noqa: E402
+from anisotropic_section_model.ply_failure import CRITERIA, PlyStrength, exposures  # noqa: E402
 
 CFRP = common.Material(E1=135e9, E2=10e9, G12=5e9, nu12=0.3, G13=5e9, G23=3.8e9, rho=1550.0)
 STRENGTH = PlyStrength(Xt=1500e6, Xc=1200e6, Yt=50e6, Yc=200e6, S12=70e6, p_TL_t=0.35, p_TL_c=0.30)
@@ -41,8 +41,8 @@ def _run(tmp_path, name, load, kind="thin_walled"):
     common.write_job(job, spec)
     common.write_supports(job, spec)
     if kind == "2d":
-        from onedfem.pre_processing.section_integration.solid.from_geometry import write_section_mesh_2d
-        from onedfem.pre_processing.section_integration.solid.mesh import SectionMesh
+        from anisotropic_section_model.solid.from_geometry import write_section_mesh_2d
+        from anisotropic_section_model.solid.mesh import SectionMesh
 
         an = common.build_analysis(spec.section)
         mesh = SectionMesh.from_thin_walled(an.section, an.laminates, elements_along=6)

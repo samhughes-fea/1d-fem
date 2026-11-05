@@ -24,6 +24,7 @@ from __future__ import annotations
 from typing import Dict
 
 from onedfem.pre_processing.parsing.laminate_parser import preprocess_lines, split_blocks, to_int, tokens_match
+from onedfem.sections import section_import
 
 SECTION_TAPER_HEADER = "[section_taper]"
 SECTION_TAPER_SUBHEADER = ["[element_id]", "[c_eps_y]", "[c_eps_z]", "[c_ky_y]", "[c_ky_z]", "[c_kz_y]",
@@ -34,7 +35,7 @@ SECTION_TAPER_LAMINATE_SUBHEADER = SECTION_TAPER_SUBHEADER[:1] + ["[laminate_id]
 
 def parse_section_taper_file(filepath: str) -> Dict[int, "SectionTaper"]:
     """Return ``{element_id: SectionTaper}``."""
-    from onedfem.pre_processing.section_integration.thin_walled.taper import SectionTaper
+    SectionTaper = section_import("thin_walled.taper", "SectionTaper")
 
     blocks = split_blocks(preprocess_lines(filepath), [SECTION_TAPER_HEADER, SECTION_TAPER_LAMINATE_HEADER])
     if SECTION_TAPER_HEADER not in blocks:

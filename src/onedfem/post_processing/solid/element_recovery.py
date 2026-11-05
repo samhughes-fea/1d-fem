@@ -1,4 +1,4 @@
-# pre_processing/section_integration/solid/element_recovery.py
+# onedfem/post_processing/solid/element_recovery.py
 """3D stresses over a 2D-meshed section at a point of a beam element.
 
 The element gives its section state at ``xi`` from its nodal displacements:
@@ -26,7 +26,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 import numpy.typing as npt
 
-from onedfem.pre_processing.section_integration.thin_walled.element_recovery import _FD, _beam_strains, _kind, _sign
+from onedfem.post_processing.thin_walled.element_recovery import _FD, _beam_strains, _kind, _sign
 
 
 def element_section_state(element, U_e: npt.ArrayLike, xi: float, analysis

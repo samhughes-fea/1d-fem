@@ -18,7 +18,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from onedfem.pre_processing.section_integration.solid.material import bond_matrix, material_axes
+from anisotropic_section_model.solid.material import bond_matrix, material_axes
 
 REFERENCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "validation",
                          "iea15mw_sections", "reference", "prism_20_interlaminar.json")

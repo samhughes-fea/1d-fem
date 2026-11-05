@@ -42,8 +42,8 @@ from scipy import linalg
 from onedfem.pre_processing.element_library.dof_layout import mesh_dof_per_node
 from onedfem.pre_processing.element_library.element_factory import ElementFactory
 from onedfem.pre_processing.element_library.linear.beam.second_order import geometric_section_matrix
-from onedfem.pre_processing.section_integration.section_analysis import SectionAnalysis
-from onedfem.pre_processing.section_integration.thin_walled import (
+from anisotropic_section_model.section_analysis import SectionAnalysis
+from anisotropic_section_model.thin_walled import (
     Ply,
     PlyMaterial,
     ThinWalledSection,

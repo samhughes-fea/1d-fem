@@ -4,7 +4,7 @@ Generated from the modules' docstrings by `python scripts/build_api_reference.py
 
 | Page | Covers |
 |---|---|
-| [Section analysis](sections.md) | Thin-walled and 2D (solid) cross-section analysis: stiffness, mass, warping, GBT modes, stress recovery, ply failure and layup sensitivities. |
+| [Section analysis](sections.md) | The section provider seam and the section input and recovery that 1d-fem keeps. The cross-section analysis itself (thin-walled and 2D sections, GBT modes, stress recovery, ply failure, layup sensitivities) comes from the section provider, anisotropic-section-model by default. |
 | [Elements](elements.md) | Beam, bar and truss elements and their shared utilities. |
 | [Job input](job_input.md) | Parsers for the job directory's text files, meshes and loads. |
 | [Solvers](solvers.md) | Static, nonlinear, eigen, buckling, harmonic, transient and spectral solvers and their runners. |
