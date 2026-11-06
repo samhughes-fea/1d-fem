@@ -170,7 +170,7 @@ def main(out=OUT) -> dict:
             pure, sand = sandwich_beam(L, layup, mats)
             rows.append({"span": L, "shell_s8r": fs, "bricks_c3d20": fb, "beam_no_core_shear": pure,
                          "sandwich_beam": sand, "shell_over_bricks": fs / fb - 1.0})
-    res = {"layup": [[n, t] for t, n in layup], "rows": rows}
+    res = {"rows": rows}  # the layup itself is blade input data and stays private
     with open(out, "w", encoding="utf-8") as f:
         json.dump(res, f, indent=1)
     return res

@@ -69,3 +69,6 @@ dist/
 
 # run_job batch log at the project root
 run_job.log
+
+# Private reference-blades checkout (see examples/iea15mw/reference_blades.py); never commit it
+reference_blades/

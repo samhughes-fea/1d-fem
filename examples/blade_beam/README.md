@@ -108,7 +108,7 @@ sandwich panel that is one quadratic displacement, so the faces cannot slide ove
 and the core's transverse shear costs nothing. The 2D sections mesh every ply, so their
 panels bend with the core's shear, and the distortion of the panels is what lowers the
 torsion modes. `sandwich_strip_check.py` bends a strip of the 70 % span skin (gelcoat,
-triax, 13.7 mm foam, triax) in CalculiX ([data/sandwich_strip.json](data/sandwich_strip.json)):
+triax, foam, triax) in CalculiX ([data/sandwich_strip.json](data/sandwich_strip.json)):
 
 | Span | Composite `S8R` | `C3D20` bricks, 2 per ply | Beam, no core shear | Sandwich beam | `S8R` over bricks |
 |---|---|---|---|---|---|

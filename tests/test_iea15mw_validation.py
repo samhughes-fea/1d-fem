@@ -21,6 +21,12 @@ def _load(path, name):
 
 @pytest.fixture(scope="module")
 def iea():
+    """The validation module; skipped without the private reference-blades checkout."""
+    blades = _load(os.path.join(ROOT, "examples", "iea15mw", "reference_blades.py"), "reference_blades_locator")
+    try:
+        blades.reference_blade_file("iea15/derived/sections/precomp/precomp_sections.json")
+    except blades.ReferenceBladesUnavailable as exc:
+        pytest.skip(str(exc))
     return _load(RUN, "iea15mw_sections_run")
 
 

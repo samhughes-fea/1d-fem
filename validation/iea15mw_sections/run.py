@@ -36,7 +36,15 @@ REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 for p in (REPO, os.path.join(REPO, "examples", "iea15mw")):
     if p not in sys.path:
         sys.path.insert(0, p)
-import stations as S  # noqa: E402
+from reference_blades import ReferenceBladesUnavailable  # noqa: E402
+
+try:
+    import stations as S
+except ReferenceBladesUnavailable as exc:  # the blade lives in the private catalogue
+    if __name__ != "__main__":
+        raise
+    print(f"Skipped: {exc}")
+    sys.exit(0)
 
 STATIONS = (0, 6, 20)
 QUANTITIES = ("EA", "EI_flap", "EI_edge", "GJ")

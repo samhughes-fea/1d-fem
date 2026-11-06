@@ -10,6 +10,21 @@ pytest.importorskip("implicit_geometry_kernel")
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 
 
+def _skip_without_reference_blades():
+    """The blade examples read the IEA 15 MW stations from the private reference-blades checkout."""
+    spec = importlib.util.spec_from_file_location(
+        "reference_blades_locator", os.path.join(ROOT, "examples", "iea15mw", "reference_blades.py"))
+    blades = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(blades)
+    try:
+        blades.reference_blade_file("iea15/derived/sections/precomp/precomp_sections.json")
+    except blades.ReferenceBladesUnavailable as exc:
+        pytest.skip(str(exc), allow_module_level=True)
+
+
+_skip_without_reference_blades()
+
+
 def _load(rel, name):
     spec = importlib.util.spec_from_file_location(name, os.path.join(ROOT, *rel.split("/")))
     mod = importlib.util.module_from_spec(spec)

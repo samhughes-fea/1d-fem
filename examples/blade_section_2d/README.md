@@ -19,10 +19,10 @@ committed prism reference, so it does not need CalculiX.
 
 | | |
 |---|---|
-| Section | `examples/iea15mw/stations.py`, station 20: layout 2D-F, two webs at 18.6 % and 40.9 % chord |
-| Skin | gelcoat 1 mm, glass triax 2 mm, foam 13.7 mm, glass triax 2 mm (18.7 mm) |
-| Spar caps | carbon UD 70 mm, inside the skin between the webs |
-| Webs | glass biax 1 mm, foam 20 mm, glass biax 1 mm |
+| Section | `examples/iea15mw/stations.py`, station 20: layout 2D-F, two webs |
+| Skin | gelcoat, glass triax, foam core, glass triax (the station's sandwich panel layup) |
+| Spar caps | carbon UD, inside the skin between the webs |
+| Webs | glass biax, foam core, glass biax |
 | Mesh | `section_mesh_from_cut(cut, laminates, rows_per_ply=2)`: 2196 `Q8` elements |
 | Section forces | `[N, M_y, M_z, V_y, V_z, T] = [0, -4 MN·m, 0, 0, 200 kN, 100 kN·m]` |
 
