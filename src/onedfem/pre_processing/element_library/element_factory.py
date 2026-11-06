@@ -119,17 +119,17 @@ class ElementFactory:
 
     LINEAR_ELEMENT_CLASS_MAP = {
         "LinearEulerBernoulliBeamElement3D":
-            "onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D",
+            "onedfem.pre_processing.element_library.linear.beam.zosdt.euler_bernoulli.linear_euler_bernoulli_3D",
         "LinearTimoshenkoBeamElement3D":
-            "onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D",
+            "onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.linear_timoshenko_3D",
         "LinearBenscoterBeamElement3D":
-            "onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_benscoter_3D",
+            "onedfem.pre_processing.element_library.linear.beam.fosdt.benscoter.linear_benscoter_3D",
         "LinearGBTBeamElement3D":
-            "onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D",
+            "onedfem.pre_processing.element_library.linear.beam.fosdt.gbt.linear_gbt_3D",
         "LinearLevinsonBeamElement3D":
-            "onedfem.pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.linear_levinson_3D",
+            "onedfem.pre_processing.element_library.linear.beam.tosdt.levinson.linear_levinson_3D",
         "LinearReddyBeamElement3D":
-            "onedfem.pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.linear_reddy_3D",
+            "onedfem.pre_processing.element_library.linear.beam.tosdt.reddy.linear_reddy_3D",
         "LinearTrussElement3D":
             "onedfem.pre_processing.element_library.linear.truss.linear_truss_3D",
         "LinearBarElement3D":
@@ -138,17 +138,21 @@ class ElementFactory:
 
     NONLINEAR_ELEMENT_CLASS_MAP = {
         "NonlinearEulerBernoulliBeamElement3D":
-            "onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.nonlinear_euler_bernoulli_3D",
+            "onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.total_lagrangian.nonlinear_euler_bernoulli_3D",
         "NonlinearTimoshenkoBeamElement3D":
-            "onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D",
+            "onedfem.pre_processing.element_library.nonlinear.timoshenko.total_lagrangian.nonlinear_timoshenko_3D",
         "NonlinearLevinsonBeamElement3D":
-            "onedfem.pre_processing.element_library.nonlinear.levinson.nonlinear_levinson_3D",
+            "onedfem.pre_processing.element_library.nonlinear.tosdt.levinson.nonlinear_levinson_3D",
         "NonlinearReddyBeamElement3D":
-            "onedfem.pre_processing.element_library.nonlinear.reddy.nonlinear_reddy_3D",
+            "onedfem.pre_processing.element_library.nonlinear.tosdt.reddy.nonlinear_reddy_3D",
         "UpdatedLagrangianEulerBernoulliBeamElement3D":
-            "onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.updated_lagrangian_euler_bernoulli_3D",
+            "onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.updated_lagrangian.updated_lagrangian_euler_bernoulli_3D",
         "UpdatedLagrangianTimoshenkoBeamElement3D":
-            "onedfem.pre_processing.element_library.nonlinear.timoshenko.updated_lagrangian_timoshenko_3D",
+            "onedfem.pre_processing.element_library.nonlinear.timoshenko.updated_lagrangian.updated_lagrangian_timoshenko_3D",
+        "UpdatedLagrangianLevinsonBeamElement3D":
+            "onedfem.pre_processing.element_library.nonlinear.tosdt.levinson.updated_lagrangian.updated_lagrangian_levinson_3D",
+        "UpdatedLagrangianReddyBeamElement3D":
+            "onedfem.pre_processing.element_library.nonlinear.tosdt.reddy.updated_lagrangian.updated_lagrangian_reddy_3D",
         "CorotationalBeamElement3D":
             "onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.corotational_3D",
         "CorotationalEulerBernoulliBeamElement3D":

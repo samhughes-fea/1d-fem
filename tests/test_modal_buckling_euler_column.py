@@ -25,7 +25,7 @@ def _euler_cantilever_P_cr(E: float, I: float, L: float) -> float:
 
 def _build_cantilever_modal_case(n_elem: int, L: float, E: float, P_ref: float):
     """Return (settings dict for LinearBucklingSimulationRunner, temp_dir to rmtree)."""
-    from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.zosdt.euler_bernoulli.linear_euler_bernoulli_3D import (
         LinearEulerBernoulliBeamElement3D,
     )
 
@@ -215,7 +215,7 @@ def test_buckling_prestress_none_raises():
 
 def test_modal_buckling_timoshenko_smoke():
     """Linear Timoshenko mesh supports ``linear_geometric_stiffness_matrix`` — buckling run completes."""
-    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
     from onedfem.simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
@@ -332,7 +332,7 @@ def test_modal_buckling_timoshenko_smoke():
 
 def test_modal_buckling_euler_warping_mesh_smoke():
     """7 DOF/node EB + Γ: linear buckling completes (embedded 12×12 K_σ)."""
-    from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.zosdt.euler_bernoulli.linear_euler_bernoulli_3D import (
         LinearEulerBernoulliBeamElement3D,
     )
     from onedfem.simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner

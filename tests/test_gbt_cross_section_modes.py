@@ -280,7 +280,7 @@ def test_gbt_element_needs_gbt_matrices():
 
 def test_gbt_mass_matrix_is_consistent():
     sa = SectionAnalysis.from_thin_walled(box(0.3, 0.15, rho=1600.0), gbt_modes=1)
-    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.fosdt.gbt.linear_gbt_3D import (
         LinearGBTBeamElement3D,
     )
 
@@ -395,7 +395,7 @@ def test_gbt_element_energy_stays_positive_with_coupled_modes():
     b-a coupling on the full rule against b^2 on one point gave spurious soft modes)."""
     from dataclasses import replace
 
-    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.fosdt.gbt.linear_gbt_3D import (
         LinearGBTBeamElement3D,
     )
 

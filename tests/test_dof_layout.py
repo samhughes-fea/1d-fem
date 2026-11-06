@@ -71,7 +71,7 @@ def test_prescribed_displacement_on_any_stride(tmp_path):
 
 
 def _elements(ed, coords):
-    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
 

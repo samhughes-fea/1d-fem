@@ -812,6 +812,20 @@ class NonlinearStaticSimulationRunner:
                 F_int_list.append(Ke_dense @ U_e)
         return K_T_list, F_int_list
 
+    def _update_ul_reference_configurations(self, U_global: np.ndarray) -> None:
+        """After a converged increment, UL elements take the current geometry as the new reference.
+
+        The element implements ``update_reference_configuration(U_e)``; the runner only decides when.
+        """
+        U_global = np.asarray(U_global, dtype=np.float64).ravel()
+        for elem in self.elements:
+            fn = getattr(elem, "update_reference_configuration", None)
+            if not callable(fn):
+                continue
+            dof_map = elem.assemble_global_dof_indices()
+            U_e = U_global[dof_map]
+            fn(U_e)
+
     def _add_follower_loads(self, U_global: np.ndarray, R_global: np.ndarray, lam: float) -> np.ndarray:
         """Follower loads (``follower_load.txt``, ``onedfem.processing.static.follower_loads``): add
         ``lam g(U)`` to the residual and their load stiffness ``lam K_L(U)`` to ``K_global``."""
@@ -1060,6 +1074,7 @@ class NonlinearStaticSimulationRunner:
                 self.newton_converged = converged
                 if converged:
                     self.load_increments_completed = inc_i + 1
+                    self._update_ul_reference_configurations(U_global)
                     tip_dof = max(0, self.total_dof - self.dof_per_node + 1)
                     self._validation_tip_history.append((float(lam), float(U_global[tip_dof]) if U_global.size else 0.0))
                 if not converged:

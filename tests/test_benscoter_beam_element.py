@@ -63,11 +63,11 @@ def cas_box():
 
 def _element_class(etype):
     if etype == BS:
-        from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_benscoter_3D import (
+        from onedfem.pre_processing.element_library.linear.beam.fosdt.benscoter.linear_benscoter_3D import (
             LinearBenscoterBeamElement3D as Cls,
         )
     else:
-        from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+        from onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.linear_timoshenko_3D import (
             LinearTimoshenkoBeamElement3D as Cls,
         )
     return Cls

@@ -8,7 +8,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 def test_validation_directory_standard_files_exist() -> None:
     assert (PROJECT_ROOT / "docs" / "conventions" / "ABAQUS_VALIDATION_DIRECTORY_STANDARD.md").is_file()
-    for family in ("static", "eigen", "buckling", "transient", "harmonic"):
+    for family in ("static", "eigen", "buckling", "transient", "harmonic", "nonlinear_buckling"):
         family_dir = PROJECT_ROOT / "validation" / family
         assert family_dir.is_dir()
         assert any(p.name.startswith("README_VALIDATION_") for p in family_dir.iterdir())

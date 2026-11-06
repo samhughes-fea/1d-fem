@@ -1,22 +1,22 @@
 # pre_processing/element_library/linear/__init__.py
 # Linear element formulations (Euler-Bernoulli, Timoshenko, Levinson, Reddy, Bar, Truss).
 
-from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+from onedfem.pre_processing.element_library.linear.beam.zosdt.euler_bernoulli.linear_euler_bernoulli_3D import (
     LinearEulerBernoulliBeamElement3D,
 )
-from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+from onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.linear_timoshenko_3D import (
     LinearTimoshenkoBeamElement3D,
 )
-from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_benscoter_3D import (
+from onedfem.pre_processing.element_library.linear.beam.fosdt.benscoter.linear_benscoter_3D import (
     LinearBenscoterBeamElement3D,
 )
-from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
+from onedfem.pre_processing.element_library.linear.beam.fosdt.gbt.linear_gbt_3D import (
     LinearGBTBeamElement3D,
 )
-from onedfem.pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.linear_levinson_3D import (
+from onedfem.pre_processing.element_library.linear.beam.tosdt.levinson.linear_levinson_3D import (
     LinearLevinsonBeamElement3D,
 )
-from onedfem.pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.linear_reddy_3D import (
+from onedfem.pre_processing.element_library.linear.beam.tosdt.reddy.linear_reddy_3D import (
     LinearReddyBeamElement3D,
 )
 from onedfem.pre_processing.element_library.linear.truss.linear_truss_3D import LinearTrussElement3D

@@ -191,7 +191,7 @@ Staged spectral pipeline (eigen vibration + linear buckling matrix steps).
 
 Static FEM processing: assembly, boundary conditions, condensation, solve, results.
 
-- **class `PrepareLocalSystem(Ke_raw: Union[List[Union[numpy.ndarray, scipy.sparse._coo.coo_matrix]], numpy.ndarray], Fe_raw: Union[List[Union[numpy.ndarray, list]], numpy.ndarray], job_results_dir: Union[str, pathlib._local.Path, NoneType] = None)`**
+- **class `PrepareLocalSystem(Ke_raw: Union[List[Union[numpy.ndarray, scipy.sparse._coo.coo_matrix]], numpy.ndarray], Fe_raw: Union[List[Union[numpy.ndarray, list]], numpy.ndarray], job_results_dir: Union[str, pathlib.Path, NoneType] = None)`**
   Validates and formats local element stiffness matrices (Ke) and force vectors (Fe) into the formats required by AssembleGlobalSystem: - Ke: scipy.sparse.coo_matrix with float64 precision - Fe: 1D numpy arrays with float64 precision
 - **class `AssembleGlobalSystem(elements: List[object], element_stiffness_matrices: Optional[List[scipy.sparse._coo.coo_matrix]] = None, element_force_vectors: Optional[List[numpy.ndarray]] = None, total_dof: Optional[int] = None, job_results_dir: Optional[str] = None, symmetry_tol: float = 1e-08)`**
   Assembles the global stiffness matrix and force vector for a finite element system.
@@ -201,9 +201,9 @@ Static FEM processing: assembly, boundary conditions, condensation, solve, resul
   Static condensation system with advanced validation and adaptive numerics.
 - **class `SolveCondensedSystem(K_cond: sp.spmatrix, F_cond: np.ndarray, solver_name: str, job_results_dir: str, *, preconditioner: str | None = 'auto', max_mem_gb: float = 10.0, tolerance: float = 1e-06, max_iterations: int = 1000, restart: int = 20, ilu_drop_tol: float = 1e-06, ilu_fill_factor: float = 1.0, disable_scaling: bool = False)`**
   Solve `K_cond · U_cond = F_cond`.
-- **class `ReconstructGlobalSystem(active_dofs: numpy.ndarray, U_cond: numpy.ndarray, total_dofs: int, job_results_dir: pathlib._local.Path, *, local_global_dof_map: Sequence[numpy.ndarray], fixed_dofs: Optional[numpy.ndarray] = None, inactive_dofs: Optional[numpy.ndarray] = None)`**
+- **class `ReconstructGlobalSystem(active_dofs: numpy.ndarray, U_cond: numpy.ndarray, total_dofs: int, job_results_dir: pathlib.Path, *, local_global_dof_map: Sequence[numpy.ndarray], fixed_dofs: Optional[numpy.ndarray] = None, inactive_dofs: Optional[numpy.ndarray] = None)`**
   High-performance displacement reconstruction system with validation and diagnostics.
-- **class `DisassembleGlobalSystem(*, U_global: numpy.ndarray, R_global: numpy.ndarray, R_residual: numpy.ndarray, local_global_dof_map: Sequence[numpy.ndarray], job_results_dir: str | pathlib._local.Path | None = None, F_e: Optional[Sequence[numpy.ndarray]] = None) -> None`**
+- **class `DisassembleGlobalSystem(*, U_global: numpy.ndarray, R_global: numpy.ndarray, R_residual: numpy.ndarray, local_global_dof_map: Sequence[numpy.ndarray], job_results_dir: str | pathlib.Path | None = None, F_e: Optional[Sequence[numpy.ndarray]] = None) -> None`**
   Reverse-assembles global results to each element and writes:
 
 ### `onedfem.processing.static.follower_loads`
@@ -237,7 +237,7 @@ Transient analysis: canonical Section 3 package name.
 
 - **`assemble_global_system(elements: List, element_stiffness_matrices: Optional[List] = None, element_mass_matrices: Optional[List] = None, element_damping_matrices: Optional[List] = None, total_dof: Optional[int] = None, job_results_dir: Optional[str] = None) -> Tuple[scipy.sparse._csr.csr_matrix, scipy.sparse._csr.csr_matrix, Optional[scipy.sparse._csr.csr_matrix], List[numpy.ndarray]]`**
   Assemble global K, M, and optionally C for dynamic analysis.
-- **`assemble_global_force_vector(elements: List, element_force_vectors: Optional[Sequence], total_dof: int, *, job_results_dir: Union[str, pathlib._local.Path, NoneType] = None, local_global_dof_map: Optional[List[numpy.ndarray]] = None) -> numpy.ndarray`**
+- **`assemble_global_force_vector(elements: List, element_force_vectors: Optional[Sequence], total_dof: int, *, job_results_dir: Union[str, pathlib.Path, NoneType] = None, local_global_dof_map: Optional[List[numpy.ndarray]] = None) -> numpy.ndarray`**
   Scatter element nodal loads ``F_e`` into a global vector (same pattern as static force assembly).
 
 ### `onedfem.processing.transient.boundary_conditions`

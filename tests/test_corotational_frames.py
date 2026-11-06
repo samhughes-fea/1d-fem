@@ -173,7 +173,38 @@ def test_pretwisted_corotational_element_near_rest(etype):
     np.testing.assert_allclose(U_cr, U_lin, rtol=0, atol=5e-3 * np.abs(U_lin).max())
 
 
-def test_curved_axis_in_precurvature_is_refused():
-    pts = _line([0, 0, 0], [1, 0, 0], 1.0, 2)
-    with pytest.raises(NotImplementedError, match="corotational elements are straight"):
-        _mesh(CR_TS, pts, curvature=[0.0, 0.0, 0.5])
+@pytest.mark.parametrize("etype", [CR_EB, CR_TS, CR_BS])
+def test_precurved_corotational_element_matches_linear_core_on_straight_mesh(etype):
+    """Intrinsic k_y on a straight chord: local K and Bᵀ D E_0 match the linear core."""
+    L, n, ky = 1.0, 4, 0.25
+    pts = _line([0, 0, 0], [1, 0, 0], L, n)
+    cr = _mesh(etype, pts, curvature=[0.0, ky, 0.0])
+    lin = _mesh(LIN[etype], pts)
+    E0 = np.array([0.0, ky, 0.0, 0.0, 0.0, 0.0])
+    for el in lin.elements:
+        el._E_0_voigt = E0.copy()
+    for el_c, el_l in zip(cr.elements, lin.elements):
+        el_c._cr_setup()
+        np.testing.assert_allclose(el_c._E_0_voigt, E0)
+        np.testing.assert_allclose(
+            el_c._K_core, el_l.element_stiffness_matrix().K_e, rtol=1e-9, atol=1e-8
+        )
+        np.testing.assert_allclose(
+            el_c._f_E0, el_l._precurvature_equivalent_load(), rtol=1e-9, atol=1e-8
+        )
+        assert float(np.linalg.norm(el_c._f_E0)) > 0.0
+    Fi, _ = _assemble(cr, np.zeros(cr.n))
+    assert float(np.linalg.norm(Fi)) > 0.0
+
+
+def test_precurvature_on_kinked_mesh_does_not_build_an_arc():
+    """k_y plus kinked nodes: CR stays chord-wise (no framed condensation)."""
+    s = np.linspace(0.0, 1.0, 5)
+    pts = np.column_stack([s, 0.08 * s**2, np.zeros_like(s)])
+    mesh = _mesh(CR_TS, pts, curvature=[0.0, 0.15, 0.0])
+    for el in mesh.elements:
+        assert el._frame_arc is None
+        np.testing.assert_allclose(el._E_0_voigt[1], 0.15)
+        np.testing.assert_allclose(el._E_0_voigt[5], 0.0)
+        K = el.tangent_stiffness_matrix(np.zeros(el._n_dof))
+        assert np.all(np.isfinite(K))

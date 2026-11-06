@@ -41,10 +41,10 @@ def _tw(points, walls, lams, **kw):
 
 
 def _element_B(element_type, L=2.0, xi=0.3):
-    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.B_matrix import (
+    from onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.utilities.B_matrix import (
         StrainDisplacementOperator as TimoshenkoB,
     )
-    from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.B_matrix import (
+    from onedfem.pre_processing.element_library.linear.beam.zosdt.euler_bernoulli.utilities.B_matrix import (
         StrainDisplacementOperator as EulerBernoulliB,
     )
 
@@ -115,7 +115,7 @@ def test_sign_map_preserves_energy():
 
 
 def test_isotropic_section_analysis_matches_timoshenko_D():
-    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.D_matrix import (
+    from onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.utilities.D_matrix import (
         MaterialStiffnessOperator,
     )
 
@@ -225,7 +225,7 @@ def _element_kwargs(job_results_dir, etype):
 
 
 def test_base_class_isotropic_section_analysis_and_unsupported_assignment():
-    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
 

@@ -1,0 +1,3 @@
+from .updated_lagrangian_euler_bernoulli_3D import UpdatedLagrangianEulerBernoulliBeamElement3D
+
+__all__ = ["UpdatedLagrangianEulerBernoulliBeamElement3D"]

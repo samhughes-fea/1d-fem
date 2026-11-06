@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+from onedfem.pre_processing.element_library.nonlinear.timoshenko.total_lagrangian.nonlinear_timoshenko_3D import (
     NonlinearTimoshenkoBeamElement3D,
 )
 
@@ -89,12 +89,12 @@ class GeometricallyExactShearDeformableBeam3D(NonlinearTimoshenkoBeamElement3D):
         if self._gesdb_tl_fallback or self._n_dof != _NL_STD:
             return super()._tl_voigt_strain_at_gauss(U_e, xi_g)
         if self._gesdb_kernel == "native":
-            from onedfem.pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.gesdb_kinematics import (
+            from onedfem.pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.utilities.gesdb_kinematics import (
                 native_engineering_voigt_strain_timoshenko_12,
             )
 
             return native_engineering_voigt_strain_timoshenko_12(self, U_e, xi_g)
-        from onedfem.pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.gesdb_kinematics import (
+        from onedfem.pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.utilities.gesdb_kinematics import (
             gesdb_director_voigt_strain_timoshenko_12,
         )
 
@@ -107,20 +107,11 @@ class GeometricallyExactShearDeformableBeam3D(NonlinearTimoshenkoBeamElement3D):
         if self._n_dof != _NL_STD:
             return super().internal_force_vector(U_e)
 
-        from onedfem.pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.gesdb_kinematics import (
-            native_engineering_strain_and_B_eng_timoshenko_12,
+        from onedfem.pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.utilities.native_weak_form import (
+            native_internal_force,
         )
 
-        D = self.material_stiffness_operator.assembly_form()
-        xi, w = self.integration_points
-        detJ = self.jacobian_determinant
-        F_int = np.zeros(12, dtype=np.float64)
-        U_u = np.asarray(U_e, dtype=np.float64).ravel()
-        for xi_g, w_g in zip(xi, w):
-            E, B_eng = native_engineering_strain_and_B_eng_timoshenko_12(self, U_u, xi_g)
-            S = D @ (E - self._E_0_voigt)
-            F_int += (B_eng.T @ S) * w_g * detJ
-        return F_int
+        return native_internal_force(self, U_e)
 
     def tangent_stiffness_matrix(self, U_e: np.ndarray) -> np.ndarray:
         """``K_mat + K_sigma`` for native (no TL ``K_delta`` split); else parent TL tangent."""
@@ -129,37 +120,11 @@ class GeometricallyExactShearDeformableBeam3D(NonlinearTimoshenkoBeamElement3D):
         if self._n_dof != _NL_STD:
             return super().tangent_stiffness_matrix(U_e)
 
-        from onedfem.pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.gesdb_kinematics import (
-            native_engineering_strain_and_B_eng_timoshenko_12,
+        from onedfem.pre_processing.element_library.nonlinear.large_rotations.geometrically_exact_shear_deformable_beam.utilities.native_weak_form import (
+            native_tangent_stiffness,
         )
 
-        U_u = np.asarray(U_e, dtype=np.float64).ravel()
-        D = self.material_stiffness_operator.assembly_form()
-        xi, w = self.integration_points
-        detJ = self.jacobian_determinant
-        n_g = len(xi)
-        N_gp = np.zeros(n_g, dtype=np.float64)
-        M_y_gp = np.zeros(n_g, dtype=np.float64)
-        M_z_gp = np.zeros(n_g, dtype=np.float64)
-        dN_dx_list = []
-        K_mat = np.zeros((12, 12), dtype=np.float64)
-        for k, (xi_g, w_g) in enumerate(zip(xi, w)):
-            E, B_eng = native_engineering_strain_and_B_eng_timoshenko_12(self, U_u, xi_g)
-            K_mat += B_eng.T @ D @ B_eng * w_g * detJ
-            N_i, M_y_i, M_z_i = self.stress_resultant_operator.section_forces_from_strain(
-                E - self._E_0_voigt, D
-            )
-            N_gp[k] = N_i
-            M_y_gp[k] = M_y_i
-            M_z_gp[k] = M_z_i
-            _, dN_dξ, _d2 = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
-            dN_dx_row = dN_dξ[0] * self.dxi_dx
-            dN_dx_list.append(dN_dx_row)
-        dN_dx_arr = np.stack(dN_dx_list, axis=0)
-        K_sigma = self.geometric_stiffness_operator.assemble_K_sigma(
-            N_gp, M_y_gp, M_z_gp, w, dN_dx_arr, detJ
-        )
-        return K_mat + K_sigma
+        return native_tangent_stiffness(self, U_e)
 
     def _gesdb_strain_voigt_at_gauss(self, U_e: np.ndarray, xi_g: float) -> np.ndarray:
         """

@@ -48,115 +48,42 @@ from typing import Tuple
 
 import numpy as np
 
-from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_benscoter_3D import (
+from onedfem.pre_processing.element_library.linear.beam.fosdt.benscoter.linear_benscoter_3D import (
     LinearBenscoterBeamElement3D,
 )
-from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
+from onedfem.pre_processing.element_library.linear.beam.fosdt.gbt.linear_gbt_3D import (
     LinearGBTBeamElement3D,
 )
 from onedfem.pre_processing.element_library.linear.beam.second_order import GeometricStiffnessMixin, _linear_rows
-from onedfem.pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.levinson.linear_levinson_3D import (
+from onedfem.pre_processing.element_library.linear.beam.tosdt.levinson.linear_levinson_3D import (
     LinearLevinsonBeamElement3D,
 )
-from onedfem.pre_processing.element_library.linear.beam.third_order_shear_deformation_theory.reddy.linear_reddy_3D import (
+from onedfem.pre_processing.element_library.linear.beam.tosdt.reddy.linear_reddy_3D import (
     LinearReddyBeamElement3D,
 )
-from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+from onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.linear_timoshenko_3D import (
     LinearTimoshenkoBeamElement3D,
 )
-from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+from onedfem.pre_processing.element_library.linear.beam.zosdt.euler_bernoulli.linear_euler_bernoulli_3D import (
     LinearEulerBernoulliBeamElement3D,
+)
+from onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.utilities.frame import (
+    reference_frame as _reference_frame,
+)
+from onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.utilities.local_energy import (
+    cubic_quartic_force_and_tangent,
+)
+from onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.utilities.local_map import (
+    battini_p_batch,
+)
+from onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.utilities.rotation import (
+    rotation_exp,
+    rotation_log,
 )
 
 _GAUSS_X, _GAUSS_W = np.polynomial.legendre.leggauss(4)
 #: central-difference step for d2p/dU2 (rotations; translations scale with l0)
 _H2 = 1e-4
-
-
-def _skew(a: np.ndarray) -> np.ndarray:
-    return np.array([[0.0, -a[2], a[1]], [a[2], 0.0, -a[0]], [-a[1], a[0], 0.0]])
-
-
-def rotation_exp(theta: np.ndarray) -> np.ndarray:
-    """Rotation matrix of the rotation vector ``theta`` (Rodrigues)."""
-    t = float(np.linalg.norm(theta))
-    S = _skew(theta)
-    if t < 1e-8:
-        return np.eye(3) + S + 0.5 * S @ S
-    return np.eye(3) + np.sin(t) / t * S + (1.0 - np.cos(t)) / (t * t) * S @ S
-
-
-def rotation_log(R: np.ndarray) -> np.ndarray:
-    """Rotation vector of ``R`` (through the quaternion, robust up to pi)."""
-    tr = np.trace(R)
-    w2 = np.array([1.0 + tr, 1.0 + 2 * R[0, 0] - tr, 1.0 + 2 * R[1, 1] - tr, 1.0 + 2 * R[2, 2] - tr])
-    k = int(np.argmax(w2))
-    q = np.zeros(4)
-    q[k] = 0.5 * np.sqrt(w2[k])
-    if k == 0:
-        q[1] = (R[2, 1] - R[1, 2]) / (4 * q[0])
-        q[2] = (R[0, 2] - R[2, 0]) / (4 * q[0])
-        q[3] = (R[1, 0] - R[0, 1]) / (4 * q[0])
-    elif k == 1:
-        q[0] = (R[2, 1] - R[1, 2]) / (4 * q[1])
-        q[2] = (R[0, 1] + R[1, 0]) / (4 * q[1])
-        q[3] = (R[0, 2] + R[2, 0]) / (4 * q[1])
-    elif k == 2:
-        q[0] = (R[0, 2] - R[2, 0]) / (4 * q[2])
-        q[1] = (R[0, 1] + R[1, 0]) / (4 * q[2])
-        q[3] = (R[1, 2] + R[2, 1]) / (4 * q[2])
-    else:
-        q[0] = (R[1, 0] - R[0, 1]) / (4 * q[3])
-        q[1] = (R[0, 2] + R[2, 0]) / (4 * q[3])
-        q[2] = (R[1, 2] + R[2, 1]) / (4 * q[3])
-    if q[0] < 0:
-        q = -q
-    v = q[1:]
-    s = float(np.linalg.norm(v))
-    if s < 1e-12:
-        return 2.0 * v
-    return 2.0 * np.arctan2(s, q[0]) / s * v
-
-
-def _norm(a: np.ndarray) -> np.ndarray:
-    """``sqrt(a . a)`` along the last axis, analytic (complex-step safe)."""
-    return np.sqrt(np.sum(a * a, axis=-1))
-
-
-def _exp_batch(th: np.ndarray) -> np.ndarray:
-    """Rotation matrices (m, 3, 3) of rotation vectors (m, 3); complex-step safe."""
-    t2 = np.sum(th * th, axis=1)
-    small = np.abs(t2) < 1e-12
-    t = np.sqrt(np.where(small, 1.0, t2))
-    a = np.where(small, 1.0 - t2 / 6.0, np.sin(t) / t)
-    b = np.where(small, 0.5 - t2 / 24.0, (1.0 - np.cos(t)) / (t * t))
-    S = np.zeros((th.shape[0], 3, 3), dtype=th.dtype)
-    S[:, 0, 1], S[:, 0, 2], S[:, 1, 2] = -th[:, 2], th[:, 1], -th[:, 0]
-    S[:, 1, 0], S[:, 2, 0], S[:, 2, 1] = th[:, 2], -th[:, 1], th[:, 0]
-    return np.eye(3) + a[:, None, None] * S + b[:, None, None] * (S @ S)
-
-
-def _log_batch(R: np.ndarray) -> np.ndarray:
-    """Rotation vectors (m, 3) of rotations (m, 3, 3) below pi/2 in angle (the local rotations).
-
-    Uses ``t = arctan(s / c)``, analytic for the complex step.
-    """
-    v = 0.5 * np.stack([R[:, 2, 1] - R[:, 1, 2], R[:, 0, 2] - R[:, 2, 0], R[:, 1, 0] - R[:, 0, 1]], axis=1)
-    s2 = np.sum(v * v, axis=1)
-    c = 0.5 * (np.trace(R, axis1=1, axis2=2) - 1.0)
-    small = np.abs(s2) < 1e-24
-    s = np.sqrt(np.where(small, 1.0, s2))
-    f = np.where(small, 1.0 / c + s2 / 6.0, np.arctan(s / c) / s)
-    return f[:, None] * v
-
-
-def _reference_frame(d: np.ndarray) -> np.ndarray:
-    """Undeformed element frame: ``e1`` along the chord, ``e2`` towards global ``y`` (or ``z``)."""
-    e1 = d / np.linalg.norm(d)
-    ref = np.array([0.0, 1.0, 0.0]) if abs(e1[1]) < 0.9 else np.array([0.0, 0.0, 1.0])
-    e2 = ref - (ref @ e1) * e1
-    e2 /= np.linalg.norm(e2)
-    return np.column_stack([e1, e2, np.cross(e1, e2)])
 
 
 class CorotationalMixin:
@@ -168,28 +95,78 @@ class CorotationalMixin:
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self._apply_cr_reference_curvature()
+
+    def _sync_pretwisted_section_operators(self) -> None:
+        """Rebuild cores that snapshot ``D`` in ``__init__`` before pretwist is applied.
+
+        Timoshenko reads ``section_analysis.stiffness`` at assembly time. Benscoter, GBT
+        and tosdt copy ``D`` during ``super().__init__``, which runs before this mixin
+        sets ``_pretwist_rate`` from ``k_x0``.
+        """
+        sa = self.section_analysis
+        if getattr(self, "benscoter_material_stiffness_operator", None) is not None:
+            if sa.benscoter_stiffness is not None:
+                from onedfem.pre_processing.element_library.linear.beam.fosdt.benscoter.utilities.D_matrix import (
+                    MaterialStiffnessOperator as BenscoterD,
+                )
+
+                self.benscoter_material_stiffness_operator = BenscoterD(
+                    D=np.array(sa.benscoter_stiffness, dtype=np.float64)
+                )
+        if getattr(self, "gbt_material_stiffness_operator", None) is not None:
+            from onedfem.pre_processing.element_library.linear.beam.fosdt.gbt.utilities.D_matrix import (
+                MaterialStiffnessOperator as GBTD,
+            )
+
+            K, M = sa.gbt_matrices(self.n_modes, self.n_shear)
+            self.gbt_material_stiffness_operator = GBTD(D=K, M=M)
+            self._D_gbt, self._M_gbt = K, M
+        if getattr(self, "_D8", None) is not None and sa.third_order_stiffness is not None:
+            from onedfem.pre_processing.element_library.linear.beam.tosdt.utilities.D_matrix import (
+                MaterialStiffnessOperator as ThirdOrderD,
+            )
+
+            self._D8 = np.asarray(sa.third_order_stiffness, dtype=np.float64)
+            self.third_order_material_stiffness_operator = ThirdOrderD(D=self._D8)
+
+    def _apply_cr_reference_curvature(self) -> None:
+        """Pretwist ``k_x0`` couples ``D``; ``k_y0``, ``k_z0`` are constitutive ``E_0`` on the chord.
+
+        CR stays geometrically straight (kinks carry discrete curvature). A fictitious
+        arc from ``precurvature.txt`` is collapsed: pretwist-only keeps the mid-length
+        section frame; bending precurvature uses the nodal chord frame.
+        """
+        E = np.array(self._E_0_voigt, dtype=np.float64, copy=True)
+        if E.size < 6:
+            E = np.zeros(6, dtype=np.float64)
+        E[5] = 0.0
         arc = getattr(self, "_frame_arc", None)
         if arc is not None:
-            k = np.asarray(arc.curvature, dtype=np.float64)
-            if np.any(np.abs(k[1:]) > 0.0):
-                raise NotImplementedError(
-                    f"Element {self.element_id} ({type(self).__name__}): corotational elements are straight. "
-                    "Give a curved or prebent axis as nodes along it (the kinks between elements carry the "
-                    "curvature); precurvature.txt may only hold the pretwist rate k_x0 for them.")
-            # pretwist only: a straight element with its section frame at mid-length and the
-            # helical-fibre coupling of the twist rate in its section
-            self._frame_R0 = self._frame_R1 = arc.R_mid
+            k = np.asarray(arc.curvature, dtype=np.float64).reshape(3)
+            kx, ky, kz = (float(v) for v in k)
             self._frame_arc = None
             self._frame_ctor = None
-            self._pretwist_rate = float(k[0])
-            self.__dict__.pop("_pretwisted_section_analysis", None)
+            if abs(ky) > 0.0 or abs(kz) > 0.0:
+                from onedfem.pre_processing.element_library.element_frame import _align, _chord_integral
+
+                c = _chord_integral(k, arc.length)
+                S = _align(c / np.linalg.norm(c), np.array([1.0, 0.0, 0.0]))
+                R_chord = np.asarray(arc.R_mid, dtype=np.float64) @ S.T
+                self._frame_R0 = self._frame_R1 = R_chord
+            else:
+                self._frame_R0 = self._frame_R1 = arc.R_mid
+            if abs(kx) > 0.0:
+                self._pretwist_rate = kx
+                self.__dict__.pop("_pretwisted_section_analysis", None)
+                self._sync_pretwisted_section_operators()
+            E[1], E[2] = ky, kz
+        self._E_0_voigt = E
 
     # ------------------------------------------------------------------ #
     def _cr_setup(self) -> None:
         if getattr(self, "_cr_ready", False):
             return
-        if np.any(self._E_0_voigt):
-            raise NotImplementedError(f"Element {self.element_id}: precurvature is not supported by the corotational elements yet")
         X = np.asarray(self.node_coords, dtype=np.float64)
         if getattr(self, "_frame_mesh", False):
             # framed mesh: the kernels work in the element's axes; the frame gives the geometry
@@ -207,8 +184,16 @@ class CorotationalMixin:
         self._frame_depth = 1        # the core's own (local) matrices, not turned to global
         try:
             self._K_core = np.asarray(self.element_stiffness_matrix().K_e, dtype=np.float64)
-            eye = np.eye(n)
-            self._C = np.array([self.linear_geometric_stiffness_matrix(eye[j]) for j in range(n)])
+            E_saved = np.array(self._E_0_voigt, dtype=np.float64, copy=True)
+            self._E_0_voigt = np.zeros(6, dtype=np.float64)
+            try:
+                eye = np.eye(n)
+                self._C = np.array([self.linear_geometric_stiffness_matrix(eye[j]) for j in range(n)])
+            finally:
+                self._E_0_voigt = E_saved
+            z = np.zeros(n, dtype=np.float64)
+            self._K_sigma0 = np.asarray(self.linear_geometric_stiffness_matrix(z), dtype=np.float64)
+            self._f_E0 = np.asarray(self._precurvature_equivalent_load(), dtype=np.float64)
         finally:
             self.logger_operator = logger
             self._frame_depth = depth
@@ -226,24 +211,15 @@ class CorotationalMixin:
 
     def _local_dofs_batch(self, U: np.ndarray) -> np.ndarray:
         """``p`` (m, n) for global states ``U`` (m, n)."""
-        d = (self._X2 + U[:, 6:9]) - (self._X1 + U[:, 0:3])
-        l = _norm(d)
-        if np.any(np.abs(l) <= 1e-12 * self._l0):
-            raise ValueError(f"Element {self.element_id}: corotational chord collapsed")
-        R1 = _exp_batch(U[:, 3:6]) @ self._E0
-        R2 = _exp_batch(U[:, 9:12]) @ self._E0
-        e1 = d / l[:, None]
-        q = 0.5 * (R1[:, :, 1] + R2[:, :, 1])
-        e3 = np.cross(e1, q)
-        e3 = e3 / _norm(e3)[:, None]
-        Rr = np.stack([e1, np.cross(e3, e1), e3], axis=2)
-        RrT = np.transpose(Rr, (0, 2, 1))
-        p = np.zeros(U.shape, dtype=U.dtype)
-        p[:, 3:6] = _log_batch(RrT @ R1)
-        p[:, 6] = l - self._l0
-        p[:, 9:12] = _log_batch(RrT @ R2)
-        p[:, 12:] = self._local_extras(U, p)
-        return p
+        return battini_p_batch(
+            U,
+            self._X1,
+            self._X2,
+            self._E0,
+            self._l0,
+            self._local_extras,
+            self.element_id,
+        )
 
     def _local_extras(self, U: np.ndarray, p: np.ndarray) -> np.ndarray:
         """Core-element extra DOFs from the global ones (scalars of the section: unchanged)."""
@@ -284,31 +260,17 @@ class CorotationalMixin:
     # Local energy
     # ------------------------------------------------------------------ #
     def _local_force_and_tangent(self, p: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        C = self._C
-        Ks = np.tensordot(p, C, axes=(0, 0))       # K_sigma(p) = sum_j p_j C_j
-        M = C @ p                                   # M[j, k] = (C_j p)_k
-        f = self._K_core @ p + Ks @ p + 0.5 * np.einsum("jkl,k,l->j", C, p, p)
-        H = self._K_core + Ks + M + M.T
-        pts = self._axial_pts
-        if pts is not None:
-            y, z, k = pts[:, 0], pts[:, 1], pts[:, 2]
-            detJ = 0.5 * self._l0
-            for G, wg in zip(self._G_gauss, _GAUSS_W):
-                v1, w1, f1, _ = G @ p
-                a = v1 - z * f1
-                b = w1 + y * f1
-                e2 = 0.5 * (a * a + b * b)
-                Ja = np.stack([a, b, -z * a + y * b], axis=1)    # d eps_2 / d[v', w', phi']
-                grad = (k * e2) @ Ja
-                Hg = Ja.T @ (k[:, None] * Ja)
-                ke = k * e2
-                Hg += np.array([[ke.sum(), 0.0, -(ke * z).sum()],
-                                [0.0, ke.sum(), (ke * y).sum()],
-                                [-(ke * z).sum(), (ke * y).sum(), (ke * (y * y + z * z)).sum()]])
-                G3 = G[:3]
-                f = f + wg * detJ * G3.T @ grad
-                H = H + wg * detJ * G3.T @ Hg @ G3
-        return f, H
+        return cubic_quartic_force_and_tangent(
+            p,
+            self._K_core,
+            self._C,
+            self._axial_pts,
+            self._G_gauss,
+            _GAUSS_W,
+            self._l0,
+            f_E0=self._f_E0,
+            K_sigma0=self._K_sigma0,
+        )
 
     # ------------------------------------------------------------------ #
     # Nonlinear element interface

@@ -16,7 +16,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 
 def _build_nl_ts_cantilever_buckling(n_elem: int, L: float, E: float, P_ref: float, prestress: str):
-    from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.total_lagrangian.nonlinear_timoshenko_3D import (
         NonlinearTimoshenkoBeamElement3D,
     )
 
@@ -143,7 +143,7 @@ def test_modal_buckling_nonlinear_static_prestress_smoke():
 
 
 def test_modal_buckling_linear_element_rejects_nonlinear_prestress():
-    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
     from onedfem.simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner
@@ -249,7 +249,7 @@ def test_modal_buckling_linear_element_rejects_nonlinear_prestress():
 
 def test_modal_buckling_nonlinear_static_with_linear_twins_smoke():
     """nonlinear_static prestress using modal.buckling_nonlinear_prestress_twins on a linear Timoshenko mesh."""
-    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
     from onedfem.simulation_runner.buckling.buckling_simulation import LinearBucklingSimulationRunner

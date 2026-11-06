@@ -17,10 +17,10 @@ def L() -> float:
 
 def test_timoshenko_E_nl_axial_matches_euler_bernoulli(L: float) -> None:
     """Row 0 (axial) of E_nl matches EB utility; κ rows differ (rotation-based Timoshenko)."""
-    from onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.utilities.green_lagrange_strain import (
+    from onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.total_lagrangian.utilities.green_lagrange_strain import (
         GreenLagrangeStrainOperator as EBOperator,
     )
-    from onedfem.pre_processing.element_library.nonlinear.timoshenko.utilities.green_lagrange_strain import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.total_lagrangian.utilities.green_lagrange_strain import (
         GreenLagrangeStrainOperator as TimoOperator,
     )
 
@@ -40,7 +40,7 @@ def test_timoshenko_E_nl_axial_matches_euler_bernoulli(L: float) -> None:
 
 def test_shear_nl_algebra_and_B_nl_fd(L: float) -> None:
     """Centroid shear NL matches closed form; B_nl columns ~ finite difference of E_nl."""
-    from onedfem.pre_processing.element_library.nonlinear.timoshenko.utilities.green_lagrange_strain import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.total_lagrangian.utilities.green_lagrange_strain import (
         GreenLagrangeStrainOperator,
     )
 
@@ -94,7 +94,7 @@ def test_shear_nl_algebra_and_B_nl_fd(L: float) -> None:
 
 
 def test_include_shear_false_skips_shear_nl_even_with_N(L: float) -> None:
-    from onedfem.pre_processing.element_library.nonlinear.timoshenko.utilities.green_lagrange_strain import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.total_lagrangian.utilities.green_lagrange_strain import (
         GreenLagrangeStrainOperator,
     )
 

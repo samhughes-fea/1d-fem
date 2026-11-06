@@ -13,6 +13,11 @@ This project keeps **resultant beam strains** in **Voigt form on the line** (see
 - A **small-strain** linear Timoshenko or Euler–Bernoulli stiffness is formed in that basis and rotated to global DOFs.
 - Distinct from TL: no TL Green–Lagrange assembly in global axes; objective split between rigid rotation of the chord and small strain in the corotated frame.
 
+## Unshearable GEBT (`GEBTUnshearableBeamElement3D`)
+
+- Kirchhoff (no independent shear): Battini chord map ``p(U)`` with the linear Euler–Bernoulli ``K_e``.
+- Not a Total Lagrangian Euler–Bernoulli alias; large rotation is carried by the live chord, not Green–Lagrange on the fixed mesh.
+
 ## Geometrically exact shear-deformable registration (`GeometricallyExactShearDeformableBeam3D`)
 
 - **Currently** uses the **same TL Timoshenko weak form and tangent** as `NonlinearTimoshenkoBeamElement3D` for a working nonlinear path.

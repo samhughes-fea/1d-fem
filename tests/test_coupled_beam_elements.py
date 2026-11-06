@@ -122,11 +122,11 @@ def fe_tip(etype, section, L, P, n_el=8, orders=None):
         sec = {k: np.full(n_el, v) for k, v in dict(A=1e-3, I_x=0.0, I_y=1e-8, I_z=1e-8, J_t=1e-9, kappa=5 / 6, alpha=0.0).items()}
         from onedfem.pre_processing.element_library.element_factory import ElementFactory  # noqa: F401  (registry import)
         if etype == EB:
-            from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+            from onedfem.pre_processing.element_library.linear.beam.zosdt.euler_bernoulli.linear_euler_bernoulli_3D import (
                 LinearEulerBernoulliBeamElement3D as Cls,
             )
         else:
-            from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+            from onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.linear_timoshenko_3D import (
                 LinearTimoshenkoBeamElement3D as Cls,
             )
         n_dof = 6 * (n_el + 1)
@@ -272,7 +272,7 @@ def test_isotropic_thin_walled_box_matches_section_txt_element(etype):
 
 def test_warping_dof_with_thin_walled_section_is_refused():
     sa = SectionAnalysis.from_thin_walled(cas_box())
-    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
 

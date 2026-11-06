@@ -22,7 +22,7 @@ See ``docs/element_library/large_rotation_vs_total_lagrangian.md`` for contrasts
 
 See Also
 --------
-onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D
+onedfem.pre_processing.element_library.nonlinear.timoshenko.total_lagrangian.nonlinear_timoshenko_3D
 docs/conventions/FORMULATION_DOCSTRING_STANDARDS.md
 """
 
@@ -35,49 +35,15 @@ import numpy as np
 
 from onedfem.pre_processing.element_library.element_1D_base import Element1DBase
 from onedfem.pre_processing.element_library.gauss_point_data import ElementObject, ForceObject, MassObject
-from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.B_matrix import (
-    StrainDisplacementOperator as TimoshenkoStrain,
+from onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.utilities.frame import (
+    block_twelve as _block_twelve,
+    orthogonal_basis_from_chord as _orthogonal_basis_from_chord,
 )
-from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.D_matrix import (
-    MaterialStiffnessOperator as TimoshenkoMaterial,
+from onedfem.pre_processing.element_library.nonlinear.large_rotations.corotational.utilities.k_local import (
+    K_local as _assemble_K_local,
 )
-from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.k0_timoshenko import (
-    assemble_timoshenko_K0,
-    timoshenko_quadrature_orders_from_element_array,
-)
-from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.B_matrix import (
-    StrainDisplacementOperator as EulerBernoulliStrain,
-)
-from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.D_matrix import (
-    MaterialStiffnessOperator as EulerBernoulliMaterial,
-)
-from onedfem.pre_processing.element_library.shape_function_registry import get_shape_function_operator
 
 logger = logging.getLogger(__name__)
-
-
-def _orthogonal_basis_from_chord(d: np.ndarray) -> np.ndarray:
-    """
-    Rotation matrix R (3, 3) with columns e1, e2, e3 = orthonormal basis;
-    e1 aligns with chord direction ``d`` (global Cartesian).
-    """
-    L = float(np.linalg.norm(d))
-    if L <= 1e-18:
-        raise ValueError("Corotational chord length is degenerate.")
-    e1 = d / L
-    a = np.array([0.0, 0.0, 1.0], dtype=np.float64)
-    if abs(float(np.dot(e1, a))) > 0.95:
-        a = np.array([1.0, 0.0, 0.0], dtype=np.float64)
-    e2 = np.cross(e1, a)
-    e2 = e2 / np.linalg.norm(e2)
-    e3 = np.cross(e1, e2)
-    return np.column_stack((e1, e2, e3))
-
-
-def _block_twelve(R: np.ndarray) -> np.ndarray:
-    """Map global nodal vectors to corotated axes: four R.T blocks (trans/rot at each node)."""
-    Rt = R.T
-    return np.kron(np.eye(4, dtype=np.float64), Rt)
 
 
 class CorotationalBeamElement3D(Element1DBase):
@@ -221,66 +187,19 @@ class CorotationalBeamElement3D(Element1DBase):
             quadrature_order=self.quadrature_order,
         )
         if self.kernel == "timoshenko":
-            from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+            from onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.linear_timoshenko_3D import (
                 LinearTimoshenkoBeamElement3D,
             )
 
             return LinearTimoshenkoBeamElement3D(**kwargs)
-        from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.linear_euler_bernoulli_3D import (
+        from onedfem.pre_processing.element_library.linear.beam.zosdt.euler_bernoulli.linear_euler_bernoulli_3D import (
             LinearEulerBernoulliBeamElement3D,
         )
 
         return LinearEulerBernoulliBeamElement3D(**kwargs)
 
-    def _timoshenko_K_local(self, L: float) -> np.ndarray:
-        orders = timoshenko_quadrature_orders_from_element_array(self.element_array)
-        sf = get_shape_function_operator("LinearTimoshenkoBeamElement3D", L)
-        strain = TimoshenkoStrain(element_length=L)
-        mat = TimoshenkoMaterial(
-            youngs_modulus=self.E,
-            shear_modulus=self.G,
-            cross_section_area=self.A,
-            moment_inertia_y=self.I_y,
-            moment_inertia_z=self.I_z,
-            torsion_constant=self.J_t,
-            shear_correction_factor=self.kappa,
-            y_sc=self.y_sc,
-            z_sc=self.z_sc,
-        )
-        D = mat.assembly_form()
-        detJ = L / 2.0
-        return assemble_timoshenko_K0(sf, strain, D, detJ, orders)
-
-    def _euler_bernoulli_K_local(self, L: float) -> np.ndarray:
-        axial = max(int(self.element_array[3]), 1)
-        bend_y = max(int(self.element_array[4]), 2)
-        bend_z = max(int(self.element_array[5]), 2)
-        torsion = max(int(self.element_array[8]), 1)
-        n_gauss = max(axial, bend_y, bend_z, torsion, 2)
-        sf = get_shape_function_operator("LinearEulerBernoulliBeamElement3D", L)
-        strain = EulerBernoulliStrain(element_length=L)
-        mat = EulerBernoulliMaterial(
-            youngs_modulus=self.E,
-            shear_modulus=self.G,
-            cross_section_area=self.A,
-            moment_inertia_y=self.I_y,
-            moment_inertia_z=self.I_z,
-            torsion_constant=self.J_t,
-        )
-        D = mat.assembly_form()
-        xi, w = np.polynomial.legendre.leggauss(n_gauss)
-        Ke = np.zeros((12, 12), dtype=np.float64)
-        detJ = L / 2.0
-        for xi_g, w_g in zip(xi, w):
-            _, dN_dξ, d2N_dξ2 = sf.natural_coordinate_form(np.array([xi_g]))
-            B = strain.physical_coordinate_form(dN_dξ, d2N_dξ2)[0]
-            Ke += B.T @ D @ B * w_g * detJ
-        return Ke
-
     def _K_local(self, L: float) -> np.ndarray:
-        if self.kernel == "timoshenko":
-            return self._timoshenko_K_local(L)
-        return self._euler_bernoulli_K_local(L)
+        return _assemble_K_local(self, L)
 
     def _Tm_reference(self) -> np.ndarray:
         d0 = self.node_coords[1] - self.node_coords[0]

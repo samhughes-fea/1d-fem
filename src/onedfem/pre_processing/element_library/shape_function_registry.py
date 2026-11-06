@@ -14,14 +14,14 @@ ShapeFunctionOperatorFactory = Callable[[float], Any]
 
 
 def _eb_operator(L: float) -> Any:
-    from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.shape_functions import (
+    from onedfem.pre_processing.element_library.linear.beam.zosdt.euler_bernoulli.utilities.shape_functions import (
         ShapeFunctionOperator,
     )
     return ShapeFunctionOperator(element_length=L)
 
 
 def _timoshenko_operator(L: float) -> Any:
-    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.utilities.shape_functions import (
+    from onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.utilities.shape_functions import (
         ShapeFunctionOperator,
     )
     return ShapeFunctionOperator(element_length=L)
@@ -44,6 +44,8 @@ def _truss_operator(L: float) -> Any:
 # Keys must match class names in element_factory.ELEMENT_CLASS_MAP (plus nonlinear aliases below).
 # Warping elements use same shape functions as base (12 DOF); warping DOFs use linear Lagrange in-element.
 # Classical GEBT stub uses Timoshenko 12-DOF shapes as a placeholder until native shapes exist.
+# Reddy/Levinson stiffness uses tosdt Hermite operators; registry N remains Timoshenko (12-DOF)
+# for parent-class Gauss cache / inherited hooks.
 SHAPE_FUNCTION_REGISTRY: dict[str, ShapeFunctionOperatorFactory] = {
     "LinearEulerBernoulliBeamElement3D": _eb_operator,
     "NonlinearEulerBernoulliBeamElement3D": _eb_operator,
@@ -62,6 +64,12 @@ SHAPE_FUNCTION_REGISTRY: dict[str, ShapeFunctionOperatorFactory] = {
     "GEBTUnshearableBeamElement3D": _eb_operator,
     "LinearLevinsonBeamElement3D": _timoshenko_operator,
     "LinearReddyBeamElement3D": _timoshenko_operator,
+    "NonlinearLevinsonBeamElement3D": _timoshenko_operator,
+    "NonlinearReddyBeamElement3D": _timoshenko_operator,
+    "UpdatedLagrangianEulerBernoulliBeamElement3D": _eb_operator,
+    "UpdatedLagrangianTimoshenkoBeamElement3D": _timoshenko_operator,
+    "UpdatedLagrangianReddyBeamElement3D": _timoshenko_operator,
+    "UpdatedLagrangianLevinsonBeamElement3D": _timoshenko_operator,
     "LinearBarElement3D": _bar_operator,
     "LinearTrussElement3D": _truss_operator,
 }

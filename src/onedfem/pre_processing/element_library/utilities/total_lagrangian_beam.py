@@ -4,8 +4,8 @@ Legacy shim for Total Lagrangian beam helpers.
 
 **Prefer** importing ``GreenLagrangeStrainOperator`` from:
 
-- ``onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.utilities.green_lagrange_strain`` (Euler–Bernoulli NL), or
-- ``onedfem.pre_processing.element_library.nonlinear.timoshenko.utilities.green_lagrange_strain`` (Timoshenko NL).
+- ``onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.total_lagrangian.utilities.green_lagrange_strain`` (Euler–Bernoulli NL), or
+- ``onedfem.pre_processing.element_library.nonlinear.timoshenko.total_lagrangian.utilities.green_lagrange_strain`` (Timoshenko NL).
 
 Those modules carry the implemented strain splits (\ ``E = E_lin + E_nl``\ ), ``B_nl``, and docstrings aligned with
 ``nonlinear_*_3D`` elements. This file keeps a minimal frozen dataclass API for older imports; it is **not** the
@@ -20,7 +20,7 @@ from typing import Tuple
 
 import numpy as np
 
-from onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.utilities.geometric_stiffness import (
+from onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.total_lagrangian.utilities.geometric_stiffness import (
     GeometricStiffnessOperator,
 )
 

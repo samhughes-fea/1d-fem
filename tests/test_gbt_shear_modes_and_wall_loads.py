@@ -198,7 +198,7 @@ def test_wall_load_on_timoshenko_and_benscoter_elements_is_lumped_by_halves():
     import tempfile
 
     import test_gbt_cross_section_modes as T
-    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_benscoter_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.fosdt.benscoter.linear_benscoter_3D import (
         LinearBenscoterBeamElement3D,
     )
 

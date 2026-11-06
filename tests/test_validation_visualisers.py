@@ -326,3 +326,128 @@ def test_discover_job_names_from_results_returns_expected_names(tmp_path):
 
     names = discover_job_names_from_results(tmp_path)
     assert names == ["job_0000_n16", "job_0001_n8", "job_0005_n32"]
+
+
+def test_common_runner_contract_round_trip(tmp_path) -> None:
+    from validation.common_runner_contract import build_runner_result, write_runner_summary
+
+    summary = tmp_path / "summary.txt"
+    write_runner_summary(
+        summary,
+        family="transient",
+        ready=False,
+        passed=False,
+        status="missing_artifacts",
+        reference_dir=tmp_path / "ref",
+        expected_files=["transient_reference.csv"],
+        present_files=[],
+        tolerances={"max_abs_error": 1.0e-8},
+        metrics={"n_rows_fem": 0},
+        artifact_paths={"fem_csv": tmp_path / "missing.csv"},
+    )
+    assert summary.is_file()
+    out = build_runner_result(
+        family="transient",
+        summary_file=summary,
+        reference_dir=tmp_path / "ref",
+        expected_files=["transient_reference.csv"],
+        present_files=[],
+        ready=False,
+        passed=False,
+        status="missing_artifacts",
+        tolerances={"max_abs_error": 1.0e-8},
+        metrics={"n_rows_fem": 0},
+        artifact_paths={"fem_csv": tmp_path / "missing.csv"},
+    )
+    assert out["family"] == "transient"
+    assert out["status"] == "missing_artifacts"
+
+
+def test_wave2_transient_and_nl_static_runner_entrypoints_exist(tmp_path) -> None:
+    from validation.transient.run_transient_validation import run_transient_validation
+    from validation.static.run_nonlinear_static_validation import run_benchmark
+
+    transient = run_transient_validation(tmp_path)
+    assert isinstance(transient, dict)
+    assert transient["family"] == "transient"
+    assert transient["status"] == "missing_artifacts"
+    assert Path(transient["summary_file"]).is_file()
+
+    nl = run_benchmark(tmp_path, job_name="job_benchmark_nl_static_cantilever_tip")
+    assert isinstance(nl, dict)
+    assert "ready" in nl
+
+
+def test_wave3_nonlinear_buckling_runner_entrypoint_exists(tmp_path) -> None:
+    from validation.nonlinear_buckling.run_nonlinear_buckling_validation import (
+        run_nonlinear_buckling_validation,
+    )
+
+    out = run_nonlinear_buckling_validation(tmp_path)
+    assert out["family"] == "nonlinear_buckling"
+    assert out["status"] == "missing_artifacts"
+    assert Path(out["summary_file"]).is_file()
+
+
+def test_family_gci_validation_scripts_exist() -> None:
+    root = PROJECT_ROOT / "validation"
+    for rel in (
+        "static/gci_richardson_nl_static_validation.py",
+        "eigen/gci_richardson_eigen_validation.py",
+        "harmonic/gci_richardson_harmonic_validation.py",
+        "buckling/gci_richardson_buckling_validation.py",
+        "transient/gci_richardson_transient_validation.py",
+        "nonlinear_buckling/gci_richardson_nl_buckling_validation.py",
+    ):
+        assert (root / rel).is_file(), rel
+
+
+def test_extract_odb_results_includes_spectral_and_transient_helpers() -> None:
+    text = (PROJECT_ROOT / "validation" / "abaqus" / "extract_odb_results.py").read_text(
+        encoding="utf-8"
+    )
+    for name in (
+        "_maybe_extract_harmonic_frequency_response",
+        "_maybe_extract_eigen_frequencies",
+        "_maybe_extract_buckling_load_factors",
+        "_maybe_extract_transient_tip_displacement_history",
+        "_maybe_extract_nl_buckling_continuation_history",
+        "transient_reference.csv",
+        "continuation_history.csv",
+    ):
+        assert name in text
+
+
+def test_verification_family_packages_exist() -> None:
+    root = PROJECT_ROOT / "verification"
+    for rel in (
+        "buckling/buckling_verification.py",
+        "eigen/eigen_verification.py",
+        "harmonic/harmonic_verification.py",
+        "nonlinear/nl_static_verification.py",
+        "elastica/cantilever_elastica.py",
+    ):
+        assert (root / rel).is_file(), rel
+
+
+def test_mesh_variant_generators_exist() -> None:
+    root = PROJECT_ROOT / "jobs"
+    for name in (
+        "_generate_nl_static_mesh_variants.py",
+        "_generate_nl_buckling_mesh_variants.py",
+        "_generate_transient_mesh_variants.py",
+        "_generate_spectral_mesh_variants.py",
+    ):
+        assert (root / name).is_file(), name
+
+
+def test_wave_docs_and_track1_status_exist() -> None:
+    assert (PROJECT_ROOT / "TRACK1_STATUS.md").is_file()
+    assert (PROJECT_ROOT / "docs" / "validation_index.md").is_file()
+    assert (
+        PROJECT_ROOT / "docs" / "pyabaqus_validation_suite_wave2_implementation_plan.md"
+    ).is_file()
+    assert (
+        PROJECT_ROOT / "docs" / "pyabaqus_validation_suite_wave3_implementation_plan.md"
+    ).is_file()
+

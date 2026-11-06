@@ -1,0 +1,3 @@
+from .updated_lagrangian_timoshenko_3D import UpdatedLagrangianTimoshenkoBeamElement3D
+
+__all__ = ["UpdatedLagrangianTimoshenkoBeamElement3D"]

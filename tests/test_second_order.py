@@ -404,7 +404,7 @@ def test_k_sigma_symmetric_and_linear_in_state(etype):
 
 def test_gbt_geometric_stiffness_checks_the_dof_count():
     """GBT has its own geometric stiffness (tests/test_gbt_buckling.py); it checks its input."""
-    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.benscoter.linear_gbt_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.fosdt.gbt.linear_gbt_3D import (
         LinearGBTBeamElement3D,
     )
 
