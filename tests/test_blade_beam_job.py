@@ -35,7 +35,7 @@ AF = Airfoil.naca4("0024")
 
 
 def geometry(stations):
-    return BladeGeometry(stations, "2D-F", 0.003, 0.008, 0.002, web_positions=(0.18, 0.48))
+    return BladeGeometry(stations, "2D-F-LC-0R", 0.003, 0.008, 0.002, web_positions=(0.18, 0.48), pivot_fraction=0.3)
 
 
 def run(job, tmp_path):
@@ -98,7 +98,8 @@ def test_straight_loft_matches_a_hand_written_job(tmp_path):
     sec = direct.section
     spec = common.CantileverSpec(4.0, 4, "LinearTimoshenkoBeamElement3D", common.SectionSpec(
         {pid: tuple(p) for pid, p in sec.points.items()}, [(w.wall_id, w.start, w.end, w.laminate_id) for w in sec.walls],
-        mats, plies), tip_load=[0, 0, F, 0, 0, 0])
+        mats, plies, offsets={lid: lam_.offset for lid, lam_ in direct.laminates.items() if lam_.offset}),
+        tip_load=[0, 0, F, 0, 0, 0])
     hand = common.run(spec, str(tmp_path / "hand"), "hand").U
     U = run(job, tmp_path)
     # common.py writes 9 significant digits

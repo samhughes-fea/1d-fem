@@ -29,10 +29,10 @@ classifiers = [
 # the default section provider (onedfem.sections); see requirements-sections.txt
 sections = [
     "laminate-constitutive-model @ git+https://github.com/samhughes-fea/laminate-constitutive-model@v0.3.0",
-    "anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@v0.2.0",
+    "anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@v0.3.0",
 ]
 # blade geometry from implicit-geometry-kernel
-geometry = ["implicit-geometry-kernel @ git+https://github.com/samhughes-fea/implicit-geometry-kernel@v0.2.0"]
+geometry = ["implicit-geometry-kernel @ git+https://github.com/samhughes-fea/implicit-geometry-kernel@v0.9.1"]
 test = ["pytest>=7.0", "pytest-xdist>=3.5"]
 
 [project.scripts]

@@ -2,4 +2,4 @@
 # laminate-constitutive-model it builds on. Neither is on PyPI yet, so both are pinned
 # to release tags on GitHub.
 laminate-constitutive-model @ git+https://github.com/samhughes-fea/laminate-constitutive-model@v0.3.0
-anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@v0.2.0
+anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@v0.3.0

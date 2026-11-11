@@ -44,6 +44,7 @@ class SectionSpec:
     materials: Dict[int, Material]
     laminates: Dict[int, List[Tuple[int, float, float]]]  # laminate_id -> [(material_id, angle, t)]
     n_sub: int = 1
+    offsets: Dict[int, float] = field(default_factory=dict)  # laminate_id -> mid-plane above the wall line
 
 
 @dataclass
@@ -92,7 +93,9 @@ def write_job(job_dir: str, spec: CantileverSpec) -> None:
     lams = "".join(f"{lid} {k + 1} {mid} {ang:.9g} {t:.9g}\n"
                    for lid, plies in sec.laminates.items() for k, (mid, ang, t) in enumerate(plies))
     w("laminate.txt", "[Ply_Material]\n[material_id] [E1] [E2] [G12] [nu12] [G13] [G23] [rho]\n" + mats
-      + "[Laminate]\n[laminate_id] [ply] [material_id] [angle_deg] [thickness]\n" + lams)
+      + "[Laminate]\n[laminate_id] [ply] [material_id] [angle_deg] [thickness]\n" + lams
+      + ("[Laminate_Offset]\n[laminate_id] [offset]\n"
+         + "".join(f"{lid} {e:.9g}\n" for lid, e in sec.offsets.items()) if sec.offsets else ""))
     w("section_geometry.txt",
       "[Section_Point]\n[section_id] [point_id] [y] [z]\n"
       + "".join(f"1 {p} {y:.9g} {z:.9g}\n" for p, (y, z) in sec.points.items())

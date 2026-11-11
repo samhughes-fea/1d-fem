@@ -27,6 +27,8 @@ jobs:
           cache-dependency-path: requirements-*.txt
       - name: Install dependencies
         run: pip install -r requirements-ci.txt && pip install -e .
+      - name: Install GEOS, which the geometry kernel loads
+        run: sudo apt-get update && sudo apt-get install -y libgeos-dev
       - name: Install the section provider and the optional geometry kernel
         run: pip install -r requirements-sections.txt -r requirements-geometry.txt
       - name: Run tests
