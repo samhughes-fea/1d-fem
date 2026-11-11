@@ -27,4 +27,5 @@ def geometry(prismatic: bool = False):
         sts = [Station(0.0, CHORD0, af, twist=TWIST0, pitch_axis=MODEL.pitch_axis),
                Station(LENGTH, TIP["chord"], af, twist=TIP["twist_deg"], pitch_axis=MODEL.pitch_axis)]
     t = MODEL.thickness
-    return BladeGeometry(sts, MODEL.layout, t["skin"], t["cap"], t["web"], web_positions=MODEL.web_positions)
+    return BladeGeometry(sts, MODEL.layout, t["skin"], t["cap"], t["web"], web_positions=MODEL.web_positions,
+                         pivot_fraction=MODEL.pitch_axis)

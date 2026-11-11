@@ -73,13 +73,13 @@ def station_model(index: int) -> StationModel:
     inside_out = lambda lam: [(m, float(t)) for m, t, _ in reversed(lam) if t > 1e-4]  # noqa: E731
     if index == 0:
         skin = st["upper"]["laminae"][0]
-        return StationModel(index, NAMES[index], st["chord"], st["pitch_axis"], "0A", (),
+        return StationModel(index, NAMES[index], st["chord"], st["pitch_axis"], "0A-LC-0R", (),
                             {"skin": inside_out(skin)})
     skin = _sector(st, "upper", "medium_density_foam")
     cap = [(m, t, a) for m, t, a in _sector(st, "upper", "CarbonUD") if m == "CarbonUD"]
     web = st["webs"]["laminae"][0]
     webs = tuple(float(x) for x in st["webs"]["loc"] if x < 0.99)
-    return StationModel(index, NAMES[index], st["chord"], st["pitch_axis"], "2D-F", webs,
+    return StationModel(index, NAMES[index], st["chord"], st["pitch_axis"], "2D-F-LC-0R", webs,
                         {"skin": inside_out(skin), "cap": inside_out(cap), "web": inside_out(web)})
 
 
@@ -104,7 +104,8 @@ def geometry(index: int, length: float = 1.0):
     sts = [Station(z, m.chord, af, pitch_axis=m.pitch_axis) for z in (0.0, length)]
     t = m.thickness
     kw = {} if not m.web_positions else {"web_positions": m.web_positions}
-    return BladeGeometry(sts, m.layout, t["skin"], t.get("cap", 0.0), t.get("web", 0.0), **kw)
+    return BladeGeometry(sts, m.layout, t["skin"], t.get("cap", 0.0), t.get("web", 0.0),
+                         pivot_fraction=m.pitch_axis, **kw)
 
 
 def ply_materials():

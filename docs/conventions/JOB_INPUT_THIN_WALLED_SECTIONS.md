@@ -13,8 +13,13 @@ Three optional job files describe anisotropic thin-walled sections from their wa
 [laminate_id] [ply] [material_id] [angle_deg] [thickness]
 1  1  1   0.0  0.125e-3
 1  2  1  45.0  0.125e-3
+
+[Laminate_Offset]
+[laminate_id] [offset]
+1  -0.004
 ```
 
+- `[Laminate_Offset]` is optional. `offset` is the height of the laminate's mid-plane above its wall's reference line, along the wall normal; its stiffness is then taken about that line. `blade_beam_job` writes it for a spar cap stacked on a skin, whose wall stays on the skin mid-surface. Laminates not listed have no offset.
 - `[rho]` is optional (omit the column on every row, or give it on every row).
 - `E1`, `E2`, `G12`, `G13`, `G23` must be positive and `nu12**2 * E2 / E1 < 1`.
 - Plies are numbered `1..n` within each laminate. Ply 1 is the bottom ply (at \(n=-h/2\)); rows may come in any order.
@@ -130,8 +135,8 @@ into a `ThinWalledSection` and its laminates:
 from implicit_geometry_kernel import Airfoil, BladeGeometry, Station
 from anisotropic_section_model.thin_walled.from_geometry import thin_walled_from_cut
 
-cut = BladeGeometry(stations, "2D-F", skin_thickness=0.003, spar_cap_thickness=0.008,
-                    shear_web_thickness=0.002).section_at(z)
+cut = BladeGeometry(stations, "2D-F-LC-0R", skin_thickness=0.003, spar_cap_thickness=0.008,
+                    shear_web_thickness=0.002, pivot_fraction=0.3).section_at(z)
 geo = thin_walled_from_cut(cut, {"skin": skin, "cap": cap, "web": web})
 analysis = geo.analysis()          # ThinWalledSectionAnalysis, hoop="free"
 ```

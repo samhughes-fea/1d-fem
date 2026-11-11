@@ -150,3 +150,24 @@ def test_laminate_parser_errors(tmp_path, text, err):
 def test_geometry_parser_errors(tmp_path, text):
     with pytest.raises(ValueError):
         parse_section_geometry_file(write(tmp_path, "section_geometry.txt", text), [1, 2])
+
+
+def test_laminate_offset_round_trip(tmp_path):
+    """A laminate's offset survives format_laminate_file and parse_laminate_file."""
+    from onedfem.pre_processing.parsing.laminate_parser import format_laminate_file
+    from anisotropic_section_model.thin_walled import Ply, PlyMaterial
+
+    mat = PlyMaterial(E1=140e9, E2=10e9, G12=5e9, nu12=0.3, G13=5e9, G23=3.5e9, rho=1600.0)
+    lams = {1: WallLaminate([Ply(mat, 0.0, 1e-3), Ply(mat, 45.0, 1e-3)]),
+            2: WallLaminate([Ply(mat, 0.0, 1e-3)] * 3, offset=-0.004)}
+    text = format_laminate_file(lams)
+    assert "[Laminate_Offset]" in text
+    path = tmp_path / "laminate.txt"
+    path.write_text(text)
+    back = parse_laminate_file(str(path))
+    assert back[1].offset == 0.0 and back[2].offset == -0.004
+    np.testing.assert_allclose(back[2].ABD(), lams[2].ABD(), rtol=1e-13)
+    assert "[Laminate_Offset]" not in format_laminate_file({1: lams[1]})
+    path.write_text(text + "9 0.001\n")
+    with pytest.raises(ValueError, match="unknown laminate_id"):
+        parse_laminate_file(str(path))

@@ -175,7 +175,8 @@ def _span_nodes(geometry, n_elements: Optional[int], z_nodes: Optional[Sequence[
 
 
 def _laminate_key(lam):
-    return (tuple((p.material, float(p.angle_deg), float(p.thickness)) for p in lam.plies), float(lam.shear_correction))
+    return (tuple((p.material, float(p.angle_deg), float(p.thickness)) for p in lam.plies), float(lam.shear_correction),
+            float(getattr(lam, "offset", 0.0)))
 
 
 def blade_beam_job(
@@ -266,7 +267,7 @@ def blade_beam_job(
         raise ValueError("gbt_modes needs element_type='LinearGBTBeamElement3D'")
     z = _span_nodes(geometry, n_elements, z_nodes)
     n = z.size - 1
-    stations = [geometry.station_at(float(zi)) for zi in z]
+    stations = [geometry.interpolate(float(zi)) for zi in z]
     twist = np.array([s[1] for s in stations])
     nodes = np.array([[zi, s[3][0], s[3][1]] for zi, s in zip(z, stations)], dtype=np.float64)
     L = np.linalg.norm(np.diff(nodes, axis=0), axis=1)

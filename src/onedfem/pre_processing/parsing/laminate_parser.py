@@ -12,7 +12,13 @@ File layout (comments start with ``#``)::
     1  1  1   0.0  0.125e-3
     1  2  1  90.0  0.125e-3
 
-Plies are numbered 1..n within each laminate, bottom ply first. See
+    [Laminate_Offset]                                         # optional
+    [laminate_id] [offset]
+    1  -0.004
+
+Plies are numbered 1..n within each laminate, bottom ply first. ``[Laminate_Offset]``
+gives the height of a laminate's mid-plane above its wall's reference line (along the
+wall normal); laminates not listed have none. See
 docs/conventions/JOB_INPUT_THIN_WALLED_SECTIONS.md.
 """
 
@@ -24,10 +30,12 @@ from onedfem.sections import section_import
 
 PLY_MATERIAL_HEADER = "[ply_material]"
 LAMINATE_HEADER = "[laminate]"
+LAMINATE_OFFSET_HEADER = "[laminate_offset]"
 
 PLY_MATERIAL_SUBHEADER = ["[material_id]", "[E1]", "[E2]", "[G12]", "[nu12]", "[G13]", "[G23]"]
 PLY_MATERIAL_SUBHEADER_RHO = PLY_MATERIAL_SUBHEADER + ["[rho]"]
 LAMINATE_SUBHEADER = ["[laminate_id]", "[ply]", "[material_id]", "[angle_deg]", "[thickness]"]
+LAMINATE_OFFSET_SUBHEADER = ["[laminate_id]", "[offset]"]
 
 
 def preprocess_lines(filepath: str) -> List[str]:
@@ -116,7 +124,26 @@ def parse_ply_materials(sub: str, rows: Sequence[str]) -> Dict[int, PlyMaterial]
     return mats
 
 
-def parse_laminates(sub: str, rows: Sequence[str], materials: Dict[int, PlyMaterial]) -> Dict[int, WallLaminate]:
+def parse_laminate_offsets(sub: str, rows: Sequence[str]) -> Dict[int, float]:
+    """``{laminate_id: offset}`` of a ``[Laminate_Offset]`` block."""
+    if not tokens_match(sub, LAMINATE_OFFSET_SUBHEADER):
+        raise ValueError(
+            f"[Laminate_Offset] sub-header must be (case-insensitive): {' '.join(LAMINATE_OFFSET_SUBHEADER)}"
+        )
+    out: Dict[int, float] = {}
+    for ln in rows:
+        parts = ln.split()
+        if len(parts) != 2:
+            raise ValueError(f"Malformed [Laminate_Offset] row (expected 2 columns): {ln!r}")
+        lid = to_int(parts[0], "laminate_id", ln)
+        if lid in out:
+            raise ValueError(f"Duplicate [Laminate_Offset] laminate_id: {lid}")
+        out[lid] = to_float(parts[1], "offset", ln)
+    return out
+
+
+def parse_laminates(sub: str, rows: Sequence[str], materials: Dict[int, PlyMaterial],
+                    offsets: Dict[int, float] | None = None) -> Dict[int, WallLaminate]:
     Ply, WallLaminate = section_import("thin_walled.laminate", "Ply", "WallLaminate")
     if not tokens_match(sub, LAMINATE_SUBHEADER):
         raise ValueError(
@@ -145,23 +172,29 @@ def parse_laminates(sub: str, rows: Sequence[str], materials: Dict[int, PlyMater
         order = sorted(plies)
         if order != list(range(1, len(order) + 1)):
             raise ValueError(f"Laminate {lid} plies must be numbered 1..{len(order)}, got {order}")
-        out[lid] = WallLaminate([plies[k] for k in order])
+        offset = (offsets or {}).get(lid, 0.0)
+        out[lid] = WallLaminate([plies[k] for k in order], offset=offset) if offset else WallLaminate(
+            [plies[k] for k in order])
+    unknown = sorted(set(offsets or {}) - set(out))
+    if unknown:
+        raise ValueError(f"[Laminate_Offset] names unknown laminate_id {unknown}")
     return out
 
 
 def parse_laminate_file(filepath: str) -> Dict[int, WallLaminate]:
     """Read ``laminate.txt`` and return ``{laminate_id: WallLaminate}``."""
-    blocks = split_blocks(preprocess_lines(filepath), [PLY_MATERIAL_HEADER, LAMINATE_HEADER])
+    blocks = split_blocks(preprocess_lines(filepath), [PLY_MATERIAL_HEADER, LAMINATE_HEADER, LAMINATE_OFFSET_HEADER])
     for h in (PLY_MATERIAL_HEADER, LAMINATE_HEADER):
         if h not in blocks:
             raise ValueError(f"Missing {h} block in {filepath}")
     materials = parse_ply_materials(*blocks[PLY_MATERIAL_HEADER])
-    return parse_laminates(*blocks[LAMINATE_HEADER], materials)
+    offsets = parse_laminate_offsets(*blocks[LAMINATE_OFFSET_HEADER]) if LAMINATE_OFFSET_HEADER in blocks else None
+    return parse_laminates(*blocks[LAMINATE_HEADER], materials, offsets)
 
 
 def parse_ply_material_file(filepath: str) -> Dict[int, PlyMaterial]:
     """Read only the ``[Ply_Material]`` block of ``laminate.txt``: ``{material_id: PlyMaterial}``."""
-    blocks = split_blocks(preprocess_lines(filepath), [PLY_MATERIAL_HEADER, LAMINATE_HEADER])
+    blocks = split_blocks(preprocess_lines(filepath), [PLY_MATERIAL_HEADER, LAMINATE_HEADER, LAMINATE_OFFSET_HEADER])
     if PLY_MATERIAL_HEADER not in blocks:
         raise ValueError(f"Missing {PLY_MATERIAL_HEADER} block in {filepath}")
     return parse_ply_materials(*blocks[PLY_MATERIAL_HEADER])
@@ -172,7 +205,8 @@ def format_laminate_file(laminates: Dict[int, WallLaminate]) -> str:
 
     Ply materials are numbered from 1 in order of first use (equal materials share an
     id). The file has no shear correction column, so every laminate must use the
-    default 5/6.
+    default 5/6. Laminates with an ``offset`` are listed in a ``[Laminate_Offset]``
+    block.
     """
     DEFAULT_SHEAR_CORRECTION = section_import("thin_walled.laminate", "DEFAULT_SHEAR_CORRECTION")
 
@@ -187,5 +221,8 @@ def format_laminate_file(laminates: Dict[int, WallLaminate]) -> str:
     mats = "".join(
         f"{mid} " + " ".join(repr(float(v)) for v in (m.E1, m.E2, m.G12, m.nu12, m.G13, m.G23, m.rho)) + "\n"
         for m, mid in mat_id.items())
+    offsets = "".join(f"{lid} {float(lam.offset)!r}\n" for lid, lam in laminates.items()
+                      if float(getattr(lam, "offset", 0.0)) != 0.0)
+    tail = ("\n[Laminate_Offset]\n" + " ".join(LAMINATE_OFFSET_SUBHEADER) + "\n" + offsets) if offsets else ""
     return ("[Ply_Material]\n" + " ".join(PLY_MATERIAL_SUBHEADER_RHO) + "\n" + mats
-            + "\n[Laminate]\n" + " ".join(LAMINATE_SUBHEADER) + "\n" + "".join(rows))
+            + "\n[Laminate]\n" + " ".join(LAMINATE_SUBHEADER) + "\n" + "".join(rows) + tail)

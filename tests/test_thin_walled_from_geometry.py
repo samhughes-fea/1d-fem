@@ -43,7 +43,8 @@ LAMS = {"skin": lam(GLASS, [0, 45, -45, -45, 45, 0]), "web": lam(GLASS, [45, -45
 def cut():
     af = Airfoil.naca4("0024")
     st = [Station(0.0, 1.0, af, pitch_axis=0.3), Station(6.0, 1.0, af, pitch_axis=0.3)]
-    return BladeGeometry(st, "2D-F", 0.003, 0.008, 0.002, web_positions=(0.18, 0.48)).section_at(3.0)
+    return BladeGeometry(st, "2D-F-LC-0R", 0.003, 0.008, 0.002, web_positions=(0.18, 0.48),
+                         pivot_fraction=0.3).section_at(3.0)
 
 
 def _numbers(a):
@@ -62,8 +63,11 @@ def test_matches_anisotropic_section_model(cut):
     # the cap-on-skin coupling B (see the module docstring)
     assert got["EI_flap"] == pytest.approx(ASM["EI_flap"], rel=0.03)
     assert got["EI_flap"] < ASM["EI_flap"]
-    for key in ("shear_centre_x", "centroid_x"):
-        assert got[key] == pytest.approx(ASM[key], abs=1e-3), key   # 0.1 % of the chord
+    assert got["centroid_x"] == pytest.approx(ASM["centroid_x"], abs=1e-3)   # 0.1 % of the chord
+    # The recorded shear centre (6.2 mm) had the cap + skin stack on its own mid-surface.
+    # The stack is now on the skin mid-surface with its eccentricity in the wall law, which
+    # gives 4.5 mm; the 2D section of this cut gives 5.2 mm on a 2 mm mesh.
+    assert got["shear_centre_x"] == pytest.approx(ASM["shear_centre_x"], abs=2e-3)   # 0.2 % of the chord
 
 
 def test_walls_stacks_and_labels(cut):
@@ -87,7 +91,7 @@ def test_walls_stacks_and_labels(cut):
 def test_coordinates_from_the_pitch_axis():
     af = Airfoil.naca4("0018")
     st = [Station(0.0, 1.0, af, pitch_axis=0.3, offset=(0.2, -0.5)), Station(2.0, 1.0, af, pitch_axis=0.3, offset=(0.2, -0.5))]
-    c = BladeGeometry(st, "2D-F", 0.003, 0.008, 0.002).section_at(1.0)
+    c = BladeGeometry(st, "2D-F-LC-0R", 0.003, 0.008, 0.002, pivot_fraction=0.3).section_at(1.0)
     a = thin_walled_from_cut(c, LAMS)
     b = thin_walled_from_cut(c, LAMS, origin="blade")
     shift = np.array([0.2, -0.5])
