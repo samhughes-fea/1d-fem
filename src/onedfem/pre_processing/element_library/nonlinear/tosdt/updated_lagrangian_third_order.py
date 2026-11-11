@@ -37,6 +37,10 @@ from onedfem.pre_processing.element_library.nonlinear.euler_bernoulli.updated_la
 class UpdatedLagrangianThirdOrderShearBeamElement3D(UpdatedLagrangianChordMixin, ThirdOrderShearBeamElement3D):
     """UL tosdt: current-chord linear ``K_0`` plus beam-column ``K_sigma`` on 16 DOFs."""
 
+    #: The tangent and internal force are not rotated by ``framed_element``: refuse rotated or
+    #: curved meshes rather than inherit the linear parent's frame support.
+    supports_element_frame = False
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.configuration_update_operator = ConfigurationUpdateOperator()

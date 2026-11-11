@@ -11,8 +11,8 @@ Applied conventions for this repository: **weak-form assembly**, **tensor layout
 At each Gauss point (natural coordinate ξ, physical `x` along the element):
 
 - **Jacobian:** `detJ = dx/dξ` (e.g. `L/2` for a straight 2-node map). Element code exposes this as `jacobian` / `jacobian_determinant`.
-- **Strain–displacement:** `ε = B U_e` with `B` in **physical** `x` where required. [`StrainDisplacementOperator`](../../src/onedfem/pre_processing/element_library/linear/beam/first_order_shear_deformation_theory/timoshenko/utilities/B_matrix.py) provides `natural_coordinate_form` (B̃) and `physical_coordinate_form` (B).
-- **Constitutive:** Stress resultants from `S = D @ ε` with `D` from [`MaterialStiffnessOperator`](../../src/onedfem/pre_processing/element_library/linear/beam/first_order_shear_deformation_theory/timoshenko/utilities/D_matrix.py). Row ordering of `ε` and `S` must match (e.g. Timoshenko-style six components).
+- **Strain–displacement:** `ε = B U_e` with `B` in **physical** `x` where required. [`StrainDisplacementOperator`](../../src/onedfem/pre_processing/element_library/linear/beam/fosdt/timoshenko/utilities/B_matrix.py) provides `natural_coordinate_form` (B̃) and `physical_coordinate_form` (B).
+- **Constitutive:** Stress resultants from `S = D @ ε` with `D` from [`MaterialStiffnessOperator`](../../src/onedfem/pre_processing/element_library/linear/beam/fosdt/timoshenko/utilities/D_matrix.py). Row ordering of `ε` and `S` must match (e.g. Timoshenko-style six components).
 - **Quadrature:** `K_e += Bᵀ D B w_g detJ` (sum over Gauss points). **Selective integration** (e.g. Timoshenko shear) is still the same pattern with different rules on **sub-rows** of `B`.
 
 **Generality:** Warping or higher-order theories may use **7×14** (or other) `B`; document shapes in the element docstring — do not assume `(6, 12)` only in prose.
@@ -21,9 +21,9 @@ At each Gauss point (natural coordinate ξ, physical `x` along the element):
 
 ## 2. Loads: N and f
 
-- **Distributed:** `F_dist = ∫ Nᵀ q detJ dξ` with `q` interpolated at Gauss `x` ([`LoadInterpolationOperator`](../../src/onedfem/pre_processing/element_library/linear/beam/first_order_shear_deformation_theory/timoshenko/utilities/interpolate_loads.py)).
+- **Distributed:** `F_dist = ∫ Nᵀ q detJ dξ` with `q` interpolated at Gauss `x` ([`LoadInterpolationOperator`](../../src/onedfem/pre_processing/element_library/linear/beam/fosdt/timoshenko/utilities/interpolate_loads.py)).
 - **Point:** `F_point = N(x_p)ᵀ P`.
-- Shape functions `N`, `dN_dξ`, `d2N_dξ2` come from [`get_shape_function_operator`](../../src/onedfem/pre_processing/element_library/shape_function_registry.py) or theory-local [`shape_functions.py`](../../src/onedfem/pre_processing/element_library/linear/beam/zero_order_shear_deformation_theory/euler_bernoulli/utilities/shape_functions.py).
+- Shape functions `N`, `dN_dξ`, `d2N_dξ2` come from [`get_shape_function_operator`](../../src/onedfem/pre_processing/element_library/shape_function_registry.py) or theory-local [`shape_functions.py`](../../src/onedfem/pre_processing/element_library/linear/beam/zosdt/euler_bernoulli/utilities/shape_functions.py).
 
 ---
 

@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Fixed
+
+- **Total and Updated Lagrangian beams refuse rotated and curved meshes again.** Since the zosdt/fosdt/tosdt reorganisation they subclass the linear beams and so inherited `supports_element_frame`. `framed_element` rotates their linear stiffness, mass and loads but not their tangent stiffness or internal force, so a framed nonlinear run would have mixed local and global axes. They now raise `NotImplementedError` as before, and `tests/test_element_frames.py` checks all eight. The corotational beams keep frame support.
+- **Module paths after the zosdt/fosdt/tosdt reorganisation.** `validation/abaqus/job_to_abaqus_script.py`, nine verification scripts in `scripts/` and two docs still named `zero_order_shear_deformation_theory`, `first_order_shear_deformation_theory`, `third_order_shear_deformation_theory` and `nonlinear.timoshenko.nonlinear_timoshenko_3D`.
+
 ### Changed
 
 - **implicit-geometry-kernel 0.9.1 and anisotropic-section-model 0.3.0.** Layout codes carry their anchoring and rib tokens (`"2D-F-LC-0R"`), `BladeGeometry` takes `pivot_fraction`, and `blade_beam_job` reads station values with `geometry.interpolate(z)` (was `station_at`). The kernel loads the system GEOS library, so CI installs `libgeos-dev`. A spar cap on a skin now stays on the skin mid-surface with its eccentricity in the wall law; on the NACA 0024 test section EA, EI and GJ are unchanged within the test tolerances and the thin-walled shear centre moves from 6.2 mm to 4.5 mm (2D section: 5.2 mm).

@@ -35,6 +35,10 @@ def _B_nl_12_to_14(B_nl_6_12: np.ndarray) -> np.ndarray:
 class NonlinearEulerBernoulliBeamElement3D(LinearEulerBernoulliBeamElement3D):
     """TL EB: Green–Lagrange strain, ``S = D @ E``, material and geometric tangents from Gauss sums."""
 
+    #: The tangent and internal force are not rotated by ``framed_element``: refuse rotated or
+    #: curved meshes rather than inherit the linear parent's frame support.
+    supports_element_frame = False
+
     element_type_name = "Euler-Bernoulli-3D-Nonlinear"
 
     def __init__(self, **kwargs):
