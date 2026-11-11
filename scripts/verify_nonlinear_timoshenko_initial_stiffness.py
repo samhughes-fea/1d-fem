@@ -16,10 +16,10 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 def verify_nonlinear_timoshenko_initial_stiffness():
     """Compare nonlinear tangent at U=0 vs linear Timoshenko K_e."""
-    from onedfem.pre_processing.element_library.linear.beam.first_order_shear_deformation_theory.timoshenko.linear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.linear.beam.fosdt.timoshenko.linear_timoshenko_3D import (
         LinearTimoshenkoBeamElement3D,
     )
-    from onedfem.pre_processing.element_library.nonlinear.timoshenko.nonlinear_timoshenko_3D import (
+    from onedfem.pre_processing.element_library.nonlinear.timoshenko.total_lagrangian.nonlinear_timoshenko_3D import (
         NonlinearTimoshenkoBeamElement3D,
     )
 

@@ -311,9 +311,17 @@ def test_pretwist_coupling_in_the_section():
     assert sa.with_pretwist(0.0) is sa
 
 
-def test_frames_are_refused_where_not_supported():
+# Total and Updated Lagrangian beams subclass the linear beams, but their tangent and internal
+# force are not rotated by framed_element, so they must not inherit the linear frame support.
+@pytest.mark.parametrize("element", [
+    "NonlinearEulerBernoulliBeamElement3D", "UpdatedLagrangianEulerBernoulliBeamElement3D",
+    "NonlinearTimoshenkoBeamElement3D", "UpdatedLagrangianTimoshenkoBeamElement3D",
+    "NonlinearReddyBeamElement3D", "UpdatedLagrangianReddyBeamElement3D",
+    "NonlinearLevinsonBeamElement3D", "UpdatedLagrangianLevinsonBeamElement3D",
+])
+def test_frames_are_refused_where_not_supported(element):
     with pytest.raises(NotImplementedError, match="linear beams only"):
-        Mesh("NonlinearTimoshenkoBeamElement3D", _line([0, 0, 0], [0, 1, 0], 1.0, 2))
+        Mesh(element, _line([0, 0, 0], [0, 1, 0], 1.0, 2))
 
 
 def test_rotation_exp_is_a_rotation():

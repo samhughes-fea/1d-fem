@@ -19,6 +19,10 @@ from onedfem.pre_processing.element_library.nonlinear.tosdt.utilities import (
 class NonlinearThirdOrderShearBeamElement3D(ThirdOrderShearBeamElement3D):
     """Total Lagrangian third-order beam: linear tosdt ``B8``/``D8`` plus Timoshenko ``E_nl`` on 12 DOFs."""
 
+    #: The tangent and internal force are not rotated by ``framed_element``: refuse rotated or
+    #: curved meshes rather than inherit the linear parent's frame support.
+    supports_element_frame = False
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.green_lagrange_strain_operator = GreenLagrangeStrainOperator(

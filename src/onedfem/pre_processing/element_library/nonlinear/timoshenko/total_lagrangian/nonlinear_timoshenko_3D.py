@@ -48,6 +48,10 @@ class NonlinearTimoshenkoBeamElement3D(LinearTimoshenkoBeamElement3D):
     the beam-column / prestress path.
     """
 
+    #: The tangent and internal force are not rotated by ``framed_element``: refuse rotated or
+    #: curved meshes rather than inherit the linear parent's frame support.
+    supports_element_frame = False
+
     element_type_name = "Timoshenko-3D-Nonlinear"
 
     def __init__(self, **kwargs):

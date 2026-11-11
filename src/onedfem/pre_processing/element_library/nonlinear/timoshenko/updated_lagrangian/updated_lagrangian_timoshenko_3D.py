@@ -36,6 +36,10 @@ from onedfem.pre_processing.element_library.shape_function_registry import get_s
 class UpdatedLagrangianTimoshenkoBeamElement3D(UpdatedLagrangianChordMixin, LinearTimoshenkoBeamElement3D):
     """UL Timoshenko: selective linear ``K_0`` on ``L_curr`` plus beam-column ``K_sigma``."""
 
+    #: The tangent and internal force are not rotated by ``framed_element``: refuse rotated or
+    #: curved meshes rather than inherit the linear parent's frame support.
+    supports_element_frame = False
+
     element_type_name = "Timoshenko-3D-UpdatedLagrangian"
 
     def __init__(self, **kwargs):
