@@ -39,10 +39,10 @@ from validation.abaqus.config import (
     SUPPORTED_ELEMENT_TYPES,
 )
 from validation.abaqus.simulation_type_dispatch import build_validation_dispatch_payload
-from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.interpolate_loads import (
+from onedfem.pre_processing.element_library.linear.beam.zosdt.euler_bernoulli.utilities.interpolate_loads import (
     LoadInterpolationOperator,
 )
-from onedfem.pre_processing.element_library.linear.beam.zero_order_shear_deformation_theory.euler_bernoulli.utilities.shape_functions import (
+from onedfem.pre_processing.element_library.linear.beam.zosdt.euler_bernoulli.utilities.shape_functions import (
     ShapeFunctionOperator,
 )
 
