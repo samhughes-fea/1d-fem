@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- `reduced_blade_beam_job` writes a cantilever from kernel stations (span, twist, offset) and one reduced beam section per element. It does not read a wall graph: there is no section geometry, laminate or element-section file. `I_y` and `I_z` are the centroidal moments, and the shear centre and warping constant are the reduced section's.
+
 ### Fixed
 
 - **Total and Updated Lagrangian beams refuse rotated and curved meshes again.** Since the zosdt/fosdt/tosdt reorganisation they subclass the linear beams and so inherited `supports_element_frame`. `framed_element` rotates their linear stiffness, mass and loads but not their tangent stiffness or internal force, so a framed nonlinear run would have mixed local and global axes. They now raise `NotImplementedError` as before, and `tests/test_element_frames.py` checks all eight. The corotational beams keep frame support.
