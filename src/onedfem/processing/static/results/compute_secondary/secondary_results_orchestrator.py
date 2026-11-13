@@ -136,7 +136,8 @@ class SecondaryResultsOrchestrator:
         strains_all = []
         stresses_all = []
         energy_all = []
-        
+        points = []
+
         for elem_obj in self.formulation_cache.element_objects:
             elem_id = elem_obj.element_id
             element = self.elements[elem_id]
@@ -150,7 +151,8 @@ class SecondaryResultsOrchestrator:
             elem_stresses = []
             elem_energy = []
             
-            for gp in elem_obj.gauss_data:
+            for k, gp in enumerate(elem_obj.gauss_data):
+                points.append((elem_id, k, float(getattr(gp, "xi", np.nan)), float(getattr(gp, "weight", np.nan))))
                 # Use cached B and D matrices - no shape function recomputation!
                 strain = gp.B_matrix @ U_e
                 stress = gp.D_matrix @ strain
@@ -167,6 +169,7 @@ class SecondaryResultsOrchestrator:
         self.logger.info(f"  ✅ Computed results for {len(strains_all)} elements")
         
         return GaussianResults(
+            gauss_points=points,
             strain=strains_all,
             stress=stresses_all,
             internal_energy_density=energy_all

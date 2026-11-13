@@ -30,11 +30,11 @@ SECTION_STRESS_COLUMNS = (
     "element_id", "x", "section_element", "y", "z",
     "sigma_xx", "sigma_yy", "sigma_zz", "tau_yz", "tau_xz", "tau_xy",
     "sigma_11", "sigma_22", "sigma_33", "tau_23", "tau_13", "tau_12",
-    "sigma_nn", "tau_sn", "tau_xn", "xi", "mode",
+    "sigma_nn", "tau_sn", "tau_xn", "xi", "mode", "point_kind",
 )
 
 INTERFACE_STRESS_COLUMNS = (
-    "element_id", "x", "below", "above", "y", "z", "sigma_nn", "tau_sn", "tau_xn", "xi", "mode",
+    "element_id", "x", "below", "above", "y", "z", "sigma_nn", "tau_sn", "tau_xn", "xi", "mode", "point_kind",
 )
 
 
@@ -48,7 +48,8 @@ def element_section_rows(element, U_e, analysis, xi: float = 0.0, mode="") -> Li
     """CSV rows (``SECTION_STRESS_COLUMNS``) for one element; ``x`` is the global ``X`` of the axis at ``xi``."""
     pts = element_section_stresses(element, U_e, xi, analysis)
     x = _x(element, xi)
-    return [[element.element_id, x, p.element, p.y, p.z, *p.stress, *p.stress_material, *p.interlaminar, xi, mode]
+    return [[element.element_id, x, p.element, p.y, p.z, *p.stress, *p.stress_material, *p.interlaminar, xi, mode,
+             "section_gauss"]
             for p in pts]
 
 
@@ -57,7 +58,7 @@ def element_interface_rows(element, U_e, analysis, xi: float = 0.0, mode="") -> 
     the section (``SolidSectionAnalysis.interface_stresses``), at the middle of each interface edge."""
     forces, benscoter = element_section_state(element, U_e, xi, analysis)
     x = _x(element, xi)
-    return [[element.element_id, x, e, f, y, z, *s, xi, mode]
+    return [[element.element_id, x, e, f, y, z, *s, xi, mode, "interface_edge_mid"]
             for e, f, y, z, s in analysis.interface_stresses(forces=forces, benscoter=benscoter)]
 
 
