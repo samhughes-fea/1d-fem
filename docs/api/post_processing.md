@@ -1,6 +1,6 @@
 # Post-processing
 
-Result files written after a solve: stresses, failure margins, sensitivities and field sampling for plots.
+Result files written after a solve, the limit-state profiles a caller reads from a solved beam, stresses, failure margins, sensitivities and field sampling for plots.
 
 ### `onedfem.post_processing.failure.ply_failure`
 
@@ -64,6 +64,29 @@ Write 3D section stresses of a solved job with sections meshed in 2D.
   CSV rows (``INTERFACE_STRESS_COLUMNS``): the interlaminar stresses on every ply interface of the section (``SolidSectionAnalysis.interface_stresses``), at the middle of each interface edge.
 - **`write_section_stresses(job_results_dir: str, elements: Sequence, analyses: Sequence, U_global, stations: Optional[Sequence] = None, modes: Optional[np.ndarray] = None) -> str`**
   Write ``section_stresses.csv`` and ``interface_stresses.csv`` for the elements that have a 2D section; return the path of the first.
+
+### `onedfem.post_processing.limit_states`
+
+[src/onedfem/post_processing/limit_states.py](../../src/onedfem/post_processing/limit_states.py)
+
+Limit-state results a caller reads from a solved beam.
+
+- **class `DeflectionProfile(s: np.ndarray, position: np.ndarray, displacement: np.ndarray) -> None`**
+  Displacement of a static solution sampled along the beam axis.
+- **`deflection_profile(coordinates, U, element_type: str, *, n_per_element: int = 11) -> DeflectionProfile`**
+  Sample a static displacement along the beam with the element interpolation.
+- **class `ExtremeFibreProfile(s: np.ndarray, position: np.ndarray, y: np.ndarray, z: np.ndarray, strain: np.ndarray, stress: np.ndarray, extreme_strain: np.ndarray, extreme_stress: np.ndarray) -> None`**
+  Axial strain and beam stress on the outer profile, at one station per element.
+- **`extreme_fibre_profile(elements, U_global, outer_profile, *, xi: float = 0.0) -> ExtremeFibreProfile`**
+  Extreme-fibre beam strain and stress along the outer profile of a static solution.
+- **class `BucklingResult(load_factors: np.ndarray, mode_shapes: np.ndarray) -> None`**
+  Linear buckling eigenpairs already computed for a reference load.
+- **`buckling_result(solved: Union[object, tuple]) -> BucklingResult`**
+  Buckling load factors and modes a linear buckling solve already returned.
+- **class `BladeVibrationModes(frequencies_hz: np.ndarray, mode_shapes: np.ndarray) -> None`**
+  Undamped vibration modes of the blade beam already computed by an eigen solve.
+- **`blade_vibration_modes(solved: Union[object, tuple]) -> BladeVibrationModes`**
+  Blade vibration modes an eigen solve already returned.
 
 ### `onedfem.post_processing.graphical_visualisers.beam_field_sampling`
 

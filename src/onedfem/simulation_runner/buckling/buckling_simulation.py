@@ -15,12 +15,16 @@ class LinearBucklingSimulationRunner(VibrationBucklingBackend):
     """Linear buckling eigenproblem about a prestressed state (§5 linearized theory)."""
 
     def run(self):
+        """Solve linear buckling and return the load factors and modes already computed."""
         try:
             self.setup_simulation()
             self._run_buckling_analysis()
         except Exception as exc:
             logger.exception("Buckling simulation failed")
             raise RuntimeError("Buckling simulation aborted") from exc
+        from onedfem.post_processing.limit_states import buckling_result
+
+        return buckling_result(self)
 
 
 class BucklingSimulationRunner(LinearBucklingSimulationRunner):

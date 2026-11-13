@@ -46,9 +46,10 @@ PAGES: Dict[str, Tuple[str, Tuple[str, ...], str]] = {
                    "Static, nonlinear, eigen, buckling, harmonic, transient and spectral solvers and "
                    "their runners."),
     "post_processing.md": ("Post-processing", ("onedfem.post_processing.failure", "onedfem.post_processing.sensitivity",
-                                               "onedfem.post_processing.solid", "onedfem.post_processing.graphical_visualisers"),
-                           "Result files written after a solve: stresses, failure margins, "
-                           "sensitivities and field sampling for plots."),
+                                               "onedfem.post_processing.solid", "onedfem.post_processing.limit_states",
+                                               "onedfem.post_processing.graphical_visualisers"),
+                           "Result files written after a solve, the limit-state profiles a caller reads "
+                           "from a solved beam, stresses, failure margins, sensitivities and field sampling for plots."),
     "interfaces.md": ("Interfaces", ("+onedfem.interfaces",),
                       "Adapters from other repositories' data (a blade's geometry, duck typed) to sections "
                       "and jobs. The core does not depend on them."),
