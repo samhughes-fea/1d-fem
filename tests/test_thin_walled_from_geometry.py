@@ -21,8 +21,8 @@ from onedfem.pre_processing.parsing.region_laminate_parser import (  # noqa: E40
     format_region_laminate,
     parse_region_laminate_file,
 )
+from onedfem.interfaces.blade.thin_walled_sections import thin_walled_from_cut  # noqa: E402
 from anisotropic_section_model.thin_walled import Ply, PlyMaterial, WallLaminate  # noqa: E402
-from anisotropic_section_model.thin_walled.from_geometry import thin_walled_from_cut  # noqa: E402
 
 GLASS = PlyMaterial(E1=38.6e9, E2=8.27e9, G12=4.14e9, nu12=0.26, G13=4.14e9, G23=3.063e9, rho=1800.0)
 CARBON = PlyMaterial(E1=181e9, E2=10.3e9, G12=7.17e9, nu12=0.28, G13=7.17e9, G23=3.679e9, rho=1600.0)

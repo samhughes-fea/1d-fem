@@ -35,7 +35,12 @@ SRC = ROOT / "src" / "onedfem"
 ELEMENT_LIBRARY = SRC / "pre_processing" / "element_library"
 ADAPTERS = {"pre_processing/mesh_library/blade_beam_job.py",
             "pre_processing/section_integration/thin_walled/from_geometry.py",
-            "pre_processing/section_integration/solid/from_geometry.py"}
+            "pre_processing/section_integration/solid/from_geometry.py",
+            "interfaces/__init__.py",
+            "interfaces/blade/__init__.py",
+            "interfaces/blade/blade_beam_job.py",
+            "interfaces/blade/thin_walled_sections.py",
+            "interfaces/blade/solid_sections.py"}
 TYPE_NAME = re.compile(r"^(Linear|Nonlinear|Corotational|UpdatedLagrangian|GEBT)\w*Element3D$")
 FRAGMENTS = ("GBT", "Benscoter", "Reddy", "Levinson", "Timoshenko", "EulerBernoulli", "Corotational", "Nonlinear",
              "Truss", "Bar")

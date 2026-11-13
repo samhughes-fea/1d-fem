@@ -110,9 +110,9 @@ def _load(name: str) -> Optional[dict]:
 # ---------------------------------------------------------------------------
 def models(index: int, rows_per_ply: int = 1, with_2d: bool = True):
     """Thin-walled and 2D analyses of one station (2D is ``None`` where the mesher fails)."""
-    from anisotropic_section_model.solid.from_geometry import section_mesh_from_cut
+    from onedfem.interfaces.blade.solid_sections import section_mesh_from_cut
+    from onedfem.interfaces.blade.thin_walled_sections import thin_walled_from_cut
     from anisotropic_section_model.solid.section_analysis import SolidSectionAnalysis
-    from anisotropic_section_model.thin_walled.from_geometry import thin_walled_from_cut
 
     cut = S.geometry(index).section_at(0.5)
     lams = S.laminates(index)
@@ -139,7 +139,7 @@ def models(index: int, rows_per_ply: int = 1, with_2d: bool = True):
 def carbon_matched_2d(index: int, ratio: float):
     """The 2D section with the cap material scaled by ``ratio`` (a diagnostic: equal carbon
     stiffness to the thin-walled cap, whose carbon is narrower)."""
-    from anisotropic_section_model.solid.from_geometry import section_mesh_from_cut
+    from onedfem.interfaces.blade.solid_sections import section_mesh_from_cut
     from anisotropic_section_model.solid.section_analysis import SolidSectionAnalysis
     from anisotropic_section_model.thin_walled import Ply, PlyMaterial, WallLaminate
 
