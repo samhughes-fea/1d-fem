@@ -41,7 +41,12 @@ class TransientSimulationRunner:
     def __init__(self, settings: dict, job_name: str):
         self.settings = settings
         self.job_name = job_name
-        self.elements = self.settings.get("elements", np.array([]))
+        # process_job passes a list of element objects, direct callers an array
+        given = self.settings.get("elements")
+        given = [] if given is None else list(np.asarray(given, dtype=object).ravel()) \
+            if isinstance(given, np.ndarray) else list(given)
+        self.elements = np.empty(len(given), dtype=object)
+        self.elements[:] = given
         self.mesh_dictionary = self.settings.get("mesh_dictionary", {})
         self.grid_dictionary = self.settings.get("grid_dictionary") or self.mesh_dictionary
         if self.elements.size == 0 or not self.mesh_dictionary:
@@ -98,10 +103,9 @@ class TransientSimulationRunner:
     def _ensure_sparse_format(self, matrices):
         if matrices is None:
             return None
-        return np.array(
-            [coo_matrix(m) if not isinstance(m, coo_matrix) else m for m in matrices],
-            dtype=object,
-        )
+        out = np.empty(len(matrices), dtype=object)
+        out[:] = [m if isinstance(m, coo_matrix) else coo_matrix(np.asarray(m, dtype=np.float64)) for m in matrices]
+        return out
 
     def _dynamic_post_enabled(self) -> bool:
         cfg = self.simulation_settings.get("post_processing") or {}
