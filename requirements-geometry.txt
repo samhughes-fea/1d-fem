@@ -1,4 +1,4 @@
 # Optional: blade geometry from implicit-geometry-kernel.
 # The kernel loads the system GEOS library (apt install libgeos-dev, brew install geos).
 # Used by anisotropic_section_model/thin_walled/from_geometry.py and the blade examples.
-implicit-geometry-kernel @ git+https://github.com/samhughes-fea/implicit-geometry-kernel@v0.9.1
+implicit-geometry-kernel @ git+https://github.com/samhughes-fea/implicit-geometry-kernel@K9
