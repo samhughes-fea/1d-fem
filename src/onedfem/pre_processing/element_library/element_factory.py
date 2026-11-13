@@ -176,6 +176,39 @@ class ElementFactory:
     ELEMENT_CLASS_MAP = {**LINEAR_ELEMENT_CLASS_MAP, **NONLINEAR_ELEMENT_CLASS_MAP}
 
     # ------------------------------------------------------------------ #
+    # The registry is the single source of what each type can do: other modules ask these
+    # instead of keeping their own lists of type names.
+    @classmethod
+    def element_class(cls, type_name: str):
+        """The class registered as ``type_name`` (``None`` for an unknown name)."""
+        import importlib
+
+        module = cls.ELEMENT_CLASS_MAP.get(str(type_name))
+        if module is None:
+            return None
+        return getattr(importlib.import_module(module), str(type_name), None)
+
+    @classmethod
+    def capability(cls, type_name: str, name: str, default: Any = None, own: bool = False) -> Any:
+        """Class attribute ``name`` of element type ``type_name`` (see ``Element1DBase``).
+
+        ``own=True`` reads the class's own value only, so a capability declared on a base
+        class (``nonlinear_counterpart``, ``layup_sensitivity``) does not pass to subclasses.
+        ``reduced_isotropic_section`` is read the same way.
+        """
+        klass = cls.element_class(type_name)
+        if klass is None:
+            return default
+        if own:
+            return klass.__dict__.get(name, default)
+        return getattr(klass, name, default)
+
+    @classmethod
+    def types_with(cls, name: str, value: Any = True, own: bool = False) -> List[str]:
+        """Registered type names whose capability ``name`` equals ``value`` (sorted)."""
+        return sorted(t for t in cls.ELEMENT_CLASS_MAP if cls.capability(t, name, None, own) == value)
+
+    # ------------------------------------------------------------------ #
     def __init__(self, job_results_dir: str) -> None:
         """
         Parameters

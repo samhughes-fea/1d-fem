@@ -58,15 +58,9 @@ _TOL = 1e-12
 def _supports_frame(type_name: str) -> bool:
     """Whether the element type takes rotated and curved geometry (else ``precurvature.txt``
     keeps its older meaning for it: a reference strain on a straight element)."""
-    import importlib
-
     from onedfem.pre_processing.element_library.element_factory import ElementFactory
 
-    module = ElementFactory.ELEMENT_CLASS_MAP.get(str(type_name))
-    if module is None:
-        return False
-    cls = getattr(importlib.import_module(module), str(type_name), None)
-    return bool(getattr(cls, "supports_element_frame", False))
+    return bool(ElementFactory.capability(type_name, "supports_element_frame", False))
 
 
 def _element_frames(element_dictionary: Dict[str, Any], grid_dictionary: Dict[str, Any], idx: int):
@@ -167,11 +161,12 @@ def setup_frame(element, element_dictionary, grid_dictionary, idx: int, ctor_kwa
     if not element._frame_mesh:
         return
     if not getattr(type(element), "supports_element_frame", False):
+        from onedfem.pre_processing.element_library.element_factory import ElementFactory
+
         raise NotImplementedError(
             f"Element {element.element_id} ({type(element).__name__}): rotated or curved elements "
             "(a beam off the global x axis, a [twist] column or precurvature.txt) are supported by the "
-            "linear beams only: Euler-Bernoulli, Timoshenko and Benscoter, GBT, Reddy and Levinson; and by the "
-            "corotational Euler-Bernoulli, Timoshenko, Benscoter, GBT, Reddy and Levinson beams.")
+            f"types with supports_element_frame only: {', '.join(ElementFactory.types_with('supports_element_frame'))}.")
     # distributed loads: global components per length of the beam axis, sampled along global X;
     # spread here along the element's own geometry (the kernels would read them in local x)
     dl = np.asarray(element.distributed_load_array)
@@ -216,7 +211,7 @@ def setup_frame(element, element_dictionary, grid_dictionary, idx: int, ctor_kwa
 # --------------------------------------------------------------- line loads on framed elements
 def _bending_kind(element) -> str:
     """Field interpolation the element's loads are spread with (``beam_load_interpolation``)."""
-    return "hermite" if "EulerBernoulli" in type(element).__name__ else "linear"
+    return getattr(element, "bending_interpolation", "linear")
 
 
 def _load_table(dl: np.ndarray):

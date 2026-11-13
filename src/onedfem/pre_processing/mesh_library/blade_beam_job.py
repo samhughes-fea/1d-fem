@@ -79,9 +79,15 @@ from onedfem.sections import section_import
 __all__ = ["BladeBeamJob", "blade_beam_job", "blade_to_job", "job_to_blade", "NONLINEAR_SETTINGS"]
 
 STANDARD_DOFS = ("UX", "UY", "UZ", "RX", "RY", "RZ")
-FRAMED_TYPES = ("LinearEulerBernoulliBeamElement3D", "LinearTimoshenkoBeamElement3D", "LinearBenscoterBeamElement3D",
-                "CorotationalEulerBernoulliBeamElement3D", "CorotationalTimoshenkoBeamElement3D",
-                "CorotationalBenscoterBeamElement3D", "LinearGBTBeamElement3D")
+
+
+def framed_types():
+    """Element types that take a blade's rotated and pretwisted elements (``supports_element_frame``)."""
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
+
+    return ElementFactory.types_with("supports_element_frame")
+
+
 _SETTINGS = "[Simulation]\n[Type]\nstatic\n\n[Solver]\ntype = direct\ntolerance = 1e-12\nmax_iterations = 500\n"
 #: default settings of a corotational blade: nonlinear static, the load in ten increments
 NONLINEAR_SETTINGS = ("[Simulation]\n[Type]\nstatic_nonlinear\n\n[Newton]\ntolerance = 1e-6\n"
@@ -256,15 +262,19 @@ def blade_beam_job(
     """
     if kind not in ("thin_walled", "2d"):
         raise ValueError(f"kind must be 'thin_walled' or '2d', got {kind!r}")
-    if element_type not in FRAMED_TYPES:
-        raise ValueError(f"element_type must be one of {', '.join(FRAMED_TYPES)} (types that take a blade's "
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
+
+    types = framed_types()
+    if element_type not in types:
+        raise ValueError(f"element_type must be one of {', '.join(types)} (types that take a blade's "
                          f"rotated and pretwisted elements); got {element_type!r}")
-    benscoter = "Benscoter" in element_type
+    gbt = bool(ElementFactory.capability(element_type, "cross_section_modes", False))
+    benscoter = bool(ElementFactory.capability(element_type, "restrained_warping", False)) and not gbt
+    n_extra = int(ElementFactory.capability(element_type, "extra_dofs", 0) or 0)
     if benscoter and kind != "thin_walled":
-        raise ValueError("LinearBenscoterBeamElement3D needs thin-walled sections")
-    gbt = "GBT" in element_type
+        raise ValueError(f"{element_type} (restrained warping) needs thin-walled sections")
     if gbt_modes and not gbt:
-        raise ValueError("gbt_modes needs element_type='LinearGBTBeamElement3D'")
+        raise ValueError(f"gbt_modes needs an element type with cross-section modes, got {element_type!r}")
     z = _span_nodes(geometry, n_elements, z_nodes)
     n = z.size - 1
     stations = [geometry.interpolate(float(zi)) for zi in z]
@@ -339,7 +349,7 @@ def blade_beam_job(
     modes_col, modes = (" [modes]", f" {int(gbt_modes)}") if gbt else ("", "")
     write("element_section.txt", f"[Element_Section]\n[element_id] [section_id]{modes_col}\n"
           + "".join(f"{e} {e + 1}{modes}\n" for e in range(n)))
-    dofs = list(STANDARD_DOFS) + (["Q1"] if benscoter else ["Q*"] if gbt else [])
+    dofs = list(STANDARD_DOFS) + (["Q1"] if benscoter else ["Q*"] if gbt or n_extra else [])
     write("prescribed_displacement.txt", "[Prescribed Displacement]\n[id] [node_id] [dof] [value] [type] [comment]\n"
           + "".join(f"{i} 0 {d} 0.0 displacement\n" for i, d in enumerate(dofs)))
     tapers: Dict[int, object] = {}

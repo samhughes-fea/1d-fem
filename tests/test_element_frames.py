@@ -320,7 +320,7 @@ def test_pretwist_coupling_in_the_section():
     "NonlinearLevinsonBeamElement3D", "UpdatedLagrangianLevinsonBeamElement3D",
 ])
 def test_frames_are_refused_where_not_supported(element):
-    with pytest.raises(NotImplementedError, match="linear beams only"):
+    with pytest.raises(NotImplementedError, match="supports_element_frame only"):
         Mesh(element, _line([0, 0, 0], [0, 1, 0], 1.0, 2))
 
 

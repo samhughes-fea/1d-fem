@@ -34,9 +34,13 @@ from onedfem.pre_processing.element_library.beam_warping import element_warping_
 STANDARD_DOFS_PER_NODE = 6
 STANDARD_DOF_NAMES = ("UX", "UY", "UZ", "RX", "RY", "RZ")
 WARPING_ALIASES = ("W", "CHI")
-#: element types that always carry extra nodal DOFs, and how many
-TYPE_EXTRA_DOFS = {"LinearReddyBeamElement3D": 2, "LinearLevinsonBeamElement3D": 2,
-                   "CorotationalReddyBeamElement3D": 2, "CorotationalLevinsonBeamElement3D": 2}
+
+
+def type_extra_dofs(type_name: str) -> int:
+    """Extra nodal DOFs element type ``type_name`` always carries (its ``extra_dofs`` class attribute)."""
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
+
+    return int(ElementFactory.capability(type_name, "extra_dofs", 0) or 0)
 
 
 def row_extra_dofs(element_dictionary: Dict[str, Any], idx: int) -> int:
@@ -49,7 +53,7 @@ def row_extra_dofs(element_dictionary: Dict[str, Any], idx: int) -> int:
     type_str = "" if types is None else str(np.asarray(types).ravel()[idx])
     if element_warping_stiffness_on(element_dictionary, idx, type_str):
         n = max(n, 1)
-    return max(n, TYPE_EXTRA_DOFS.get(type_str, 0))
+    return max(n, type_extra_dofs(type_str))
 
 
 def mesh_extra_dofs(element_dictionary: Dict[str, Any]) -> int:
@@ -63,7 +67,7 @@ def mesh_extra_dofs(element_dictionary: Dict[str, Any]) -> int:
     types = element_dictionary.get("types")
     if types is not None:
         for t in np.asarray(types).ravel():
-            n = max(n, TYPE_EXTRA_DOFS.get(str(t), 0))
+            n = max(n, type_extra_dofs(str(t)))
     return n
 
 

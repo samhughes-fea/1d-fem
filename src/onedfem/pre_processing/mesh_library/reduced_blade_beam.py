@@ -26,13 +26,20 @@ from onedfem.pre_processing.mesh_library.blade_beam_job import (
 )
 
 _SETTINGS = "[Simulation]\n[Type]\nstatic\n\n[Solver]\ntype = direct\ntolerance = 1e-12\nmax_iterations = 500\n"
-_TYPES = (
-    "LinearEulerBernoulliBeamElement3D",
-    "LinearTimoshenkoBeamElement3D",
-    "CorotationalEulerBernoulliBeamElement3D",
-    "CorotationalTimoshenkoBeamElement3D",
-)
 _KAPPA = 5.0 / 6.0
+
+
+def _reduced_section_types() -> list[str]:
+    """Types this writer can emit: ``reduced_isotropic_section`` on the class itself.
+
+    That is the framed Euler-Bernoulli and Timoshenko beams, linear and corotational.
+    Subclasses do not inherit the flag, so a type that only inherits frame support
+    (GEBT, Benscoter, GBT, the third-order beams) stays out: this writer emits six
+    DOFs and an isotropic ``section.txt``, and linear or corotational settings.
+    """
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
+
+    return ElementFactory.types_with("reduced_isotropic_section", own=True)
 
 
 def reduced_blade_beam_job(
@@ -59,8 +66,9 @@ def reduced_blade_beam_job(
     ``z`` returning one. Twist and offset are interpolated on the station
     table.
     """
-    if element_type not in _TYPES:
-        raise ValueError(f"element_type must be one of {', '.join(_TYPES)}; got {element_type!r}")
+    types = _reduced_section_types()
+    if element_type not in types:
+        raise ValueError(f"element_type must be one of {', '.join(types)}; got {element_type!r}")
     table = _table(stations)
     z = _nodes(table, n_elements, z_nodes)
     n = z.size - 1

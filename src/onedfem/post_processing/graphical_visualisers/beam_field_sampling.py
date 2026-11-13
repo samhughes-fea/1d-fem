@@ -27,8 +27,10 @@ __all__ = ["interpolation_kind", "beam_curve"]
 
 
 def interpolation_kind(element_type: str) -> str:
-    """``"hermite"`` for Euler-Bernoulli element types, else ``"linear"`` (as ``_bending_kind``)."""
-    return "hermite" if "EulerBernoulli" in element_type else "linear"
+    """The type's ``bending_interpolation`` (``"hermite"`` or ``"linear"``), as ``_bending_kind`` uses."""
+    from onedfem.pre_processing.element_library.element_factory import ElementFactory
+
+    return str(ElementFactory.capability(element_type, "bending_interpolation", "linear"))
 
 
 def beam_curve(x_nodes: Sequence[float], U: npt.ArrayLike, component: int, element_type: str,

@@ -43,6 +43,7 @@ class UpdatedLagrangianEulerBernoulliBeamElement3D(UpdatedLagrangianChordMixin, 
     #: The tangent and internal force are not rotated by ``framed_element``: refuse rotated or
     #: curved meshes rather than inherit the linear parent's frame support.
     supports_element_frame = False
+    bending_interpolation = "hermite"
 
     element_type_name = "EulerBernoulli-3D-UpdatedLagrangian"
 

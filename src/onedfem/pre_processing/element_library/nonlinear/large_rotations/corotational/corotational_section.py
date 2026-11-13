@@ -300,12 +300,14 @@ class CorotationalMixin:
 class CorotationalEulerBernoulliBeamElement3D(CorotationalMixin, LinearEulerBernoulliBeamElement3D):
     """Corotational Euler-Bernoulli beam (shear-rigid core, classical section stiffness)."""
 
+    reduced_isotropic_section = True
     element_type_name = "Corotational-EB-3D"
 
 
 class CorotationalTimoshenkoBeamElement3D(CorotationalMixin, LinearTimoshenkoBeamElement3D):
     """Corotational Timoshenko beam on the coupled Saint-Venant section stiffness."""
 
+    reduced_isotropic_section = True
     element_type_name = "Corotational-Timoshenko-3D"
 
 
