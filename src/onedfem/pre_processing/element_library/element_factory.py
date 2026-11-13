@@ -194,6 +194,7 @@ class ElementFactory:
 
         ``own=True`` reads the class's own value only, so a capability declared on a base
         class (``nonlinear_counterpart``, ``layup_sensitivity``) does not pass to subclasses.
+        ``reduced_isotropic_section`` is read the same way.
         """
         klass = cls.element_class(type_name)
         if klass is None:

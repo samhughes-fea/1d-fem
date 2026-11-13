@@ -93,6 +93,7 @@ class LinearEulerBernoulliBeamElement3D(GeometricStiffnessMixin, Element1DBase):
     supports_element_frame = True
     bending_interpolation = "hermite"
     nonlinear_counterpart = "NonlinearEulerBernoulliBeamElement3D"
+    reduced_isotropic_section = True
     
     # Element formulation identifier for tracking in multi-element meshes
     element_type_name = "Euler-Bernoulli-3D"

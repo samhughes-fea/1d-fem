@@ -25,6 +25,10 @@ def test_flags_on_the_registered_types():
     assert F.capability("LinearReddyBeamElement3D", "extra_dofs") == 2
     assert F.capability("LinearTimoshenkoBeamElement3D", "extra_dofs") == 0
     assert F.capability("LinearEulerBernoulliBeamElement3D", "bending_interpolation") == "hermite"
+    assert F.types_with("reduced_isotropic_section", own=True) == [
+        "CorotationalEulerBernoulliBeamElement3D", "CorotationalTimoshenkoBeamElement3D",
+        "LinearEulerBernoulliBeamElement3D", "LinearTimoshenkoBeamElement3D",
+    ]
     assert F.capability("LinearTimoshenkoBeamElement3D", "nonlinear_counterpart", own=True) \
         == "NonlinearTimoshenkoBeamElement3D"
     assert F.capability("LinearGBTBeamElement3D", "layup_sensitivity", own=True) == "gbt"

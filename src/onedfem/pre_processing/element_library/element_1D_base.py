@@ -68,6 +68,9 @@ class Element1DBase(ABC):
     #: Whether buckling-load sensitivities are supported (geometric stiffness linear in the
     #: section terms). Own class only.
     layup_buckling_sensitivity: bool = False
+    #: ``reduced_blade_beam_job`` can write this type from an isotropic ``section.txt``
+    #: (six DOFs, element frames). Own class only, so a subclass does not inherit it.
+    reduced_isotropic_section: bool = False
 
     def __init_subclass__(cls, **kwargs):
         """Wrap each subclass's element kernels so rotated and curved elements answer in global axes."""

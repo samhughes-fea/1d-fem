@@ -86,6 +86,7 @@ class LinearTimoshenkoBeamElement3D(GeometricStiffnessMixin, Element1DBase):
     supports_section_analysis = True
     supports_element_frame = True
     nonlinear_counterpart = "NonlinearTimoshenkoBeamElement3D"
+    reduced_isotropic_section = True
     layup_sensitivity = "section"
     layup_buckling_sensitivity = True
     #: Subclasses that give the seventh nodal DOF a thin-walled meaning (Benscoter) set this.
