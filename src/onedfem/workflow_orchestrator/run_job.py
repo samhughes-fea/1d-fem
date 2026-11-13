@@ -307,10 +307,12 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
             job_results_dir=job_results_dir
         ).parse()["element_dictionary"]
 
-        precurvature_per_element = parse_precurvature(
+        precurvature_per_element, winkler_per_element = parse_precurvature(
             os.path.join(job_dir, "precurvature.txt"),
             element_dictionary["ids"],
+            with_winkler=True,
         )
+        element_dictionary["winkler_curvature"] = winkler_per_element
 
         grid_dictionary = GridParser(
             filepath=os.path.join(job_dir, "grid.txt"),

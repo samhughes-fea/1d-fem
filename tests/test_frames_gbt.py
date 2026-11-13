@@ -82,9 +82,10 @@ def test_a_turned_gbt_beam_is_the_beam_turned(tmp_path, d, twist):
 
 
 
-def _bend_job(job_dir, spec, Rc, curved):
+def _bend_job(job_dir, spec, Rc, curved, winkler=0):
     """Make the cantilever a quarter circle of radius ``Rc`` in the x-y plane: curved
-    elements (``k_z0 = 1/Rc``), or straight chords through points on the arc."""
+    elements (``k_z0 = 1/Rc``), or straight chords through points on the arc. The curved
+    elements' Winkler section correction is off by default, so the two compare exactly."""
     n = spec.n_el
     th = np.linspace(0.0, np.pi / 2, n + 1)
     pts = np.column_stack([Rc * np.sin(th), Rc * (1 - np.cos(th)), np.zeros(n + 1)])
@@ -93,8 +94,8 @@ def _bend_job(job_dir, spec, Rc, curved):
                 + "".join(f"{i} {float(x)!r} {float(y)!r} {float(z)!r}\n" for i, (x, y, z) in enumerate(pts)))
     if curved:
         with open(os.path.join(job_dir, "precurvature.txt"), "w", encoding="utf-8") as f:
-            f.write("[Precurvature]\n[element_id] [k_x0] [k_y0] [k_z0]\n"
-                    + "".join(f"{e} 0.0 0.0 {1.0 / Rc!r}\n" for e in range(n)))
+            f.write("[Precurvature]\n[element_id] [k_x0] [k_y0] [k_z0] [winkler]\n"
+                    + "".join(f"{e} 0.0 0.0 {1.0 / Rc!r} {winkler}\n" for e in range(n)))
     with open(os.path.join(job_dir, "point_load.txt"), "w", encoding="utf-8") as f:
         f.write("[Point load]\n[x] [y] [z] [F_x] [F_y] [F_z] [M_x] [M_y] [M_z]\n"
                 + " ".join(repr(float(v)) for v in (*pts[-1], *spec.tip_load)) + "\n")

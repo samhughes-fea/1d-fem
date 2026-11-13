@@ -105,7 +105,7 @@ Parse ``ply_strength.txt``: ply strengths per material id, for the failure crite
 
 Parse optional per-element reference curvature / twist for straight beam elements.
 
-- **`parse_precurvature(file_path: Optional[str], element_ids: npt.NDArray[np.int64]) -> npt.NDArray[np.float64]`**
+- **`parse_precurvature(file_path: Optional[str], element_ids: npt.NDArray[np.int64], with_winkler: bool = False)`**
   Read ``precurvature.txt`` and return ``(N_e, 3)`` columns ``[k_x0, k_y0, k_z0]`` (1/m), row order matching *element_ids* (same order as ``element_dictionary['ids']``).
 - **`element_reference_strain_voigt(element_dictionary: Dict[str, Any], element_id: int) -> npt.NDArray[np.float64]`**
   Return ``(6,)`` Voigt ``E_0`` for *element_id* from ``precurvature_per_element`` if present, else zeros.

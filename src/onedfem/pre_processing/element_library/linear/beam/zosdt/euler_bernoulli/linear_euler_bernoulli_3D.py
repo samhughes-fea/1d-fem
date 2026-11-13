@@ -320,7 +320,7 @@ class LinearEulerBernoulliBeamElement3D(GeometricStiffnessMixin, Element1DBase):
         """Section ``D`` (6, 6): shear-rigid ``SectionAnalysis.euler_bernoulli_D()`` when a
         thin-walled section is assigned (classical 4 x 4 on ``[eps, kappa_y, kappa_z, phi]``),
         else the isotropic operator."""
-        if self.has_thin_walled_section or self._pretwist_rate:
+        if self.has_thin_walled_section or self._pretwist_rate or any(self._section_curvature):
             return self.section_analysis.euler_bernoulli_D()
         return self.material_stiffness_operator.assembly_form()
 
