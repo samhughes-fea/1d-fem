@@ -32,7 +32,7 @@ sections = [
     "anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@v0.3.0",
 ]
 # blade geometry from implicit-geometry-kernel
-geometry = ["implicit-geometry-kernel @ git+https://github.com/samhughes-fea/implicit-geometry-kernel@v0.9.1"]
+geometry = ["implicit-geometry-kernel @ git+https://github.com/samhughes-fea/implicit-geometry-kernel@K9"]
 test = ["pytest>=7.0", "pytest-xdist>=3.5"]
 
 [project.scripts]
