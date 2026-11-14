@@ -25,6 +25,7 @@ from onedfem.post_processing.graphical_visualisers.beam_field_sampling import in
 from onedfem.post_processing.stations import axis_point
 from onedfem.pre_processing.element_library.beam_load_interpolation import beam_field_interpolation
 from onedfem.pre_processing.element_library.framed_element import local_state
+from onedfem.stage_log import stage
 
 __all__ = [
     "DeflectionProfile",
@@ -254,6 +255,11 @@ def extreme_fibre_profile(elements, U_global, outer_profile, *, xi: float = 0.0)
     xi : float
         Natural coordinate of the station on each element, in ``[-1, 1]``.
     """
+    with stage("onedfem", "extreme_fibre"):
+        return _extreme_fibre_profile(elements, U_global, outer_profile, xi=xi)
+
+
+def _extreme_fibre_profile(elements, U_global, outer_profile, *, xi: float = 0.0) -> ExtremeFibreProfile:
     xi = float(xi)
     if not -1.0 <= xi <= 1.0:
         raise ValueError("xi must be in [-1, 1]")

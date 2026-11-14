@@ -4,6 +4,7 @@
 import logging
 
 from onedfem.simulation_runner.spectral.vibration_buckling_backend import VibrationBucklingBackend
+from onedfem.stage_log import stage
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +19,9 @@ class EigenSimulationRunner(VibrationBucklingBackend):
         rotor and it does not solve a second eigenproblem.
         """
         try:
-            self.setup_simulation()
-            self._run_vibration_analysis()
+            with stage("onedfem", "beam_vibration"):
+                self.setup_simulation()
+                self._run_vibration_analysis()
         except Exception as exc:
             logger.exception("Eigen simulation failed")
             raise RuntimeError("Eigen simulation aborted") from exc

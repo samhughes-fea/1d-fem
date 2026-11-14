@@ -7,6 +7,7 @@ import logging
 import warnings
 
 from onedfem.simulation_runner.spectral.vibration_buckling_backend import VibrationBucklingBackend
+from onedfem.stage_log import stage
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +18,9 @@ class LinearBucklingSimulationRunner(VibrationBucklingBackend):
     def run(self):
         """Solve linear buckling and return the load factors and modes already computed."""
         try:
-            self.setup_simulation()
-            self._run_buckling_analysis()
+            with stage("onedfem", "beam_buckling"):
+                self.setup_simulation()
+                self._run_buckling_analysis()
         except Exception as exc:
             logger.exception("Buckling simulation failed")
             raise RuntimeError("Buckling simulation aborted") from exc
