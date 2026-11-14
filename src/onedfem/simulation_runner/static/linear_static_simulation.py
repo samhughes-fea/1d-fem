@@ -16,6 +16,7 @@ import datetime
 # Diagnostics 
 from onedfem.processing.static.diagnostics.linear_static_diagnostic import DiagnoseLinearStaticSystem
 from onedfem.processing.static.diagnostics.runtime_monitor_telemetry import RuntimeMonitorTelemetry
+from onedfem.stage_log import stage
 
 # Operations
 from onedfem.processing.static.operations.preparation import PrepareLocalSystem
@@ -752,6 +753,10 @@ class LinearStaticSimulationRunner:
         np.ndarray
             Full global displacement vector ``U_global``.
         """
+        with stage("onedfem", "beam_static"):
+            return self._solve_linear_system_only(force_scale)
+
+    def _solve_linear_system_only(self, force_scale: float = 1.0) -> np.ndarray:
         self.monitor = RuntimeMonitorTelemetry(job_results_dir=self.diagnostics_dir)
 
         self.setup_simulation()
