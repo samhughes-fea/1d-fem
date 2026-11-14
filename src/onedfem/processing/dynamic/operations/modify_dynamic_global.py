@@ -12,6 +12,7 @@ from scipy.sparse import csr_matrix
 from onedfem.processing.dynamic.boundary_conditions import apply_boundary_conditions
 
 from onedfem.processing.dynamic.operations._logging import init_stage_logger
+from onedfem.processing.common.stage_logging import timed_operation
 
 
 class ModifyDynamicGlobalSystem:
@@ -26,6 +27,7 @@ class ModifyDynamicGlobalSystem:
         self.job_results_dir = Path(job_results_dir) if job_results_dir else None
         self._log = init_stage_logger("ModifyDynamicGlobalSystem", self.job_results_dir)
 
+    @timed_operation
     def run(
         self,
         K_global: csr_matrix,

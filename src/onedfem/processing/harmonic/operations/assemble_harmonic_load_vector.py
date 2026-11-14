@@ -11,6 +11,7 @@ import numpy as np
 from onedfem.processing.static.operations.assembly import AssembleGlobalSystem
 
 from onedfem.processing.harmonic.operations._logging import init_stage_logger
+from onedfem.processing.common.stage_logging import timed_operation
 
 
 class AssembleHarmonicLoadVector:
@@ -29,6 +30,7 @@ class AssembleHarmonicLoadVector:
         self.job_results_dir = Path(job_results_dir) if job_results_dir else None
         self._log = init_stage_logger("AssembleHarmonicLoadVector", self.job_results_dir)
 
+    @timed_operation
     def run(self) -> np.ndarray:
         self._log.info("Assembling harmonic global load vector")
         assembler = AssembleGlobalSystem(

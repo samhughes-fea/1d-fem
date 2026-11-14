@@ -11,6 +11,7 @@ from scipy.sparse import csr_matrix
 from onedfem.processing.harmonic.frequency_response import harmonic_damping_matrix
 
 from onedfem.processing.harmonic.operations._logging import init_stage_logger
+from onedfem.processing.common.stage_logging import timed_operation
 
 
 class BuildHarmonicDampingMatrix:
@@ -18,6 +19,7 @@ class BuildHarmonicDampingMatrix:
         self.job_results_dir = Path(job_results_dir) if job_results_dir else None
         self._log = init_stage_logger("BuildHarmonicDampingMatrix", self.job_results_dir)
 
+    @timed_operation
     def run(
         self,
         M_mod: csr_matrix,

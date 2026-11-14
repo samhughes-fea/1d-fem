@@ -12,6 +12,7 @@ from onedfem.processing.eigen.assembly import assemble_global_matrices
 from onedfem.processing.spectral.spectral_diagnostics import log_spectral_diagnostics
 
 from onedfem.processing.harmonic.operations._logging import init_stage_logger
+from onedfem.processing.common.stage_logging import timed_operation
 
 
 class AssembleHarmonicStructuralMatrices:
@@ -32,6 +33,7 @@ class AssembleHarmonicStructuralMatrices:
             "AssembleHarmonicStructuralMatrices", self.job_results_dir
         )
 
+    @timed_operation
     def run(self) -> tuple[csr_matrix, csr_matrix, list]:
         self._log.info("Harmonic structural assembly: n_el=%s dof=%s", len(self.elements), self.total_dof)
         K_global, M_global, local_map = assemble_global_matrices(

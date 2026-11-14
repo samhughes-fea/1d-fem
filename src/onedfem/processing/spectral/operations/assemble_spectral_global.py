@@ -11,7 +11,7 @@ from scipy.sparse import csr_matrix
 from onedfem.processing.eigen.assembly import assemble_global_matrices
 from onedfem.processing.spectral.spectral_diagnostics import log_spectral_diagnostics
 
-from onedfem.processing.common.stage_logging import init_stage_logger
+from onedfem.processing.common.stage_logging import init_stage_logger, timed_operation
 
 
 class AssembleSpectralGlobalSystem:
@@ -35,6 +35,7 @@ class AssembleSpectralGlobalSystem:
         self.job_results_dir = Path(job_results_dir) if job_results_dir else None
         self._log = init_stage_logger("AssembleSpectralGlobalSystem", self.job_results_dir)
 
+    @timed_operation
     def run(
         self,
     ) -> tuple[csr_matrix, csr_matrix, list]:
