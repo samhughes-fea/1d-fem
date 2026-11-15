@@ -12,6 +12,7 @@ from scipy.sparse import csr_matrix
 from onedfem.processing.dynamic.time_integration import newmark_integrate
 
 from onedfem.processing.dynamic.operations._logging import init_stage_logger
+from onedfem.processing.common.stage_logging import timed_operation
 
 
 class IntegrateTransientSystem:
@@ -32,6 +33,7 @@ class IntegrateTransientSystem:
         self.job_results_dir = Path(job_results_dir) if job_results_dir else None
         self._log = init_stage_logger("IntegrateTransientSystem", self.job_results_dir)
 
+    @timed_operation
     def run(
         self,
         K_mod: csr_matrix,

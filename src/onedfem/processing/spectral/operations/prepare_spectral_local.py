@@ -9,7 +9,7 @@ from typing import List, Optional, Sequence, Union
 import numpy as np
 from scipy.sparse import coo_matrix, issparse
 
-from onedfem.processing.common.stage_logging import init_stage_logger
+from onedfem.processing.common.stage_logging import init_stage_logger, timed_operation
 
 
 class PrepareSpectralLocalMatrices:
@@ -48,6 +48,7 @@ class PrepareSpectralLocalMatrices:
                 out.append(coo_matrix(dense))
         return out
 
+    @timed_operation
     def run(self) -> tuple[List[coo_matrix], List[coo_matrix]]:
         """Return ``(Ke_coo_list, Me_coo_list)``."""
         ke = self._to_coo_list(self._Ke_raw)

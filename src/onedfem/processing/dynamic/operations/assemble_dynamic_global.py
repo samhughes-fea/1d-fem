@@ -11,6 +11,7 @@ from scipy.sparse import csr_matrix
 from onedfem.processing.dynamic.assembly import assemble_global_system
 
 from onedfem.processing.dynamic.operations._logging import init_stage_logger
+from onedfem.processing.common.stage_logging import timed_operation
 
 
 class AssembleDynamicGlobalSystem:
@@ -31,6 +32,7 @@ class AssembleDynamicGlobalSystem:
         self.job_results_dir = Path(job_results_dir) if job_results_dir else None
         self._log = init_stage_logger("AssembleDynamicGlobalSystem", self.job_results_dir)
 
+    @timed_operation
     def run(self) -> tuple[csr_matrix, csr_matrix, Optional[csr_matrix], list]:
         self._log.info("Dynamic global assembly: n_el=%s dof=%s", len(self.elements), self.total_dof)
         K_global, M_global, C_global, local_map = assemble_global_system(

@@ -15,7 +15,7 @@ from onedfem.processing.spectral.spectral_diagnostics import (
     log_spectral_diagnostics,
 )
 
-from onedfem.processing.common.stage_logging import init_stage_logger
+from onedfem.processing.common.stage_logging import init_stage_logger, timed_operation
 
 
 class ModifySpectralGlobalSystem:
@@ -32,6 +32,7 @@ class ModifySpectralGlobalSystem:
         self.prescribed_displacements = prescribed_displacements
         self._log = init_stage_logger("ModifySpectralGlobalSystem", self.job_results_dir)
 
+    @timed_operation
     def run(
         self,
         K_global: csr_matrix,

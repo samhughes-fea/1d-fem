@@ -13,6 +13,7 @@ from onedfem.processing.eigen.boundary_conditions import apply_boundary_conditio
 from onedfem.processing.spectral.spectral_diagnostics import log_spectral_diagnostics
 
 from onedfem.processing.harmonic.operations._logging import init_stage_logger
+from onedfem.processing.common.stage_logging import timed_operation
 
 
 class ModifyHarmonicStructuralMatrices:
@@ -29,6 +30,7 @@ class ModifyHarmonicStructuralMatrices:
             "ModifyHarmonicStructuralMatrices", self.job_results_dir
         )
 
+    @timed_operation
     def run(
         self,
         K_global: csr_matrix,

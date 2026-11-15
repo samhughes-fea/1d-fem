@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import logging
+from functools import wraps
 from pathlib import Path
 from typing import Optional, Union
+
+from onedfem.stage_log import stage
 
 
 def init_stage_logger(
@@ -43,3 +46,18 @@ def init_stage_logger(
     sh.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
     log.addHandler(sh)
     return log
+
+
+def timed_operation(method):
+    """Time ``method`` and emit one ``blade.stage`` report named for the class.
+
+    The class file ``logs/<ClassName>.log`` is unchanged. ``propagate`` stays
+    false on that logger, and the shared report is emitted separately.
+    """
+
+    @wraps(method)
+    def run(self, *args, **kwargs):
+        with stage("onedfem", type(self).__name__):
+            return method(self, *args, **kwargs)
+
+    return run

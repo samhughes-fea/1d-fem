@@ -22,6 +22,7 @@ from onedfem.processing.harmonic.modal_superposition import (
 )
 
 from onedfem.processing.harmonic.operations._logging import init_stage_logger
+from onedfem.processing.common.stage_logging import timed_operation
 
 
 @dataclass
@@ -53,6 +54,7 @@ class SolveHarmonicFrequencySweep:
             "SolveHarmonicFrequencySweep", self.job_results_dir
         )
 
+    @timed_operation
     def run(
         self,
         K_mod: csr_matrix,

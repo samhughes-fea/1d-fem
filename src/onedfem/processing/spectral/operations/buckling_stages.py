@@ -19,7 +19,7 @@ from onedfem.processing.spectral.spectral_diagnostics import (
     log_spectral_diagnostics,
 )
 
-from onedfem.processing.common.stage_logging import init_stage_logger
+from onedfem.processing.common.stage_logging import init_stage_logger, timed_operation
 
 
 class AssembleBucklingGeometricStiffness:
@@ -40,6 +40,7 @@ class AssembleBucklingGeometricStiffness:
             "AssembleBucklingGeometricStiffness", self.job_results_dir
         )
 
+    @timed_operation
     def run(self) -> csr_matrix:
         self._log.info("Assembling global geometric stiffness (K_sigma)")
         Kg = assemble_global_geometric_stiffness(
@@ -63,6 +64,7 @@ class ModifyBucklingGlobalMatrices:
         self.fixed_dofs = fixed_dofs
         self._log = init_stage_logger("ModifyBucklingGlobalMatrices", self.job_results_dir)
 
+    @timed_operation
     def run(
         self,
         K_global: csr_matrix,
@@ -103,6 +105,7 @@ class SolveLinearBucklingEigenpairs:
             "SolveLinearBucklingEigenpairs", self.job_results_dir
         )
 
+    @timed_operation
     def run(
         self,
         K_mod: csr_matrix,
