@@ -10,6 +10,7 @@ from scipy.sparse import coo_matrix
 from scipy.sparse import spmatrix
 
 from onedfem.processing.static.diagnostics.runtime_monitor_telemetry import RuntimeMonitorTelemetry
+from onedfem.stage_log import stage
 from onedfem.processing.spectral.operations import (
     AssembleBucklingGeometricStiffness,
     AssembleSpectralGlobalSystem,
@@ -529,13 +530,17 @@ class VibrationBucklingBackend:
         self.buckling_stiffness = K_global
         total_dof = self._total_dof()
 
-        with _stage("AssembleBucklingGeometricStiffness"):
-            Kg_global = AssembleBucklingGeometricStiffness(
-                elements=list(self.elements),
-                U_global=U_global,
-                total_dof=total_dof,
-                job_results_dir=job_results_dir,
-            ).run()
+        with stage("onedfem", "geometric_stiffness") as rec:
+            with _stage("AssembleBucklingGeometricStiffness"):
+                Kg_global = AssembleBucklingGeometricStiffness(
+                    elements=list(self.elements),
+                    U_global=U_global,
+                    total_dof=total_dof,
+                    job_results_dir=job_results_dir,
+                ).run()
+            nnz = getattr(Kg_global, "nnz", None)
+            if isinstance(nnz, int) and not isinstance(nnz, bool):
+                rec.set("nonzeros", nnz)
         prescribed = self.settings.get("prescribed_displacement_dict")
         buck_fixed = self._resolved_penalty_fixed_dofs()
         with _stage("ModifyBucklingGlobalMatrices"):
@@ -545,11 +550,13 @@ class VibrationBucklingBackend:
                 fixed_dofs=buck_fixed,
             ).run(K_global, Kg_global)
         self.buckling_constrained_dofs = np.asarray(bc_dofs)
-        with _stage("SolveLinearBucklingEigenpairs"):
-            lambdas, modes = SolveLinearBucklingEigenpairs(
-                num_modes=num_modes,
-                job_results_dir=job_results_dir,
-            ).run(K_mod, Kg_mod, bc_dofs)
+        with stage("onedfem", "eigen_solve") as rec:
+            with _stage("SolveLinearBucklingEigenpairs"):
+                lambdas, modes = SolveLinearBucklingEigenpairs(
+                    num_modes=num_modes,
+                    job_results_dir=job_results_dir,
+                ).run(K_mod, Kg_mod, bc_dofs)
+            rec.set("modes", int(np.asarray(lambdas).size))
         return lambdas, modes
 
     # -------------------------------------------------------------------------
@@ -744,15 +751,19 @@ class VibrationBucklingBackend:
             )
         rot_cfg = self.simulation_settings.get("rotation") or {}
         if rotation_from_settings(self.simulation_settings) is not None or rot_cfg.get("omega_sweep"):
-            with monitor.stage("RotatingFrameVibration"):
-                frequencies, mode_shapes = self._run_rotating_frame_vibration(
-                    K_global, M_global, bc_dofs, num_modes, rot_cfg
-                )
+            with stage("onedfem", "eigen_solve") as rec:
+                with monitor.stage("RotatingFrameVibration"):
+                    frequencies, mode_shapes = self._run_rotating_frame_vibration(
+                        K_global, M_global, bc_dofs, num_modes, rot_cfg
+                    )
+                rec.set("modes", int(np.asarray(frequencies).size))
         else:
-            with monitor.stage("SolveGeneralizedEigenproblem"):
-                frequencies, mode_shapes = self.solve_vibration_eigenpairs(
-                    K_mod, M_mod, num_modes, job_results_dir, dense_threshold=dense_th
-                )
+            with stage("onedfem", "eigen_solve") as rec:
+                with monitor.stage("SolveGeneralizedEigenproblem"):
+                    frequencies, mode_shapes = self.solve_vibration_eigenpairs(
+                        K_mod, M_mod, num_modes, job_results_dir, dense_threshold=dense_th
+                    )
+                rec.set("modes", int(np.asarray(frequencies).size))
         self.save_vibration_primary_results(frequencies, mode_shapes)
         self.finalize_vibration_secondary_or_post(frequencies, mode_shapes, M_mod)
         logger.info("Modal simulation completed successfully -> %s", self.results_root)

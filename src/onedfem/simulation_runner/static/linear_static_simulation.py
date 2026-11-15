@@ -51,6 +51,13 @@ from onedfem.processing.static.results.postprocess_secondary_tertiary import (
 logger = logging.getLogger(__name__)
 
 
+def _nonzeros(matrix) -> int:
+    nnz = getattr(matrix, "nnz", None)
+    if isinstance(nnz, int) and not isinstance(nnz, bool):
+        return nnz
+    return int(np.count_nonzero(np.asarray(matrix)))
+
+
 class LinearStaticSimulationRunner:
     """
     Linear static finite element analysis (one-shot solve K u = f).
@@ -762,20 +769,23 @@ class LinearStaticSimulationRunner:
         self.setup_simulation()
         self.start_time = datetime.datetime.now()
 
-        with self.monitor.stage("PrepareLocalSystem"):
-            self.prepare_local_system(job_results_dir=self.primary_results_dir)
+        with stage("onedfem", "assemble") as rec:
+            with self.monitor.stage("PrepareLocalSystem"):
+                self.prepare_local_system(job_results_dir=self.primary_results_dir)
 
-        with self.monitor.stage("AssembleGlobalSystem"):
-            (
-                self.K_global,
-                self.F_global,
-                self.local_global_dof_map,
-            ) = self.assemble_global_system(self.primary_results_dir)
+            with self.monitor.stage("AssembleGlobalSystem"):
+                (
+                    self.K_global,
+                    self.F_global,
+                    self.local_global_dof_map,
+                ) = self.assemble_global_system(self.primary_results_dir)
 
-        if force_scale != 1.0:
-            self.F_global = self.F_global * float(force_scale)
+            if force_scale != 1.0:
+                self.F_global = self.F_global * float(force_scale)
 
-        self._add_rotating_frame_terms()
+            self._add_rotating_frame_terms()
+            rec.set("elements", len(self.elements))
+            rec.set("nonzeros", _nonzeros(self.K_global))
         return self._solve_assembled_system()
 
     def _add_rotating_frame_terms(self) -> None:
@@ -803,6 +813,20 @@ class LinearStaticSimulationRunner:
 
     def _solve_assembled_system(self) -> np.ndarray:
         """BC → condense → solve → reconstruct for the assembled ``K_global``, ``F_global``."""
+        with stage("onedfem", "factor") as rec:
+            self._factor_condensed_system()
+            rec.set("free_dof", int(np.asarray(self.K_cond).shape[0]))
+            rec.set("nonzeros", _nonzeros(self.K_cond))
+            solver_name = self.solver_config.get("type", "direct")
+            if isinstance(solver_name, str) and solver_name and not any(ch.isspace() for ch in solver_name):
+                rec.set("solver", solver_name)
+        with stage("onedfem", "recover") as rec:
+            self._reconstruct_global()
+            rec.set("elements", len(self.elements))
+        return self.U_global
+
+    def _factor_condensed_system(self) -> None:
+        """Apply supports, condense, and solve the free system."""
         DiagnoseLinearStaticSystem(
             stage="Global System",
             A_current=self.K_global,
@@ -879,6 +903,8 @@ class LinearStaticSimulationRunner:
                 disable_scaling=self.solver_config.get("disable_scaling", False),
             )
 
+    def _reconstruct_global(self) -> None:
+        """Scatter the condensed solution back to the full displacement vector."""
         with self.monitor.stage("ReconstructGlobalSystem"):
             total_dofs = self.total_dof
             self.U_global = self.reconstruct_global_system(
@@ -890,8 +916,6 @@ class LinearStaticSimulationRunner:
                 inactive_dofs=self.inactive_dofs,
                 local_global_dof_map=self.local_global_dof_map,
             )
-
-        return self.U_global
 
     # -------------------------------------------------------------------------
     # Second order (P-delta)

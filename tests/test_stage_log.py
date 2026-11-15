@@ -28,7 +28,8 @@ def test_public_contract() -> None:
 
     assert LOGGER_NAME == "blade.stage"
     assert [item.name for item in dataclasses.fields(StageReport)] == [
-        "package", "stage", "seconds", "error", "depth", "started"]
+        "package", "stage", "seconds", "error", "depth", "started",
+        "cpu_seconds", "measures"]
     assert callable(stage) and callable(fold_reports)
     assert issubclass(StageCollector, logging.Handler)
 
