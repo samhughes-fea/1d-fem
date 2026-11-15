@@ -63,6 +63,12 @@ def _cg_with_compat(A, b, **kw):
         return spla.cg(A, b, **kw)
 
 
+# Warn when the relative equilibrium residual exceeds this value.
+# An absolute Newton residual of a few micronewtons on a kilonewton load
+# (5.96e-6 N against 4.19e3 N, relative 1.42e-9) is a solved system.
+_RELATIVE_RESIDUAL_WARN = 1e-6
+
+
 def _row_col_scale(A: sp.spmatrix, F: np.ndarray):
     """Symmetric Jacobi row/column scaling (Â = D·A·D, F̂ = D·F)."""
     d = np.abs(A.diagonal())
@@ -70,6 +76,32 @@ def _row_col_scale(A: sp.spmatrix, F: np.ndarray):
     s = 1.0 / np.sqrt(d)
     D = sp.diags(s)
     return D @ A @ D, D @ F, s
+
+
+def _equilibrium_residual(
+    K: sp.spmatrix,
+    U: np.ndarray,
+    F: np.ndarray,
+) -> tuple[float, float]:
+    """Return ``(||KU − F||_2, ||KU − F||_2 / ||F||_2)`` for the unscaled system.
+
+    The relative residual is 0 when both norms are 0, and infinite when ``F``
+    is 0 and the residual is not.
+    """
+    absolute = float(np.linalg.norm(K @ np.asarray(U).ravel() - np.asarray(F).ravel()))
+    force = float(np.linalg.norm(np.asarray(F).ravel()))
+    if force > 0.0:
+        relative = absolute / force
+    elif absolute == 0.0:
+        relative = 0.0
+    else:
+        relative = float("inf")
+    return absolute, relative
+
+
+def _relative_residual_is_high(relative_residual: float) -> bool:
+    """True when the relative equilibrium residual exceeds the warning tolerance."""
+    return float(relative_residual) > _RELATIVE_RESIDUAL_WARN
 
 
 def _build_ilu(A: sp.spmatrix, lg: logging.Logger, 
@@ -98,6 +130,11 @@ class SolveCondensedSystem:
     * iterative solvers registered in ``onedfem.processing.solver_registry``
     * fall-back to direct SuperLU
     * extensive diagnostics + CSV exports
+
+    Jacobi scaling is only a change of variables for the linear solve. The
+    returned displacement is the physical ``U``. The residual reported after
+    the solve is the equilibrium residual of that unscaled system,
+    ``||K U − F||`` and ``||K U − F|| / ||F||``.
     """
 
     @staticmethod
@@ -164,6 +201,10 @@ class SolveCondensedSystem:
 
         # size checks + optional scaling
         self._validate_sizes()
+        # Frozen copies of the physical system. Scaling replaces ``K_cond`` and
+        # ``F_cond``; the equilibrium residual is formed with these.
+        self._K_unscaled = self.K_cond.copy()
+        self._F_unscaled = self.F_cond.copy()
         self._scale_vec: Optional[np.ndarray] = None
         if not self.disable_scaling and os.getenv("FEM_DISABLE_SCALING") is None:
             self.K_cond, self.F_cond, self._scale_vec = _row_col_scale(
@@ -230,10 +271,16 @@ class SolveCondensedSystem:
         if self._scale_vec is not None:
             self.U_cond = self._scale_vec * self.U_cond
 
-        # final residual
-        res_norm = np.linalg.norm(self.K_cond @ self.U_cond - self.F_cond)
-        self.logger.info(f"Condensed residual norm: {res_norm:.3e}")
-        if res_norm > 1e-6:
+        # Equilibrium residual of the unscaled system. ``K_cond`` and ``F_cond``
+        # are still the scaled operators, so ``K_cond @ U - F_cond`` is not a
+        # force residual.
+        res_norm, rel_norm = _equilibrium_residual(
+            self._K_unscaled, self.U_cond, self._F_unscaled)
+        self.diagnostics["equilibrium_residual"] = res_norm
+        self.diagnostics["relative_residual"] = rel_norm
+        self.logger.info(
+            f"Condensed residual norm: {res_norm:.3e} (relative {rel_norm:.3e})")
+        if _relative_residual_is_high(rel_norm):
             self.logger.warning("Residual is high – verify model!")
 
         # exports & report
@@ -243,7 +290,8 @@ class SolveCondensedSystem:
             load_increment_index=load_increment_index,
             newton_iter=newton_iter,
             load_factor=load_factor,
-            condensed_residual_norm=float(res_norm),
+            condensed_residual_norm=res_norm,
+            relative_residual=rel_norm,
         )
         return self.U_cond
 
@@ -414,7 +462,9 @@ class SolveCondensedSystem:
             "solve_phases"  : self.diagnostics["solve_phase"],
             "iters"         : len(self.diagnostics["residuals"]),
             "final_residual": (self.diagnostics["residuals"][-1]
-                               if self.diagnostics["residuals"] else None)
+                               if self.diagnostics["residuals"] else None),
+            "equilibrium_residual": self.diagnostics.get("equilibrium_residual"),
+            "relative_residual": self.diagnostics.get("relative_residual"),
         }
         self.logger.info("📊 Condensed solver report:")
         for k, v in rep.items():
@@ -427,32 +477,29 @@ class SolveCondensedSystem:
         newton_iter: int | None,
         load_factor: float | None,
         condensed_residual_norm: float,
+        relative_residual: float,
     ) -> None:
-        """Append one row to ``logs/inner_solve_history.csv`` (creates header if needed)."""
+        """Append one row to ``logs/inner_solve_history.csv`` (creates header if needed).
+
+        ``condensed_residual_norm`` and, for a direct solve, ``relative_residual``
+        are the equilibrium residual of the unscaled system. An iterative solve
+        still records its callback residual ratio in ``final_relative_residual``.
+        """
         log_dir = self.job_results_dir.parent / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
         path = log_dir / "inner_solve_history.csv"
 
         res_list = self.diagnostics["residuals"]
-        fnorm = float(np.linalg.norm(self.F_cond))
         if self._solve_used_direct_only:
             iterations = -1
-            final_rel = (
-                condensed_residual_norm / max(fnorm, np.finfo(float).tiny)
-                if fnorm > 0
-                else 0.0
-            )
+            final_rel = relative_residual
         elif res_list:
             iterations = len(res_list)
             r0 = max(float(res_list[0]), np.finfo(float).tiny)
             final_rel = float(res_list[-1]) / r0
         else:
             iterations = 0
-            final_rel = (
-                condensed_residual_norm / max(fnorm, np.finfo(float).tiny)
-                if fnorm > 0
-                else 0.0
-            )
+            final_rel = relative_residual
 
         prec = self.preconditioner
         if prec is None:
