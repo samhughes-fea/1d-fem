@@ -815,7 +815,7 @@ class LinearStaticSimulationRunner:
         """BC → condense → solve → reconstruct for the assembled ``K_global``, ``F_global``."""
         with stage("onedfem", "factor") as rec:
             self._factor_condensed_system()
-            rec.set("free_dof", int(np.asarray(self.K_cond).shape[0]))
+            rec.set("free_dof", int(self.K_cond.shape[0]))
             rec.set("nonzeros", _nonzeros(self.K_cond))
             solver_name = self.solver_config.get("type", "direct")
             if isinstance(solver_name, str) and solver_name and not any(ch.isspace() for ch in solver_name):
