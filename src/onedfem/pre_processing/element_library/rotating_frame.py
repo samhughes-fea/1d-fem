@@ -6,13 +6,16 @@ A structure spinning at ``Omega`` (rad/s, vector ``Omega = omega a`` about an ax
 origin) carries the inertia load ``-rho (Omega x (Omega x x) + 2 Omega x u_dot)``.
 
 Kinematics
-    A beam section is rigid in its own plane. Its mass is lumped at four points per Gauss
-    station (``section_point_masses``) that reproduce the section's mass, mass centre and
-    second moments of mass, so the rigid-section mass matrix
+    A beam section is rigid in its own plane on the twelve standard DOFs. Its mass is lumped
+    at four points per Gauss station (``section_point_masses``) that reproduce the section's
+    mass, mass centre and second moments of mass, so the rigid-section mass matrix
     (``SectionAnalysis.mass_matrix``) is recovered exactly. A point at section offset ``r``
     moves by ``u_p = u + theta x r + 1/2 theta x (theta x r)`` with the element's own field
     interpolation of ``u`` and ``theta`` (``beam_field_interpolation``: Hermite bending for
     Euler-Bernoulli elements, linear for the others), so ``u_p = Phi U_e`` to first order.
+    Warping ``ψ`` and GBT ``b_j`` add an axial displacement ``ω`` at those points
+    (orthogonal to ``{1, y, z}``, scaled to ``I_ω``); distortional ``a_k`` adds in-plane
+    motion from the mass centre and its slope the same axial ``ω``.
 
 Element terms (``W = [Omega x]``, ``f_p = -m_p W^2 X_p`` the centrifugal force on a point)
     - centrifugal load    ``f_c = sum Phi^T f_p``
@@ -34,10 +37,13 @@ Prestress
     ``M q'' + G q' + (K + K_sigma + K_soft + K_rot) q = 0``.
 
 Limitations
-    Straight elements (rotated and twisted allowed): a curved element raises. Warping and
-    other higher-order DOFs carry no rotating-frame terms. The section points use the
-    element's start frame, turned about the element axis by the twist between its two node
-    frames.
+    Straight elements (rotated and twisted allowed): a curved element raises. Reddy
+    slopes (``v'``, ``w'``) carry no rotating-frame terms. Warping ``χ``/``ψ`` and GBT
+    extras (``b_j``, ``a_k``, ``a_k'``) do: four-point warping orthogonal to ``{1, y, z}``
+    along the beam axis, distortional ``a_k`` in-plane from the mass centre (radial, then
+    circumferential). There is no geometrically exact kernel and no nonlinear buckling
+    here. The section points use the element's start frame, turned about the element
+    axis by the twist between its two node frames.
 
 Public API
 ----------
@@ -159,8 +165,10 @@ def section_point_masses(mass: Dict[str, float]) -> Tuple[npt.NDArray[np.float64
 
 def _section_mass(element) -> Dict[str, float]:
     """Section mass properties of an element (second moments about the section origin)."""
-    sa = getattr(element, "section_analysis", None)
-    if getattr(element, "has_thin_walled_section", False) and sa is not None and getattr(sa, "mass", None):
+    sa = None
+    if getattr(element, "has_thin_walled_section", False):
+        sa = getattr(element, "section_analysis", None)
+    if sa is not None and getattr(sa, "mass", None):
         mp = dict(sa.mass)
         return {k: float(mp.get(k, 0.0)) for k in ("m", "y_m", "z_m", "I_yy", "I_zz", "I_yz")}
     rho = float(element.material_array[3])
@@ -189,7 +197,8 @@ def element_rotating_frame(element, p0: npt.ArrayLike, p1: npt.ArrayLike, rotati
     """Rotating-frame terms of one straight element from ``p0`` to ``p1`` (global), node frames ``R0``, ``R1``.
 
     Frames default to the element's own (``_frame_R0`` / ``_frame_R1``), else global axes.
-    ``n_dof`` defaults to the element's DOF count; DOFs past the first 12 get no terms.
+    ``n_dof`` defaults to the element's DOF count. Warping and GBT extras after the
+    first 12 take centrifugal and Coriolis terms; Reddy slopes do not.
     """
     if getattr(element, "_frame_arc", None) is not None:
         raise NotImplementedError(
@@ -234,6 +243,7 @@ def element_rotating_frame(element, p0: npt.ArrayLike, p1: npt.ArrayLike, rotati
         offs = (Rs[:, 1:3] @ yz.T).T                       # (4, 3) section offsets, global
         pos = axis_pt[None, :] + offs
         Phi = np.stack([U_ax - _skew(r) @ Theta for r in offs])   # theta x r = -[r x] theta
+        _add_extra_phi(Phi, element, yz, mp, Rs, float(xi), L, n_dof)
         forces = -(mp[:, None] * (W2 @ pos.T).T)          # centrifugal force per length
         for k in range(4):
             Pk = Phi[k]
@@ -250,6 +260,132 @@ def element_rotating_frame(element, p0: npt.ArrayLike, p1: npt.ArrayLike, rotati
         element_id=int(element.element_id), rotation=rotation, f_c=f_c,
         K_soft=0.5 * (K_soft + K_soft.T), K_rot=0.5 * (K_rot + K_rot.T), G=0.5 * (G - G.T),
         gauss_data=cache)
+
+
+def _discrete_warping(yz: npt.NDArray[np.float64], masses: npt.NDArray[np.float64],
+                      inertia: float) -> npt.NDArray[np.float64]:
+    """Warping ``ω`` at the four points, orthogonal to ``{1, y, z}``, with ``m·ω² = inertia``.
+
+    The points sit on the principal axes, so a continuum ``yz`` warping is zero there.
+    The leftover 4-point null space of the rigid axial and bending modes is the unique
+    discrete warping the four masses can carry.
+    """
+    if inertia <= 0.0:
+        return np.zeros(4)
+    m = np.asarray(masses, dtype=np.float64)
+    y, z = yz[:, 0], yz[:, 1]
+    _, _, vh = np.linalg.svd(np.vstack([m, m * y, m * z]), full_matrices=True)
+    omega = vh[-1].copy()
+    scale = float(m @ (omega * omega))
+    if scale <= 0.0:
+        return np.zeros(4)
+    return omega * np.sqrt(inertia / scale)
+
+
+def _inplane_pattern(yz: npt.NDArray[np.float64], masses: npt.NDArray[np.float64],
+                     mode: int, inertia: float) -> npt.NDArray[np.float64]:
+    """(4, 2) in-plane motion at the point masses for distortional mode ``mode``.
+
+    Even modes are radial from the mass centre; odd modes are circumferential.
+    Scaled so ``Σ m |u|² = inertia``.
+    """
+    if inertia <= 0.0:
+        return np.zeros((4, 2))
+    m = np.asarray(masses, dtype=np.float64)
+    c = np.array([np.average(yz[:, 0], weights=m), np.average(yz[:, 1], weights=m)])
+    d = yz - c
+    pat = d.copy() if mode % 2 == 0 else np.column_stack((-d[:, 1], d[:, 0]))
+    ke = float(m @ np.sum(pat * pat, axis=1))
+    if ke <= 0.0:
+        return np.zeros((4, 2))
+    return pat * np.sqrt(inertia / ke)
+
+
+def _gbt_hermite(xi: float, L: float) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """Hermite ``(H, dH/dx)`` for ``(a1, a1', a2, a2')`` on ``x = (1 + xi) L / 2``."""
+    x = 0.5 * (1.0 + float(xi))
+    H = np.array([1 - 3 * x**2 + 2 * x**3, L * (x - 2 * x**2 + x**3),
+                  3 * x**2 - 2 * x**3, L * (-x**2 + x**3)])
+    dH = np.array([-6 * x + 6 * x**2, L * (1 - 4 * x + 3 * x**2),
+                   6 * x - 6 * x**2, L * (-2 * x + 3 * x**2)]) / L
+    return H, dH
+
+
+def _skip_reddy_slopes(element) -> bool:
+    """True when extra DOFs are Reddy ``v'``, ``w'``, not warping or GBT amplitudes."""
+    if getattr(element, "restrained_warping", False) or getattr(element, "cross_section_modes", False):
+        return False
+    return int(getattr(element, "extra_dofs", 0) or 0) > 0
+
+
+def _warping_inertia(element) -> float:
+    sa = getattr(element, "section_analysis", None)
+    if sa is not None:
+        return float(getattr(sa, "warping_inertia", 0.0) or 0.0)
+    return 0.0
+
+
+def _gbt_mass(element):
+    sa = getattr(element, "section_analysis", None)
+    if sa is None or not hasattr(sa, "gbt_matrices"):
+        return None
+    n_modes = int(getattr(element, "n_modes", 0) or 0)
+    n_shear = int(getattr(element, "n_shear", 0) or 0)
+    try:
+        return sa.gbt_matrices(n_modes, n_shear)[1]
+    except (TypeError, ValueError, AttributeError):
+        return getattr(sa, "gbt_mass", None)
+
+
+def _mass_diag(mass, index: int) -> float:
+    if mass is None:
+        return 0.0
+    m = np.asarray(mass, dtype=np.float64)
+    if m.ndim != 2 or index >= m.shape[0]:
+        return 0.0
+    return float(m[index, index])
+
+
+def _add_extra_phi(Phi: npt.NDArray[np.float64], element, yz, mp, Rs, xi: float, L: float,
+                   n_dof: int) -> None:
+    """Fill warping / GBT columns of ``Phi`` (4, 3, n_dof) in place. Reddy slopes stay zero."""
+    extra = n_dof - 12
+    if extra <= 0 or extra % 2 or _skip_reddy_slopes(element):
+        return
+    e = extra // 2
+    L1, L2 = 0.5 * (1.0 - xi), 0.5 * (1.0 + xi)
+    ex = Rs[:, 0]
+    if getattr(element, "cross_section_modes", False):
+        n_w = int(getattr(element, "n_warping", e) or 0)
+        n_m = int(getattr(element, "n_modes", 0) or 0)
+        Ms = _gbt_mass(element)
+        I0 = _warping_inertia(element)
+        for j in range(n_w):
+            inertia = _mass_diag(Ms, 6 + j) or (I0 if j == 0 else 0.0)
+            omega = _discrete_warping(yz, mp, inertia)
+            for p in range(4):
+                u = omega[p] * ex
+                Phi[p, :, 12 + j] += L1 * u
+                Phi[p, :, 12 + e + j] += L2 * u
+        H, dH = _gbt_hermite(xi, L)
+        for k in range(n_m):
+            I_a = _mass_diag(Ms, 6 + n_w + k)
+            I_ap = _mass_diag(Ms, 6 + n_w + n_m + k)
+            radial = _inplane_pattern(yz, mp, k, I_a)
+            omega = _discrete_warping(yz, mp, I_ap)
+            cols = (12 + n_w + 2 * k, 12 + n_w + 2 * k + 1,
+                    12 + e + n_w + 2 * k, 12 + e + n_w + 2 * k + 1)
+            for p in range(4):
+                u_in = Rs[:, 1:3] @ radial[p]
+                u_ax = omega[p] * ex
+                for a, col in enumerate(cols):
+                    Phi[p, :, col] += H[a] * u_in + dH[a] * u_ax
+        return
+    omega = _discrete_warping(yz, mp, _warping_inertia(element))
+    for p in range(4):
+        u = omega[p] * ex
+        Phi[p, :, 12] += L1 * u
+        Phi[p, :, 12 + e] += L2 * u
 
 
 def rotation_from_settings(simulation_settings: Dict[str, Any]) -> Optional[Rotation]:
