@@ -26,6 +26,7 @@ from onedfem.processing.harmonic.operations import (
 )
 from onedfem.processing.static.diagnostics.runtime_monitor_telemetry import RuntimeMonitorTelemetry
 from onedfem.pre_processing.element_library.dof_layout import mesh_dof_per_node
+from onedfem.processing.eigen.added_mass import add_labelled_added_mass, mesh_arrays
 
 logger = logging.getLogger(__name__)
 
@@ -184,6 +185,7 @@ class HarmonicSimulationRunner:
 
         self.K_global = None
         self.M_global = None
+        self.added_mass_objects = None
         self.F_global = None
         self.K_mod = None
         self.M_mod = None
@@ -388,6 +390,17 @@ class HarmonicSimulationRunner:
             total_dof=total_dof,
             job_results_dir=modal_assembly_dir,
         ).run()
+        coords, conn = mesh_arrays(self.settings)
+        if coords is not None and conn is not None:
+            M_global, self.added_mass_objects = add_labelled_added_mass(
+                M_global,
+                elements=el_flat,
+                coordinates=coords,
+                connectivity=conn,
+                simulation_settings=self.simulation_settings,
+                total_dof=total_dof,
+                results_dir=self.primary_results_dir,
+            )
         self.K_global = K_global
         self.M_global = M_global
         return K_global, M_global

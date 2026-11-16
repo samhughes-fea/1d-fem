@@ -7,7 +7,7 @@ Short reference for where result types live and how optional/unused computers ar
 - **Global**: primary only (K, F, U, R_global, R_residual, etc.). Model totals (strain energy, external work, free-DOF equilibrium residual) live on ``StaticResult.totals`` / ``primary_results/totals.csv``.
 - **Gaussian**: secondary (strain, stress, energy density, physical ``gauss_coords`` and quadrature ``gauss_weights``); tertiary (section forces, principal stress).
 - **Nodal**: secondary (projected strain, stress, energy density).
-- **Elemental**: primary (K_e, F_e, U_e, R_e, R_residual_e); tertiary (total strain energy, integrated section forces). Modal: per-element strain energy ``0.5 φ_eᵀ K_e φ_e``.
+- **Elemental**: primary (K_e, F_e, U_e, R_e, R_residual_e); tertiary (total strain energy, integrated section forces, Zienkiewicz–Zhu energy-norm error indicator from Gauss resultants vs the nodal-projected recovered field). Modal: per-element strain energy ``0.5 φ_eᵀ K_e φ_e``. The error indicator is an API on existing Gauss results; it does not refine the mesh.
 
 ## Unused / optional result computers
 

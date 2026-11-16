@@ -94,6 +94,11 @@ class SaveTertiaryResults:
             self._save_nodal_section_forces()
             saved_count += 1
 
+        if self.results.element_error_eta is not None:
+            logger.info("\n[5/5] Saving element error estimate...")
+            self._save_element_error_estimate()
+            saved_count += 1
+
         logger.info("\n" + "=" * 70)
         logger.info(f"✅ TERTIARY RESULTS SAVED ({saved_count} categories)")
         logger.info(f"   Location: {self.tertiary_dir}")
@@ -170,6 +175,21 @@ class SaveTertiaryResults:
             f.write(self._SECTION_FORCE_FORMAT_LINE)
             np.savetxt(f, arr, delimiter=",", fmt="%.12e", header="N,Vy,Vz,T,My,Mz", comments="")
         logger.info(f"   ✓ Nodal section forces saved: {len(arr)} nodes")
+
+    def _save_element_error_estimate(self):
+        """Save per-element ZZ energy-norm indicators. No adaptivity."""
+        eta = list(self.results.element_error_eta)
+        rel = list(self.results.element_error_eta_rel or [float("nan")] * len(eta))
+        data = {
+            "element_id": range(len(eta)),
+            "eta": eta,
+            "eta_rel": rel,
+        }
+        df = pd.DataFrame(data)
+        filename = self.elemental_dir / "element_error_estimate.csv"
+        df.to_csv(filename, index=False, float_format="%.12e")
+        logger.info("   ✓ Element error estimate saved: %s elements (eta_global=%s)",
+                    len(eta), self.results.element_error_eta_global)
 
 
 class SaveTertiaryResultsSummary:

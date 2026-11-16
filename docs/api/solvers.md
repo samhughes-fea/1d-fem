@@ -81,6 +81,21 @@ Eigenproblems and spectral assembly helpers (taxonomy §2).
 - **`apply_boundary_conditions(K_global: scipy.sparse._csr.csr_matrix, M_global: scipy.sparse._csr.csr_matrix, fixed_dofs: Union[Sequence[int], numpy.ndarray, NoneType] = None, prescribed_displacements: Optional[dict] = None) -> Tuple[scipy.sparse._csr.csr_matrix, scipy.sparse._csr.csr_matrix, numpy.ndarray]`**
   Apply BCs to both K and M (penalty method): fixed DOFs get zero row/col, diagonal K = penalty, diagonal M = 1.0.
 
+### `onedfem.processing.eigen.added_mass`
+
+[src/onedfem/processing/eigen/added_mass.py](../../src/onedfem/processing/eigen/added_mass.py)
+
+Assemble the labelled strip-heave added-mass matrix onto global DOFs.
+
+- **`assemble_added_mass(elements: Sequence, coordinates: npt.ArrayLike, connectivity: Sequence, model: AddedMass, total_dof: int) -> Tuple[sp.csr_matrix, List[AddedMassObject]]`**
+  Global ``M_a`` (sparse) and the per-element added-mass objects.
+- **`add_labelled_added_mass(M: sp.spmatrix, *, elements: Sequence, coordinates: npt.ArrayLike, connectivity: Sequence, simulation_settings: Dict[str, Any], total_dof: int, results_dir: Optional[str] = None) -> Tuple[sp.csr_matrix, Optional[List[AddedMassObject]]]`**
+  Add strip-heave ``M_a`` when the labelled model is on; otherwise return ``M``.
+- **`write_added_mass_gauss(objs: Sequence[AddedMassObject], out_dir: str) -> str`**
+  Write the labelled model and ``added_mass_gauss.csv`` under ``out_dir``.
+- **`mesh_arrays(settings: Dict[str, Any])`**
+  Node coordinates and element connectivity from a runner ``settings`` dict.
+
 ### `onedfem.processing.eigen.metrics`
 
 [src/onedfem/processing/eigen/metrics/__init__.py](../../src/onedfem/processing/eigen/metrics/__init__.py)
