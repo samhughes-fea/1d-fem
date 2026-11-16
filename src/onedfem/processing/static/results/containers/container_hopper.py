@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass
 from typing import Optional, List
-from .global_results import GlobalResults
+import numpy as np
+from .global_results import GlobalResults, ModelTotals
 from .elemental_results import ElementalResults
 from .nodal_results import NodalResults
 from .gaussian_results import GaussianResults
@@ -96,3 +97,19 @@ class IndexMapSet:
     modification_map: Optional[List[MapEntry]] = None
     condensation_map: Optional[List[MapEntry]] = None
     reconstruction_map: Optional[List[MapEntry]] = None
+
+
+@dataclass
+class StaticResult:
+    """In-memory result of a linear static run. The job tree is still written.
+
+    ``displacements`` is the reconstructed global vector. ``primary``, ``secondary``
+    and ``tertiary`` are the containers already saved under the job results root.
+    ``totals`` is the model strain energy, external work and free-DOF residual.
+    """
+
+    displacements: np.ndarray
+    primary: PrimaryResultSet
+    secondary: SecondaryResultSet
+    tertiary: TertiaryResults
+    totals: ModelTotals

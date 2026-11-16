@@ -26,8 +26,12 @@ class GaussianResults:
     """
     
     gauss_coords: Optional[List[np.ndarray]] = None
-    # Shape: List[element] -> np.ndarray(n_gauss_points, dim)
-    # Physical coordinates of integration points
+    # Shape: List[element] -> np.ndarray(n_gauss_points, 3)
+    # Physical axis coordinates of integration points
+
+    gauss_weights: Optional[List[np.ndarray]] = None
+    # Shape: List[element] -> np.ndarray(n_gauss_points,)
+    # Quadrature weights at those integration points (the Gauss-Legendre w_g)
 
     gauss_points: Optional[List[tuple]] = None
     # One (element_id, gauss_point, xi, weight) per Gauss point, in the order of the strain rows

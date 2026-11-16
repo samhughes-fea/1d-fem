@@ -32,7 +32,13 @@ from onedfem.processing.static.results.containers.global_results import GlobalRe
 from onedfem.processing.static.results.containers.elemental_results import ElementalResults
 from onedfem.processing.static.results.containers.nodal_results import NodalResults
 from onedfem.processing.static.results.containers.gaussian_results import GaussianResults
-from onedfem.processing.static.results.containers.container_hopper import PrimaryResultSet, SecondaryResultSet, IndexMapSet
+from onedfem.processing.static.results.containers.container_hopper import (
+    PrimaryResultSet,
+    SecondaryResultSet,
+    IndexMapSet,
+    StaticResult,
+)
+from onedfem.processing.static.results.containers.global_results import ModelTotals
 
 # Results: compute (orchestrators + formulation)
 from onedfem.processing.static.results.compute_primary.element_formulation_processor import ElementFormulationProcessor
@@ -62,7 +68,9 @@ class LinearStaticSimulationRunner:
     """
     Linear static finite element analysis (one-shot solve K u = f).
 
-    Full jobs call :meth:`run`. Buckling prestress calls :meth:`solve_linear_system_only`.
+    Full jobs call :meth:`run`, which writes the result tree and returns a
+    :class:`~onedfem.processing.static.results.containers.container_hopper.StaticResult`.
+    Buckling prestress calls :meth:`solve_linear_system_only`.
     """
 
     def __init__(
@@ -960,8 +968,39 @@ class LinearStaticSimulationRunner:
             )
         return self.U_global
 
-    def run(self) -> None:
-        """Execute the complete linear-static workflow."""
+    def compute_model_totals(self) -> ModelTotals:
+        """Sum element strain energy, ``0.5 U^T F``, and the unscaled free-DOF residual."""
+        energies = getattr(self.tertiary_results, "total_strain_energy", None) or []
+        strain_energy = float(np.sum(np.asarray(energies, dtype=np.float64))) if len(energies) else 0.0
+        U = np.asarray(self.U_global, dtype=np.float64).ravel()
+        F = np.asarray(self.F_global, dtype=np.float64).ravel()
+        residual = getattr(self, "R_residual", None)
+        if residual is None:
+            residual = np.asarray(F, dtype=np.float64).ravel() - np.asarray(
+                self.K_global @ U, dtype=np.float64
+            ).ravel()
+        else:
+            residual = np.asarray(residual, dtype=np.float64).ravel()
+        free = np.asarray(getattr(self, "condensed_dofs", np.arange(residual.size)), dtype=int)
+        if free.size:
+            eq = float(np.linalg.norm(residual[free]))
+        else:
+            eq = float(np.linalg.norm(residual))
+        totals = ModelTotals(
+            strain_energy=strain_energy,
+            external_work=0.5 * float(U @ F),
+            equilibrium_residual=eq,
+        )
+        self.model_totals = totals
+        return totals
+
+    def run(self) -> StaticResult:
+        """Execute the complete linear-static workflow and return the in-memory result.
+
+        Primary, secondary and tertiary files are still written under the job
+        results root. The return is the same data: displacements, the three
+        result sets, and the model totals.
+        """
         try:
             self.solve_linear_system_only(force_scale=1.0)
             if str(self.static_config.get("second_order", "none")).lower() == "p_delta":
@@ -987,7 +1026,20 @@ class LinearStaticSimulationRunner:
             with self.monitor.stage("ComputeTertiaryResults"):
                 self.compute_tertiary_results()
 
+            with self.monitor.stage("ComputeModelTotals"):
+                totals = self.compute_model_totals()
+                totals.to_csv(os.path.join(self.primary_results_dir, "totals.csv"))
+
+            result = StaticResult(
+                displacements=np.asarray(self.U_global, dtype=np.float64).ravel(),
+                primary=self.primary_results,
+                secondary=self.secondary_results_set,
+                tertiary=self.tertiary_results,
+                totals=totals,
+            )
+            self.static_result = result
             logger.info("🏁 Simulation completed successfully → %s", self.results_root)
+            return result
 
         except Exception as exc:
             logger.exception("💥 Simulation failed with critical error")

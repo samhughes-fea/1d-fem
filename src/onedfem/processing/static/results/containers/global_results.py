@@ -1,7 +1,8 @@
 # processing\static\results\containers\global_results.py
 
 from dataclasses import dataclass
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Union
 import numpy as np
 import scipy.sparse as sp
 
@@ -34,3 +35,28 @@ class GlobalResults:
     newton_converged: Optional[bool] = None
     newton_iterations_total: Optional[int] = None
     load_increments_completed: Optional[int] = None
+
+
+@dataclass
+class ModelTotals:
+    """Whole-model scalars of a linear static solve.
+
+    ``strain_energy`` is the sum of the per-element integrated strain energies.
+    ``external_work`` is ``0.5 U^T F`` of the assembled load. ``equilibrium_residual``
+    is the unscaled free-DOF residual ``||(F - K U)[free]||``.
+    """
+
+    strain_energy: float
+    external_work: float
+    equilibrium_residual: float
+
+    def to_csv(self, path: Union[str, Path]) -> Path:
+        """Write ``quantity,value`` rows. Returns the path written."""
+        out = Path(path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with out.open("w", encoding="utf-8") as handle:
+            handle.write("quantity,value\n")
+            handle.write(f"strain_energy,{self.strain_energy:.16e}\n")
+            handle.write(f"external_work,{self.external_work:.16e}\n")
+            handle.write(f"equilibrium_residual,{self.equilibrium_residual:.16e}\n")
+        return out

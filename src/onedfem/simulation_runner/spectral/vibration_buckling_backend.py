@@ -272,6 +272,8 @@ class VibrationBucklingBackend:
         self, frequencies, mode_shapes, M_mod
     ) -> None:
         """Either formulation-cache post or native secondary .txt metrics."""
+        self._compute_modal_element_strain_energy(mode_shapes)
+        self._save_modal_element_strain_energy()
         if self._modal_post_processing_enabled():
             U_snap = self._snapshot_u_vibration(mode_shapes)
             self._run_secondary_tertiary_from_formulation_cache(U_snap)
@@ -699,6 +701,60 @@ class VibrationBucklingBackend:
         logger.info(
             "Computed modal generalized mass and load participation for %s mode(s).", n_modes
         )
+
+    def _compute_modal_element_strain_energy(self, mode_shapes) -> np.ndarray:
+        """Per-element modal strain energy ``0.5 φ_e^T K_e φ_e`` for each mode.
+
+        Shape is ``(n_elements, n_modes)``. The sum over elements of a column
+        is ``0.5 φ^T K φ`` of the unpenalized assembled stiffness.
+        """
+        phi = np.asarray(mode_shapes, dtype=np.float64)
+        el_list = list(np.asarray(self.elements, dtype=object).ravel())
+        if phi.ndim != 2 or not el_list:
+            energy = np.zeros((0, 0), dtype=np.float64)
+            self.secondary_results["element"]["modal_strain_energy"] = energy
+            self.modal_element_strain_energy = energy
+            return energy
+        n_modes = phi.shape[1]
+        stiffness = self.element_stiffness_matrices
+        energy = np.zeros((len(el_list), n_modes), dtype=np.float64)
+        for i, element in enumerate(el_list):
+            dof = np.asarray(element.assemble_global_dof_indices(), dtype=int)
+            if stiffness is not None and i < len(stiffness):
+                Ke = stiffness[i]
+            else:
+                Ke = element.element_stiffness_matrix().K_e
+            if isinstance(Ke, spmatrix):
+                Ke = Ke.toarray()
+            Ke = np.asarray(Ke, dtype=np.float64)
+            for j in range(n_modes):
+                phi_e = phi[dof, j]
+                energy[i, j] = 0.5 * float(phi_e @ Ke @ phi_e)
+        self.secondary_results["element"]["modal_strain_energy"] = energy
+        self.modal_element_strain_energy = energy
+        logger.info(
+            "Computed per-element modal strain energy for %s element(s) and %s mode(s).",
+            energy.shape[0],
+            energy.shape[1],
+        )
+        return energy
+
+    def _save_modal_element_strain_energy(self) -> None:
+        energy = np.asarray(
+            self.secondary_results.get("element", {}).get("modal_strain_energy", np.zeros((0, 0))),
+            dtype=np.float64,
+        )
+        results_dir = os.path.join(self.primary_results_dir, "modal_results")
+        os.makedirs(results_dir, exist_ok=True)
+        path = os.path.join(results_dir, f"{self.job_name}_modal_element_strain_energy.csv")
+        n_modes = int(energy.shape[1]) if energy.ndim == 2 else 0
+        header = "element_id" + "".join(f",mode_{j}" for j in range(n_modes))
+        if energy.size == 0:
+            np.savetxt(path, np.zeros((0, 1 + n_modes)), delimiter=",", header=header, comments="")
+        else:
+            rows = np.column_stack([np.arange(energy.shape[0], dtype=np.float64), energy])
+            np.savetxt(path, rows, delimiter=",", fmt="%.16e", header=header, comments="")
+        logger.info("Saved per-element modal strain energy.")
 
     def _save_secondary_results(self):
         """Save secondary modal results."""
