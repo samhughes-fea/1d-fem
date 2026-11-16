@@ -49,4 +49,6 @@ difference from the reference at every speed.
 
 - the propeller moment: ω² = ω₀² + Ω² (I_z − I_y)/(I_y + I_z), exact;
 - the centrifugal stretch of a bar in a static job, against the closed-form solution with spin softening;
-- the point masses, which reproduce the section mass properties.
+- the point masses, which reproduce the section mass properties;
+- warping and GBT extras: spin softening of ``I_ω`` on ``ψ``, and of the section mass of
+  ``a_k``, with Reddy slopes left inert.

@@ -48,6 +48,49 @@ def _mode(r, component):
     raise AssertionError("no such mode")
 
 
+def _fake_beam(n_dof=12, restrained_warping=False, cross_section_modes=False, extra_dofs=0,
+               warping_inertia=0.0, n_warping=0, n_modes=0, n_shear=0, gbt_mass=None,
+               curved=False, mass=None):
+    """Minimal straight beam for ``element_rotating_frame`` (duck typed)."""
+    mp = mass or {"m": 2.0, "y_m": 0.0, "z_m": 0.0, "I_yy": 0.08, "I_zz": 0.02, "I_yz": 0.0}
+    I_w = float(warping_inertia)
+    Ms = gbt_mass
+    n_w, n_m, n_s = n_warping, n_modes, n_shear
+    n = n_dof
+    warp, gbt, extra, is_curved = restrained_warping, cross_section_modes, extra_dofs, curved
+
+    class _SA:
+        mass = mp
+        warping_inertia = I_w
+
+        def gbt_matrices(self, n_modes, n_shear=0):
+            if Ms is None:
+                raise ValueError("no GBT matrices")
+            return np.zeros_like(Ms), np.asarray(Ms, dtype=np.float64)
+
+    class _El:
+        element_id = 0
+        material_array = np.array([0.0, 0.0, 0.0, 1000.0])
+        A, I_y, I_z = 1e-3, 1e-7, 4e-7
+        bending_interpolation = "linear"
+        has_thin_walled_section = True
+        section_analysis = _SA()
+        _frame_arc = object() if is_curved else None
+        _frame_R0 = np.eye(3)
+        _frame_R1 = np.eye(3)
+        extra_dofs = extra
+        restrained_warping = warp
+        cross_section_modes = gbt
+        n_warping = n_w
+        n_modes = n_m
+        n_shear = n_s
+
+        def assemble_global_dof_indices(self):
+            return np.arange(n)
+
+    return _El()
+
+
 def test_point_masses_reproduce_the_section_mass():
     mp = {"m": 2.0, "y_m": 0.1, "z_m": -0.05, "I_yy": 0.03, "I_zz": 0.08, "I_yz": 0.01}
     yz, m = section_point_masses(mp)
@@ -110,6 +153,71 @@ def test_propeller_moment(tmp_path):
         # the centrifugal tension stiffens torsion further
         r = rotating_frame_vibration(*sys, Rotation(Om, (0, 0, 1)), 12, gyroscopic=False)
         assert _mode(r, 3) ** 2 > 1.1 * (w0 ** 2 + Om ** 2 * (Iz - Iy) / (Iz + Iy))
+
+
+def test_straight_beam_phi_stays_twelve_columns():
+    from onedfem.pre_processing.element_library.rotating_frame import element_rotating_frame
+
+    el = _fake_beam(12)
+    o = element_rotating_frame(el, [0, 0, 0], [1, 0, 0], Rotation(10.0, (0, 0, 1)))
+    assert o.gauss_data[0].Phi.shape == (4, 3, 12)
+
+
+def test_reddy_slopes_get_no_rotating_frame_terms():
+    from onedfem.pre_processing.element_library.rotating_frame import element_rotating_frame
+
+    el = _fake_beam(16, extra_dofs=2, warping_inertia=1e-6)
+    o = element_rotating_frame(el, [0, 0, 0], [1, 0, 0], Rotation(10.0, (0, 0, 1)))
+    assert o.gauss_data[0].Phi.shape == (4, 3, 16)
+    assert np.allclose(o.gauss_data[0].Phi[:, :, 12:], 0.0)
+    assert np.allclose(o.K_soft[12:, :], 0.0) and np.allclose(o.G[12:, :], 0.0)
+
+
+def test_warping_dofs_take_spin_softening_of_the_warping_inertia():
+    from onedfem.pre_processing.element_library.rotating_frame import element_rotating_frame
+
+    I_w, L, Om = 4.0e-6, 2.0, 25.0
+    el12 = _fake_beam(12)
+    el14 = _fake_beam(14, restrained_warping=True, warping_inertia=I_w)
+    rot = Rotation(Om, (0, 0, 1))
+    a = element_rotating_frame(el12, [0, 0, 0], [L, 0, 0], rot)
+    b = element_rotating_frame(el14, [0, 0, 0], [L, 0, 0], rot)
+    assert b.gauss_data[0].Phi.shape == (4, 3, 14)
+    assert np.allclose(b.K_soft[:12, :12], a.K_soft, atol=1e-12 * max(np.abs(a.K_soft).max(), 1.0))
+    psi = np.zeros(14)
+    psi[12:] = 1.0
+    # constant ψ: u_p = ω_p e_x, so u^T K_soft u = I_ω L (e_x · W² · e_x) = -Ω² I_ω L
+    assert psi @ b.K_soft @ psi == pytest.approx(-Om ** 2 * I_w * L, rel=1e-9)
+    assert np.allclose(b.G, -b.G.T)
+    assert abs(psi @ b.G @ psi) < 1e-18
+    # extra columns are axial: orthogonal to a rigid translation, so no 12-block leak
+    assert np.linalg.norm(b.K_soft[:12, 12:]) < 1e-12 * max(np.abs(b.K_soft).max(), 1.0)
+
+
+def test_gbt_extras_take_radial_and_warping_inertia():
+    from onedfem.pre_processing.element_library.rotating_frame import element_rotating_frame
+
+    I_w, I_a, I_ap, L, Om = 3.0e-6, 0.5, 1.0e-6, 1.0, 10.0
+    Ms = np.diag([2.0, 2.0, 2.0, 0.1, 0.08, 0.02, I_w, I_a, I_ap])
+    el = _fake_beam(18, restrained_warping=True, cross_section_modes=True, n_warping=1, n_modes=1,
+                    gbt_mass=Ms, warping_inertia=I_w)
+    o_z = element_rotating_frame(el, [0, 0, 0], [L, 0, 0], Rotation(Om, (0, 0, 1)))
+    assert o_z.gauss_data[0].Phi.shape == (4, 3, 18)
+    b = np.zeros(18)
+    b[12] = b[12 + 3] = 1.0
+    assert b @ o_z.K_soft @ b == pytest.approx(-Om ** 2 * I_w * L, rel=1e-9)
+    o_x = element_rotating_frame(el, [0, 0, 0], [L, 0, 0], Rotation(Om, (1, 0, 0)))
+    a = np.zeros(18)
+    a[13] = a[13 + 3] = 1.0   # a_k at both nodes, a' = 0
+    assert a @ o_x.K_soft @ a == pytest.approx(-Om ** 2 * I_a * L, rel=1e-9)
+
+
+def test_curved_elements_still_raise():
+    from onedfem.pre_processing.element_library.rotating_frame import element_rotating_frame
+
+    el = _fake_beam(14, restrained_warping=True, warping_inertia=1e-6, curved=True)
+    with pytest.raises(NotImplementedError, match="curved"):
+        element_rotating_frame(el, [0, 0, 0], [1, 0, 0], Rotation(1.0, (0, 0, 1)))
 
 
 def test_campbell_rows_and_gauss_data(tmp_path):
