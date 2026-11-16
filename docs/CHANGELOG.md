@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- **Added mass in water as a labelled strip-heave model.** A `[AddedMass]` block (`model = strip_heave`, `rho_fluid`, `chord`, optional `heave_local_axis`) adds consistent mass `M_a` from the Newman (1977) / Theodorsen (1935) 2-D flat-plate formula `m_a' = rho_fluid * pi * (chord/2)**2` on the section-normal translation. The default is off: no block leaves the structural mass unchanged. The model is potential flow, not a measured frequency in water; no coefficient is fitted. Eigen, transient and harmonic jobs attach `M_a` after assembling `M`. Formula and source are written to `primary_results/added_mass/`.
+- **Element error estimate from Gauss results.** `element_error_indicators` returns the Zienkiewicz–Zhu (1987) energy-norm indicator per element from Gauss stress resultants versus the nodal-projected recovered field (`D` and `|J|` from the formulation cache). Static tertiary results write `tertiary_results/elemental/element_error_estimate.csv`. There is no adaptivity loop.
 - **Rotating-frame terms on warping and GBT extras.** Centrifugal load, spin softening and
   Coriolis now act on restrained-warping ``ψ``/``χ`` and GBT ``b_j``, ``a_k``, ``a_k'``,
   not only on the twelve rigid-section DOFs. The four point masses carry a discrete

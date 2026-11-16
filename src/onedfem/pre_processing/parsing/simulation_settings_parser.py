@@ -160,6 +160,14 @@ def _get_defaults():
             "prestress": True,          # centrifugal stiffening (K_sigma of the centrifugal state)
             "omega_sweep": None,        # eigen: list of rad/s for a Campbell table
         },
+        # Labelled strip-heave added mass in water. Off while model, rho_fluid
+        # and chord are unset. See pre_processing/element_library/added_mass.py.
+        "added_mass": {
+            "model": None,              # strip_heave
+            "rho_fluid": None,          # kg/m^3; not defaulted to seawater
+            "chord": None,              # m; plate chord in the Newman/Theodorsen formula
+            "heave_local_axis": "z",    # local y or z (section-normal heave)
+        },
     }
 
 def _validate_parallel_config(parallel_config):
@@ -228,7 +236,7 @@ def parse_simulation_settings(file_path):
     dict
         Dictionary with keys including ``type``, ``solver``, ``condensation``, ``parallel``,
         ``modal``, ``dynamic``, ``static``, ``eigen``, ``transient``, ``harmonic``, ``buckling``,
-        ``newton``, ``nonlinear``, ``post_processing``.
+        ``newton``, ``nonlinear``, ``post_processing``, ``rotation``, ``added_mass``.
         All sections have defaults if not specified.
 
     Raises
@@ -276,6 +284,7 @@ def parse_simulation_settings(file_path):
         "harmonic": defaults["harmonic"].copy(),
         "buckling": defaults["buckling"].copy(),
         "rotation": defaults["rotation"].copy(),
+        "added_mass": defaults["added_mass"].copy(),
         "_modal_section_in_input": False,
         "_dynamic_section_in_input": False,
     }
@@ -332,6 +341,8 @@ def parse_simulation_settings(file_path):
                     current_section = "buckling_taxonomy"
                 elif section_name == "rotation":
                     current_section = "rotation"
+                elif section_name.replace(" ", "").replace("_", "") == "addedmass":
+                    current_section = "added_mass"
                 else:
                     current_section = None
                 continue
@@ -701,6 +712,19 @@ def parse_simulation_settings(file_path):
                         ro[key] = [float(t) for t in re.split(r"[,\s]+", value.strip()) if t]
                     else:
                         raise ValueError(f"[Rotation] unknown key {key!r}")
+
+            elif current_section == "added_mass":
+                key, value = _parse_key_value(line)
+                if key and value:
+                    am = simulation_settings["added_mass"]
+                    if key == "model":
+                        am[key] = str(value).strip().lower()
+                    elif key in ("rho_fluid", "chord"):
+                        am[key] = _convert_value(value, float)
+                    elif key == "heave_local_axis":
+                        am[key] = str(value).strip().lower()
+                    else:
+                        raise ValueError(f"[AddedMass] unknown key {key!r}")
 
     # Validate parallel config
     try:

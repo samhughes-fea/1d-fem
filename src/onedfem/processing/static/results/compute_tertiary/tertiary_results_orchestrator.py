@@ -118,6 +118,28 @@ class TertiaryResultsOrchestrator:
             )
             nodal_section_forces = projector.project()
 
+        element_error_eta = None
+        element_error_eta_rel = None
+        element_error_eta_global = None
+        nodal = getattr(self.secondary_results, "nodal_results", None)
+        if (
+            self.formulation_cache is not None
+            and self.element_dictionary is not None
+            and nodal is not None
+        ):
+            from .element_error_estimate import element_error_indicators
+
+            estimate = element_error_indicators(
+                self.secondary_results.gaussian_results,
+                self.formulation_cache,
+                nodal,
+                self.element_dictionary,
+            )
+            if estimate is not None:
+                element_error_eta = estimate.eta_e.tolist()
+                element_error_eta_rel = estimate.eta_rel_e.tolist()
+                element_error_eta_global = estimate.eta_global
+
         # Package results
         tertiary_results = TertiaryResults(
             section_forces=section_forces,
@@ -127,6 +149,9 @@ class TertiaryResultsOrchestrator:
             total_strain_energy=total_strain_energy,
             integrated_section_forces=integrated_section_forces,
             nodal_section_forces=nodal_section_forces,
+            element_error_eta=element_error_eta,
+            element_error_eta_rel=element_error_eta_rel,
+            element_error_eta_global=element_error_eta_global,
         )
 
         self.logger.info("\n" + "=" * 70)

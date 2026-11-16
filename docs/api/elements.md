@@ -55,6 +55,27 @@ The `element_type` names a job's `element.txt` accepts.
 - **class `LinearBarElement3D(*, element_id: int, element_dictionary: dict, grid_dictionary: dict, section_dictionary: dict, material_dictionary: dict, point_load_array: numpy.ndarray, distributed_load_array: numpy.ndarray, job_results_dir: str, quadrature_order: Optional[int] = None)`**
   2 nodes, 6 DOF/node; only axial and torsion strains are non-zero in ``B``.
 
+### `onedfem.pre_processing.element_library.added_mass`
+
+[src/onedfem/pre_processing/element_library/added_mass.py](../../src/onedfem/pre_processing/element_library/added_mass.py)
+
+Added mass in water as a labelled strip-heave model.
+
+- **`STRIP_HEAVE_FORMULA`** (constant)
+- **`STRIP_HEAVE_SOURCE`** (constant)
+- **class `AddedMass(rho_fluid: float, chord: float, heave_local_axis: str = 'z', model: str = 'strip_heave') -> None`**
+  Labelled strip-heave added mass: fluid density, chord, and local heave axis.
+- **class `AddedMassGaussPointData(xi: float, weight: float, jacobian: float, direction: npt.NDArray[np.float64], Phi_heave: npt.NDArray[np.float64], mass_per_length: float) -> None`**
+  One Gauss station of the strip-heave added-mass operator.
+- **class `AddedMassObject(element_id: int, model: AddedMass, M_a: npt.NDArray[np.float64], gauss_data: List[AddedMassGaussPointData] = <factory>) -> None`**
+  Strip-heave added-mass matrix of one element (global DOFs), with Gauss data.
+- **`strip_heave_added_mass_per_length(rho_fluid: float, chord: float) -> float`**
+  Heave added mass per unit span of a 2-D flat plate of chord ``chord``.
+- **`element_added_mass(element, p0: npt.ArrayLike, p1: npt.ArrayLike, model: AddedMass, R0: Optional[np.ndarray] = None, R1: Optional[np.ndarray] = None, n_dof: Optional[int] = None, n_gauss: int = 4) -> AddedMassObject`**
+  Strip-heave added mass of one straight element from ``p0`` to ``p1`` (global).
+- **`added_mass_from_settings(simulation_settings: Dict[str, Any]) -> Optional[AddedMass]`**
+  The ``[AddedMass]`` settings as an ``AddedMass``, or None when the model is off.
+
 ### `onedfem.pre_processing.element_library.beam_load_interpolation`
 
 [src/onedfem/pre_processing/element_library/beam_load_interpolation.py](../../src/onedfem/pre_processing/element_library/beam_load_interpolation.py)

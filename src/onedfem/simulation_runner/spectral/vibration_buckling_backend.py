@@ -26,6 +26,7 @@ from onedfem.pre_processing.parsing.simulation_settings_resolution import (
 )
 from onedfem.processing.boundary_supports import resolve_penalty_fixed_dofs
 from onedfem.pre_processing.element_library.rotating_frame import rotation_from_settings
+from onedfem.processing.eigen.added_mass import add_labelled_added_mass, mesh_arrays
 from onedfem.processing.common.primary_artifact_manifest import write_primary_artifact_manifest
 from onedfem.processing.dynamic.assembly import assemble_global_force_vector
 from onedfem.processing.eigen.metrics.directional_effective_mass import modal_effective_mass_fraction_z
@@ -117,6 +118,7 @@ class VibrationBucklingBackend:
             self.logs_dir = os.path.join(self.results_root, "logs")
 
         self.simulation_settings = self.settings.get("simulation_settings", {})
+        self.added_mass_objects = None
 
         # Cached global matrices / solutions (last vibration or elastic buckling branch).
         self.K_global = None
@@ -190,6 +192,17 @@ class VibrationBucklingBackend:
             total_dof=total_dof,
             job_results_dir=job_results_dir,
         ).run()
+        coords, conn = mesh_arrays(self.settings)
+        if coords is not None and conn is not None:
+            M_global, self.added_mass_objects = add_labelled_added_mass(
+                M_global,
+                elements=list(self.elements),
+                coordinates=coords,
+                connectivity=conn,
+                simulation_settings=self.simulation_settings,
+                total_dof=total_dof,
+                results_dir=self.primary_results_dir,
+            )
         logger.info("Global stiffness and mass matrices assembled.")
         return K_global, M_global
 

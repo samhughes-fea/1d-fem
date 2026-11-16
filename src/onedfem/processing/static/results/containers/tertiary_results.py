@@ -71,6 +71,17 @@ class TertiaryResults:
         Shape: (n_nodes, 6), column order [N, Vy, Vz, T, My, Mz]
         Storage: `tertiary_results/nodal/nodal_section_forces.csv`
         Native Resolution: Nodal (projected from Gaussian via shape functions)
+
+    element_error_eta : Optional[List[float]] = None
+        Zienkiewicz–Zhu energy-norm indicator per element from Gauss resultants
+        versus the nodal-projected recovered field. No adaptivity.
+        Storage: `tertiary_results/elemental/element_error_estimate.csv`
+
+    element_error_eta_rel : Optional[List[float]] = None
+        Relative indicator ``eta_e / sqrt(2 U_e)`` per element.
+
+    element_error_eta_global : Optional[float] = None
+        ``sqrt(sum eta_e**2)`` over the mesh.
     """
     
     section_forces: Optional[List[List[np.ndarray]]] = None
@@ -84,4 +95,9 @@ class TertiaryResults:
 
     # Nodal resolution (projected from Gaussian)
     nodal_section_forces: Optional[np.ndarray] = None
+
+    # Element error estimate (from Gaussian + nodal-projected resultants; no adaptivity)
+    element_error_eta: Optional[List[float]] = None
+    element_error_eta_rel: Optional[List[float]] = None
+    element_error_eta_global: Optional[float] = None
 

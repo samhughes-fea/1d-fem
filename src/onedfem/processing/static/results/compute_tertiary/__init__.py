@@ -11,10 +11,13 @@ and failure criteria.
 from .section_force import ComputeSectionForce
 from .principal_stress import ComputePrincipalStress
 from .tertiary_results_orchestrator import TertiaryResultsOrchestrator
+from .element_error_estimate import ElementErrorEstimate, element_error_indicators
 
 __all__ = [
     "ComputeSectionForce",
     "ComputePrincipalStress",
     "TertiaryResultsOrchestrator",
+    "ElementErrorEstimate",
+    "element_error_indicators",
 ]
 
