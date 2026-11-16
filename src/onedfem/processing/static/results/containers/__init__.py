@@ -1,6 +1,6 @@
 # processing\static\results\containers\__init__.py
 
-from .global_results import GlobalResults
+from .global_results import GlobalResults, ModelTotals
 from .elemental_results import ElementalResults
 from .nodal_results import NodalResults
 from .gaussian_results import GaussianResults
@@ -15,11 +15,14 @@ from .container_hopper import (
     PrimaryResultSet,
     SecondaryResultSet,
     TertiaryResultSet,
-    IndexMapSet
+    IndexMapSet,
+    StaticResult,
 )
 
 __all__ = [
     "GlobalResults",
+    "ModelTotals",
+    "StaticResult",
     "ElementalResults",
     "NodalResults",
     "GaussianResults",

@@ -21,6 +21,12 @@ from onedfem.processing.static.results.containers import (
     NodalResults,
     FormulationResultSet
 )
+from onedfem.post_processing.stations import axis_point
+
+
+def _gauss_axis_point(element, xi: float) -> np.ndarray:
+    """Physical axis coordinates (3,) of ``element`` at natural coordinate ``xi``."""
+    return np.asarray(axis_point(element, xi), dtype=np.float64).reshape(3)
 
 
 class SecondaryResultsOrchestrator:
@@ -136,6 +142,8 @@ class SecondaryResultsOrchestrator:
         strains_all = []
         stresses_all = []
         energy_all = []
+        coords_all = []
+        weights_all = []
         points = []
 
         for elem_obj in self.formulation_cache.element_objects:
@@ -150,9 +158,15 @@ class SecondaryResultsOrchestrator:
             elem_strains = []
             elem_stresses = []
             elem_energy = []
+            elem_coords = []
+            elem_weights = []
             
             for k, gp in enumerate(elem_obj.gauss_data):
-                points.append((elem_id, k, float(getattr(gp, "xi", np.nan)), float(getattr(gp, "weight", np.nan))))
+                xi = float(getattr(gp, "xi", np.nan))
+                weight = float(getattr(gp, "weight", np.nan))
+                points.append((elem_id, k, xi, weight))
+                elem_coords.append(_gauss_axis_point(element, xi))
+                elem_weights.append(weight)
                 # Use cached B and D matrices - no shape function recomputation!
                 strain = gp.B_matrix @ U_e
                 stress = gp.D_matrix @ strain
@@ -165,10 +179,16 @@ class SecondaryResultsOrchestrator:
             strains_all.append(elem_strains)
             stresses_all.append(elem_stresses)
             energy_all.append(elem_energy)
+            coords_all.append(
+                np.vstack(elem_coords) if elem_coords else np.zeros((0, 3), dtype=np.float64)
+            )
+            weights_all.append(np.asarray(elem_weights, dtype=np.float64))
         
         self.logger.info(f"  ✅ Computed results for {len(strains_all)} elements")
         
         return GaussianResults(
+            gauss_coords=coords_all,
+            gauss_weights=weights_all,
             gauss_points=points,
             strain=strains_all,
             stress=stresses_all,

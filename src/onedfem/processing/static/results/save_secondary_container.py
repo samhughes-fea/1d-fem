@@ -141,8 +141,16 @@ class SaveSecondaryResults:
 
         # where each row of the per-element files is: row k of element e's files is Gauss point k
         if gauss_res.gauss_points:
-            pd.DataFrame(gauss_res.gauss_points, columns=["element_id", "gauss_point", "xi", "weight"]).to_csv(
-                self.gaussian_dir / "gauss_points.csv", index=False, float_format="%.16e")
+            table = pd.DataFrame(
+                gauss_res.gauss_points, columns=["element_id", "gauss_point", "xi", "weight"]
+            )
+            if gauss_res.gauss_coords:
+                xyz = np.vstack(gauss_res.gauss_coords)
+                if xyz.shape[0] == len(table):
+                    table["x"] = xyz[:, 0]
+                    table["y"] = xyz[:, 1]
+                    table["z"] = xyz[:, 2]
+            table.to_csv(self.gaussian_dir / "gauss_points.csv", index=False, float_format="%.16e")
 
         # Save strain at Gauss points (variable components: bar 2, truss 3, beam 6)
         if gauss_res.strain:

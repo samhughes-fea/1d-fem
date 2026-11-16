@@ -4,10 +4,10 @@ Short reference for where result types live and how optional/unused computers ar
 
 ## Resolution levels
 
-- **Global**: primary only (K, F, U, R_global, R_residual, etc.).
-- **Gaussian**: secondary (strain, stress, energy density); tertiary (section forces, principal stress).
+- **Global**: primary only (K, F, U, R_global, R_residual, etc.). Model totals (strain energy, external work, free-DOF equilibrium residual) live on ``StaticResult.totals`` / ``primary_results/totals.csv``.
+- **Gaussian**: secondary (strain, stress, energy density, physical ``gauss_coords`` and quadrature ``gauss_weights``); tertiary (section forces, principal stress).
 - **Nodal**: secondary (projected strain, stress, energy density).
-- **Elemental**: primary (K_e, F_e, U_e, R_e, R_residual_e); tertiary (total strain energy, integrated section forces).
+- **Elemental**: primary (K_e, F_e, U_e, R_e, R_residual_e); tertiary (total strain energy, integrated section forces). Modal: per-element strain energy ``0.5 φ_eᵀ K_e φ_e``.
 
 ## Unused / optional result computers
 
@@ -67,6 +67,7 @@ When **`run_secondary_tertiary_modal`** (parser aliases **`run_secondary_tertiar
 | `{job_name}_modal_generalized_mass.txt` | One value per computed mode: \( \phi_j^{\mathsf T} M_{\mathrm{mod}} \phi_j \) using the **penalty-modified** mass from the eigen BC step. | Uses the same \(M_{\mathrm{mod}}\) as the generalized eigenproblem after BCs; not a rigid-body physical modal mass. |
 | `{job_name}_modal_load_participation.txt` | One value per mode: \( \lvert \hat{\phi}_j^{\mathsf T} F \rvert \) with \(\hat{\phi}_j = \phi_j / \sqrt{\phi_j^{\mathsf T} M_{\mathrm{mod}} \phi_j}\); \(F\) is the **assembled element nodal load** from `force_objects` / `F_e` scatter ([`assemble_global_force_vector`](../../dynamic/assembly.py)), identical in spirit to the transient reference load. | All zeros if `force_objects` is missing or \(\lVert F \rVert\) is negligible. **Not** building-code seismic modal participation (no prescribed rigid-body vector or code normalization); treat as a **load–mode alignment** indicator only. |
 | `{job_name}_modal_effective_mass_fraction_z.txt` | One value per mode: \((\phi_j^{\mathsf T} M r)^2 / ((r^{\mathsf T} M r)(\phi_j^{\mathsf T} M \phi_j))\) with \(r\) a **unit pattern on translational +Z** DOFs (six DOFs per node: activates index `uz` per node). | **Native metric** (implemented in `onedfem.processing.eigen.metrics`); omitted for unsupported DOF layouts (e.g. warping / seven DOF per node until a pattern is defined). |
+| `{job_name}_modal_element_strain_energy.csv` | One row per element, columns ``element_id,mode_0,…``: \( \tfrac12 \phi_{e,j}^{\mathsf T} K_e \phi_{e,j} \). | Always written on a vibration run. Summing a mode column recovers \( \tfrac12 \phi_j^{\mathsf T} K \phi_j \) of the unpenalized assembled stiffness. |
 
 See also [SIMULATION_SETTINGS_TAXONOMY.md](../../../../../docs/conventions/SIMULATION_SETTINGS_TAXONOMY.md) and [src/onedfem/simulation_runner/transient/README.md](../../../simulation_runner/transient/README.md).
 
