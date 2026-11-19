@@ -75,6 +75,40 @@ Parser: `onedfem.pre_processing.parsing.section_geometry_parser.parse_section_ge
 1  1  2  1
 ```
 
+## `section_matrix.txt` (optional)
+
+Sections given only as their 6 x 6 stiffness and 6 x 6 mass per length: a BeamDyn blade
+file, windIO 2.0 elastic properties, VABS or BECAS output. Six rows of each matrix per
+section; `element_section.txt` assigns them like the other sections (their ids must differ
+from the thin-walled and 2D ones). A job of table sections alone needs neither
+`laminate.txt` nor `section_geometry.txt`.
+
+```text
+[Section_Matrix]
+[section_id] [frame] [matrix] [row] [c1] [c2] [c3] [c4] [c5] [c6]
+1 beamdyn stiffness 1  1.2e10 0 0 0 0 3.1e8
+...
+1 beamdyn stiffness 6  ...
+1 beamdyn mass 1  678.9 0 0 0 0 -12.3
+...
+1 beamdyn mass 6  ...
+```
+
+- `frame`: `engine` (1d-fem's beam axes, right-handed strains
+  `[eps, kappa_y, kappa_z, gamma_xy, gamma_xz, phi]`), `public` (anisotropic-section-model's
+  public frame, beam axis z, BeamDyn's order) or `beamdyn` (BeamDyn's own mirrored blade
+  frame, as a BeamDyn blade file has it); see [SECTION_STIFFNESS_ORDER.md](SECTION_STIFFNESS_ORDER.md).
+  One frame per section.
+- Both matrices are about the beam axis through the element nodes. The mass must be a
+  rigid-section mass (mass, its centre, the second moments); its rows may be left out for
+  static analyses.
+- The shear and tension centres are the ones the stiffness implies.
+- The section provider builds each section (`SectionAnalysis.from_matrices`). A table
+  section has no second-order, warping, third-order or GBT data, so buckling, Benscoter,
+  third-order and GBT elements refuse it, as do `section_taper.txt`, `wall_load.txt` and
+  stress recovery. Pretwisted and curved elements take the tables as they are (no
+  helical-fibre or Winkler correction, which need the section's geometry).
+
 ## `[Section_Mesh]` (optional, in `section_geometry.txt`)
 
 ```text

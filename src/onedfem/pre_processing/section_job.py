@@ -86,6 +86,14 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
     2D section's own modes (``solid.cross_section_modes``) without extra shear-lag modes;
     wall loads need thin-walled sections.
 
+    With ``section_matrix.txt`` the sections it defines are given as 6 x 6 stiffness and mass
+    tables (``parsing/section_matrix_parser.py``, ``SectionAnalysis.from_matrices``) and are
+    assigned in the same ``element_section.txt`` (section ids must differ from the thin-walled
+    and 2D ones). They take no GBT modes, taper, wall loads or stress recovery.
+
+    The section provider is imported only when the job has section files, so a job of
+    ``section.txt`` sections alone starts without it.
+
     With ``section_taper.txt`` the listed elements' sections gain the taper (Resal) coupling
     (``SectionAnalysis.with_taper``), GBT rows included.
 
@@ -97,21 +105,25 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
     load per length of each loaded element (``None`` for the rest), in the order of the
     section's GBT mass for GBT rows, else ``[N, F_y, F_z, M_x, M_y, M_z, psi load]``.
     """
-    ThinWalledSectionAnalysis = section_import("thin_walled.section_analysis", "ThinWalledSectionAnalysis")
     import os
 
     import numpy as np
 
     from onedfem.pre_processing.parsing.element_section_parser import parse_element_section_modes
-    SectionAnalysis = section_import("section_analysis", "SectionAnalysis")
+    from onedfem.pre_processing.parsing.section_matrix_parser import SECTION_MATRIX_FILE, section_matrix_analyses
 
     paths = [os.path.join(job_dir, f) for f in (LAMINATE_FILE, SECTION_GEOMETRY_FILE, ELEMENT_SECTION_FILE)]
     present = [os.path.exists(p) for p in paths]
     mesh_path = os.path.join(job_dir, SECTION_MESH_2D_FILE)
     has_mesh = os.path.exists(mesh_path)
-    if not any(present) and not has_mesh:
+    matrix_path = os.path.join(job_dir, SECTION_MATRIX_FILE)
+    has_matrix = os.path.exists(matrix_path)
+    if not any(present) and not has_mesh and not has_matrix:
         return element_dictionary
-    if has_mesh:
+    # imported only now: a job without section files needs no section provider
+    ThinWalledSectionAnalysis = section_import("thin_walled.section_analysis", "ThinWalledSectionAnalysis")
+    SectionAnalysis = section_import("section_analysis", "SectionAnalysis")
+    if has_mesh or has_matrix:
         # 2D sections: element_section.txt is needed; laminate.txt only for its ply materials
         # (or with section_geometry.txt for thin-walled sections alongside)
         need = [paths[2]] + ([paths[0]] if present[1] else [])
@@ -121,13 +133,19 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
     if missing:
         raise FileNotFoundError(
             "Thin-walled sections need laminate.txt, section_geometry.txt and element_section.txt; "
-            f"2D sections need section_mesh_2d.txt and element_section.txt; missing {missing}"
+            "2D sections need section_mesh_2d.txt and element_section.txt, table sections section_matrix.txt and "
+            f"element_section.txt; missing {missing}"
         )
     analyses = section_analyses_from_files(paths[0], paths[1], hoop=hoop) if present[1] else {}
     solid = solid_analyses_from_files(mesh_path, paths[0] if present[0] else None) if has_mesh else {}
+    matrices = section_matrix_analyses(matrix_path) if has_matrix else {}
     both = sorted(set(analyses) & set(solid))
     if both:
         raise ValueError(f"sections {both} are defined in both section_geometry.txt and section_mesh_2d.txt")
+    twice = sorted((set(analyses) | set(solid)) & set(matrices))
+    if twice:
+        raise ValueError(f"sections {twice} are defined in section_matrix.txt and in section_geometry.txt or "
+                         "section_mesh_2d.txt")
     assignment_modes = parse_element_section_modes(paths[2])
     assignment = {e: v[0] for e, v in assignment_modes.items()}
     modes_of = {e: v[1] for e, v in assignment_modes.items()}
@@ -136,7 +154,7 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
     unknown_el = sorted(set(assignment) - set(ids))
     if unknown_el:
         raise ValueError(f"element_section.txt names unknown elements {unknown_el}")
-    unknown_sec = sorted(set(assignment.values()) - set(analyses) - set(solid))
+    unknown_sec = sorted(set(assignment.values()) - set(analyses) - set(solid) - set(matrices))
     if unknown_sec:
         raise ValueError(f"element_section.txt names unknown sections {unknown_sec}")
     types = element_dictionary.get("types")
@@ -148,6 +166,10 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
         return bool(t) and bool(ElementFactory.capability(t, "cross_section_modes", False))
 
     gbt_rows = {e for e in assignment if has_modes(e) or modes_of[e] or shear_of[e]}
+    gbt_matrix = sorted(e for e in gbt_rows if assignment[e] in matrices)
+    if gbt_matrix:
+        raise ValueError(f"table sections (section_matrix.txt) have no cross-section modes; elements {gbt_matrix} "
+                         "ask for GBT")
     gbt_solid_shear = sorted(e for e in gbt_rows if assignment[e] in solid and shear_of[e])
     if gbt_solid_shear:
         raise ValueError(f"2D sections offer no extra shear-lag modes; elements {gbt_solid_shear} ask for [shear_modes]")
@@ -178,6 +200,7 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
         sid: SectionAnalysis.from_solid(a, sid, gbt_modes=max_modes[sid], gbt=sid in gbt_sections)
         for sid, a in solid.items()
     })
+    per_section.update(matrices)
     per_element = tuple(per_section[assignment[e]] if e in assignment else None for e in ids)
     taper_path = os.path.join(job_dir, SECTION_TAPER_FILE)
     if os.path.exists(taper_path):
@@ -187,6 +210,10 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
         unassigned = sorted(e for e in tapers if e not in assignment)
         if unassigned:
             raise ValueError(f"section_taper.txt names elements without a section in element_section.txt: {unassigned}")
+        tabled = sorted(e for e in tapers if assignment[e] in matrices)
+        if tabled:
+            raise ValueError(f"section_taper.txt names elements with table sections (section_matrix.txt), whose "
+                             f"tables already hold their stiffness: {tabled}")
         per_element = tuple(sa.with_taper(tapers[e]) if e in tapers else sa for e, sa in zip(ids, per_element))
     align = {}
     if gbt_rows and "connectivity" in element_dictionary and len({assignment[e] for e in gbt_rows}) > 1:

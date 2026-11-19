@@ -336,8 +336,9 @@ def test_2d_section_ply_tags_and_limits(tmp_path):
     back = parse_section_mesh_2d(path, {})[1]
     assert back.plies == an.mesh.plies
     assert sum(t == (1, 3) for t in back.plies) == 2 * 4          # two walls, four elements along each
-    with pytest.raises(NotImplementedError, match="angle"):
-        solid_section_derivative(an, LayupParameter(1, 3, "thickness"))
+    # anisotropic-section-model 0.5 differentiates a ply thickness on 2D sections too (the mesh moves)
+    dt = solid_section_derivative(an, LayupParameter(1, 3, "thickness"))
+    assert np.all(np.isfinite(dt.stiffness)) and np.abs(dt.stiffness).max() > 0.0
     back.plies = None
     with pytest.raises(ValueError, match="ply tags"):
         solid_section_derivative(SolidSectionAnalysis(back), LayupParameter(1, 3, "angle"))

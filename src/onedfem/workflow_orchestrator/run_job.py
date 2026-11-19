@@ -252,6 +252,20 @@ def _write_stress_files(job_dir, job_results_dir, element_dictionary, elements, 
 
         write_ply_failure(job_dir, job_results_dir, elements, element_objects, U, thin_walled=tw, solid=solid)
 
+def _write_section_force_checks(job_dir, job_results_dir, element_dictionary, elements) -> None:
+    """Ply checks and their envelope under the section forces of ``section_forces.txt``, whatever the
+    analysis type (``post_processing/failure/section_force_checks.py``)."""
+    from onedfem.pre_processing.parsing.section_forces_parser import SECTION_FORCES_FILE
+
+    if not os.path.exists(os.path.join(job_dir, SECTION_FORCES_FILE)):
+        return
+    from onedfem.post_processing.failure.section_force_checks import write_section_force_checks
+
+    write_section_force_checks(job_dir, job_results_dir, elements,
+                               element_dictionary.get("thin_walled_analysis_per_element"),
+                               element_dictionary.get("solid_analysis_per_element"))
+
+
 def _write_layup_sensitivity(job_dir, job_results_dir, element_dictionary, elements, runner, solver_type,
                              simulation_settings) -> None:
     """``layup_sensitivity.csv`` of a linear static, eigen or linear buckling job with ``layup_sensitivity.txt``
@@ -717,6 +731,7 @@ def process_job(job_dir, job_results_dir, job_times, job_start_end_times, force_
                             solver_type, simulation_settings, element_objects=element_objects)
         _write_layup_sensitivity(job_dir, job_results_dir, element_dictionary, all_elements, runner,
                                  solver_type, simulation_settings)
+        _write_section_force_checks(job_dir, job_results_dir, element_dictionary, all_elements)
         simulation_time = time.time() - step_start
         performance_data.append(["Full Simulation", simulation_time, *track_usage().values()])
 

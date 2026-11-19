@@ -230,14 +230,15 @@ class Element1DBase(ABC):
     def section_analysis(self):
         """Section constitutive data (``SectionAnalysis``) in the element Voigt convention.
 
-        The thin-walled analysis assigned in ``element_section.txt`` when there is
-        one; otherwise built from ``section_array`` and ``material_array``
+        The thin-walled, 2D or table section assigned in ``element_section.txt`` when there
+        is one; otherwise built from ``section_array`` and ``material_array``
         (``kappa`` defaults to 5/6 when absent).
         """
         base = self._base_section_analysis()
         k = getattr(self, "_pretwist_rate", 0.0)
         ky, kz = getattr(self, "_section_curvature", (0.0, 0.0))
-        if not k and not ky and not kz:
+        if (not k and not ky and not kz) or getattr(base, "source", None) == "matrix":
+            # a table section (section_matrix.txt) is complete as given
             return base
         cached = self.__dict__.get("_pretwisted_section_analysis")
         if cached is None:

@@ -94,3 +94,40 @@ See [examples/thin_walled/ply_failure](../../examples/thin_walled/ply_failure/RE
 On a composite box spar, the thin-walled and 2D sections give the same first-ply failure
 within 2 % for maximum stress, Hashin and Puck. Tsai-Wu differs by 10 %, because its worst
 point is the cap–web corner.
+
+## Under section forces from elsewhere, with an envelope
+
+When the section forces come from another tool (an aeroelastic run, a set of design load
+cases), add `section_forces.txt` beside `ply_strength.txt`:
+
+```
+[Section_Forces]
+[load_case] [element_id] [x] [frame] [f1] [f2] [f3] [f4] [f5] [f6]
+dlc1.1_12ms  0  0.25  engine   2.0e3 -1.07e5 1.88e4 3.0e3 2.0e4 5.0e2
+dlc6.1_50yr  0  0.25  beamdyn  ...
+```
+
+- `element_id` picks the section (the element's, from `element_section.txt`); `x` labels
+  the station in the output.
+- `frame` is that of the six forces: `engine` is 1d-fem's right-handed
+  `[N, M_y, M_z, V_y, V_z, T]`; `public` and `beamdyn` are anisotropic-section-model's and
+  BeamDyn's `[F_x, F_y, N, M_x, M_y, M_z]` ([frames](../conventions/SECTION_STIFFNESS_ORDER.md)).
+  The forces are about the beam axis through the element nodes.
+- 1d-fem's own `tertiary_results/.../section_forces_elem_*.csv` writes `M_y` with the
+  element sign: negate it to use those rows here.
+
+Every job with the file (any analysis type: the beam solve plays no part) writes, in
+`secondary_results/section_force_checks/`:
+
+- `section_force_checks.csv`: for every row and criterion (and `exposure`, the largest of
+  them), the most exposed point: exposure, margin, mode, wall, ply, `n`, `(y, z)`, 2D
+  element and material;
+- `section_force_envelope.csv`: for every element, station and criterion, the largest
+  exposure over the load cases, the load case that sets it and where.
+
+The plies are checked by the section provider's `SectionStrength` at the same points as
+`ply_failure.csv` (5 points along each wall, the bottom and top of every ply; every
+quadrature point of a 2D section), so a solved job's own section forces given back here
+reproduce its `ply_failure.csv` exactly. Each section is solved once for six unit forces,
+and a load case then costs a matrix product and the criteria. Table sections
+(`section_matrix.txt`) carry no plies and are refused.

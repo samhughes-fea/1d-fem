@@ -26,8 +26,8 @@ Python 3.11 or later. 1d-fem is the `onedfem` package (`src/onedfem`). There is 
 on PyPI yet; install it from GitHub:
 
 ```bash
-pip install "onedfem[sections] @ git+https://github.com/samhughes-fea/1d-fem"            # with the default section provider
-pip install "onedfem[sections,geometry] @ git+https://github.com/samhughes-fea/1d-fem"   # and blade geometry
+pip install "onedfem @ git+https://github.com/samhughes-fea/1d-fem"            # with its section provider
+pip install "onedfem[geometry] @ git+https://github.com/samhughes-fea/1d-fem"  # and blade geometry
 ```
 
 or, to run the examples, validation and tests, from a clone:
@@ -64,9 +64,11 @@ directory holds:
 | `point_load.txt`, `distributed_load.txt` | Loads |
 | `prescribed_displacement.txt` | Supports |
 | `laminate.txt`, `section_geometry.txt`, `element_section.txt` | Optional: composite thin-walled or 2D sections ([format](docs/conventions/JOB_INPUT_THIN_WALLED_SECTIONS.md)) |
+| `section_matrix.txt` | Optional: sections given as 6 x 6 stiffness and mass tables (BeamDyn, windIO, VABS, BECAS) ([format](docs/conventions/JOB_INPUT_THIN_WALLED_SECTIONS.md#section_matrixtxt-optional)) |
 | `section_taper.txt`, `precurvature.txt` | Optional: taper and pretwist |
 | `follower_load.txt` | Optional: follower loads ([format](docs/conventions/JOB_INPUT_FOLLOWER_LOADS.md)) |
 | `ply_strength.txt` | Optional: ply failure margins ([ply_failure](docs/element_library/ply_failure.md)) |
+| `section_forces.txt` | Optional: ply checks and their envelope under section forces from other tools ([format](docs/element_library/ply_failure.md#under-section-forces-from-elsewhere-with-an-envelope)) |
 | `layup_sensitivity.txt` | Optional: layup sensitivities ([layup_sensitivity](docs/element_library/layup_sensitivity.md)) |
 
 The examples write their jobs with `examples/thin_walled/common.py`, which is the quickest
@@ -93,12 +95,15 @@ the beam, Gauss-point values and their shape-function projections on sections.
 | implicit-geometry-kernel | blade and section geometry (airfoils, lofts, `section_at(z)`) | optional; `src/onedfem` reads its geometry duck typed and never imports it |
 | laminate-constitutive-model | materials, plies, laminates, ABD, failure criteria | used through anisotropic-section-model (ply failure criteria; its laminates plug into the section walls) |
 | shell-fem | shell and solid FE, blade shell models (linear static) | shell reference in examples and validation only |
-| anisotropic-section-model | cross-section analysis: thin-walled, 2D and GBT sections, stress recovery, ply failure, layup sensitivities | the default **section provider**, loaded at run time through `onedfem.sections` |
+| anisotropic-section-model | every section's properties (isotropic, asymmetric and anisotropic sections; thin-walled, 2D, GBT and 6 x 6 tables), stress recovery, ply failure, layup derivatives | the **section provider**, a core dependency, loaded at run time through `onedfem.sections` |
 | 1d-fem | beam solver for all analysis types, section job input and stress output | imports none of the others |
 
-`tests/test_repo_boundaries.py` fails if library code imports any of them. Sections are a
-plug-in: `onedfem.sections` defines what 1d-fem needs from a section provider
-(`PROVIDER_MODULES`) and imports the provider the first time a section is used.
+`tests/test_repo_boundaries.py` fails if library code imports any of them. The split with
+anisotropic-section-model is one section at a station there, everything along the span here
+(its [docs/package_boundary.md](https://github.com/samhughes-fea/anisotropic-section-model/blob/main/docs/package_boundary.md)).
+Sections are a plug-in: `onedfem.sections` defines what 1d-fem needs from a section provider
+(`PROVIDER_MODULES`, and the contract version `SECTION_API`, which the provider must meet)
+and imports the provider the first time a section is used.
 anisotropic-section-model is the default and can be swapped with
 `set_section_provider("other_package")`. The provider works in 1d-fem's beam axes (beam
 axis x, strains `[eps, kappa_y, kappa_z, gamma_xy, gamma_xz, phi]`); for BeamDyn's order
