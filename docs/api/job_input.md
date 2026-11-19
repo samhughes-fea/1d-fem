@@ -53,7 +53,9 @@ Parse ``laminate.txt``: ply materials and wall laminates for thin-walled section
 - **`to_float(tok: str, what: str, line: str) -> float`**
 - **`to_int(tok: str, what: str, line: str) -> int`**
 - **`parse_ply_materials(sub: str, rows: Sequence[str]) -> Dict[int, PlyMaterial]`**
-- **`parse_laminates(sub: str, rows: Sequence[str], materials: Dict[int, PlyMaterial]) -> Dict[int, WallLaminate]`**
+- **`parse_laminate_offsets(sub: str, rows: Sequence[str]) -> Dict[int, float]`**
+  ``{laminate_id: offset}`` of a ``[Laminate_Offset]`` block.
+- **`parse_laminates(sub: str, rows: Sequence[str], materials: Dict[int, PlyMaterial], offsets: Dict[int, float] | None = None) -> Dict[int, WallLaminate]`**
 - **`parse_laminate_file(filepath: str) -> Dict[int, WallLaminate]`**
   Read ``laminate.txt`` and return ``{laminate_id: WallLaminate}``.
 - **`parse_ply_material_file(filepath: str) -> Dict[int, PlyMaterial]`**
@@ -132,6 +134,19 @@ Parse ``region_laminate.txt``: which ``laminate.txt`` laminate each geometry reg
 - **`format_region_laminate(mapping: Dict[str, int]) -> str`**
   Text of a ``region_laminate.txt`` for ``{label: laminate_id}``.
 
+### `onedfem.pre_processing.parsing.section_forces_parser`
+
+[src/onedfem/pre_processing/parsing/section_forces_parser.py](../../src/onedfem/pre_processing/parsing/section_forces_parser.py)
+
+Parse ``section_forces.txt``: section forces from outside the job, for ply checks.
+
+- **`parse_section_forces_file(filepath: str) -> List[SectionForceRow]`**
+  The rows of ``section_forces.txt``, in file order.
+- **`to_engine_forces(forces, frame: str) -> np.ndarray`**
+  Six section forces in ``frame`` to 1d-fem's right-handed ``[N, M_y, M_z, V_y, V_z, T]``.
+- **`format_section_forces_file(rows) -> str`**
+  The text of ``section_forces.txt`` for rows ``(load_case, element_id, x, frame, forces)``.
+
 ### `onedfem.pre_processing.parsing.section_geometry_parser`
 
 [src/onedfem/pre_processing/parsing/section_geometry_parser.py](../../src/onedfem/pre_processing/parsing/section_geometry_parser.py)
@@ -144,6 +159,19 @@ Parse ``section_geometry.txt``: mid-line points and walls of thin-walled section
   Read ``section_geometry.txt`` and return ``{section_id: ThinWalledSection}``.
 - **`format_section_geometry(sections: Dict[int, ThinWalledSection], n_sub: Optional[Dict[int, int]] = None) -> str`**
   Text of a ``section_geometry.txt`` for ``{section_id: ThinWalledSection}``.
+
+### `onedfem.pre_processing.parsing.section_matrix_parser`
+
+[src/onedfem/pre_processing/parsing/section_matrix_parser.py](../../src/onedfem/pre_processing/parsing/section_matrix_parser.py)
+
+Parse ``section_matrix.txt``: sections given only as their 6 x 6 stiffness and mass tables.
+
+- **`parse_section_matrix_file(filepath: str) -> Dict[int, Tuple[str, np.ndarray, Optional[np.ndarray]]]`**
+  Return ``{section_id: (frame, stiffness 6 x 6, mass 6 x 6 or None)}``.
+- **`format_section_matrix_file(sections: Dict[int, Tuple[str, np.ndarray, Optional[np.ndarray]]]) -> str`**
+  The text of ``section_matrix.txt`` for ``{section_id: (frame, stiffness, mass or None)}``.
+- **`section_matrix_analyses(filepath: str) -> Dict[int, object]`**
+  ``{section_id: SectionAnalysis}`` for every section of ``section_matrix.txt``, built by the section provider (``SectionAnalysis.from_matrices``).
 
 ### `onedfem.pre_processing.parsing.section_parser`
 
