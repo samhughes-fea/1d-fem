@@ -10,8 +10,11 @@ The section provider: where 1d-fem gets its cross-section analyses.
 
 - **`DEFAULT_SECTION_PROVIDER`** (constant)
 - **`PROVIDER_MODULES`** (constant)
+- **`SECTION_API`** (constant)
 - **class `SectionProviderError`**
   No section provider is installed, or it lacks a module 1d-fem needs.
+- **`check_api_version(module: ModuleType) -> Tuple[int, int]`**
+  The contract version ``module`` declares, checked against ``SECTION_API``.
 - **`check_section_provider(provider: Union[str, ModuleType, None] = None) -> List[str]`**
   Modules and names of ``PROVIDER_MODULES`` that ``provider`` (default: the current one) lacks.
 - **`section_import(name: str, *names: str)`**
@@ -19,7 +22,7 @@ The section provider: where 1d-fem gets its cross-section analyses.
 - **`section_module(name: str) -> ModuleType`**
   The provider's module ``name`` (for example ``"thin_walled.laminate"``).
 - **`section_provider() -> ModuleType`**
-  The section provider package, imported on first use.
+  The section provider package, imported on first use and checked against ``SECTION_API``.
 - **`set_section_provider(provider: Union[str, ModuleType, None]) -> None`**
   Use ``provider`` (a package name or module) for sections; ``None`` restores the default.
 
@@ -40,7 +43,7 @@ Wall and ply stresses at a point of a beam element with a thin-walled section.
 
 Write wall and ply stresses of a solved job with thin-walled sections.
 
-- **`element_wall_rows(element, U_e, analysis, points_per_wall: int = 5, xi: float = 0.0, mode='') -> List[list]`**
+- **`element_wall_rows(element, U_e, analysis, points_per_wall: int = 5, xi: float = 0.0, mode='', wall_points: Optional[Sequence] = None) -> List[list]`**
   CSV rows (``WALL_STRESS_COLUMNS``) for one element; ``x`` is the global ``X`` of the axis at ``xi``.
-- **`write_wall_stresses(job_results_dir: str, elements: Sequence, analyses: Sequence, U_global: np.ndarray, points_per_wall: Optional[int] = None, stations: Optional[Sequence] = None, modes: Optional[np.ndarray] = None) -> str`**
+- **`write_wall_stresses(job_results_dir: str, elements: Sequence, analyses: Sequence, U_global: np.ndarray, points_per_wall: Optional[int] = None, stations: Optional[Sequence] = None, modes: Optional[np.ndarray] = None, wall_points: Optional[Sequence] = None) -> str`**
   Write ``wall_stresses.csv`` for the elements that have a thin-walled analysis; return its path.

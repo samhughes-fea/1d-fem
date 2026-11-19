@@ -11,6 +11,17 @@ Ply failure exposures and margins at the beam elements' Gauss points.
 - **`write_ply_failure(job_dir: str, job_results_dir: str, elements: Sequence, element_objects: Sequence, U_global, thin_walled: Optional[Sequence] = None, solid: Optional[Sequence] = None, strengths: Optional[Mapping[int, PlyStrength]] = None, points_per_wall: Optional[int] = None) -> Optional[str]`**
   Write ``ply_failure.csv`` and ``ply_failure_summary.csv``; return the first path, or ``None`` when the job has no ``ply_strength.txt`` (and no ``strengths`` are given).
 
+### `onedfem.post_processing.failure.section_force_checks`
+
+[src/onedfem/post_processing/failure/section_force_checks.py](../../src/onedfem/post_processing/failure/section_force_checks.py)
+
+Ply checks under section forces given from outside the job, and their envelope.
+
+- **`section_strength_checks(job_dir: str, element_ids: Sequence[int], thin_walled: Optional[Sequence], solid: Optional[Sequence], strengths: Mapping[int, object], points_per_wall: Optional[int] = None) -> Dict[int, tuple]`**
+  ``{element_id: (SectionStrength, material id per sampling point)}`` for every element with a thin-walled or 2D section; elements sharing a section share its check.
+- **`write_section_force_checks(job_dir: str, job_results_dir: str, elements: Sequence, thin_walled: Optional[Sequence], solid: Optional[Sequence], strengths: Optional[Mapping[int, object]] = None, points_per_wall: Optional[int] = None) -> Optional[str]`**
+  Write ``section_force_checks.csv`` and ``section_force_envelope.csv``; return the first path, or ``None`` when the job has no ``section_forces.txt``.
+
 ### `onedfem.post_processing.sensitivity.layup_sensitivity`
 
 [src/onedfem/post_processing/sensitivity/layup_sensitivity.py](../../src/onedfem/post_processing/sensitivity/layup_sensitivity.py)

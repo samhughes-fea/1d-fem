@@ -18,6 +18,11 @@ dependencies = [
     "tabulate>=0.9",
     "psutil>=5.9",
     "pathvalidate>=3.2",
+    # the section provider (onedfem.sections): composite thin-walled, 2D and table sections
+    # come from it. Neither is on PyPI yet, so both come from GitHub. The anisotropic-section-model
+    # pin is a commit until v0.5.0 is tagged.
+    "laminate-constitutive-model @ git+https://github.com/samhughes-fea/laminate-constitutive-model@v0.3.0",
+    "anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@36b39344905942e239c2c386af1fe8237beea726",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -26,11 +31,9 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# the default section provider (onedfem.sections); see requirements-sections.txt
-sections = [
-    "laminate-constitutive-model @ git+https://github.com/samhughes-fea/laminate-constitutive-model@v0.3.0",
-    "anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@v0.3.0",
-]
+# kept so that `pip install "onedfem[sections]"` still works: the section provider is now a
+# core dependency
+sections = []
 # blade geometry from implicit-geometry-kernel
 geometry = ["implicit-geometry-kernel @ git+https://github.com/samhughes-fea/implicit-geometry-kernel@K9"]
 test = ["pytest>=7.0", "pytest-xdist>=3.5"]

@@ -20,6 +20,16 @@ A provider works in 1d-fem's beam axes: beam axis ``x``, section axes ``(y, z)``
 strains ``[eps, kappa_y, kappa_z, gamma_xy, gamma_xz, phi]`` and forces
 ``[N, M_y, M_z, V_y, V_z, T]``. ``docs/conventions.md`` gives the reordering to BeamDyn.
 
+Contract version
+----------------
+``SECTION_API`` is the version of the section contract this 1d-fem needs, ``(major,
+minor)``. A provider declares the version it meets as ``SECTION_API_VERSION`` (package
+level; anisotropic-section-model from 0.5.0). The first time a provider is used its major
+number must match and its minor must be at least ``SECTION_API[1]``, or
+``SectionProviderError`` is raised; a provider that declares no version is taken as 1.0
+with a warning. The contract itself, and the split between the two packages, are in
+anisotropic-section-model's ``docs/package_boundary.md``.
+
 What a provider must have
 -------------------------
 ``PROVIDER_MODULES`` lists the modules and the names 1d-fem takes from each. A
@@ -31,16 +41,23 @@ thin-walled analysis has ``stiffness``, ``shear_centre``, ``wall_strains_at`` ..
 from __future__ import annotations
 
 import importlib
+import warnings
+import weakref
 from types import ModuleType
 from typing import Dict, List, Optional, Tuple, Union
 
 #: the package used when no other provider is set
 DEFAULT_SECTION_PROVIDER = "anisotropic_section_model"
 
+#: the section-provider contract this 1d-fem needs: (major, minor)
+SECTION_API = (1, 0)
+
 #: module (relative to the provider) -> names 1d-fem uses from it
 PROVIDER_MODULES: Dict[str, Tuple[str, ...]] = {
     "section_analysis": ("SectionAnalysis", "ELEMENT_SIGN"),
+    "axes": ("MIRROR", "to_engine"),
     "ply_failure": ("CRITERIA", "PlyStrength", "exposures", "ply_stress_from_wall"),
+    "section_strength": ("SectionStrength",),
     "gbt_alignment": ("align_gbt_sections", "mass_transform"),
     "thin_walled.laminate": ("DEFAULT_SHEAR_CORRECTION", "Ply", "PlyMaterial", "WallLaminate"),
     "thin_walled.thin_walled_geometry": ("ThinWalledSection", "Wall"),
@@ -60,6 +77,7 @@ PROVIDER_MODULES: Dict[str, Tuple[str, ...]] = {
 }
 
 _provider: Optional[Union[str, ModuleType]] = None
+_checked: "weakref.WeakSet[ModuleType]" = weakref.WeakSet()
 
 
 class SectionProviderError(ImportError):
@@ -72,11 +90,35 @@ def set_section_provider(provider: Union[str, ModuleType, None]) -> None:
     _provider = provider
 
 
+def check_api_version(module: ModuleType) -> Tuple[int, int]:
+    """The contract version ``module`` declares, checked against ``SECTION_API``.
+
+    Raises ``SectionProviderError`` when the major numbers differ or the provider's minor is
+    older than the one needed; warns (once) and returns ``(1, 0)`` when it declares none.
+    """
+    v = getattr(module, "SECTION_API_VERSION", None)
+    if v is None:
+        if module not in _checked:
+            warnings.warn(f"section provider '{module.__name__}' declares no SECTION_API_VERSION; "
+                          f"taking it as contract 1.0", stacklevel=3)
+        _checked.add(module)
+        return (1, 0)
+    major, minor = int(v[0]), int(v[1])
+    if major != SECTION_API[0] or minor < SECTION_API[1]:
+        raise SectionProviderError(
+            f"section provider '{module.__name__}' meets section contract {major}.{minor}; this 1d-fem needs "
+            f"{SECTION_API[0]}.x with x >= {SECTION_API[1]} (see onedfem.sections, SECTION_API)")
+    _checked.add(module)
+    return (major, minor)
+
+
 def section_provider() -> ModuleType:
-    """The section provider package, imported on first use."""
+    """The section provider package, imported on first use and checked against ``SECTION_API``."""
     global _provider
     p = DEFAULT_SECTION_PROVIDER if _provider is None else _provider
     if isinstance(p, ModuleType):
+        if p not in _checked:
+            check_api_version(p)
         return p
     try:
         module = importlib.import_module(p)
@@ -84,6 +126,7 @@ def section_provider() -> ModuleType:
         hint = ' (pip install "onedfem[sections]")' if p == DEFAULT_SECTION_PROVIDER else ""
         raise SectionProviderError(f"1d-fem needs a section provider for cross-sections; '{p}' could not be "
                                    f"imported{hint}: {exc}") from exc
+    check_api_version(module)
     _provider = module
     return module
 
@@ -132,7 +175,9 @@ def check_section_provider(provider: Union[str, ModuleType, None] = None) -> Lis
 __all__ = [
     "DEFAULT_SECTION_PROVIDER",
     "PROVIDER_MODULES",
+    "SECTION_API",
     "SectionProviderError",
+    "check_api_version",
     "check_section_provider",
     "section_import",
     "section_module",
