@@ -19,10 +19,9 @@ dependencies = [
     "psutil>=5.9",
     "pathvalidate>=3.2",
     # the section provider (onedfem.sections): composite thin-walled, 2D and table sections
-    # come from it. Neither is on PyPI yet, so both come from GitHub. The anisotropic-section-model
-    # pin is a commit until v0.5.0 is tagged.
+    # come from it. Neither is on PyPI yet, so both come from GitHub.
     "laminate-constitutive-model @ git+https://github.com/samhughes-fea/laminate-constitutive-model@v0.3.0",
-    "anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@36b39344905942e239c2c386af1fe8237beea726",
+    "anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@v0.5.0",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
