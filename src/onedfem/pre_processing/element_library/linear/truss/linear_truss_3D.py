@@ -117,6 +117,10 @@ class LinearTrussElement3D(Element1DBase):
 
     @property
     def J_t(self) -> float:
+        """Saint-Venant torsion constant J_t [m⁴], a geometric constant (independent of the reference axis).
+
+        It enters the torsional stiffness ``G J_t`` [N m²]; it is not the polar moment ``I_p``.
+        """
         return float(self.section_array[4])
 
     @property
@@ -328,22 +332,17 @@ class LinearTrussElement3D(Element1DBase):
 
     def element_mass_matrix(self):
         """
-        Consistent mass using the same shape functions as stiffness: translations rho*A,
-        torsion rho*J_t, bending rotations rho*I_y / rho*I_z (often zero for ideal truss input).
+        Consistent mass using the same shape functions as stiffness, from the provider's section
+        mass: translations ``m = rho A``, twist ``I_p``, bending rotations ``I_yy`` / ``I_zz``
+        (often zero for ideal truss input).
         """
         from onedfem.pre_processing.element_library.gauss_point_data import MassObject
 
         self._assert_logging_ready()
-        rho = float(self.material_array[3])
-        mu = np.zeros(12, dtype=np.float64)
-        for i in (0, 1, 2, 6, 7, 8):
-            mu[i] = rho * self.A
-        for i in (3, 9):
-            mu[i] = rho * self.J_t
-        for i in (4, 10):
-            mu[i] = rho * self.I_y
-        for i in (5, 11):
-            mu[i] = rho * self.I_z
+        # section mass per length from the provider (``isotropic_section_analysis``)
+        from onedfem.pre_processing.element_library.isotropic_section import nodal_mass_diagonal
+
+        mu = nodal_mass_diagonal(self.isotropic_section_analysis, 12)
         M_e = np.zeros((12, 12), dtype=np.float64)
         xi, w = self.integration_points
         detJ = self.jacobian_determinant

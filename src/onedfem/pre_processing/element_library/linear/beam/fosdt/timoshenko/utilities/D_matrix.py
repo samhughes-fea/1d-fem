@@ -44,7 +44,8 @@ class MaterialStiffnessOperator:
     moment_inertia_z : float
         Second moment of area about z, I_z [m⁴].
     torsion_constant : float
-        St. Venant torsional constant J_t [m⁴].
+        Saint-Venant torsion constant J_t [m⁴], a geometric constant; ``D`` holds the
+        torsional stiffness ``G J_t`` [N m²]. Not the polar moment ``I_p``.
     shear_correction_factor : float, optional
         Shear correction factor κ (default: 5/6 for rectangular sections).
 
@@ -84,12 +85,14 @@ class MaterialStiffnessOperator:
     D[3,3] = κ·G·A    (shear stiffness in XY plane; κ is shear correction factor)
     D[4,4] = κ·G·A    (shear stiffness in XZ plane; κ is shear correction factor)
     D[5,5] = G·J_t    (St. Venant torsional stiffness)
-    D[i,j] = 0  for all i ≠ j   (uncoupled in the absence of shear-centre offset)
+    D[i,j] = 0  for all i ≠ j   (uncoupled)
     ```
 
-    Optional shear-centre offset coupling: when the shear centre is offset from the
-    centroid by (y_sc, z_sc), off-diagonal entries D[1,5], D[5,1], D[2,5], D[5,2]
-    become non-zero (Vlasov warping correction). The default is y_sc = z_sc = 0.
+    The numbers come from the section provider (``SectionAnalysis.from_isotropic``), so
+    this operator and the element ``section_analysis`` hold the same ``D``. ``y_sc``,
+    ``z_sc`` are recorded there as the shear centre only; ``D`` stays diagonal. (Before
+    the provider took over, a non-zero offset added ``D[1,5] = -EI_y z_sc`` and
+    ``D[2,5] = EI_z y_sc``, which are not in units of a stiffness and were dropped.)
 
     **Weak-form assembly linkage**
 
@@ -218,25 +221,17 @@ class MaterialStiffnessOperator:
         | 5               | φ_x  (torsion)             | 5            | **GJ_t**    |
 
         """
-        # Compute stiffness terms (consistent units)
-        EA = self.youngs_modulus * self.cross_section_area
-        EI_z = self.youngs_modulus * self.moment_inertia_z
-        EI_y = self.youngs_modulus * self.moment_inertia_y
-        GJ_t = self.shear_modulus * self.torsion_constant
-        kappa_GA = self.shear_correction_factor * self.shear_modulus * self.cross_section_area
+        # The section D comes from the section provider (``SectionAnalysis.from_isotropic``);
+        # 1D-FEM computes no section properties of its own.
+        from onedfem.pre_processing.element_library.isotropic_section import isotropic_stiffness
 
-        # --- main constitutive matrix ---
-        D = np.zeros((6, 6), dtype=np.float64)
-        D[0, 0] = EA
-        D[1, 1] = EI_y          # bending about y
-        D[2, 2] = EI_z          # bending about z
-        D[3, 3] = kappa_GA      # shear xy (Timoshenko)
-        D[4, 4] = kappa_GA      # shear xz (Timoshenko)
-        D[5, 5] = GJ_t          # torsion
-        # Shear-centre coupling: when y_sc or z_sc != 0, bending–torsion coupling
-        if self.y_sc != 0.0 or self.z_sc != 0.0:
-            D[1, 5] = D[5, 1] = -EI_y * self.z_sc
-            D[2, 5] = D[5, 2] = EI_z * self.y_sc
+        D = isotropic_stiffness(
+            E=self.youngs_modulus, G=self.shear_modulus, A=self.cross_section_area,
+            I_y=self.moment_inertia_y, I_z=self.moment_inertia_z, J_t=self.torsion_constant,
+            kappa=self.shear_correction_factor, y_sc=self.y_sc, z_sc=self.z_sc,
+        )
+        EA, EI_y, EI_z = D[0, 0], D[1, 1], D[2, 2]
+        kappa_GA, GJ_t = D[3, 3], D[5, 5]
 
         object.__setattr__(self, '_D_assembly', D)
         object.__setattr__(self, '_D_postprocess', D.copy())

@@ -21,7 +21,11 @@ from onedfem.workflow_orchestrator.run_job import process_job, setup_job_results
 
 
 def _pinned_eigen_cantilever_reference_frequencies_hz(n: int) -> np.ndarray:
-    return np.array([11.253952, 28.593523, 72.731488, 184.790597], dtype=np.float64)[:n]
+    # job_smoke_eigen: 4-element EB cantilever, L = 2 m, open I-like section (J_t = 2.61e-8,
+    # I_p = I_y + I_z = 2.41e-6 m^4). Third is the first torsion mode, near the continuum
+    # (1 / 4L) sqrt(G J_t / (rho I_p)) = 41.8 Hz. It used to sit above 184 Hz because the twist
+    # inertia was rho J_t instead of rho I_p.
+    return np.array([11.253952, 28.593523, 42.019002, 72.731488], dtype=np.float64)[:n]
 
 
 def _pinned_linear_buckling_reference_load_factors(n: int) -> np.ndarray:

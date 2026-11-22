@@ -39,11 +39,35 @@ As documented in `SectionParser`:
 
 Bulk upgrades of older section files can use `scripts/migrate_section_txt_to_11_columns.py`.
 
+### What each column is
+
+Every column is a geometric constant of the section (no modulus or density). Areas are
+about the centroidal axes `y`, `z`, which are the beam reference axis of a `section.txt`
+element. The material from `material.txt` turns them into the stiffness `D` and the mass
+per length `M`. Two torsion constants are easy to confuse: `J_t` ends up in the torsional
+stiffness, `I_x` in the rotary inertia.
+
+| Column | Geometric constant | Reference axis | In the stiffness `D` | In the mass `M` |
+|---|---|---|---|---|
+| `A` | area [m²] | — | `EA` [N], `kappa G A` [N] | `rho A` [kg/m] |
+| `I_x` | polar second moment of area `I_p = ∫ (y² + z²) dA` [m⁴]; `0` or blank means `I_y + I_z` | centroid | — (Wagner term `I_p / A` of second-order elements) | twist rotary inertia `rho I_p` [kg m] |
+| `I_y`, `I_z` | second moments `∫ z² dA`, `∫ y² dA` [m⁴] | centroid | bending stiffness `EI_y`, `EI_z` [N m²] | rotary inertia `rho I_y`, `rho I_z` [kg m] |
+| `J_t` | Saint-Venant torsion constant [m⁴] | independent of the axis | torsional stiffness `G J_t` [N m²] | — |
+| `y_sc`, `z_sc` | shear-centre position [m] | centroid | recorded on the section; no coupling | — |
+| `Gamma` | warping constant [m⁶] | shear centre | warping stiffness `E Gamma` [N m⁴] | `rho Gamma` on the warping DOF |
+
+`J_t` and `I_x` agree only for a circular section (solid or tube). For anything else
+`J_t < I_p`: a solid square has `J_t = 0.141 a⁴` and `I_p = a⁴ / 6`, a thin strip
+`b × t` has `J_t ≈ b t³ / 3` and `I_p ≈ b³ t / 12`. Never put `J_t` in the `I_x` column,
+or the reverse. The section provider's `SectionAnalysis.from_isotropic` reads them the
+same way (`J_t` into `D[5, 5] = G J_t`, `I_x` into `M[3, 3] = rho I_p`); see
+[section_analysis.md](../element_library/section_analysis.md).
+
 ### When to set `Gamma`, shear centre, `kappa`, `alpha`
 
 - **`Gamma`:** Use **> 0** when you want Vlasov **warping stiffness** (`E·Γ` on the warping part of the material matrix) **and** warping is enabled for that element (`[warping]` / `element_warping_stiffness_on`). If `[warping]` is off for the row, `effective_warping_gamma` treats Γ as zero for stiffness regardless of the stored section value. Leave **0** for runs without warping stiffness or when you only need mesh/DOF policy without Γ stiffness.
 
-- **`y_sc`, `z_sc`:** Non-zero when the formulation uses shear-centre offsets from `section_array` (e.g. Timoshenko paths). **0** means centroid-centred coupling (no offset).
+- **`y_sc`, `z_sc`:** The shear centre relative to the centroid. It is recorded on the provider's section (and used by the thin-walled and warping paths); an isotropic `D` stays diagonal, so it adds no bending-torsion coupling.
 
 - **`kappa` / `alpha`:** Shear correction and higher-order coefficients; populate per section physics (defaults from migration scripts may be placeholders).
 

@@ -122,6 +122,23 @@ Element frames for the linear beams: rotation to global axes, and curved, twiste
   ``(element, U_local, xi_local)`` for recovering the section state at ``xi`` of ``element``.
 - **`chain(element) -> _Chain`**
 
+### `onedfem.pre_processing.element_library.isotropic_section`
+
+[src/onedfem/pre_processing/element_library/isotropic_section.py](../../src/onedfem/pre_processing/element_library/isotropic_section.py)
+
+Isotropic section properties, from the section provider.
+
+- **`isotropic_section(*, E: float, G: float, A: float, I_y: float = 0.0, I_z: float = 0.0, J_t: float = 0.0, kappa: float = 0.8333333333333334, I_x: Optional[float] = None, y_sc: float = 0.0, z_sc: float = 0.0, Gamma: float = 0.0, rho: float = 0.0)`**
+  The provider's ``SectionAnalysis.from_isotropic`` for these constants (cached, read-only).
+- **`isotropic_section_of(element)`**
+  ``isotropic_section`` from an element's ``section_array`` and ``material_array``.
+- **`isotropic_stiffness(**constants) -> np.ndarray`**
+  Section ``D`` (6, 6) on ``[eps, kappa_y, kappa_z, gamma_xy, gamma_xz, phi]`` (a copy).
+- **`isotropic_mass(section) -> Dict[str, float]`**
+  Mass per length of a section: ``m``, ``I_p`` (polar), ``I_yy``, ``I_zz`` (``rho`` times areas).
+- **`nodal_mass_diagonal(section, n_dof: int = 12) -> np.ndarray`**
+  Per-DOF mass densities ``mu`` of a two-node element from the section mass.
+
 ### `onedfem.pre_processing.element_library.linear`
 
 [src/onedfem/pre_processing/element_library/linear/__init__.py](../../src/onedfem/pre_processing/element_library/linear/__init__.py)
