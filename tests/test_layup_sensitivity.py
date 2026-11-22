@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import dataclasses
 import logging
 import os
 import shutil
@@ -121,12 +122,14 @@ RESPONSES = {"static": STATIC, "eigen": EIGEN, "buckling": BUCKLING}
 BUCKLING_TIP = [-2e5, 4e3, 6e3, 3e3, 2e3, -1e3]
 
 
-def _spec(change=None):
+def _spec(change=None, mitred=False):
+    """The box; ``mitred`` gives every wall the cap laminate, so its 2D mesh has mitred corners."""
     cap, t = list(CAP), [0.5e-3] * len(CAP)
     if change is not None:
         (cap if change[0].kind == "angle" else t)[change[0].ply] += change[1]
+    web = 1 if mitred else 2
     return common.SectionSpec({1: (-B / 2, -H / 2), 2: (B / 2, -H / 2), 3: (B / 2, H / 2), 4: (-B / 2, H / 2)},
-                              [(1, 1, 2, 1), (2, 2, 3, 2), (3, 3, 4, 1), (4, 4, 1, 2)], {1: CFJ},
+                              [(1, 1, 2, 1), (2, 2, 3, web), (3, 3, 4, 1), (4, 4, 1, web)], {1: CFJ},
                               {1: [(1, a, tt) for a, tt in zip(cap, t)], 2: [(1, a, 0.5e-3) for a in WEB]})
 
 
@@ -157,7 +160,11 @@ def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D", precurvature=
     job = os.path.join(_WORK, "jobs", name)
     common.write_job(job, spec)
     common.write_supports(job, spec)
-    if two_d:
+    if two_d == "geometry":
+        # meshed in 2D from the walls by the job itself: ply tags and node velocities
+        with open(os.path.join(job, "section_geometry.txt"), "a", encoding="utf-8") as f:
+            f.write("\n[Section_Mesh_2D]\n[section_id] [elements_along] [rows_per_ply]\n1 4 1\n")
+    elif two_d:
         from onedfem.interfaces.blade.solid_sections import write_section_mesh_2d
         from anisotropic_section_model.solid.mesh import SectionMesh
 
@@ -181,8 +188,8 @@ def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D", precurvature=
             f.write("[Simulation]\n[Type]\nbuckling\n\n[Solver]\ntype = direct\n\n[Buckling]\nenabled = true\n"
                     "num_modes = 4\nbuckling_prestress = linear_static\nbuckling_load_factor = 1.0\n")
     with open(os.path.join(job, "layup_sensitivity.txt"), "w", encoding="utf-8") as f:
-        # 2D sections take ply angles only
-        f.write(format_layup_sensitivity_file([p for p in JOB_PARAMS if not two_d or p.kind == "angle"],
+        # section_mesh_2d.txt sections take ply angles only (the file holds no node velocities)
+        f.write(format_layup_sensitivity_file([p for p in JOB_PARAMS if two_d is not True or p.kind == "angle"],
                                               RESPONSES[kind]))
     res = common.results_dir(os.path.join(_WORK, "results", name))
     logging.disable(logging.WARNING)
@@ -368,6 +375,94 @@ def test_2d_section_job_sensitivities_match_central_differences(kind, element):
     assert n == len(RESPONSES[kind])
 
 
+@pytest.mark.slow
+@pytest.mark.parametrize("kind, element", [("static", "LinearTimoshenkoBeamElement3D"),
+                                           ("eigen", "LinearBenscoterBeamElement3D"),
+                                           ("buckling", "LinearTimoshenkoBeamElement3D")])
+def test_2d_section_from_walls_job_sensitivities_match_central_differences(kind, element):
+    """Jobs on the box meshed in 2D from its walls ([Section_Mesh_2D]): ply angles and ply
+    thicknesses, each re-solved job meshing its own perturbed layup.
+
+    The box has one laminate, so its corners are mitred and the re-meshed section is the
+    moved one. At butt-jointed corners (caps and webs of different laminates) re-meshing
+    re-places the ties, and re-solved jobs differ from the derivative of the moved mesh by
+    about 0.15 % on this box; the provider checks those against moved meshes."""
+    tag = f"2dw_{kind}"
+    base = _run(tag, _spec(mitred=True), kind, element, two_d="geometry")
+    n = 0
+    for prm in JOB_PARAMS:
+        h = 1e-2 if prm.kind == "angle" else 1e-8
+        rp = _run(f"{tag}_p", _spec((prm, h), mitred=True), kind, element, two_d="geometry")
+        rm = _run(f"{tag}_m", _spec((prm, -h), mitred=True), kind, element, two_d="geometry")
+        for (label, resp), row in base.items():
+            if label != prm.label:
+                continue
+            fd = (float(rp[label, resp]["response_value"]) - float(rm[label, resp]["response_value"])) / (2 * h)
+            assert float(row["derivative"]) == pytest.approx(fd, rel=2e-5), (label, resp)
+            if prm.kind == "thickness":
+                assert float(row["value"]) == 0.5e-3
+                rel = 0.5e-3 / float(row["response_value"]) * float(row["derivative"])
+                assert float(row["relative_derivative"]) == pytest.approx(rel, rel=1e-12)
+            n += 1
+    assert n == len(JOB_PARAMS) * len(RESPONSES[kind])
+
+
+def test_2d_thickness_from_walls_is_close_to_thin_walled():
+    """The 2D thickness derivative of the tip deflection is near the thin-walled one: both
+    hold the wall mid-lines, and the 2D section resolves the corners and the through-thickness."""
+    prm = JOB_PARAMS[1]
+    rows_tw = _run("tw_close", _spec(), "static")
+    rows_2d = _run("2dw_close", _spec(), "static", two_d="geometry")
+    key = (prm.label, f"UZ@{N_EL}")
+    a, b = float(rows_tw[key]["relative_derivative"]), float(rows_2d[key]["relative_derivative"])
+    assert a < 0.0 and b < 0.0
+    assert b == pytest.approx(a, rel=0.1)
+
+
+def test_2d_thickness_needs_node_velocities():
+    """A section_mesh_2d.txt section has ply tags but no node velocities: thicknesses are refused."""
+    from onedfem.post_processing.sensitivity.layup_sensitivity import _check_thickness_velocities
+    from anisotropic_section_model.solid.section_analysis import SolidSectionAnalysis
+
+    an = _solid_box()
+    an.mesh.section_id = 1
+    _check_thickness_velocities([an], LayupParameter(1, 3, "thickness"))
+    bare = SolidSectionAnalysis(dataclasses.replace(an.mesh, velocities=None, tie_points=None))
+    _check_thickness_velocities([bare], LayupParameter(1, 3, "angle"))
+    _check_thickness_velocities([bare], LayupParameter(9, 0, "thickness"))       # a ply it does not use
+    with pytest.raises(NotImplementedError, match=r"\[Section_Mesh_2D\]"):
+        _check_thickness_velocities([bare], LayupParameter(1, 3, "thickness"))
+
+
+def test_section_mesh_2d_block(tmp_path):
+    from onedfem.pre_processing.parsing.section_geometry_parser import (
+        format_section_geometry,
+        parse_section_geometry_file,
+        parse_section_mesh_2d_block,
+    )
+    from onedfem.pre_processing.section_job import section_analyses_from_files, solid_analyses_from_geometry
+
+    sec = _spec()
+    job = tmp_path / "job"
+    common.write_job(str(job), common.CantileverSpec(4.0, N_EL, "LinearTimoshenkoBeamElement3D", sec,
+                                                     [0.0] * 6))
+    geo = job / "section_geometry.txt"
+    sections = parse_section_geometry_file(str(geo))
+    geo.write_text(format_section_geometry(sections, mesh_2d={1: (3, 2)}))
+    assert parse_section_mesh_2d_block(str(geo)) == {1: (3, 2)}
+    assert section_analyses_from_files(str(job / "laminate.txt"), str(geo)) == {}
+    an = solid_analyses_from_geometry(str(job / "laminate.txt"), str(geo))[1]
+    assert an.mesh.section_id == 1 and an.mesh.velocities is not None
+    assert len(an.mesh.elements) > 0
+    geo.write_text(format_section_geometry(sections, mesh_2d={7: (3, 1)}))
+    with pytest.raises(ValueError, match="does not define"):
+        solid_analyses_from_geometry(str(job / "laminate.txt"), str(geo))
+    geo.write_text(format_section_geometry(sections) + "\n[Section_Mesh_2D]\n[section_id] [elements_along] "
+                   "[rows_per_ply]\n1 0 1\n")
+    with pytest.raises(ValueError, match=">= 1"):
+        parse_section_mesh_2d_block(str(geo))
+
+
 # ------------------------------------------------------------------ GBT
 
 @pytest.mark.slow
@@ -407,3 +502,19 @@ def test_unsupported_elements_are_refused():
         element_derivatives(LinearEulerBernoulliBeamElement3D(), None)
     with pytest.raises(NotImplementedError, match="tapered"):
         element_derivatives(LinearTimoshenkoBeamElement3D(), None)
+
+
+def test_tapered_2d_sections_are_refused():
+    """The taper coupling of a 2D section is not differentiated: on the tapered box meshed in 2D
+    it was left out, and the tip-deflection angle derivative came out 2.6 % off."""
+    from onedfem.post_processing.sensitivity.layup_sensitivity import _check_element
+
+    class LinearTimoshenkoBeamElement3D:
+        element_id = 3
+        layup_sensitivity = "section"
+
+        class _assigned_section_analysis:
+            tapered, source, taper_parts = True, "solid", {1: None}
+
+    with pytest.raises(NotImplementedError, match="2D section"):
+        _check_element(LinearTimoshenkoBeamElement3D())

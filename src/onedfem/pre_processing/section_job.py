@@ -7,7 +7,11 @@ from __future__ import annotations
 from typing import Dict
 
 from onedfem.pre_processing.parsing.laminate_parser import parse_laminate_file
-from onedfem.pre_processing.parsing.section_geometry_parser import parse_section_geometry_file, parse_section_mesh
+from onedfem.pre_processing.parsing.section_geometry_parser import (
+    parse_section_geometry_file,
+    parse_section_mesh,
+    parse_section_mesh_2d_block,
+)
 from onedfem.sections import section_import
 
 
@@ -17,15 +21,44 @@ def section_analyses_from_files(
     """Return ``{section_id: ThinWalledSectionAnalysis}`` for every section in the files.
 
     ``n_sub`` is the default wall subdivision; a ``[Section_Mesh]`` block overrides it per section.
+    Sections listed in a ``[Section_Mesh_2D]`` block are left out (``solid_analyses_from_geometry``).
     """
     ThinWalledSectionAnalysis = section_import("thin_walled.section_analysis", "ThinWalledSectionAnalysis")
     laminates = parse_laminate_file(laminate_path)
     sections = parse_section_geometry_file(geometry_path, laminates.keys())
     mesh = parse_section_mesh(geometry_path)
+    two_d = parse_section_mesh_2d_block(geometry_path)
     return {
         sid: ThinWalledSectionAnalysis(sec, laminates, hoop=hoop, n_sub=mesh.get(sid, n_sub))
         for sid, sec in sections.items()
+        if sid not in two_d
     }
+
+
+def solid_analyses_from_geometry(laminate_path: str, geometry_path: str) -> Dict[int, "SolidSectionAnalysis"]:
+    """Return ``{section_id: SolidSectionAnalysis}`` for the sections of the ``[Section_Mesh_2D]``
+    block of ``section_geometry.txt`` (empty without it).
+
+    Each is meshed in 2D from its walls and ``laminate.txt`` (``SectionMesh.from_thin_walled``),
+    so its mesh carries ply tags and the node velocities of every ply thickness: such sections
+    take ply-angle and ply-thickness sensitivities.
+    """
+    two_d = parse_section_mesh_2d_block(geometry_path)
+    if not two_d:
+        return {}
+    SectionMesh = section_import("solid.mesh", "SectionMesh")
+    SolidSectionAnalysis = section_import("solid.section_analysis", "SolidSectionAnalysis")
+    laminates = parse_laminate_file(laminate_path)
+    sections = parse_section_geometry_file(geometry_path, laminates.keys())
+    unknown = sorted(set(two_d) - set(sections))
+    if unknown:
+        raise ValueError(f"[Section_Mesh_2D] names sections {unknown} that section_geometry.txt does not define")
+    out = {}
+    for sid, (along, rows_per_ply) in two_d.items():
+        mesh = SectionMesh.from_thin_walled(sections[sid], laminates, elements_along=along, rows_per_ply=rows_per_ply)
+        mesh.section_id = sid
+        out[sid] = SolidSectionAnalysis(mesh)
+    return out
 
 
 def solid_analyses_from_files(mesh_path: str, laminate_path=None) -> Dict[int, "SolidSectionAnalysis"]:
@@ -86,6 +119,10 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
     2D section's own modes (``solid.cross_section_modes``) without extra shear-lag modes;
     wall loads need thin-walled sections.
 
+    Sections listed in a ``[Section_Mesh_2D]`` block of ``section_geometry.txt`` are meshed in 2D
+    from their walls (``SectionMesh.from_thin_walled``) and analysed like those of
+    ``section_mesh_2d.txt``; their meshes also take ply-thickness sensitivities.
+
     With ``section_matrix.txt`` the sections it defines are given as 6 x 6 stiffness and mass
     tables (``parsing/section_matrix_parser.py``, ``SectionAnalysis.from_matrices``) and are
     assigned in the same ``element_section.txt`` (section ids must differ from the thin-walled
@@ -138,6 +175,12 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
         )
     analyses = section_analyses_from_files(paths[0], paths[1], hoop=hoop) if present[1] else {}
     solid = solid_analyses_from_files(mesh_path, paths[0] if present[0] else None) if has_mesh else {}
+    meshed = solid_analyses_from_geometry(paths[0], paths[1]) if present[1] else {}
+    clash = sorted(set(meshed) & set(solid))
+    if clash:
+        raise ValueError(f"sections {clash} are meshed in 2D by both [Section_Mesh_2D] in section_geometry.txt "
+                         "and section_mesh_2d.txt")
+    solid.update(meshed)
     matrices = section_matrix_analyses(matrix_path) if has_matrix else {}
     both = sorted(set(analyses) & set(solid))
     if both:

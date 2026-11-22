@@ -155,9 +155,11 @@ Parse ``section_geometry.txt``: mid-line points and walls of thin-walled section
 
 - **`parse_section_mesh(filepath: str) -> Dict[int, int]`**
   Return ``{section_id: n_sub}`` from the optional ``[Section_Mesh]`` block (empty without it).
+- **`parse_section_mesh_2d_block(filepath: str) -> Dict[int, Tuple[int, int]]`**
+  Return ``{section_id: (elements_along, rows_per_ply)}`` from the optional ``[Section_Mesh_2D]`` block (empty without it).
 - **`parse_section_geometry_file(filepath: str, laminate_ids: Optional[Iterable[int]] = None) -> Dict[int, ThinWalledSection]`**
   Read ``section_geometry.txt`` and return ``{section_id: ThinWalledSection}``.
-- **`format_section_geometry(sections: Dict[int, ThinWalledSection], n_sub: Optional[Dict[int, int]] = None) -> str`**
+- **`format_section_geometry(sections: Dict[int, ThinWalledSection], n_sub: Optional[Dict[int, int]] = None, mesh_2d: Optional[Dict[int, Tuple[int, int]]] = None) -> str`**
   Text of a ``section_geometry.txt`` for ``{section_id: ThinWalledSection}``.
 
 ### `onedfem.pre_processing.parsing.section_matrix_parser`
