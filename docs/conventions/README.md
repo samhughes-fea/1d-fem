@@ -6,6 +6,7 @@ Standards for this repository: **1D finite-element beam/frame models in 3D space
 |----------|--------|
 | [API_STANDARDS.md](API_STANDARDS.md) | Weak-form assembly (**B**, **D**, **J**), equivalent nodal loads (**N**, **f**), linear `utilities/` layout, nonlinear TL extension, runners and parsers. |
 | [COMMIT_STANDARDS.md](COMMIT_STANDARDS.md) | [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/). |
+| [RELEASING.md](RELEASING.md) | Tags and releases: the `release` workflow tags a merged release PR; backfilling old releases. |
 | [TESTING_STANDARDS.md](TESTING_STANDARDS.md) | Pytest layout under [tests/](../../tests), naming, fixtures. |
 | [FORMULATION_DOCSTRING_STANDARDS.md](FORMULATION_DOCSTRING_STANDARDS.md) | Checklist for element and utility docstrings (shapes, DOF order, limits). Includes **tensor / Voigt contract** and **weak-form Gauss assembly** for all tensors. |
 | [weak_form_audit.md](../element_library/weak_form_audit.md) | Per-element matrix: which outputs are Gauss-integrated vs documented exceptions. |
