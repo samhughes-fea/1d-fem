@@ -32,6 +32,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- **Geometry extra tracks implicit-geometry-kernel `v0.9.5`** (was `v0.9.3`; `v0.9.4` carries 0.9.3 code and is skipped). `onedfem[geometry]` and `requirements-geometry.txt` install `git+https://github.com/samhughes-fea/implicit-geometry-kernel@v0.9.5`.
 - **anisotropic-section-model is a core dependency** (pinned to `v0.5.0`). `onedfem[sections]` is kept as an empty extra. `src/onedfem` still imports it only through `onedfem.sections`, and a job with no section files no longer imports the provider at all. The package boundary: anything within one cross-section is anisotropic-section-model's, anything solved along the span is 1d-fem's ([SECTION_STIFFNESS_ORDER.md](conventions/SECTION_STIFFNESS_ORDER.md)).
 
 - **Geometry extra tracks implicit-geometry-kernel `v0.9.3`** (it was the non-release tag `K9`, `d3f6c4f`). `onedfem[geometry]` and `requirements-geometry.txt` install `git+https://github.com/samhughes-fea/implicit-geometry-kernel@v0.9.3`.
