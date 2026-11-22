@@ -3,7 +3,7 @@
 With `layup_sensitivity.txt` in a static or eigen job, 1d-fem writes the derivatives of
 chosen responses (nodal displacements, the compliance, natural frequencies) with respect to
 chosen ply angles and ply thicknesses of the thin-walled sections (for Timoshenko, Benscoter
-and GBT beams), and ply angles of sections meshed in 2D. The derivatives are exact
+and GBT beams), and ply angles and thicknesses of sections meshed in 2D. The derivatives are exact
 for the discrete model: the section derivatives are found by differentiating the section
 analysis, not by finite differences, and the beam derivatives follow by the adjoint method
 (static) or the eigenvalue derivative (eigen). One solve gives every derivative.
@@ -93,10 +93,37 @@ modulus \(E_x = C_{xx} - C_{xi} C_{ii}^{-1} C_{ix}\), and the relaxed-gradient s
 \(K_{77}\); the second-order terms and axial weights are linear in the stresses and \(E_x\).
 The mass does not depend on ply angles.
 
-`solid_section_derivative(analysis, LayupParameter(laminate_id, ply, "angle"))`
+`solid_section_derivative(analysis, LayupParameter(laminate_id, ply, kind))`
 (`anisotropic_section_model/solid/layup_sensitivity.py`) returns the same
-`SectionDerivative`, and jobs on `section_mesh_2d.txt` sections use it. A thickness
-parameter moves the mesh nodes and is refused.
+`SectionDerivative`, and jobs on 2D sections use it.
+
+A `thickness` parameter moves the mesh nodes: with the node velocity \(V = \partial X/\partial t\)
+each quadrature point moves and its weight changes with \(\nabla\cdot V\), the tie weights of
+butt-jointed corners and T-junctions move with the nodes, and the Giavotto systems are
+differentiated through both. The wall mid-lines stay put and each stack stays centred on
+its mid-line, as for thin-walled sections. The mass changes too (the eigen and buckling
+derivatives carry \(\partial M\)). Only a mesh that knows \(V\) takes it, so the section is
+meshed from its walls by the job: list it in a `[Section_Mesh_2D]` block of
+`section_geometry.txt`,
+
+```
+[Section_Mesh_2D]
+[section_id] [elements_along] [rows_per_ply]
+1  8  1
+```
+
+and it is meshed with `SectionMesh.from_thin_walled` from its walls and `laminate.txt`
+(junctions mitred where they can be, tied elsewhere) and analysed in 2D in place of the
+thin-walled analysis. `section_mesh_2d.txt` holds no node velocities, so its sections take
+ply angles only, and a thickness parameter on one of them is refused with a pointer to
+`[Section_Mesh_2D]`. The `value` column of a 2D thickness row is the ply thickness from
+`laminate.txt`.
+
+The derivative is that of the moved mesh. Re-meshing a thicker ply gives the same mesh
+where the corners are mitred, but at butt joints it re-places the ties, so differences of
+re-meshed jobs there differ from the derivative by the change of mesh (about 0.15 % on the
+test box). Compare against moved meshes (nodes \(+ hV\), ties re-made on the same masters),
+as the provider's tests do.
 
 ### GBT sections
 
@@ -198,7 +225,8 @@ jobs: static displacements, twist and compliance and eigen frequencies with Timo
 Benscoter elements, and the first two buckling load factors of a box cantilever under
 compression, shear, torque and bending, and static and eigen responses of a pretwisted,
 prebent box and of a tapered, pretwisted one, and static (Timoshenko), eigen (Benscoter) and
-buckling responses of the box meshed in 2D, for a ply angle (all to \(2\times10^{-5}\)), and
+buckling responses of the box meshed in 2D, for a ply angle, and of a mitred box meshed in 2D from
+its walls (`[Section_Mesh_2D]`), for a ply angle and a ply thickness (all to \(2\times10^{-5}\)), and
 static, eigen and buckling responses of GBT cantilevers with two distortional modes, with and
 without two shear-lag modes (to \(3\times10^{-6}\), and \(2\times10^{-5}\) with the shear-lag modes). On the IEA 15 MW
 outboard segment (tapered, pretwisted, 6 elements) the cap angle derivatives of tip
@@ -219,11 +247,14 @@ reaches a target twist per unit flap deflection.
 - Linear static, eigen and linear buckling (linear static prestress) jobs with
   `LinearTimoshenkoBeamElement3D`, `LinearBenscoterBeamElement3D` (not buckling) or
   `LinearGBTBeamElement3D` elements. Timoshenko and Benscoter elements take thin-walled
-  sections or, for ply angles only, sections meshed in 2D with ply tags; pretwisted, curved
+  sections, sections meshed in 2D with ply tags (ply angles) and sections meshed in 2D from
+  their walls (`[Section_Mesh_2D]`: ply angles and thicknesses); pretwisted, curved
   (not in buckling) and tapered elements are included (a tapered one needs
-  `[Section_Taper_Laminate]`). GBT elements need one thin-walled section along the beam
+  `[Section_Taper_Laminate]` and a thin-walled section: the taper coupling of a 2D section
+  is not differentiated). GBT elements need one thin-walled section along the beam
   and straight elements without precurvature, pretwist or wall loads. Other element types
-  (third-order, corotational), ply thicknesses of 2D sections, 2D meshes without ply tags
+  (third-order, corotational), ply thicknesses of `section_mesh_2d.txt` sections, tapered 2D
+  sections, 2D meshes without ply tags
   (blade cuts from `section_mesh_from_cut`), nonlinear prestress, second-order static and
   rotating (centrifugal) jobs are refused.
 - Wall mid-lines are held fixed: a thickness change grows the stack about its mid-surface.

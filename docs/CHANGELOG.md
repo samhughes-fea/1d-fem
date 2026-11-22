@@ -4,8 +4,20 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- **Ply-thickness sensitivities of sections meshed in 2D.** A `[Section_Mesh_2D]` block in `section_geometry.txt` (`[section_id] [elements_along] [rows_per_ply]`) meshes the listed sections in 2D from their walls and `laminate.txt` (`SectionMesh.from_thin_walled`) and analyses them in 2D. Those meshes carry how their nodes move with each ply's thickness, so `layup_sensitivity.txt` now takes `thickness` parameters on them, through the provider's `solid_section_derivative` (anisotropic-section-model 0.5.0), for static displacements and compliance, frequencies and buckling load factors, with Timoshenko and Benscoter elements. On a mitred box cantilever every angle and thickness derivative agrees with central differences of re-meshed, re-solved jobs to 2e-5. `section_mesh_2d.txt` sections still take ply angles only (the file holds no node velocities), and a thickness on one is refused with a pointer to the new block.
+
+### Fixed
+
+- **Layup sensitivities refuse tapered elements on 2D sections.** The taper (Resal) coupling of a 2D section was not differentiated (its laminate split was weighted by a wall axial stiffness of zero), so on the tapered box meshed in 2D the tip-deflection angle derivative came out 2.6 % off without warning. Such elements now raise `NotImplementedError`; tapered thin-walled sections are unchanged.
+
 ### Changed
 
+- **Isotropic sections come from anisotropic-section-model too.** The bar, truss, Euler-Bernoulli, Timoshenko, nonlinear and corotational elements no longer build `diag(EA, EI, kappa GA, GJ)` or their section mass from `section.txt` themselves: `element_library/isotropic_section.py` asks the provider for `SectionAnalysis.from_isotropic` and every element reads its `D` and mass from that, so anisotropic-section-model is the single source of section properties ([section_analysis.md](element_library/section_analysis.md)). Building an isotropic element now imports the provider. Two results change where the old formulas were wrong:
+  - the twist rotary inertia is `rho I_p` (`I_x`, or `I_y + I_z` when `I_x` is 0 or absent), where it was `rho J_t`; torsional frequencies of non-circular sections move (a solid square: `J_t = 0.141 a^4` against `I_p = 0.167 a^4`, so its torsion frequencies drop by about 8 %). Pretwisted and curved isotropic elements, which already went through the provider, had `I_p = 0` when `I_x` was `0.0`, as `section.txt` files usually write it; they now take `I_y + I_z`.
+  - a Timoshenko `section.txt` with a shear-centre offset no longer gets `D[1,5] = -EI_y z_sc` and `D[2,5] = EI_z y_sc`. Those terms are not in units of a stiffness (N m^3 where `D[1,5]` needs N m^2) and only the straight, untwisted Timoshenko path had them. The offset is still recorded as the section's shear centre.
+- **Geometry extra tracks implicit-geometry-kernel `v0.9.5`** (was `v0.9.3`; `v0.9.4` carries 0.9.3 code and is skipped). `onedfem[geometry]` and `requirements-geometry.txt` install `git+https://github.com/samhughes-fea/implicit-geometry-kernel@v0.9.5`.
 - **Releases are made by the `release` workflow** ([conventions/RELEASING.md](conventions/RELEASING.md)). Merging a release PR titled `chore(release): prepare x.y.z` creates the annotated `vx.y.z` tag and the GitHub release; nobody pushes tags by hand. The version lives only in `src/onedfem/__init__.py` (`pyproject.toml` reads it), and on `main` it is the next release, 0.5.0. The four releases below were never tagged at the time: their sections are dated by the merge they end on, and they are tagged retrospectively by backfill runs. The code at those commits still reports `__version__` 0.1.0, and the tag messages say so.
 - **Geometry extra tracks implicit-geometry-kernel `v0.9.3`** (it was the non-release tag `K9`, `d3f6c4f`). `onedfem[geometry]` and `requirements-geometry.txt` install `git+https://github.com/samhughes-fea/implicit-geometry-kernel@v0.9.3`.
 

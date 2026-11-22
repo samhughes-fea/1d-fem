@@ -110,6 +110,10 @@ class LinearBarElement3D(Element1DBase):
 
     @property
     def J_t(self) -> float:
+        """Saint-Venant torsion constant J_t [m⁴], a geometric constant (independent of the reference axis).
+
+        It enters the torsional stiffness ``G J_t`` [N m²]; it is not the polar moment ``I_p``.
+        """
         return float(self.section_array[4])
 
     @property
@@ -306,13 +310,16 @@ class LinearBarElement3D(Element1DBase):
         from onedfem.pre_processing.element_library.gauss_point_data import MassObject
 
         self._assert_logging_ready()
+        from onedfem.pre_processing.element_library.isotropic_section import isotropic_mass
+
+        m = isotropic_mass(self.isotropic_section_analysis)["m"]   # rho A, from the provider
         M_e = np.zeros((12, 12), dtype=np.float64)
         xi, w = self.integration_points
         detJ = self.jacobian_determinant
         for xi_g, w_g in zip(xi, w):
             N, _, _ = self.shape_function_operator.natural_coordinate_form(np.array([xi_g]))
             N_g = N[0]
-            M_e += self.rho * self.A * detJ * w_g * (N_g @ N_g.T)
+            M_e += m * detJ * w_g * (N_g @ N_g.T)
         return MassObject(
             element_id=self.element_id,
             element_type=self.element_type_name,

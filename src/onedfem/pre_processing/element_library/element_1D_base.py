@@ -249,21 +249,34 @@ class Element1DBase(ABC):
     def _base_section_analysis(self):
         if self._assigned_section_analysis is not None:
             return self._assigned_section_analysis
-        cached = getattr(self, "_isotropic_section_analysis", None)
-        if cached is None:
-            SectionAnalysis = section_import("section_analysis", "SectionAnalysis")
+        return self.isotropic_section_analysis
 
-            sa = self.section_array
-            E, G, _nu, rho = (float(v) for v in self.material_array)
-            cached = SectionAnalysis.from_isotropic(
-                E=E, G=G, A=float(sa[0]), I_x=float(sa[1]), I_y=float(sa[2]), I_z=float(sa[3]),
-                J_t=float(sa[4]),
-                kappa=float(sa[5]) if sa.size >= 7 else 5.0 / 6.0,
-                y_sc=float(sa[7]) if sa.size >= 9 else 0.0,
-                z_sc=float(sa[8]) if sa.size >= 9 else 0.0,
-                Gamma=float(sa[9]) if sa.size >= 10 else 0.0,
-                rho=rho,
-            )
+    @property
+    def I_p(self) -> float:
+        """Polar second moment of area ``I_p = int (y^2 + z^2) dA`` [m⁴] about the centroid.
+
+        A geometric constant: the ``I_x`` column of ``section.txt``, or ``I_y + I_z`` when that
+        is 0. It enters the twist rotary inertia ``rho I_p`` [kg m] (mass ``M[3, 3]`` about the
+        beam reference axis, the centroid). Not the Saint-Venant torsion constant ``J_t``, which
+        enters the torsional stiffness ``G J_t``; the two agree only for circular sections.
+        """
+        sa = np.asarray(self.section_array, dtype=np.float64)
+        I_x = float(sa[1]) if sa.size > 1 else 0.0
+        return I_x if I_x > 0.0 else float(sa[2] + sa[3]) if sa.size > 3 else 0.0
+
+    @property
+    def isotropic_section_analysis(self):
+        """The provider's ``SectionAnalysis.from_isotropic`` for this element's ``section.txt``
+        and ``material.txt`` constants (``kappa`` 5/6 when absent, ``I_x <= 0`` as ``I_y + I_z``).
+
+        Every isotropic element reads its ``D`` and its section mass from this; 1D-FEM keeps
+        no isotropic formulas of its own (``isotropic_section``).
+        """
+        cached = self.__dict__.get("_isotropic_section_analysis")
+        if cached is None:
+            from onedfem.pre_processing.element_library.isotropic_section import isotropic_section_of
+
+            cached = isotropic_section_of(self)
             self._isotropic_section_analysis = cached
         return cached
 

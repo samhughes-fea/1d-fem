@@ -140,8 +140,15 @@ def test_ul_ts_zero_state_and_small_axial_vs_tl():
         )
         U = np.zeros(12)
         U[6] = 1e-6
+        # UL carries the Wagner term N I_p / A on the twist (I_p = I_y + I_z as I_x = 0);
+        # the TL element does not, so they differ by exactly N I_p / (A L) on [theta_1, theta_2]
+        L = float(gd["coordinates"][1, 0])
+        A, I_p = float(sec["A"][0]), float(sec["I_y"][0] + sec["I_z"][0])
+        N = float(mat["E"][0]) * A * U[6] / L
+        wagner = np.zeros((12, 12))
+        wagner[np.ix_([3, 9], [3, 9])] = N * I_p / (A * L) * np.array([[1.0, -1.0], [-1.0, 1.0]])
         np.testing.assert_allclose(
-            ul.tangent_stiffness_matrix(U), tl.tangent_stiffness_matrix(U), rtol=1e-5, atol=1e-4
+            ul.tangent_stiffness_matrix(U), tl.tangent_stiffness_matrix(U) + wagner, rtol=1e-5, atol=1e-4
         )
     finally:
         shutil.rmtree(root, ignore_errors=True)

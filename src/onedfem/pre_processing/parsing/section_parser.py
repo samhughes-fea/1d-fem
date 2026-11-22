@@ -15,10 +15,10 @@ class SectionParser:
             "section_dictionary": {
                 "element_id": np.ndarray[int64],
                 "A":          np.ndarray[float64],
-                "I_x":        np.ndarray[float64],
-                "I_y":        np.ndarray[float64],
-                "I_z":        np.ndarray[float64],
-                "J_t":        np.ndarray[float64],
+                "I_x":        np.ndarray[float64],  # polar second moment of area I_p [m^4] about the centroid; 0 = I_y + I_z. Rotary inertia rho I_p
+                "I_y":        np.ndarray[float64],  # second moment of area int z^2 dA, centroid
+                "I_z":        np.ndarray[float64],  # second moment of area int y^2 dA, centroid
+                "J_t":        np.ndarray[float64],  # Saint-Venant torsion constant [m^4]. Torsional stiffness G J_t
                 "kappa":      np.ndarray[float64],  # optional; shear correction factor (Timoshenko)
                 "alpha":      np.ndarray[float64],  # optional; higher-order shear coeff (Levinson)
             }
@@ -28,7 +28,12 @@ class SectionParser:
     with [kappa] and [alpha], 10 columns with [y_sc] and [z_sc], or 11 columns
     with [Gamma] for general-section preprocessing (shear centre, warping).
 
-    See ``docs/conventions/JOB_INPUT_BEAM_WARPING.md`` for when to set ``Gamma``, shear centre, and how this ties to ``[warping]`` in ``element.txt``.
+    ``J_t`` and ``I_x`` are different geometric constants [m^4]. ``J_t``, the Saint-Venant
+    torsion constant, gives the torsional stiffness ``G J_t`` [N m^2]. ``I_x`` is the polar
+    moment ``I_p = int (y^2 + z^2) dA`` about the centroid and gives the twist rotary inertia
+    ``rho I_p`` [kg m] about that axis. They are equal only for circular sections.
+
+    See ``docs/conventions/JOB_INPUT_BEAM_WARPING.md`` for the column definitions and when to set ``Gamma``, shear centre, and how this ties to ``[warping]`` in ``element.txt``.
     """
 
     def __init__(self, filepath: str, job_results_dir: str) -> None:

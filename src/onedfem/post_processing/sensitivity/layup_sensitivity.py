@@ -1,8 +1,10 @@
 # post_processing/sensitivity/layup_sensitivity.py
 """Sensitivities of beam responses to ply angles and thicknesses (``layup_sensitivity.txt``).
 
-The section derivatives are exact (``thin_walled.layup_sensitivity``; for sections meshed in
-2D, ply angles only, ``solid.layup_sensitivity``). The element
+The section derivatives are exact (``thin_walled.layup_sensitivity``, and
+``solid.layup_sensitivity`` for sections meshed in 2D: ply angles on any mesh with ply tags,
+ply thicknesses on meshes that know how their nodes move with each ply, the ones
+``[Section_Mesh_2D]`` in ``section_geometry.txt`` makes). The element
 derivatives ``dK_e`` and ``dM_e`` are the element's own matrices formed with the derivative
 section, which is exact because the Timoshenko and Benscoter elements are linear in the
 section's stiffness (6 x 6, or the Benscoter 8 x 8), its mass and its warping inertia. The global responses then follow from the solved job:
@@ -94,6 +96,9 @@ def _check_element(el) -> None:
         if sa is not None and getattr(sa, "source", "") == "solid":
             raise NotImplementedError(f"element {el.element_id}: layup sensitivities of GBT elements need "
                                       "thin-walled sections")
+    if sa is not None and getattr(sa, "tapered", False) and getattr(sa, "source", "") == "solid":
+        raise NotImplementedError(f"element {el.element_id}: layup sensitivities of a tapered element need a "
+                                  "thin-walled section (the taper coupling of a 2D section is not differentiated)")
     if sa is not None and getattr(sa, "tapered", False) and getattr(sa, "taper_parts", None) is None:
         raise NotImplementedError(f"element {el.element_id}: layup sensitivities of a tapered element need its "
                                   "taper split by laminate ([Section_Taper_Laminate] in section_taper.txt)")
@@ -202,14 +207,15 @@ def _geometric_gradient(el, phi_e) -> np.ndarray:
 def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter], *, K, U=None, F=None,
                         fixed_dofs=(), M=None, frequencies_hz=None, mode_shapes=None,
                         responses: Sequence[Response] = (), dof_index=None, load_factors=None,
-                        prestress=None) -> List[dict]:
+                        prestress=None, laminates=None) -> List[dict]:
     """Rows of ``LAYUP_SENSITIVITY_COLUMNS`` for a solved static (``U``, ``F``), eigen
     (``M``, ``frequencies_hz``, ``mode_shapes``) or linear buckling (``load_factors``,
     ``mode_shapes``, ``prestress`` ``U_0``, ``fixed_dofs``) job.
 
     ``thin_walled`` is the per-element ``ThinWalledSectionAnalysis`` or ``SolidSectionAnalysis``
     (``None`` where the element has neither); ``dof_index(node_id, dof)`` maps a response DOF to
-    its global index.
+    its global index. ``laminates`` (``{laminate_id: WallLaminate}``, from ``laminate.txt``)
+    gives the ply thicknesses of parameters that only 2D sections use.
     """
     element_section_derivative = section_import("thin_walled.layup_sensitivity", "element_section_derivative")
     import scipy.sparse as sp
@@ -219,6 +225,8 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
     n = K.shape[0]
     buckling = load_factors is not None
     eigen = mode_shapes is not None and not buckling
+    for p in params:
+        _check_thickness_velocities(thin_walled, p)
     for el in elements:
         _check_element(el)
         if buckling and (not _buckling_ok(el) or _curved(el)):
@@ -313,7 +321,7 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
                 dH = None if gbt else dataclasses.replace(
                     el.section_analysis, geometric_terms=cache[key].geometric_terms @ ELEMENT_SIGN)
                 dGe.append((el, dsa, dH))
-        value = _parameter_value(thin_walled, p)
+        value = _parameter_value(thin_walled, p, laminates)
         if buckling:
             for r, (lam, phi, mu, kg) in modes.items():
                 num = form(dKe, phi, phi) - lam * form(dKe, mu, U0)
@@ -368,20 +376,44 @@ def _section_derivative(an, p: LayupParameter, benscoter: bool, geometric: bool)
     return section_derivative(an, p, benscoter=benscoter, geometric=geometric)
 
 
-def _parameter_value(sections, p: LayupParameter) -> float:
+def _uses(an, p: LayupParameter) -> bool:
+    """Whether 2D section ``an`` has elements of the ply of ``p``."""
+    return any(t is not None and tuple(t) == (p.laminate_id, p.ply) for t in (an.mesh.plies or ()))
+
+
+def _check_thickness_velocities(sections, p: LayupParameter) -> None:
+    """Refuse a thickness ``p`` on a 2D mesh that does not say how its nodes move with it."""
+    if p.kind != "thickness":
+        return
+    for an in sections:
+        if an is not None and _is_solid(an) and _uses(an, p) and an.mesh.velocities is None:
+            sid = an.mesh.section_id
+            raise NotImplementedError(
+                f"{p.label}: section {sid} is meshed in 2D without node velocities (section_mesh_2d.txt holds "
+                "none), so it takes ply-angle sensitivities only; mesh it from its walls with [Section_Mesh_2D] "
+                "in section_geometry.txt for ply-thickness sensitivities")
+
+
+def _parameter_value(sections, p: LayupParameter, laminates=None) -> float:
+    solid_use = False
     for an in sections:
         if an is None:
             continue
         if _is_solid(an):
             tags = an.mesh.plies or ()
             for e, t in enumerate(tags):
-                if t == (p.laminate_id, p.ply):
-                    if p.kind != "angle":
-                        raise NotImplementedError("2D sections take ply-angle sensitivities only")
-                    return float(an.mesh.theta[e])
+                if t is not None and tuple(t) == (p.laminate_id, p.ply):
+                    if p.kind == "angle":
+                        return float(an.mesh.theta[e])
+                    solid_use = True
+                    break
         elif p.laminate_id in an.laminates:
             ply = an.laminates[p.laminate_id].plies[p.ply]
             return float(ply.angle_deg if p.kind == "angle" else ply.thickness)
+    if solid_use:
+        if laminates is None or p.laminate_id not in laminates:
+            raise ValueError(f"{p.label}: the ply thickness of a 2D section needs its laminate (laminate.txt)")
+        return float(laminates[p.laminate_id].plies[p.ply].thickness)
     raise ValueError(f"no section uses ply {p.ply + 1} of laminate {p.laminate_id}")
 
 
@@ -412,6 +444,12 @@ def write_layup_sensitivity(job_dir: str, job_results_dir: str, element_dictiona
         tw = tuple(s if s is not None else t for t, s in zip(tw, solid))
     dpn = mesh_dof_per_node(element_dictionary)
     names = dof_names(dpn)
+    laminates = None
+    lam_path = os.path.join(job_dir, "laminate.txt")
+    if solid is not None and any(p.kind == "thickness" for p in params) and os.path.exists(lam_path):
+        from onedfem.pre_processing.parsing.laminate_parser import parse_laminate_file
+
+        laminates = parse_laminate_file(lam_path)
 
     def dof_index(node_id, dof):
         name = "W" if (dof == "Q1" and "W" in names) else dof
@@ -421,17 +459,20 @@ def write_layup_sensitivity(job_dir: str, job_results_dir: str, element_dictiona
 
     if solver_type == "static":
         rows = layup_sensitivities(elements, tw, params, K=runner.K_global, U=runner.U_global, F=runner.F_global,
-                                   fixed_dofs=runner.fixed_dofs, responses=responses, dof_index=dof_index)
+                                   fixed_dofs=runner.fixed_dofs, responses=responses, dof_index=dof_index,
+                                   laminates=laminates)
     elif solver_type == "eigen":
         rows = layup_sensitivities(elements, tw, params, K=runner.K_global, M=runner.M_global,
                                    frequencies_hz=runner.vibration_frequencies_hz,
-                                   mode_shapes=runner.vibration_mode_shapes, responses=responses)
+                                   mode_shapes=runner.vibration_mode_shapes, responses=responses,
+                                   laminates=laminates)
     elif solver_type == "buckling":
         rows = layup_sensitivities(elements, tw, params, K=runner.buckling_stiffness,
                                    fixed_dofs=runner.buckling_constrained_dofs,
                                    load_factors=runner.buckling_load_factors,
                                    mode_shapes=runner.buckling_mode_shapes,
-                                   prestress=runner.buckling_prestress_u, responses=responses)
+                                   prestress=runner.buckling_prestress_u, responses=responses,
+                                   laminates=laminates)
     else:
         raise ValueError(f"layup sensitivities need a static, eigen or linear buckling job, not {solver_type!r}")
     out_dir = os.path.join(job_results_dir, "secondary_results", "sensitivity")

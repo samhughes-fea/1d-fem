@@ -13,9 +13,9 @@ It holds:
 | Source | When | Stiffness |
 |---|---|---|
 | `"thin_walled"` | element listed in `element_section.txt` | `ThinWalledSectionAnalysis`, mapped to element signs |
-| `"isotropic"` | otherwise | `diag(EA, EI_y, EI_z, kappa GA, kappa GA, GJ_t)` from `section.txt` and `material.txt` (`kappa` defaults to 5/6) |
+| `"isotropic"` | otherwise | the provider's `SectionAnalysis.from_isotropic`: `diag(EA, EI_y, EI_z, kappa GA, kappa GA, GJ_t)` from `section.txt` and `material.txt` (`kappa` defaults to 5/6) |
 
-The isotropic form equals the linear Timoshenko element's `D` exactly. A test checks this.
+1D-FEM computes no isotropic section properties of its own. `element_library/isotropic_section.py` makes the one `from_isotropic` call, and every isotropic element reads it: the bar and truss take their rows of its `D`, the Euler-Bernoulli elements its `euler_bernoulli_D()`, the Timoshenko, nonlinear and corotational beams its full `D`, and all of them their consistent mass from its mass per length. The twist DOFs carry the polar moment \(\rho I_p\): `I_x` from `section.txt`, or \(I_y + I_z\) when `I_x` is `0` or absent. The shear centre `y_sc`, `z_sc` is recorded on the section and `D` stays diagonal. `tests/test_isotropic_sections_from_provider.py` checks each element against the provider and swaps in a provider that doubles every stiffness to show that no element keeps its own formulas.
 
 ## Element sign convention
 

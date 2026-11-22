@@ -168,12 +168,10 @@ def _section_mass(element) -> Dict[str, float]:
     sa = None
     if getattr(element, "has_thin_walled_section", False):
         sa = getattr(element, "section_analysis", None)
-    if sa is not None and getattr(sa, "mass", None):
-        mp = dict(sa.mass)
-        return {k: float(mp.get(k, 0.0)) for k in ("m", "y_m", "z_m", "I_yy", "I_zz", "I_yz")}
-    rho = float(element.material_array[3])
-    return {"m": rho * float(element.A), "y_m": 0.0, "z_m": 0.0,
-            "I_yy": rho * float(element.I_y), "I_zz": rho * float(element.I_z), "I_yz": 0.0}
+    if sa is None or not getattr(sa, "mass", None):
+        sa = getattr(element, "isotropic_section_analysis", None)   # the provider's isotropic section
+    mp = dict(getattr(sa, "mass", None) or {})
+    return {k: float(mp.get(k, 0.0)) for k in ("m", "y_m", "z_m", "I_yy", "I_zz", "I_yz")}
 
 
 def _bending_kind(element) -> str:
