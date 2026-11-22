@@ -257,7 +257,11 @@ class LinearEulerBernoulliBeamElement3D(GeometricStiffnessMixin, Element1DBase):
     
     @property
     def J_t(self) -> float:
-        """Torsional constant (m⁴)"""
+        """Saint-Venant torsion constant J_t [m⁴], a geometric constant (independent of the reference axis).
+
+        It enters the torsional stiffness ``G J_t`` [N m²] in ``D[5, 5]``. It is not the polar
+        moment ``I_p``, which gives the rotary inertia (``I_p``, ``isotropic_section_analysis.mass``).
+        """
         return self.section_array[4]
 
     @property
@@ -320,12 +324,10 @@ class LinearEulerBernoulliBeamElement3D(GeometricStiffnessMixin, Element1DBase):
         return self.strain_displacement_operator.natural_coordinate_form(dN_dξ, d2N_dξ2)
 
     def _D6(self) -> np.ndarray:
-        """Section ``D`` (6, 6): shear-rigid ``SectionAnalysis.euler_bernoulli_D()`` when a
-        thin-walled section is assigned (classical 4 x 4 on ``[eps, kappa_y, kappa_z, phi]``),
-        else the isotropic operator."""
-        if self.has_thin_walled_section or self._pretwist_rate or any(self._section_curvature):
-            return self.section_analysis.euler_bernoulli_D()
-        return self.material_stiffness_operator.assembly_form()
+        """Section ``D`` (6, 6): shear-rigid ``section_analysis.euler_bernoulli_D()`` (classical
+        4 x 4 on ``[eps, kappa_y, kappa_z, phi]``), of the assigned section or the provider's
+        isotropic section."""
+        return self.section_analysis.euler_bernoulli_D()
 
     def D_matrix(self) -> np.ndarray:
         """D-matrix for stiffness assembly (4×4)."""
@@ -554,21 +556,17 @@ class LinearEulerBernoulliBeamElement3D(GeometricStiffnessMixin, Element1DBase):
         return G, self._geometric_terms_matrix() @ F
 
     def element_mass_matrix(self):
-        """Consistent mass: translations rho*A; torsion rho*J_t; bending rotations rho*Iy / rho*Iz."""
+        """Consistent mass from the section mass per length: translations ``m``, twist ``I_p``,
+        bending rotations ``I_yy`` / ``I_zz`` (``isotropic_section_analysis``, or the assigned section)."""
         from onedfem.pre_processing.element_library.gauss_point_data import MassObject
 
         self._assert_logging_ready()
         if self._n_dof == 14:
+            # section mass per length from the provider (``isotropic_section_analysis``)
+            from onedfem.pre_processing.element_library.isotropic_section import nodal_mass_diagonal
+
+            mu = nodal_mass_diagonal(self.isotropic_section_analysis, 14)
             rho = float(self.material_array[3])
-            mu = np.zeros(14, dtype=np.float64)
-            for i in (0, 1, 2, 6, 7, 8):
-                mu[i] = rho * self.A
-            for i in (3, 9):
-                mu[i] = rho * self.J_t
-            for i in (4, 10):
-                mu[i] = rho * self.I_y
-            for i in (5, 11):
-                mu[i] = rho * self.I_z
             g_m = self._warp_policy.gamma_effective
             mu[12] = rho * g_m
             mu[13] = rho * g_m
@@ -595,16 +593,10 @@ class LinearEulerBernoulliBeamElement3D(GeometricStiffnessMixin, Element1DBase):
                 M_e=self._section_mass_matrix(),
             )
 
-        rho = float(self.material_array[3])
-        mu = np.zeros(12, dtype=np.float64)
-        for i in (0, 1, 2, 6, 7, 8):
-            mu[i] = rho * self.A
-        for i in (3, 9):
-            mu[i] = rho * self.J_t
-        for i in (4, 10):
-            mu[i] = rho * self.I_y
-        for i in (5, 11):
-            mu[i] = rho * self.I_z
+        # section mass per length from the provider (``isotropic_section_analysis``)
+        from onedfem.pre_processing.element_library.isotropic_section import nodal_mass_diagonal
+
+        mu = nodal_mass_diagonal(self.isotropic_section_analysis, 12)
         M_e = np.zeros((12, 12), dtype=np.float64)
         xi, w = self.integration_points
         detJ = self.jacobian_determinant

@@ -43,7 +43,8 @@ class MaterialStiffnessOperator:
     moment_inertia_z : float
         Second moment of area about z, I_z [m⁴].
     torsion_constant : float
-        St. Venant torsional constant J_t [m⁴].
+        Saint-Venant torsion constant J_t [m⁴], a geometric constant; ``D`` holds the
+        torsional stiffness ``G J_t`` [N m²]. Not the polar moment ``I_p``.
 
     Attributes
     ----------
@@ -205,18 +206,15 @@ class MaterialStiffnessOperator:
         | 5               | φ_x  (torsion)             | 5            | **GJ_t**    |
 
         """
-        # Compute stiffness terms (consistent units)
-        EA = self.youngs_modulus * self.cross_section_area
-        EI_z = self.youngs_modulus * self.moment_inertia_z
-        EI_y = self.youngs_modulus * self.moment_inertia_y
-        GJ_t = self.shear_modulus * self.torsion_constant
+        # The section D comes from the section provider (``SectionAnalysis.from_isotropic``,
+        # shear-rigid rows ``euler_bernoulli_D``); 1D-FEM computes no section properties of its own.
+        from onedfem.pre_processing.element_library.isotropic_section import isotropic_section
 
-        # --- main constitutive matrix ---
-        D = np.zeros((6, 6), dtype=np.float64)
-        D[0, 0] = EA
-        D[1, 1] = EI_y          # bending about y
-        D[2, 2] = EI_z          # bending about z
-        D[5, 5] = GJ_t          # torsion
+        D = np.array(isotropic_section(
+            E=self.youngs_modulus, G=self.shear_modulus, A=self.cross_section_area,
+            I_y=self.moment_inertia_y, I_z=self.moment_inertia_z, J_t=self.torsion_constant,
+        ).euler_bernoulli_D(), dtype=np.float64)
+        EA, EI_y, EI_z, GJ_t = D[0, 0], D[1, 1], D[2, 2], D[5, 5]
 
         object.__setattr__(self, '_D_assembly', D)
         object.__setattr__(self, '_D_postprocess', D.copy())

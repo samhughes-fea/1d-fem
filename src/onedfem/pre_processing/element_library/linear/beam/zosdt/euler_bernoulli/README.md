@@ -178,7 +178,7 @@ Lumped **per-DOF inertia weights** \(\mu_i\) (density \(\rho\) from material arr
 | DOF indices | Weight |
 |-------------|--------|
 | 0,1,2,6,7,8 (translations) | \(\rho A\) |
-| 3,9 (\(\theta_x\)) | \(\rho J_t\) |
+| 3,9 (\(\theta_x\)) | \(\rho I_p\) (`I_x`, or \(I_y + I_z\) when `I_x` is not positive) |
 | 4,10 (\(\theta_y\)) | \(\rho I_y\) |
 | 5,11 (\(\theta_z\)) | \(\rho I_z\) |
 

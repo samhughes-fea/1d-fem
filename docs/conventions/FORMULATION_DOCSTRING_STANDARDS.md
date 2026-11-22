@@ -201,7 +201,7 @@ F_{\mathrm{dist}} = \int_{-1}^{1} N^T q(\xi)\, |J|\, d\xi
 
 with **`q`** six components per station matching load columns (force and moment per API_STANDARDS).
 
-**Consistent mass (when implemented):** \(M_e \mathrel{+}= \tfrac{1}{2}(\mu_i+\mu_j)\, (N_i\cdot N_j)\, w_g |J|\) with per-DOF weights \(\mu\) from \(\rho A\), \(\rho J_t\), \(\rho I_y\), \(\rho I_z\) on translation / torsion / bending-rotation DOFs (see linear Timoshenko implementation).
+**Consistent mass (when implemented):** \(M_e \mathrel{+}= \tfrac{1}{2}(\mu_i+\mu_j)\, (N_i\cdot N_j)\, w_g |J|\) with per-DOF weights \(\mu\) from the section provider's mass per length: \(\rho A\), \(\rho I_p\), \(\rho I_y\), \(\rho I_z\) on translation / twist / bending-rotation DOFs (`isotropic_section.nodal_mass_diagonal`; \(I_p\) is `I_x`, or \(I_y + I_z\) when `I_x` is not positive).
 
 **Reddy vs Levinson:** Prefer **“same Voigt layout as Levinson; differences: …”** in Reddy docstrings to avoid duplicated tables that drift.
 

@@ -1,6 +1,6 @@
 # Section analysis
 
-The section provider seam and the section input and recovery that 1d-fem keeps. The cross-section analysis itself (thin-walled and 2D sections, GBT modes, stress recovery, ply failure, layup sensitivities) comes from the section provider, anisotropic-section-model by default.
+The section provider seam and the section input and recovery that 1d-fem keeps. The cross-section analysis itself (thin-walled and 2D sections, GBT modes, stress recovery, ply failure, layup sensitivities) comes from the section provider, anisotropic-section-model by default, and so do the isotropic `section.txt` sections.
 
 ### `onedfem.sections`
 
@@ -25,6 +25,23 @@ The section provider: where 1d-fem gets its cross-section analyses.
   The section provider package, imported on first use and checked against ``SECTION_API``.
 - **`set_section_provider(provider: Union[str, ModuleType, None]) -> None`**
   Use ``provider`` (a package name or module) for sections; ``None`` restores the default.
+
+### `onedfem.pre_processing.element_library.isotropic_section`
+
+[src/onedfem/pre_processing/element_library/isotropic_section.py](../../src/onedfem/pre_processing/element_library/isotropic_section.py)
+
+Isotropic section properties, from the section provider.
+
+- **`isotropic_section(*, E: float, G: float, A: float, I_y: float = 0.0, I_z: float = 0.0, J_t: float = 0.0, kappa: float = 0.8333333333333334, I_x: Optional[float] = None, y_sc: float = 0.0, z_sc: float = 0.0, Gamma: float = 0.0, rho: float = 0.0)`**
+  The provider's ``SectionAnalysis.from_isotropic`` for these constants (cached, read-only).
+- **`isotropic_section_of(element)`**
+  ``isotropic_section`` from an element's ``section_array`` and ``material_array``.
+- **`isotropic_stiffness(**constants) -> np.ndarray`**
+  Section ``D`` (6, 6) on ``[eps, kappa_y, kappa_z, gamma_xy, gamma_xz, phi]`` (a copy).
+- **`isotropic_mass(section) -> Dict[str, float]`**
+  Mass per length of a section: ``m``, ``I_p`` (polar), ``I_yy``, ``I_zz`` (``rho`` times areas).
+- **`nodal_mass_diagonal(section, n_dof: int = 12) -> np.ndarray`**
+  Per-DOF mass densities ``mu`` of a two-node element from the section mass.
 
 ### `onedfem.post_processing.thin_walled.element_recovery`
 

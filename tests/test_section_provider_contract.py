@@ -1,4 +1,4 @@
-"""The section-provider contract: versions, and jobs that need no provider at all."""
+"""The section-provider contract: versions, and when the provider is imported."""
 
 from __future__ import annotations
 
@@ -59,8 +59,9 @@ def test_a_provider_module_is_checked_when_set():
         set_section_provider(None)
 
 
-def test_a_job_without_section_files_needs_no_provider(tmp_path):
-    """An isotropic section.txt job runs with the provider missing: it is imported only for sections."""
+def test_attaching_no_section_files_needs_no_provider(tmp_path):
+    """With no section files, attaching sections imports no provider. (The isotropic elements
+    themselves take their ``D`` from it: ``test_isotropic_sections_from_provider.py``.)"""
     from onedfem.pre_processing.section_job import attach_section_analyses
 
     job = tmp_path / "job"
@@ -74,3 +75,18 @@ def test_a_job_without_section_files_needs_no_provider(tmp_path):
             attach_section_analyses(str(job), ed)
     finally:
         set_section_provider(None)
+
+
+def test_isotropic_elements_need_the_provider(tmp_path):
+    """An isotropic section.txt element gets its section from the provider, so a missing one fails."""
+    import numpy as np
+
+    from onedfem.pre_processing.element_library.isotropic_section import isotropic_section
+
+    set_section_provider("no_such_section_package")
+    try:
+        with pytest.raises(SectionProviderError, match="no_such_section_package"):
+            isotropic_section(E=1.0, G=1.0, A=1.0, I_y=1.0, I_z=1.0, J_t=1.0)
+    finally:
+        set_section_provider(None)
+    assert np.isfinite(isotropic_section(E=1.0, G=1.0, A=1.0, I_y=1.0, I_z=1.0, J_t=1.0).stiffness).all()

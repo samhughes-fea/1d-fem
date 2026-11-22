@@ -151,6 +151,10 @@ class CorotationalBeamElement3D(Element1DBase):
 
     @property
     def J_t(self) -> float:
+        """Saint-Venant torsion constant J_t [m⁴], a geometric constant (independent of the reference axis).
+
+        It enters the torsional stiffness ``G J_t`` [N m²]; it is not the polar moment ``I_p``.
+        """
         return float(self.section_array[4])
 
     @property

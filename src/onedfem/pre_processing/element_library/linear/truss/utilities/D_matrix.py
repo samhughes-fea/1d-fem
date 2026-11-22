@@ -32,7 +32,8 @@ class MaterialStiffnessOperator:
     cross_section_area : float
         Cross-sectional area A [m²].
     torsion_constant : float
-        Torsional constant J_t [m⁴].
+        Saint-Venant torsion constant J_t [m⁴], a geometric constant; ``D`` holds the
+        torsional stiffness ``G J_t`` [N m²]. Not the polar moment ``I_p``.
     shear_correction_factor : float, default 5/6
         κ for transverse shear (κGA).
 
@@ -87,10 +88,13 @@ class MaterialStiffnessOperator:
             raise ValueError("shear_correction_factor must be in (0, 1]")
 
     def _build_constitutive_matrices(self) -> None:
-        EA = self.youngs_modulus * self.cross_section_area
-        kappa_GA = self.shear_correction_factor * self.shear_modulus * self.cross_section_area
-        GJ_t = self.shear_modulus * self.torsion_constant
-        D = np.diag([EA, kappa_GA, GJ_t]).astype(np.float64)
+        # EA, kappa G A and GJ_t from the section provider (``SectionAnalysis.from_isotropic``)
+        from onedfem.pre_processing.element_library.isotropic_section import isotropic_stiffness
+
+        D6 = isotropic_stiffness(E=self.youngs_modulus, G=self.shear_modulus, A=self.cross_section_area,
+                                 J_t=self.torsion_constant, kappa=self.shear_correction_factor)
+        D = D6[np.ix_([0, 3, 5], [0, 3, 5])].copy()
+        EA, kappa_GA, GJ_t = D[0, 0], D[1, 1], D[2, 2]
         object.__setattr__(self, '_D_assembly', D)
         object.__setattr__(self, '_D_postprocess', D.copy())
         object.__setattr__(self, '_energy_components', {
