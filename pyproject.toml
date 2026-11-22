@@ -34,7 +34,7 @@ classifiers = [
 # core dependency
 sections = []
 # blade geometry from implicit-geometry-kernel
-geometry = ["implicit-geometry-kernel @ git+https://github.com/samhughes-fea/implicit-geometry-kernel@v0.9.3"]
+geometry = ["implicit-geometry-kernel @ git+https://github.com/samhughes-fea/implicit-geometry-kernel@v0.9.5"]
 test = ["pytest>=7.0", "pytest-xdist>=3.5"]
 
 [project.scripts]
