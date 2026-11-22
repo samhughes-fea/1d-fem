@@ -35,4 +35,4 @@ For easier review, split unrelated work into separate PRs by theme (e.g. `docs:`
 
 ## Releases and changelog
 
-When tagging a release, move **`## [Unreleased]`** in **[`CHANGELOG.md`](../CHANGELOG.md)** into a dated section **`## [x.y.z] - YYYY-MM-DD`** per [Keep a Changelog](https://keepachangelog.com/).
+A release PR, titled `chore(release): prepare x.y.z`, sets `__version__` in `src/onedfem/__init__.py` to `x.y.z` and moves **`## [Unreleased]`** in **[`CHANGELOG.md`](../CHANGELOG.md)** into a dated section **`## [x.y.z] - YYYY-MM-DD`** per [Keep a Changelog](https://keepachangelog.com/). Merging it is the release: the `release` workflow creates the `vx.y.z` tag and the GitHub release. Nobody pushes tags by hand; see [RELEASING.md](RELEASING.md).

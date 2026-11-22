@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "onedfem"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Beam finite elements for thin-walled and composite sections: linear, corotational, GBT, buckling, dynamics and layup sensitivities"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -42,6 +42,9 @@ onedfem-run-jobs = "onedfem.workflow_orchestrator.run_job:main"
 
 [project.urls]
 Repository = "https://github.com/samhughes-fea/1d-fem"
+
+[tool.setuptools.dynamic]
+version = { attr = "onedfem.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
