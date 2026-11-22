@@ -119,6 +119,16 @@ from the thin-walled and 2D ones). A job of table sections alone needs neither
 
 Sets how many cubic elements each wall of a section is split into (default 1). More elements give more warping and distortional modes.
 
+## `[Section_Mesh_2D]` (optional, in `section_geometry.txt`)
+
+```text
+[Section_Mesh_2D]
+[section_id] [elements_along] [rows_per_ply]
+1  8  1
+```
+
+Meshes the listed sections in 2D from their walls and `laminate.txt` (`SectionMesh.from_thin_walled`: each ply `rows_per_ply` elements thick and each wall `elements_along` long, junctions mitred where they can be and tied elsewhere) and analyses them in 2D (`SolidSectionAnalysis`) instead of as thin walls. They are then used like `section_mesh_2d.txt` sections, and their meshes also carry how the nodes move with each ply's thickness, so they take ply-thickness sensitivities (`layup_sensitivity.txt`, [../element_library/layup_sensitivity.md](../element_library/layup_sensitivity.md)). A section may not be in both this block and `section_mesh_2d.txt`.
+
 ## `wall_load.txt` (optional)
 
 ```text

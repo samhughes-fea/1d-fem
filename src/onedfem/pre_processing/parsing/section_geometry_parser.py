@@ -20,6 +20,16 @@ and shear lag)::
     [section_id] [n_sub]
     1  4
 
+Another optional block meshes the listed sections in 2D from their walls
+(``SectionMesh.from_thin_walled``, each ply ``rows_per_ply`` elements thick and
+``elements_along`` long), so they are analysed as 2D sections (``SolidSectionAnalysis``)
+built from ``laminate.txt``. Such meshes know how their nodes move with each ply's
+thickness, so they take ply-thickness sensitivities (``layup_sensitivity.txt``)::
+
+    [Section_Mesh_2D]
+    [section_id] [elements_along] [rows_per_ply]
+    1  8  1
+
 One file may hold several sections. See
 docs/conventions/JOB_INPUT_THIN_WALLED_SECTIONS.md.
 """
@@ -43,11 +53,14 @@ POINT_SUBHEADER = ["[section_id]", "[point_id]", "[y]", "[z]"]
 WALL_SUBHEADER = ["[section_id]", "[wall_id]", "[point_start]", "[point_end]", "[laminate_id]"]
 MESH_HEADER = "[section_mesh]"
 MESH_SUBHEADER = ["[section_id]", "[n_sub]"]
+MESH_2D_HEADER = "[section_mesh_2d]"
+MESH_2D_SUBHEADER = ["[section_id]", "[elements_along]", "[rows_per_ply]"]
+HEADERS = [POINT_HEADER, WALL_HEADER, MESH_HEADER, MESH_2D_HEADER]
 
 
 def parse_section_mesh(filepath: str) -> Dict[int, int]:
     """Return ``{section_id: n_sub}`` from the optional ``[Section_Mesh]`` block (empty without it)."""
-    blocks = split_blocks(preprocess_lines(filepath), [POINT_HEADER, WALL_HEADER, MESH_HEADER])
+    blocks = split_blocks(preprocess_lines(filepath), HEADERS)
     if MESH_HEADER not in blocks:
         return {}
     sub, rows = blocks[MESH_HEADER]
@@ -65,6 +78,30 @@ def parse_section_mesh(filepath: str) -> Dict[int, int]:
     return out
 
 
+def parse_section_mesh_2d_block(filepath: str) -> Dict[int, Tuple[int, int]]:
+    """Return ``{section_id: (elements_along, rows_per_ply)}`` from the optional
+    ``[Section_Mesh_2D]`` block (empty without it)."""
+    blocks = split_blocks(preprocess_lines(filepath), HEADERS)
+    if MESH_2D_HEADER not in blocks:
+        return {}
+    sub, rows = blocks[MESH_2D_HEADER]
+    if not tokens_match(sub, MESH_2D_SUBHEADER):
+        raise ValueError(f"[Section_Mesh_2D] sub-header must be: {' '.join(MESH_2D_SUBHEADER)}")
+    out: Dict[int, Tuple[int, int]] = {}
+    for ln in rows:
+        parts = ln.split()
+        if len(parts) != 3:
+            raise ValueError(f"Malformed [Section_Mesh_2D] row (expected 3 columns): {ln!r}")
+        sid = to_int(parts[0], "section_id", ln)
+        along, rows_per_ply = to_int(parts[1], "elements_along", ln), to_int(parts[2], "rows_per_ply", ln)
+        if along < 1 or rows_per_ply < 1:
+            raise ValueError(f"[Section_Mesh_2D] elements_along and rows_per_ply must be >= 1: {ln!r}")
+        if sid in out:
+            raise ValueError(f"[Section_Mesh_2D] lists section {sid} twice")
+        out[sid] = (along, rows_per_ply)
+    return out
+
+
 def parse_section_geometry_file(
     filepath: str, laminate_ids: Optional[Iterable[int]] = None
 ) -> Dict[int, ThinWalledSection]:
@@ -77,7 +114,7 @@ def parse_section_geometry_file(
         Known laminate ids (from ``laminate.txt``); walls naming others are rejected.
     """
     ThinWalledSection, Wall = section_import("thin_walled.thin_walled_geometry", "ThinWalledSection", "Wall")
-    blocks = split_blocks(preprocess_lines(filepath), [POINT_HEADER, WALL_HEADER, MESH_HEADER])
+    blocks = split_blocks(preprocess_lines(filepath), HEADERS)
     for h in (POINT_HEADER, WALL_HEADER):
         if h not in blocks:
             raise ValueError(f"Missing {h} block in {filepath}")
@@ -122,10 +159,12 @@ def parse_section_geometry_file(
     }
 
 
-def format_section_geometry(sections: Dict[int, ThinWalledSection], n_sub: Optional[Dict[int, int]] = None) -> str:
+def format_section_geometry(sections: Dict[int, ThinWalledSection], n_sub: Optional[Dict[int, int]] = None,
+                            mesh_2d: Optional[Dict[int, Tuple[int, int]]] = None) -> str:
     """Text of a ``section_geometry.txt`` for ``{section_id: ThinWalledSection}``.
 
-    ``n_sub`` (``{section_id: n_sub}``) adds a ``[Section_Mesh]`` block.
+    ``n_sub`` (``{section_id: n_sub}``) adds a ``[Section_Mesh]`` block and ``mesh_2d``
+    (``{section_id: (elements_along, rows_per_ply)}``) a ``[Section_Mesh_2D]`` block.
     """
     pts = ["[Section_Point]", " ".join(POINT_SUBHEADER)]
     walls = ["[Section_Wall]", " ".join(WALL_SUBHEADER)]
@@ -135,4 +174,7 @@ def format_section_geometry(sections: Dict[int, ThinWalledSection], n_sub: Optio
     out = pts + [""] + walls
     if n_sub:
         out += ["", "[Section_Mesh]", " ".join(MESH_SUBHEADER)] + [f"{sid} {int(n)}" for sid, n in n_sub.items()]
+    if mesh_2d:
+        out += ["", "[Section_Mesh_2D]", " ".join(MESH_2D_SUBHEADER)]
+        out += [f"{sid} {int(a)} {int(r)}" for sid, (a, r) in mesh_2d.items()]
     return "\n".join(out) + "\n"
