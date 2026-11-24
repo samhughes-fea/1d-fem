@@ -85,14 +85,19 @@ class MaterialStiffnessOperator:
     D[3,3] = κ·G·A    (shear stiffness in XY plane; κ is shear correction factor)
     D[4,4] = κ·G·A    (shear stiffness in XZ plane; κ is shear correction factor)
     D[5,5] = G·J_t    (St. Venant torsional stiffness)
-    D[i,j] = 0  for all i ≠ j   (uncoupled)
+    D[i,j] = 0  for all other i ≠ j
     ```
 
     The numbers come from the section provider (``SectionAnalysis.from_isotropic``), so
-    this operator and the element ``section_analysis`` hold the same ``D``. ``y_sc``,
-    ``z_sc`` are recorded there as the shear centre only; ``D`` stays diagonal. (Before
-    the provider took over, a non-zero offset added ``D[1,5] = -EI_y z_sc`` and
-    ``D[2,5] = EI_z y_sc``, which are not in units of a stiffness and were dropped.)
+    this operator and the element ``section_analysis`` hold the same ``D``. A shear centre
+    ``(y_sc, z_sc)`` [m] off the centroid couples shear and twist about it::
+
+        D[3,5] = -z_sc κGA     D[4,5] = y_sc κGA     D[5,5] = G J_t + κGA (y_sc² + z_sc²)
+
+    so a shear force through the shear centre twists nothing and the torsional stiffness
+    about the shear centre is ``G J_t``. Axial and bending stay uncoupled. (Before the
+    provider took over, a non-zero offset added ``D[1,5] = -EI_y z_sc`` and
+    ``D[2,5] = EI_z y_sc``, which are not in units of a stiffness.)
 
     **Weak-form assembly linkage**
 
