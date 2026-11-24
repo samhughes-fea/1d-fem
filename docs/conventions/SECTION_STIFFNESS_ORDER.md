@@ -7,7 +7,7 @@
 - generalised strains `[eps, kappa_y, kappa_z, gamma_xy, gamma_xz, phi]`;
 - section forces `[N, M_y, M_z, V_y, V_z, T]`.
 
-The provider hands 1d-fem right-handed matrices (section contract 2.0,
+The provider hands 1d-fem right-handed matrices (section contract 2.x,
 `SectionAnalysis.frame == "engine"`). 1d-fem's beam `B` matrices have `kappa_y = -theta_y'`,
 so an element re-signs its section once, when it takes it
 (`onedfem.sections.to_element_section`, `ELEMENT_SIGN = diag(1, -1, 1, 1, 1, 1)`):
