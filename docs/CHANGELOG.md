@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
-- **Follows the shared development standard 0.1.0**: synced issue forms, PR template, labels, `pr-title`, `label-sync`, `codeql` and `release` workflows, and the standard in `docs/conventions/standard/`. `release.yml` is now the shared one (it reads `.github/repo.yml`; the backfill mode is gone). `docs/conventions/COMMIT_STANDARDS.md` is replaced by the standard's commits page, and `RELEASING.md` keeps only this repository's specifics. Added `AGENTS.md`, `SCOPE.md`, `CONTRIBUTING.md` and `.github/labels.yml`. (#PR)
+- **Follows the shared development standard 0.1.0**: synced issue forms, PR template, labels, `pr-title`, `label-sync`, `codeql` and `release` workflows, and the standard in `docs/conventions/standard/`. `release.yml` is now the shared one (it reads `.github/repo.yml`; the backfill mode is gone). `docs/conventions/COMMIT_STANDARDS.md` is replaced by the standard's commits page, and `RELEASING.md` keeps only this repository's specifics. Added `AGENTS.md`, `SCOPE.md`, `CONTRIBUTING.md` and `.github/labels.yml`. (#86)
 
 ### Changed
 
