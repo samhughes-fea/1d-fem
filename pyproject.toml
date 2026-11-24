@@ -21,8 +21,8 @@ dependencies = [
     # the section provider (onedfem.sections): composite thin-walled, 2D and table sections
     # come from it. Neither is on PyPI yet, so both come from GitHub.
     "laminate-constitutive-model @ git+https://github.com/samhughes-fea/laminate-constitutive-model@v0.3.0",
-    # section contract 2.0: the ASM contract-v2 branch until v0.6.0 is tagged, then @v0.7.0
-    "anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@v0.7.0",
+    # blade-cut thickness velocities: the ASM 0.8.0 branch commit until v0.8.0 is tagged, then @v0.8.0
+    "anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@dc13155665822c1b8d50206e3d9f99344ae07092",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
