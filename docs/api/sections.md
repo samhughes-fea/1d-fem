@@ -9,6 +9,9 @@ The section provider seam and the section input and recovery that 1d-fem keeps. 
 The section provider: where 1d-fem gets its cross-section analyses.
 
 - **`DEFAULT_SECTION_PROVIDER`** (constant)
+- **`ELEMENT_FRAME`** (constant)
+- **`ELEMENT_SIGN`** (constant)
+- **`ENGINE_FRAME`** (constant)
 - **`PROVIDER_MODULES`** (constant)
 - **`SECTION_API`** (constant)
 - **class `SectionProviderError`**
@@ -17,6 +20,8 @@ The section provider: where 1d-fem gets its cross-section analyses.
   The contract version ``module`` declares, checked against ``SECTION_API``.
 - **`check_section_provider(provider: Union[str, ModuleType, None] = None) -> List[str]`**
   Modules and names of ``PROVIDER_MODULES`` that ``provider`` (default: the current one) lacks.
+- **`element_pretwist(sa, rate: float)`**
+  ``with_pretwist(rate)`` of an element-frame section, in the element frame.
 - **`section_import(name: str, *names: str)`**
   ``from <provider>.<name> import <names>``: the objects, in order (one object for one name).
 - **`section_module(name: str) -> ModuleType`**
@@ -25,6 +30,10 @@ The section provider: where 1d-fem gets its cross-section analyses.
   The section provider package, imported on first use and checked against ``SECTION_API``.
 - **`set_section_provider(provider: Union[str, ModuleType, None]) -> None`**
   Use ``provider`` (a package name or module) for sections; ``None`` restores the default.
+- **`to_element_section(sa)`**
+  The provider's section ``sa`` as 1d-fem's elements read it (``ELEMENT_SIGN`` applied).
+- **`to_engine_section(sa)`**
+  Inverse of ``to_element_section``: an element's section back in the provider's frame.
 
 ### `onedfem.pre_processing.element_library.isotropic_section`
 
@@ -39,7 +48,7 @@ Isotropic section properties, from the section provider.
 - **`isotropic_stiffness(**constants) -> np.ndarray`**
   Section ``D`` (6, 6) on ``[eps, kappa_y, kappa_z, gamma_xy, gamma_xz, phi]`` (a copy).
 - **`isotropic_mass(section) -> Dict[str, float]`**
-  Mass per length of a section: ``m``, ``I_p`` (polar), ``I_yy``, ``I_zz`` (``rho`` times areas).
+  Mass per length of a section (inertia, about the section origin = beam reference axis).
 - **`nodal_mass_diagonal(section, n_dof: int = 12) -> np.ndarray`**
   Per-DOF mass densities ``mu`` of a two-node element from the section mass.
 

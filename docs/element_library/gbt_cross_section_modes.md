@@ -261,7 +261,8 @@ continue the \(j\)-th field of the next. Each section builds its bases on its ow
 eigen-decomposition each), and between two close sections a basis can come out turned within
 its span, two modes can swap, or a mode can change sign.
 
-`gbt_alignment.align_gbt_sections` walks the beam from its first element and turns each
+`section_job.align_gbt_sections` (1d-fem's; the provider's `gbt_alignment.align_gbt_pair`
+turns one section to another) walks the beam from its first element and turns each
 section's warping block and mode block to the neighbour's already aligned, by the orthogonal
 \(R = \operatorname{polar}(S_{\mathrm{ref}} S^T)\) (Procrustes, regularised towards the
 identity). A row of \(S\) holds one field's shape moments over its section

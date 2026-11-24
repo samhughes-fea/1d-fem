@@ -10,6 +10,8 @@ import tempfile
 import numpy as np
 import pytest
 
+from onedfem.sections import to_element_section
+
 from onedfem.pre_processing.element_library.dof_layout import mesh_dof_per_node, row_extra_dofs
 from onedfem.pre_processing.element_library.element_factory import ElementFactory
 from anisotropic_section_model.section_analysis import SectionAnalysis
@@ -142,7 +144,7 @@ def test_isotropic_section_analysis_third_order_terms():
 
 def test_thin_walled_section_analysis_is_element_signed():
     an = composite_box()
-    sa = SectionAnalysis.from_thin_walled(an)
+    sa = to_element_section(SectionAnalysis.from_thin_walled(an))  # as the elements read it
     S8 = np.diag([1.0, -1, 1, 1, 1, 1, 1, 1])
     np.testing.assert_allclose(sa.third_order_stiffness, S8 @ an.third_order_stiffness @ S8)
     np.testing.assert_allclose(sa.third_order_rate, an.third_order_rate @ S8[:6, :6])

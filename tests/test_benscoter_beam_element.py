@@ -17,6 +17,8 @@ import tempfile
 import numpy as np
 import pytest
 
+from onedfem.sections import to_element_section
+
 from anisotropic_section_model.section_analysis import SectionAnalysis
 from anisotropic_section_model.thin_walled import (
     Ply,
@@ -164,7 +166,7 @@ def test_benscoter_section_stiffness_of_i_beam():
 
 def test_benscoter_stiffness_element_signs_and_warping_inertia():
     tw = cas_box()
-    sa = SectionAnalysis.from_thin_walled(tw)
+    sa = to_element_section(SectionAnalysis.from_thin_walled(tw))  # as the elements read it
     S8 = np.diag([1.0, -1, 1, 1, 1, 1, 1, 1])
     np.testing.assert_allclose(sa.benscoter_stiffness, S8 @ tw.benscoter_stiffness @ S8)
     np.testing.assert_allclose(sa.benscoter_stiffness[:6, :6], sa.stiffness, rtol=1e-12,
