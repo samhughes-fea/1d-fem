@@ -2,4 +2,4 @@
 # anisotropic-section-model and the laminate-constitutive-model it builds on. Neither is
 # on PyPI yet, so both are pinned on GitHub (the same pins as pyproject.toml).
 laminate-constitutive-model @ git+https://github.com/samhughes-fea/laminate-constitutive-model@v0.3.0
-anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@60f5f0a5955b52b0015a5a7b02c06af2b5b95362
+anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@v0.6.1
