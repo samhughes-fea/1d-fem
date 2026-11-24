@@ -9,6 +9,8 @@ import tempfile
 import numpy as np
 import pytest
 
+from onedfem.sections import to_element_section
+
 from onedfem.pre_processing.element_library.dof_layout import mesh_dof_per_node
 from anisotropic_section_model.section_analysis import SectionAnalysis
 from anisotropic_section_model.thin_walled import (
@@ -93,7 +95,7 @@ def test_gbt_section_stiffness_layout_and_slicing():
     assert np.linalg.eigvalsh(K).min() > -1e-9 * np.abs(K).max()
     # plane-section block: the classical (unwarped) stiffness of the walls
     S = np.diag([1.0, -1.0, 1, 1, 1, 1])
-    sa = SectionAnalysis.from_thin_walled(an, gbt_modes=2, gbt_shear_modes=1)
+    sa = to_element_section(SectionAnalysis.from_thin_walled(an, gbt_modes=2, gbt_shear_modes=1))  # as the elements read it
     np.testing.assert_allclose(sa.gbt_stiffness[:6, :6], S @ K[:6, :6] @ S)
     # condensing the warping out of a uniform state gives back Saint-Venant (up to the
     # small shear-gradient term the uniform state leaves out)

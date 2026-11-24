@@ -7,7 +7,8 @@ import os
 import numpy as np
 import pytest
 
-from anisotropic_section_model.section_analysis import ELEMENT_SIGN, SectionAnalysis
+from anisotropic_section_model.section_analysis import SectionAnalysis
+from onedfem.sections import ELEMENT_SIGN, element_pretwist, to_element_section
 from anisotropic_section_model.solid.material import SolidMaterial
 from anisotropic_section_model.solid.mesh import SectionMesh
 from anisotropic_section_model.solid.section_analysis import SolidSectionAnalysis
@@ -177,7 +178,9 @@ def test_cas_box_couplings_match_thin_walled(cas_box):
 # ------------------------------------------------------------------ SectionAnalysis and jobs
 def test_section_analysis_from_solid(cas_box):
     _, so = cas_box
-    sa = SectionAnalysis.from_solid(so, 7)
+    rh = SectionAnalysis.from_solid(so, 7)
+    np.testing.assert_allclose(rh.stiffness, so.stiffness)
+    sa = to_element_section(rh)
     assert sa.source == "solid" and sa.section_id == 7
     np.testing.assert_allclose(sa.stiffness, ELEMENT_SIGN @ so.stiffness @ ELEMENT_SIGN)
     assert sa.is_coupled
@@ -185,7 +188,7 @@ def test_section_analysis_from_solid(cas_box):
     assert sa.geometric_terms.shape == (7, 6)
     assert sa.mass_matrix()[0, 0] == pytest.approx(so.mass_properties["m"])
     # pretwist needs the axial quadrature: sum k r^2 is int E_x r^2
-    twisted = sa.with_pretwist(0.5)
+    twisted = element_pretwist(sa, 0.5)
     y, z, k = sa.axial_points.T
     assert twisted.stiffness[0, 5] - sa.stiffness[0, 5] == pytest.approx(0.5 * k @ (y * y + z * z))
 

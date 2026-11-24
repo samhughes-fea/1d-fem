@@ -7,7 +7,8 @@ import os
 import numpy as np
 import pytest
 
-from anisotropic_section_model.section_analysis import ELEMENT_SIGN, SectionAnalysis
+from anisotropic_section_model.section_analysis import SectionAnalysis
+from onedfem.sections import ELEMENT_SIGN, to_element_section
 from anisotropic_section_model.thin_walled.laminate import WallLaminate
 from anisotropic_section_model.thin_walled.section_analysis import ThinWalledSectionAnalysis
 from anisotropic_section_model.thin_walled.taper import SectionTaper, section_taper
@@ -83,13 +84,16 @@ def test_turning_section_gives_the_helical_fibre_coupling():
 
 
 def test_with_taper_in_element_signs():
-    sa = SectionAnalysis.from_thin_walled(ThinWalledSectionAnalysis(box(0.3, 0.2), LAM), 1)
+    rh = SectionAnalysis.from_thin_walled(ThinWalledSectionAnalysis(box(0.3, 0.2), LAM), 1)
     tp = section_taper(box(0.3, 0.2), box(0.3, 0.19), LAM, 0.1)
-    out = sa.with_taper(tp)
+    assert np.allclose(rh.with_taper(tp).stiffness, rh.stiffness + tp.matrix())
+    sa, out = to_element_section(rh), to_element_section(rh.with_taper(tp))
     assert np.allclose(out.stiffness, sa.stiffness + ELEMENT_SIGN @ tp.matrix() @ ELEMENT_SIGN)
     assert np.allclose(out.classical_stiffness, sa.classical_stiffness)
     assert np.allclose(out.benscoter_stiffness[:6, :6], out.stiffness)
-    assert sa.with_taper(SectionTaper.zero()) is sa
+    assert rh.with_taper(SectionTaper.zero()) is rh
+    with pytest.raises(ValueError, match="engine frame"):
+        sa.with_taper(tp)
 
 
 def test_section_taper_file_round_trip(tmp_path):
@@ -118,7 +122,7 @@ def test_attach_applies_the_taper(tmp_path):
     (tmp_path / "section_taper.txt").write_text(format_section_taper_file({1: tp}))
     ed = {"ids": np.array([0, 1]), "types": np.array(["LinearTimoshenkoBeamElement3D"] * 2)}
     out = attach_section_analyses(str(tmp_path), ed)["section_analysis_per_element"]
-    assert np.allclose(out[1].stiffness - out[0].stiffness, ELEMENT_SIGN @ tp.matrix() @ ELEMENT_SIGN)
+    assert np.allclose(out[1].stiffness - out[0].stiffness, tp.matrix())       # provider frame
     (tmp_path / "section_taper.txt").write_text(format_section_taper_file({5: tp}))
     with pytest.raises(ValueError, match="without a section"):
         attach_section_analyses(str(tmp_path), ed)

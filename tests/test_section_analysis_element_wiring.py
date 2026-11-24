@@ -11,11 +11,8 @@ import pytest
 
 from onedfem.pre_processing.element_library.shape_function_registry import get_shape_function_operator
 from onedfem.pre_processing.parsing.element_section_parser import parse_element_section_file
-from anisotropic_section_model.section_analysis import (
-    ELEMENT_SIGN,
-    SectionAnalysis,
-    to_element_voigt,
-)
+from anisotropic_section_model.section_analysis import SectionAnalysis
+from onedfem.sections import ELEMENT_SIGN, to_element_section, to_engine_section
 from anisotropic_section_model.thin_walled import (
     Ply,
     PlyMaterial,
@@ -88,7 +85,10 @@ def test_offset_strip_axial_bending_coupling_sign():
     z0, b, h, t = 0.05, 0.3, 0.1, 2e-3
     pts = {1: (-b / 2, z0 - h / 2), 2: (b / 2, z0 - h / 2), 3: (b / 2, z0 + h / 2), 4: (-b / 2, z0 + h / 2)}
     sa = _tw(pts, [Wall(i, i, i % 4 + 1, 1) for i in range(1, 5)], {1: WallLaminate.isotropic(E, NU, t)}, hoop="free")
-    se = SectionAnalysis.from_thin_walled(sa, section_id=7)
+    rh = SectionAnalysis.from_thin_walled(sa, section_id=7)
+    assert rh.frame == "engine" and rh.stiffness[0, 1] == pytest.approx(E * 2 * (b + h) * t * z0, rel=1e-10)
+    se = to_element_section(rh)
+    assert se.frame == "element" and to_element_section(se) is se
     EA = E * 2 * (b + h) * t
     assert se.stiffness[0, 1] == pytest.approx(-EA * z0, rel=1e-10)
     assert se.classical_stiffness[0, 1] == pytest.approx(-EA * z0, rel=1e-10)
@@ -102,7 +102,7 @@ def test_sign_map_preserves_energy():
     pts = {1: (-0.2, -0.1), 2: (0.2, -0.1), 3: (0.2, 0.1), 4: (-0.2, 0.1)}
     walls = [Wall(i, i, i % 4 + 1, 1) for i in range(1, 5)]
     sa = _tw(pts, walls, {1: lam})
-    Ke = to_element_voigt(sa.stiffness)
+    Ke = to_element_section(SectionAnalysis.from_thin_walled(sa)).stiffness
     rng = np.random.default_rng(1)
     for _ in range(3):
         psi = rng.standard_normal(6)
@@ -240,9 +240,30 @@ def test_base_class_isotropic_section_analysis_and_unsupported_assignment():
         se = SectionAnalysis(se.stiffness, se.classical_stiffness, source="thin_walled", section_id=3)
         kw["element_dictionary"] = {**kw["element_dictionary"], "section_analysis_per_element": (se,)}
         if LinearTimoshenkoBeamElement3D.supports_section_analysis:
-            assert LinearTimoshenkoBeamElement3D(**kw).section_analysis is se
+            assert LinearTimoshenkoBeamElement3D(**kw).section_analysis is to_element_section(se)
         else:
             with pytest.raises(NotImplementedError, match="section 3"):
                 LinearTimoshenkoBeamElement3D(**kw)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_element_re_signing_is_its_own_inverse_and_keeps_sharing():
+    """``to_engine_section`` undoes ``to_element_section`` field by field, and two elements of
+    one provider section share one re-signed copy."""
+    lam = WallLaminate([Ply(CFRP, 30.0, 1e-3), Ply(CFRP, -10.0, 2e-3)])
+    pts = {1: (-0.2, -0.05), 2: (0.2, -0.05), 3: (0.2, 0.15), 4: (-0.2, 0.15)}
+    tw = _tw(pts, [Wall(i, i, i % 4 + 1, 1) for i in range(1, 5)], {1: lam}, hoop="restrained")
+    rh = SectionAnalysis.from_thin_walled(tw, gbt_modes=2)
+    el = to_element_section(rh)
+    assert to_element_section(rh) is el
+    back = to_engine_section(el)
+    for name in ("stiffness", "classical_stiffness", "benscoter_stiffness", "third_order_stiffness",
+                 "third_order_rate", "geometric_terms", "gbt_stiffness"):
+        np.testing.assert_array_equal(getattr(back, name), getattr(rh, name), err_msg=name)
+    for a, b in zip(back.gbt_geometric + back.gbt_brazier, rh.gbt_geometric + rh.gbt_brazier):
+        np.testing.assert_array_equal(a, b)
+    np.testing.assert_array_equal(el.mass_matrix(), rh.mass_matrix())
+    S = ELEMENT_SIGN
+    np.testing.assert_allclose(el.stiffness, S @ rh.stiffness @ S)
+    np.testing.assert_allclose(el.geometric_terms, rh.geometric_terms @ S)

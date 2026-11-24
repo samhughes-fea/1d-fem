@@ -7,9 +7,14 @@
 - generalised strains `[eps, kappa_y, kappa_z, gamma_xy, gamma_xz, phi]`;
 - section forces `[N, M_y, M_z, V_y, V_z, T]`.
 
-The provider hands 1d-fem its matrices with the element sign of `kappa_y` applied
-(`SectionAnalysis.stiffness`, `ELEMENT_SIGN = diag(1, -1, 1, 1, 1, 1)`); the right-handed
-matrices are `ELEMENT_SIGN @ K @ ELEMENT_SIGN`.
+The provider hands 1d-fem right-handed matrices (section contract 2.0,
+`SectionAnalysis.frame == "engine"`). 1d-fem's beam `B` matrices have `kappa_y = -theta_y'`,
+so an element re-signs its section once, when it takes it
+(`onedfem.sections.to_element_section`, `ELEMENT_SIGN = diag(1, -1, 1, 1, 1, 1)`):
+`K_element = ELEMENT_SIGN @ K @ ELEMENT_SIGN`, and the copy has `frame == "element"`. The
+flip is its own inverse (`to_engine_section`). Tapers and GBT alignment work on the
+provider's sections before any element sees them; pretwist goes through
+`element_pretwist`, which re-signs back and forth around the provider's `with_pretwist`.
 
 Two other frames appear where 1d-fem meets other tools. anisotropic-section-model's `axes`
 module holds every conversion; the summary:

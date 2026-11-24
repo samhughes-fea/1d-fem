@@ -8,7 +8,7 @@ import os
 from onedfem.pre_processing.element_library.base_logger_operator import BaseLoggerOperator
 from onedfem.pre_processing.element_library.section_curvature import with_curvature
 from onedfem.pre_processing.parsing.precurvature_parser import element_reference_strain_voigt
-from onedfem.sections import section_import
+from onedfem.sections import element_pretwist, section_import, to_element_section
 
 # Configure module-level logger
 logger = logging.getLogger(__name__)
@@ -206,7 +206,8 @@ class Element1DBase(ABC):
 
         # Thin-walled anisotropic section assigned through element_section.txt (None if absent).
         per_element = element_dictionary.get("section_analysis_per_element")
-        self._assigned_section_analysis = None if per_element is None else per_element[idx]
+        # the provider's section, as the elements read it (onedfem.sections, element signs)
+        self._assigned_section_analysis = None if per_element is None else to_element_section(per_element[idx])
         if self._assigned_section_analysis is not None and not self.supports_section_analysis:
             raise NotImplementedError(
                 f"Element {element_id} ({type(self).__name__}) is assigned thin-walled section "
@@ -228,7 +229,8 @@ class Element1DBase(ABC):
     
     @property
     def section_analysis(self):
-        """Section constitutive data (``SectionAnalysis``) in the element Voigt convention.
+        """Section constitutive data (``SectionAnalysis``) with the element signs
+        (``onedfem.sections.to_element_section``: ``frame == "element"``).
 
         The thin-walled, 2D or table section assigned in ``element_section.txt`` when there
         is one; otherwise built from ``section_array`` and ``material_array``
@@ -242,7 +244,7 @@ class Element1DBase(ABC):
             return base
         cached = self.__dict__.get("_pretwisted_section_analysis")
         if cached is None:
-            cached = with_curvature(base.with_pretwist(k), ky, kz)
+            cached = with_curvature(element_pretwist(base, k), ky, kz)
             self._pretwisted_section_analysis = cached
         return cached
 
@@ -276,7 +278,7 @@ class Element1DBase(ABC):
         if cached is None:
             from onedfem.pre_processing.element_library.isotropic_section import isotropic_section_of
 
-            cached = isotropic_section_of(self)
+            cached = to_element_section(isotropic_section_of(self))
             self._isotropic_section_analysis = cached
         return cached
 

@@ -257,7 +257,9 @@ def test_isotropic_thin_walled_box_matches_section_txt_element(etype):
     """A thin-walled isotropic box gives the same element stiffness as section.txt with its EA, EI, GJ."""
     lam = WallLaminate.isotropic(E, NU, 2e-3)
     tw = box_section(top=lam, bottom=lam, webs=lam)
-    sa = SectionAnalysis.from_thin_walled(tw)
+    from onedfem.sections import to_element_section
+
+    sa = to_element_section(SectionAnalysis.from_thin_walled(tw))     # as the element reads it
     _, els, _ = fe_tip(etype, sa, 1.0, LOADS["axial"], n_el=1)
     D = sa.euler_bernoulli_D() if etype == EB else sa.stiffness
     assert not sa.is_coupled

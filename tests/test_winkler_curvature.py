@@ -24,7 +24,7 @@ E, G = 70e9, 26e9
 def _rect(b, h):
     """b along z, h along y."""
     A, I_y, I_z = b * h, h * b**3 / 12, b * h**3 / 12
-    return SectionAnalysis.from_isotropic(E=E, G=G, A=A, I_x=I_y + I_z, I_y=I_y, I_z=I_z, J_t=0.2 * b**3 * h,
+    return SectionAnalysis.from_isotropic(E=E, G=G, A=A, I_p=I_y + I_z, I_y=I_y, I_z=I_z, J_t=0.2 * b**3 * h,
                                           kappa=5 / 6, rho=2700.0)
 
 

@@ -4,7 +4,10 @@ and ``section_mesh_2d.txt`` (sections meshed in 2D)."""
 
 from __future__ import annotations
 
+import logging
 from typing import Dict
+
+import numpy as np
 
 from onedfem.pre_processing.parsing.laminate_parser import parse_laminate_file
 from onedfem.pre_processing.parsing.section_geometry_parser import (
@@ -12,7 +15,9 @@ from onedfem.pre_processing.parsing.section_geometry_parser import (
     parse_section_mesh,
     parse_section_mesh_2d_block,
 )
-from onedfem.sections import section_import
+from onedfem.sections import section_import, section_module
+
+log = logging.getLogger(__name__)
 
 
 def section_analyses_from_files(
@@ -89,6 +94,59 @@ SECTION_ANALYSIS_KEY = "section_analysis_per_element"
 THIN_WALLED_KEY = "thin_walled_analysis_per_element"
 
 
+
+def align_gbt_sections(per_element, connectivity, gbt_elements=None):
+    """Turn the GBT bases of each element's section to its neighbour's.
+
+    ``per_element`` holds each element's ``SectionAnalysis`` (or ``None``), in the provider's
+    frame, ``connectivity`` its two nodes. Elements are visited in order; each is aligned
+    (``gbt_alignment.align_gbt_pair``) to an earlier visited element sharing a node whose
+    section differs, or shares the (turned) section of a neighbour that has the same one.
+    Returns the aligned sections and, per element whose bases were turned,
+    ``{"Rw", "Rm", "match", "reference"}``. The walk is 1d-fem's (contract 2.0); the
+    provider only turns one section to another.
+    """
+    align_gbt_pair, gbt_signature = section_import("gbt_alignment", "align_gbt_pair", "gbt_signature")
+    MIN_MATCH = getattr(section_module("gbt_alignment"), "MIN_MATCH", 0.9)
+
+    conn = np.asarray(connectivity, dtype=np.int64).reshape(-1, 2)
+    use = [sa is not None and getattr(sa, "gbt_stiffness", None) is not None for sa in per_element]
+    if gbt_elements is not None:
+        use = [u and bool(g) for u, g in zip(use, gbt_elements)]
+    out = list(per_element)
+    info = {}
+    at_node = {}
+    sig_cache = {}
+
+    def blocks(sa):
+        return sa.gbt_sv_modes + sa.gbt_shear_modes, sa.gbt_modes
+
+    def sig(i):
+        if i not in sig_cache:
+            sig_cache[i] = gbt_signature(out[i])
+        return sig_cache[i]
+
+    for e in range(len(per_element)):
+        if use[e]:
+            nb = [f for nd in conn[e] for f in at_node.get(int(nd), []) if use[f]]
+            same = next((f for f in nb if per_element[f] is per_element[e]), None)
+            ref = next((f for f in nb if per_element[f] is not per_element[e]), None)
+            if same is not None:                     # the same section: the same (turned) basis
+                out[e] = out[same]
+                if same in info:
+                    info[e] = dict(info[same])
+            elif ref is not None and blocks(out[ref]) == blocks(out[e]):
+                turned, pair = align_gbt_pair(out[ref], out[e], (sig(ref), sig(e)))
+                if pair["match"] < MIN_MATCH:
+                    log.warning("GBT bases of element %d do not continue those of element %d", e, ref)
+                if turned is not out[e]:
+                    out[e] = turned
+                    sig_cache.pop(e, None)
+                info[e] = {**pair, "reference": ref}
+        for nd in conn[e]:
+            at_node.setdefault(int(nd), []).append(e)
+    return tuple(out), info
+
 def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = "free") -> dict:
     """Return ``element_dictionary`` with per-element ``SectionAnalysis`` entries when the job has thin-walled sections.
 
@@ -135,7 +193,8 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
     (``SectionAnalysis.with_taper``), GBT rows included.
 
     GBT rows on more than one section have their sections' warping and mode bases turned
-    to continue each other along the beam (``gbt_alignment.align_gbt_sections``), since
+    to continue each other along the beam (``align_gbt_sections``, pairs by the provider's
+    ``gbt_alignment.align_gbt_pair``), since
     neighbouring elements share those amplitudes.
 
     With ``wall_load.txt`` it also gains ``"wall_load_per_element"``: the generalised
@@ -260,8 +319,6 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
         per_element = tuple(sa.with_taper(tapers[e]) if e in tapers else sa for e, sa in zip(ids, per_element))
     align = {}
     if gbt_rows and "connectivity" in element_dictionary and len({assignment[e] for e in gbt_rows}) > 1:
-        align_gbt_sections = section_import("gbt_alignment", "align_gbt_sections")
-
         per_element, align = align_gbt_sections(per_element, element_dictionary["connectivity"],
                                                 [e in gbt_rows for e in ids])
     out = {

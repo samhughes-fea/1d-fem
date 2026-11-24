@@ -54,7 +54,7 @@ from onedfem.pre_processing.parsing.layup_sensitivity_parser import (
     Response,
     parse_layup_sensitivity_file,
 )
-from onedfem.sections import section_import
+from onedfem.sections import ELEMENT_SIGN, section_import, to_engine_section
 
 __all__ = ["LAYUP_SENSITIVITY_COLUMNS", "element_derivatives", "layup_sensitivities", "write_layup_sensitivity"]
 
@@ -217,7 +217,7 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
     its global index. ``laminates`` (``{laminate_id: WallLaminate}``, from ``laminate.txt``)
     gives the ply thicknesses of parameters that only 2D sections use.
     """
-    element_section_derivative = section_import("thin_walled.layup_sensitivity", "element_section_derivative")
+    section_analysis_derivative = section_import("thin_walled.layup_sensitivity", "section_analysis_derivative")
     import scipy.sparse as sp
     import scipy.sparse.linalg as spla
 
@@ -310,16 +310,15 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
                 if gbt:
                     d = dataclasses.replace(d, **_gbt_derivative(modes_cache, tw, d, sa))
                 cache[key] = d
-            dsa = element_section_derivative(sa, cache[key])
+            dd = section_analysis_derivative(to_engine_section(sa), cache[key])
+            dsa = element_section_derivative(sa, dd)
             a, b = element_derivatives(el, dsa, mass=eigen)
             dKe.append(a)
             dMe.append(b)
             if buckling:
-                ELEMENT_SIGN = section_import("section_analysis", "ELEMENT_SIGN")
-
                 # GBT: K_g is linear in the GBT geometric tensors alone (in dsa)
                 dH = None if gbt else dataclasses.replace(
-                    el.section_analysis, geometric_terms=cache[key].geometric_terms @ ELEMENT_SIGN)
+                    el.section_analysis, geometric_terms=dd.geometric_terms @ ELEMENT_SIGN)
                 dGe.append((el, dsa, dH))
         value = _parameter_value(thin_walled, p, laminates)
         if buckling:
@@ -349,6 +348,43 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
                 dw2 = (form(dKe, phi, phi) - w2 * form(dMe, phi, phi)) / float(phi @ np.asarray(M @ phi).ravel())
                 rows.append(_row(p, value, r, float(f[k]), dw2 / (8 * np.pi**2 * f[k])))
     return rows
+
+
+def element_section_derivative(sa, dd):
+    """A section like the element's ``sa`` (element frame) whose stiffness and mass matrix are the
+    provider's derivative ``dd`` (``section_analysis_derivative``, engine frame), re-signed.
+
+    Elements whose stiffness and mass are linear in the section's matrices (the Timoshenko,
+    Benscoter and GBT families) form their own derivatives from it (``element_derivatives``).
+    Its taper is already in ``dd.stiffness``, so it is marked untapered; the second-order
+    terms stay the section's own (their derivative is a separate section, ``dH``).
+    """
+    s6 = np.diag(ELEMENT_SIGN)
+    s4 = s6[[0, 1, 2, 5]]
+    dM = np.array(dd.mass_matrix, dtype=np.float64, copy=True)
+
+    class _Derivative(type(sa)):
+        # a closure, so copies made by dataclasses.replace (pretwist, curvature) keep it
+        def mass_matrix(self):
+            return dM.copy()
+
+    kw = {f.name: getattr(sa, f.name) for f in dataclasses.fields(sa) if f.init}
+    kw["stiffness"] = s6[:, None] * dd.stiffness * s6[None, :]
+    kw["classical_stiffness"] = s4[:, None] * dd.classical_stiffness * s4[None, :]
+    kw["tapered"], kw["taper_parts"] = False, None
+    if dd.axial_points is not None:
+        kw["axial_points"] = dd.axial_points
+    if dd.benscoter_stiffness is not None:
+        s8 = np.r_[s6, 1.0, 1.0]
+        kw["benscoter_stiffness"] = s8[:, None] * dd.benscoter_stiffness * s8[None, :]
+    kw["warping_inertia"] = float(dd.warping_inertia) if dd.benscoter_stiffness is not None else 0.0
+    if dd.gbt_stiffness is not None:
+        sg = np.ones(dd.gbt_stiffness.shape[0])
+        sg[1] = -1.0
+        kw["gbt_stiffness"] = sg[:, None] * dd.gbt_stiffness * sg[None, :]
+        kw["gbt_mass"] = np.array(dd.gbt_mass, dtype=np.float64, copy=True)
+        kw["gbt_geometric"] = tuple(T * sg for T in dd.gbt_geometric)
+    return _Derivative(**kw)
 
 
 def _gbt_derivative(modes_cache, tw, d, sa) -> dict:

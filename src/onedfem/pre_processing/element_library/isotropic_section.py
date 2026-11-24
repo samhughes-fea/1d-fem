@@ -16,7 +16,8 @@ Two geometric torsion constants [m^4], not to be confused:
   (the beam reference axis of a ``section.txt`` element). It enters the twist rotary
   inertia ``M[3, 3] = rho I_p`` [kg m] about that axis, and the Wagner term ``I_p / A``.
   ``section.txt`` often leaves it ``0.0``; a value that is not positive counts as absent
-  and the provider takes ``I_y + I_z``.
+  and the provider takes ``I_y + I_z``. It is passed to the provider as ``I_p``
+  (contract 2.0), which also keeps both as ``section_constants``.
 
 They are equal only for circular sections; for any other shape ``J_t < I_p``.
 
@@ -41,7 +42,7 @@ __all__ = ["isotropic_section", "isotropic_section_of", "isotropic_stiffness", "
 def _cached(E, G, A, I_y, I_z, J_t, kappa, I_x, y_sc, z_sc, Gamma, rho, provider):
     SectionAnalysis = section_import("section_analysis", "SectionAnalysis")
     section = SectionAnalysis.from_isotropic(
-        E=E, G=G, A=A, I_y=I_y, I_z=I_z, J_t=J_t, kappa=kappa, I_x=I_x,
+        E=E, G=G, A=A, I_y=I_y, I_z=I_z, J_t=J_t, kappa=kappa, I_p=I_x,
         y_sc=y_sc, z_sc=z_sc, Gamma=Gamma, rho=rho,
     )
     # one object is shared by every element with these constants: make its arrays read-only
