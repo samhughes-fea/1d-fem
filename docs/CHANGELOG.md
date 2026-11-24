@@ -14,6 +14,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- **Isotropic Timoshenko sections couple shear and twist about the shear centre.** A `section.txt` shear centre `y_sc`, `z_sc` (from the centroid) now gives `D[3,5] = -z_sc κGA`, `D[4,5] = y_sc κGA` and `D[5,5] = G J_t + κGA (y_sc² + z_sc²)`, from the section provider's `from_isotropic`. Before, it was recorded and `D` stayed diagonal. A tip shear force through the shear centre no longer twists a cantilever, and the same force through the centroid twists it by `-z_sc F L / (G J_t)` (`tests/test_isotropic_sections_from_provider.py`). Euler-Bernoulli elements keep `G J_t`; bars and trusses take no offset. Pins anisotropic-section-model `60f5f0a` until its next release.
+- **`reduced_blade_beam_job` writes the shear centre relative to the centroid.** It wrote the reduced section's blade-frame `shear_centre` (or, without one, its `centroid`) as `y_sc`, `z_sc`; it now writes `shear_centre - centroid`, and `(0, 0)` without a shear centre.
 - **Layup sensitivities refuse tapered elements on 2D sections.** The taper (Resal) coupling of a 2D section was not differentiated (its laminate split was weighted by a wall axial stiffness of zero), so on the tapered box meshed in 2D the tip-deflection angle derivative came out 2.6 % off without warning. Such elements now raise `NotImplementedError`; tapered thin-walled sections are unchanged.
 
 ### Changed

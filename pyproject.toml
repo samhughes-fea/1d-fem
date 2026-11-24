@@ -22,7 +22,7 @@ dependencies = [
     # come from it. Neither is on PyPI yet, so both come from GitHub.
     "laminate-constitutive-model @ git+https://github.com/samhughes-fea/laminate-constitutive-model@v0.3.0",
     # section contract 2.0: the ASM contract-v2 branch until v0.6.0 is tagged, then @v0.6.0
-    "anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@f6cd3c30bba5e5a9d3b9a122a7cc4f3096d29796",
+    "anisotropic-section-model @ git+https://github.com/samhughes-fea/anisotropic-section-model@60f5f0a5955b52b0015a5a7b02c06af2b5b95362",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

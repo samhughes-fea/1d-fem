@@ -7,8 +7,10 @@ cut, a wall or a shell graph.
 
 Section axes follow the blade job: beam ``x`` is span, section ``y`` is chord
 and section ``z`` is thickness. ``ixx`` (``∫ y² dA`` in the blade frame) is
-written as ``I_y``; ``iyy`` (``∫ x² dA``) is written as ``I_z``. The shear
-centre ``(x, y)`` in the blade frame is ``(y_sc, z_sc)``.
+written as ``I_y``; ``iyy`` (``∫ x² dA``) is written as ``I_z``. ``section.txt`` takes
+the shear centre relative to the centroid, so ``(y_sc, z_sc)`` is the reduced section's
+``shear_centre`` minus its ``centroid`` (``(x, y)`` in the blade frame; a section without
+a ``centroid`` has it at the origin, and one without a ``shear_centre`` gets ``(0, 0)``).
 """
 
 from __future__ import annotations
@@ -188,8 +190,9 @@ def _sections(sections, z_cut: np.ndarray):
 
 
 def _section_row(eid: int, section) -> str:
-    centre = _field(section, "shear_centre", _field(section, "centroid", (0.0, 0.0)))
-    y_sc, z_sc = float(centre[0]), float(centre[1])
+    centroid = _field(section, "centroid", (0.0, 0.0))
+    centre = _field(section, "shear_centre", centroid)     # no shear centre: on the centroid
+    y_sc, z_sc = float(centre[0]) - float(centroid[0]), float(centre[1]) - float(centroid[1])
     kappa = float(_field(section, "kappa", _KAPPA))
     return (
         f"{eid} {_field(section, 'area')!r} 0.0 {_field(section, 'ixx')!r} {_field(section, 'iyy')!r} "

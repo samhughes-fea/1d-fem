@@ -5,6 +5,7 @@ import math
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from onedfem.pre_processing.mesh_library.reduced_blade_beam import reduced_blade_beam_job
 
@@ -68,3 +69,14 @@ def test_stations_and_a_reduced_section_write_the_beam_job(tmp_path):
     assert float(row[10]) == 0.0
     length = 2.0
     assert np.allclose(out["k_x0"], -math.radians(5.0) / length)
+
+
+def test_the_shear_centre_is_written_relative_to_the_centroid(tmp_path):
+    """``section.txt`` takes ``y_sc``, ``z_sc`` from the centroid, not the blade-frame position."""
+    from onedfem.pre_processing.mesh_library.reduced_blade_beam import _section_row
+
+    sec = {"area": 0.02, "ixx": 4e-4, "iyy": 1e-4, "centroid": (0.30, 0.02), "shear_centre": (0.25, 0.01)}
+    row = _section_row(0, sec).split()
+    assert float(row[8]) == pytest.approx(-0.05) and float(row[9]) == pytest.approx(-0.01)
+    row = _section_row(0, {k: v for k, v in sec.items() if k != "shear_centre"}).split()
+    assert float(row[8]) == 0.0 and float(row[9]) == 0.0
