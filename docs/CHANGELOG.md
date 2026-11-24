@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- **Follows the shared development standard 0.1.0**: synced issue forms, PR template, labels, `pr-title`, `label-sync`, `codeql` and `release` workflows, and the standard in `docs/conventions/standard/`. `release.yml` is now the shared one (it reads `.github/repo.yml`; the backfill mode is gone). `docs/conventions/COMMIT_STANDARDS.md` is replaced by the standard's commits page, and `RELEASING.md` keeps only this repository's specifics. Added `AGENTS.md`, `SCOPE.md`, `CONTRIBUTING.md` and `.github/labels.yml`. (#PR)
+
+### Changed
+
 - **Section contract 2.0** (anisotropic-section-model 0.6.0; `SECTION_API = (2, 0)`). The provider now hands over right-handed sections (`SectionAnalysis.frame == "engine"`), and 1d-fem applies its own element sign on `kappa_y` in one place: `onedfem.sections.to_element_section`, when an element takes its section (`element_section.txt` sections and isotropic `section.txt` sections alike). Tapers and GBT alignment act on the provider's sections first; pretwist goes through `element_pretwist`. The walk over elements that aligns GBT bases (`section_job.align_gbt_sections`) is now 1d-fem's and calls the provider's `align_gbt_pair`. Layup sensitivities take the provider's plain derivative arrays (`section_analysis_derivative`) and build the element's derivative section here (`layup_sensitivity.element_section_derivative`). Isotropic sections pass the polar moment as `I_p` (the `I_x` column of `section.txt`). Results are unchanged.
 
 ### Added

@@ -1,0 +1,9 @@
+# This repository's values for the shared development standard
+# (docs/conventions/standard/repo-profile.md). Owned by this repository.
+profile: python-package
+package: onedfem
+python: ['3.11', '3.12']
+pypi: false
+docs-site: false
+scopes: [interfaces, pre-processing, processing, post-processing, simulation-runner,
+  orchestrator, sections]
