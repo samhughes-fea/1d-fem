@@ -1,0 +1,28 @@
+# This repository's own labels; the shared ones are in labels.base.yml (synced).
+# label-sync.yml applies both files; labels in neither are deleted.
+# Rules: docs/conventions/standard/labels.md. Never repeat a base label here.
+
+- name: "area: interfaces"
+  color: "fef2c0"
+  description: Public interfaces and protocols (interfaces/)
+- name: "area: pre-processing"
+  color: "fef2c0"
+  description: Job input parsing and model building (pre_processing/)
+- name: "area: processing"
+  color: "fef2c0"
+  description: Elements, assembly and solvers (processing/)
+- name: "area: post-processing"
+  color: "fef2c0"
+  description: Results, stress recovery and ply checks (post_processing/)
+- name: "area: simulation-runner"
+  color: "fef2c0"
+  description: Analysis runners (simulation_runner/)
+- name: "area: orchestrator"
+  color: "fef2c0"
+  description: Workflow orchestration of jobs (workflow_orchestrator/)
+- name: "area: sections"
+  color: "fef2c0"
+  description: The section provider protocol (sections.py)
+- name: "area: examples"
+  color: "fef2c0"
+  description: Worked examples and figures
