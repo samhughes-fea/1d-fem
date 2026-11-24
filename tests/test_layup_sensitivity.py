@@ -169,8 +169,8 @@ def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D", precurvature=
         from anisotropic_section_model.solid.mesh import SectionMesh
 
         tw = common.build_analysis(sec)
+        # laminate.txt stays: it gives the thickness values reported beside the derivatives
         os.remove(os.path.join(job, "section_geometry.txt"))
-        os.remove(os.path.join(job, "laminate.txt"))
         write_section_mesh_2d(os.path.join(job, "section_mesh_2d.txt"),
                               {1: SectionMesh.from_thin_walled(tw.section, tw.laminates, elements_along=4)})
     if taper:
@@ -188,9 +188,8 @@ def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D", precurvature=
             f.write("[Simulation]\n[Type]\nbuckling\n\n[Solver]\ntype = direct\n\n[Buckling]\nenabled = true\n"
                     "num_modes = 4\nbuckling_prestress = linear_static\nbuckling_load_factor = 1.0\n")
     with open(os.path.join(job, "layup_sensitivity.txt"), "w", encoding="utf-8") as f:
-        # section_mesh_2d.txt sections take ply angles only (the file holds no node velocities)
-        f.write(format_layup_sensitivity_file([p for p in JOB_PARAMS if two_d is not True or p.kind == "angle"],
-                                              RESPONSES[kind]))
+        # section_mesh_2d.txt carries the mesh's node velocities (contract 2.1): thicknesses too
+        f.write(format_layup_sensitivity_file(list(JOB_PARAMS), RESPONSES[kind]))
     res = common.results_dir(os.path.join(_WORK, "results", name))
     logging.disable(logging.WARNING)
     try:
@@ -358,7 +357,7 @@ def test_2d_section_ply_tags_and_limits(tmp_path):
                                            ("eigen", "LinearBenscoterBeamElement3D"),
                                            ("buckling", "LinearTimoshenkoBeamElement3D")])
 def test_2d_section_job_sensitivities_match_central_differences(kind, element):
-    """Jobs on the box meshed in 2D (section_mesh_2d.txt with ply tags): ply angles."""
+    """Jobs on the box meshed in 2D (section_mesh_2d.txt with ply tags and node velocities): ply angles."""
     prm = JOB_PARAMS[0]
     tag = f"2d_{kind}"
     base = _run(tag, _spec(), kind, element, two_d=True)
@@ -405,6 +404,17 @@ def test_2d_section_from_walls_job_sensitivities_match_central_differences(kind,
                 assert float(row["relative_derivative"]) == pytest.approx(rel, rel=1e-12)
             n += 1
     assert n == len(JOB_PARAMS) * len(RESPONSES[kind])
+
+
+def test_2d_section_file_keeps_thickness_sensitivities():
+    """A mesh written to section_mesh_2d.txt with its node velocities (contract 2.1) gives the
+    same angle and thickness derivatives as the job meshing it itself ([Section_Mesh_2D])."""
+    from_file = _run("2df_static", _spec(mitred=True), "static", two_d=True)
+    from_walls = _run("2dw_static_ref", _spec(mitred=True), "static", two_d="geometry")
+    assert any(label.endswith(".thickness") for label, _ in from_file)
+    assert set(from_file) == set(from_walls)
+    for key, row in from_walls.items():
+        assert float(from_file[key]["derivative"]) == pytest.approx(float(row["derivative"]), rel=1e-9), key
 
 
 def test_2d_thickness_from_walls_is_close_to_thin_walled():

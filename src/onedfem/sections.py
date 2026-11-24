@@ -66,7 +66,7 @@ import numpy as np
 DEFAULT_SECTION_PROVIDER = "anisotropic_section_model"
 
 #: the section-provider contract this 1d-fem needs: (major, minor)
-SECTION_API = (2, 0)
+SECTION_API = (2, 1)
 
 #: 1d-fem's element sign on the right-handed strains (``kappa_y = -theta_y'``)
 ELEMENT_SIGN = np.diag([1.0, -1.0, 1.0, 1.0, 1.0, 1.0])

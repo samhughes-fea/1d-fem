@@ -425,9 +425,10 @@ def _check_thickness_velocities(sections, p: LayupParameter) -> None:
         if an is not None and _is_solid(an) and _uses(an, p) and an.mesh.velocities is None:
             sid = an.mesh.section_id
             raise NotImplementedError(
-                f"{p.label}: section {sid} is meshed in 2D without node velocities (section_mesh_2d.txt holds "
-                "none), so it takes ply-angle sensitivities only; mesh it from its walls with [Section_Mesh_2D] "
-                "in section_geometry.txt for ply-thickness sensitivities")
+                f"{p.label}: section {sid} is meshed in 2D without node velocities (its section_mesh_2d.txt has "
+                "no [Section_Node_Velocity] block), so it takes ply-angle sensitivities only; mesh it from its "
+                "walls with [Section_Mesh_2D] in section_geometry.txt, or write the file with the provider's "
+                "write_section_mesh_2d from such a mesh, for ply-thickness sensitivities")
 
 
 def _parameter_value(sections, p: LayupParameter, laminates=None) -> float:
