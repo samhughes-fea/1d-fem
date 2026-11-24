@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- **Follows the shared development standard 0.1.0**: synced issue forms, PR template, labels, `pr-title`, `label-sync`, `codeql` and `release` workflows, and the standard in `docs/conventions/standard/`. `release.yml` is now the shared one (it reads `.github/repo.yml`; the backfill mode is gone). `docs/conventions/COMMIT_STANDARDS.md` is replaced by the standard's commits page, and `RELEASING.md` keeps only this repository's specifics. Added `AGENTS.md`, `SCOPE.md`, `CONTRIBUTING.md` and `.github/labels.yml`. (#86)
+
+### Changed
+
 - **Section contract 2.1** (anisotropic-section-model 0.7.0; `SECTION_API = (2, 1)`). `section_mesh_2d.txt` now carries the mesh's node velocities (`[Section_Node_Velocity]`) and tie points (`[Section_Tie_Point]`), written by the provider's `write_section_mesh_2d` and read back by its parser. A section read from such a file therefore takes `thickness` parameters in `layup_sensitivity.txt`, as a `[Section_Mesh_2D]` section does, and gives the same derivatives (to 1e-9 on the mitred box). The thickness values come from `laminate.txt`, so the job keeps it. A file without velocities still takes ply angles only.
 - **Section contract 2.0** (anisotropic-section-model 0.6.0; `SECTION_API = (2, 0)`). The provider now hands over right-handed sections (`SectionAnalysis.frame == "engine"`), and 1d-fem applies its own element sign on `kappa_y` in one place: `onedfem.sections.to_element_section`, when an element takes its section (`element_section.txt` sections and isotropic `section.txt` sections alike). Tapers and GBT alignment act on the provider's sections first; pretwist goes through `element_pretwist`. The walk over elements that aligns GBT bases (`section_job.align_gbt_sections`) is now 1d-fem's and calls the provider's `align_gbt_pair`. Layup sensitivities take the provider's plain derivative arrays (`section_analysis_derivative`) and build the element's derivative section here (`layup_sensitivity.element_section_derivative`). Isotropic sections pass the polar moment as `I_p` (the `I_x` column of `section.txt`). Results are unchanged.
 
@@ -15,6 +19,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- **Isotropic Timoshenko sections couple shear and twist about the shear centre.** A `section.txt` shear centre `y_sc`, `z_sc` (from the centroid) now gives `D[3,5] = -z_sc κGA`, `D[4,5] = y_sc κGA` and `D[5,5] = G J_t + κGA (y_sc² + z_sc²)`, from the section provider's `from_isotropic`. Before, it was recorded and `D` stayed diagonal. A tip shear force through the shear centre no longer twists a cantilever, and the same force through the centroid twists it by `-z_sc F L / (G J_t)` (`tests/test_isotropic_sections_from_provider.py`). Euler-Bernoulli elements keep `G J_t`; bars and trusses take no offset. Pins anisotropic-section-model `v0.6.1`.
+- **`reduced_blade_beam_job` writes the shear centre relative to the centroid.** It wrote the reduced section's blade-frame `shear_centre` (or, without one, its `centroid`) as `y_sc`, `z_sc`; it now writes `shear_centre - centroid`, and `(0, 0)` without a shear centre.
 - **Layup sensitivities refuse tapered elements on 2D sections.** The taper (Resal) coupling of a 2D section was not differentiated (its laminate split was weighted by a wall axial stiffness of zero), so on the tapered box meshed in 2D the tip-deflection angle derivative came out 2.6 % off without warning. Such elements now raise `NotImplementedError`; tapered thin-walled sections are unchanged.
 
 ### Changed

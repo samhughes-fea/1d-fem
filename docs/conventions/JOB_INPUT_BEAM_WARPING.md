@@ -53,7 +53,7 @@ stiffness, `I_x` in the rotary inertia.
 | `I_x` | polar second moment of area `I_p = ∫ (y² + z²) dA` [m⁴]; `0` or blank means `I_y + I_z` | centroid | — (Wagner term `I_p / A` of second-order elements) | twist rotary inertia `rho I_p` [kg m] |
 | `I_y`, `I_z` | second moments `∫ z² dA`, `∫ y² dA` [m⁴] | centroid | bending stiffness `EI_y`, `EI_z` [N m²] | rotary inertia `rho I_y`, `rho I_z` [kg m] |
 | `J_t` | Saint-Venant torsion constant [m⁴] | independent of the axis | torsional stiffness `G J_t` [N m²] | — |
-| `y_sc`, `z_sc` | shear-centre position [m] | centroid | recorded on the section; no coupling | — |
+| `y_sc`, `z_sc` | shear-centre position [m] | centroid | shear-torsion coupling `D[3,5] = -z_sc κGA`, `D[4,5] = y_sc κGA`, `D[5,5] = GJ_t + κGA (y_sc² + z_sc²)` (Timoshenko beams; none in the shear-rigid `D`) | — |
 | `Gamma` | warping constant [m⁶] | shear centre | warping stiffness `E Gamma` [N m⁴] | `rho Gamma` on the warping DOF |
 
 `J_t` and `I_x` agree only for a circular section (solid or tube). For anything else
@@ -67,7 +67,7 @@ same way (`J_t` into `D[5, 5] = G J_t`, `I_x` into `M[3, 3] = rho I_p`); see
 
 - **`Gamma`:** Use **> 0** when you want Vlasov **warping stiffness** (`E·Γ` on the warping part of the material matrix) **and** warping is enabled for that element (`[warping]` / `element_warping_stiffness_on`). If `[warping]` is off for the row, `effective_warping_gamma` treats Γ as zero for stiffness regardless of the stored section value. Leave **0** for runs without warping stiffness or when you only need mesh/DOF policy without Γ stiffness.
 
-- **`y_sc`, `z_sc`:** The shear centre relative to the centroid. It is recorded on the provider's section (and used by the thin-walled and warping paths); an isotropic `D` stays diagonal, so it adds no bending-torsion coupling.
+- **`y_sc`, `z_sc`:** The shear centre relative to the centroid (not its absolute position). Shear and twist are uncoupled about it, so Timoshenko elements get the shear-torsion coupling in the table above; a tip shear force through it does not twist a cantilever. Euler-Bernoulli elements, bars and trusses see no coupling. **0** puts the shear centre on the centroid.
 
 - **`kappa` / `alpha`:** Shear correction and higher-order coefficients; populate per section physics (defaults from migration scripts may be placeholders).
 

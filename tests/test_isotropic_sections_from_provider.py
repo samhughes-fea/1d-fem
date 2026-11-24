@@ -104,13 +104,50 @@ def test_bar_and_truss_take_D_from_the_provider(tmp_path):
                                   ref.stiffness[np.ix_([0, 3, 5], [0, 3, 5])])
 
 
-def test_shear_centre_offset_is_recorded_not_coupled(tmp_path):
-    """``y_sc``, ``z_sc`` reach the provider as the shear centre; ``D`` stays diagonal."""
-    kw = _kwargs(str(tmp_path / "t"), "LinearTimoshenkoBeamElement3D", y_sc=0.01, z_sc=-0.02)
+def test_shear_centre_offset_couples_shear_and_twist(tmp_path):
+    """``y_sc``, ``z_sc`` couple shear and twist about the shear centre, as the provider sets it."""
+    y_s, z_s = 0.01, -0.02
+    kw = _kwargs(str(tmp_path / "t"), "LinearTimoshenkoBeamElement3D", y_sc=y_s, z_sc=z_s, Gamma=0.0)
     el = _timoshenko()(**kw)
     D = el.D_matrix()
-    np.testing.assert_array_equal(D, np.diag(np.diag(D)))
-    assert el.section_analysis.shear_centre == pytest.approx((0.01, -0.02))
+    kGA, GJ = SEC["kappa"] * G * SEC["A"], G * SEC["J_t"]
+    assert D[3, 5] == pytest.approx(-z_s * kGA)
+    assert D[4, 5] == pytest.approx(y_s * kGA)
+    assert D[5, 5] == pytest.approx(GJ + kGA * (y_s**2 + z_s**2))
+    assert el.section_analysis.shear_centre == pytest.approx((y_s, z_s))
+    # shear-rigid elements keep G J_t: the coupling condenses out
+    D_eb = el.section_analysis.euler_bernoulli_D()
+    assert D_eb[5, 5] == pytest.approx(GJ)
+    assert not D_eb[3:5].any()
+
+
+@pytest.mark.parametrize("n_el", [1, 4])
+def test_tip_shear_through_the_shear_centre_does_not_twist(tmp_path, n_el):
+    """A Timoshenko cantilever loaded by a tip shear force through the shear centre does not
+    twist; the same force through the centroid twists it by ``-z_s F L / (G J_t)``."""
+    y_s, z_s, L, F = 0.0, -0.02, 2.0, 1.0e3
+    kw = _kwargs(str(tmp_path / "t"), "LinearTimoshenkoBeamElement3D", y_sc=y_s, z_sc=z_s)
+    D = _timoshenko()(**kw).D_matrix()
+    # one element's K from the element, the rest by repetition (prismatic, x-aligned)
+    kw["grid_dictionary"] = {"coordinates": np.array([[0.0, 0, 0], [L / n_el, 0, 0]])}
+    Ke = _timoshenko()(**kw).element_stiffness_matrix().K_e
+    n = 6 * (n_el + 1)
+    K = np.zeros((n, n))
+    for e in range(n_el):
+        K[6 * e:6 * e + 12, 6 * e:6 * e + 12] += Ke
+    free = np.arange(6, n)
+
+    def tip_twist(torque):
+        f = np.zeros(n)
+        f[n - 6 + 1], f[n - 6 + 3] = F, torque
+        u = np.zeros(n)
+        u[free] = np.linalg.solve(K[np.ix_(free, free)], f[free])
+        return u[n - 6 + 3]
+
+    # F_y through (y_s, z_s): about the centroid that is F_y and T_x = -z_s F_y
+    assert abs(tip_twist(-z_s * F)) < 1e-9 * abs(z_s * F * L / (G * SEC["J_t"]))
+    assert tip_twist(0.0) == pytest.approx(z_s * F * L / (G * SEC["J_t"]), rel=1e-9)
+    assert D[3, 5] != 0.0
 
 
 @pytest.mark.parametrize("I_x, I_p", [(0.0, SEC["I_y"] + SEC["I_z"]), (5e-8, 5e-8)])
