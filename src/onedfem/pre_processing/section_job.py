@@ -66,6 +66,37 @@ def solid_analyses_from_geometry(laminate_path: str, geometry_path: str) -> Dict
     return out
 
 
+def solid_tapers(rows_2d, tapers, solid) -> Dict[int, "SectionTaper"]:
+    """``{element_id: SectionTaper}`` of the ``[Section_Taper_2D]`` rows of ``section_taper.txt``.
+
+    ``rows_2d`` is ``{element_id: (section_start, section_end, distance)}``, ``tapers`` the
+    ``[Section_Taper]`` rows (an element takes one or the other) and ``solid`` the job's 2D
+    sections. Each coupling is the provider's ``solid_section_taper`` of the two meshes, made
+    once per row value.
+    """
+    if not rows_2d:
+        return {}
+    both = sorted(set(rows_2d) & set(tapers))
+    if both:
+        raise ValueError(f"section_taper.txt gives elements {both} rows in both [Section_Taper] and [Section_Taper_2D]")
+    named = {s for a, b, _ in rows_2d.values() for s in (a, b)}
+    not_2d = sorted(named - set(solid))
+    if not_2d:
+        raise ValueError(f"[Section_Taper_2D] names sections {not_2d} that are not meshed in 2D ([Section_Mesh_2D] "
+                         "in section_geometry.txt or section_mesh_2d.txt)")
+    solid_section_taper = section_import("solid.taper", "solid_section_taper")
+    made = {}
+    out = {}
+    for e, (a, b, d) in rows_2d.items():
+        if (a, b, d) not in made:
+            try:
+                made[a, b, d] = solid_section_taper(solid[a].mesh, solid[b].mesh, d)
+            except ValueError as exc:
+                raise ValueError(f"[Section_Taper_2D] element {e}: sections {a} and {b}: {exc}") from exc
+        out[e] = made[a, b, d]
+    return out
+
+
 def solid_analyses_from_files(mesh_path: str, laminate_path=None) -> Dict[int, "SolidSectionAnalysis"]:
     """Return ``{section_id: SolidSectionAnalysis}`` for every section in ``section_mesh_2d.txt``.
 
@@ -86,6 +117,9 @@ def solid_analyses_from_files(mesh_path: str, laminate_path=None) -> Dict[int, "
 LAMINATE_FILE = "laminate.txt"
 SECTION_MESH_2D_FILE = "section_mesh_2d.txt"
 SOLID_KEY = "solid_analysis_per_element"
+#: each element's ``SectionTaper`` (``None`` where it has none): the layup sensitivities of a
+#: tapered 2D section differentiate its coupling through the two meshes it keeps
+TAPER_KEY = "section_taper_per_element"
 SECTION_GEOMETRY_FILE = "section_geometry.txt"
 ELEMENT_SECTION_FILE = "element_section.txt"
 WALL_LOAD_FILE = "wall_load.txt"
@@ -305,17 +339,23 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
     per_section.update(matrices)
     per_element = tuple(per_section[assignment[e]] if e in assignment else None for e in ids)
     taper_path = os.path.join(job_dir, SECTION_TAPER_FILE)
+    tapers = {}
     if os.path.exists(taper_path):
-        from onedfem.pre_processing.parsing.section_taper_parser import parse_section_taper_file
+        from onedfem.pre_processing.parsing.section_taper_parser import (
+            parse_section_taper_2d,
+            parse_section_taper_file,
+        )
 
         tapers = parse_section_taper_file(taper_path)
-        unassigned = sorted(e for e in tapers if e not in assignment)
+        rows_2d = parse_section_taper_2d(taper_path)
+        unassigned = sorted(e for e in (*tapers, *rows_2d) if e not in assignment)
         if unassigned:
             raise ValueError(f"section_taper.txt names elements without a section in element_section.txt: {unassigned}")
-        tabled = sorted(e for e in tapers if assignment[e] in matrices)
+        tabled = sorted(e for e in (*tapers, *rows_2d) if assignment[e] in matrices)
         if tabled:
             raise ValueError(f"section_taper.txt names elements with table sections (section_matrix.txt), whose "
                              f"tables already hold their stiffness: {tabled}")
+        tapers.update(solid_tapers(rows_2d, tapers, solid))
         per_element = tuple(sa.with_taper(tapers[e]) if e in tapers else sa for e, sa in zip(ids, per_element))
     align = {}
     if gbt_rows and "connectivity" in element_dictionary and len({assignment[e] for e in gbt_rows}) > 1:
@@ -328,6 +368,8 @@ def attach_section_analyses(job_dir: str, element_dictionary: dict, hoop: str = 
     }
     if solid:
         out[SOLID_KEY] = tuple(solid.get(assignment[e]) if e in assignment else None for e in ids)
+    if tapers:
+        out[TAPER_KEY] = tuple(tapers.get(e) for e in ids)
     if gbt_rows:
         out["gbt_modes"] = np.array([modes_of.get(e, 0) for e in ids], dtype=int)
         out["gbt_shear_modes"] = np.array([shear_of.get(e, 0) for e in ids], dtype=int)

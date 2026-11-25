@@ -95,6 +95,7 @@ PROVIDER_MODULES: Dict[str, Tuple[str, ...]] = {
     "solid.section_analysis": ("SolidSectionAnalysis",),
     "solid.from_geometry": ("section_mesh_from_cut", "write_section_mesh_2d"),
     "solid.layup_sensitivity": ("solid_section_derivative",),
+    "solid.taper": ("solid_section_taper",),
 }
 
 _provider: Optional[Union[str, ModuleType]] = None

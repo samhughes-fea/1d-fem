@@ -183,7 +183,13 @@ its mass takes the change of the shapes, \(\partial\Phi_i = -K_{ii}^{-1}(\partia
 taper coupling is \(\sum_l A_l\,G_l\) over the laminates, with \(A_l\) the axial wall stiffness
 and \(G_l\) a geometric factor that `section_taper` now writes per laminate
 (`[Section_Taper_Laminate]` in `section_taper.txt`, written by `blade_beam_job`), so its
-derivative is \(\partial A_l\,G_l\).
+derivative is \(\partial A_l\,G_l\). The taper of a section meshed in 2D is
+\(C = \int E_x f r'^T dA\) and \(Q = \int E_x r' r'^T dA\) over the section midway between two
+meshes a distance apart (`[Section_Taper_2D]`), with \(r'\) the nodes' rates between them. A
+ply angle changes \(E_x\) of its elements; a ply thickness moves the nodes of both meshes at
+their velocities, so the mid-section's quadrature and the rates \(r'\) move with them. The
+provider differentiates both exactly (`solid_section_derivative(taper=)`), and
+`section_analysis_derivative` adds the result to the section's derivative.
 
 The products are formed element by element (\(\lambda_e^T \partial K_e U_e\)), so no
 global derivative matrix is assembled.
@@ -226,7 +232,10 @@ Benscoter elements, and the first two buckling load factors of a box cantilever 
 compression, shear, torque and bending, and static and eigen responses of a pretwisted,
 prebent box and of a tapered, pretwisted one, and static (Timoshenko), eigen (Benscoter) and
 buckling responses of the box meshed in 2D, for a ply angle, and of a mitred box meshed in 2D from
-its walls (`[Section_Mesh_2D]`), for a ply angle and a ply thickness (all to \(2\times10^{-5}\)), and
+its walls (`[Section_Mesh_2D]`), for a ply angle and a ply thickness, and static, eigen and
+buckling responses of that box tapered (depth +10 %/m, width -5 %/m) with its taper from two
+2D cuts either side (`[Section_Taper_2D]`), for a ply angle and a ply thickness (all to
+\(2\times10^{-5}\); the tapered 2D box agrees to about \(10^{-6}\)), and
 static, eigen and buckling responses of GBT cantilevers with two distortional modes, with and
 without two shear-lag modes (to \(3\times10^{-6}\), and \(2\times10^{-5}\) with the shear-lag modes). On the IEA 15 MW
 outboard segment (tapered, pretwisted, 6 elements) the cap angle derivatives of tip
@@ -250,11 +259,12 @@ reaches a target twist per unit flap deflection.
   sections, sections meshed in 2D with ply tags (ply angles) and sections meshed in 2D from
   their walls (`[Section_Mesh_2D]`: ply angles and thicknesses); pretwisted, curved
   (not in buckling) and tapered elements are included (a tapered one needs
-  `[Section_Taper_Laminate]` and a thin-walled section: the taper coupling of a 2D section
-  is not differentiated). GBT elements need one thin-walled section along the beam
+  `[Section_Taper_Laminate]` on a thin-walled section, or its taper from two 2D meshes,
+  `[Section_Taper_2D]`, on a 2D section). GBT elements need one thin-walled section along the beam
   and straight elements without precurvature, pretwist or wall loads. Other element types
-  (third-order, corotational), ply thicknesses of `section_mesh_2d.txt` sections, tapered 2D
-  sections, 2D meshes without ply tags
+  (third-order, corotational), ply thicknesses of `section_mesh_2d.txt` sections without node
+  velocities, 2D sections whose taper is given as numbers (`[Section_Taper]`, as
+  `blade_beam_job(kind="2d")` writes), 2D meshes without ply tags
   (blade cuts from `section_mesh_from_cut`), nonlinear prestress, second-order static and
   rotating (centrifugal) jobs are refused.
 - Wall mid-lines are held fixed: a thickness change grows the stack about its mid-surface.

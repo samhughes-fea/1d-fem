@@ -143,11 +143,36 @@ def _taper_file(sec) -> str:
     d = 0.01
 
     def cut(s):
-        pts = {k: (y * (1 - 0.05 * s), z * (1 + 0.10 * s)) for k, (y, z) in sec.points.items()}
-        return ThinWalledSection(pts, [Wall(*w) for w in sec.walls])
+        return ThinWalledSection(_cut_points(sec, s), [Wall(*w) for w in sec.walls])
 
     t = section_taper(cut(-d), cut(d), an.laminates, 2 * d)
     return format_section_taper_file({e: t for e in range(N_EL)})
+
+
+#: the 2D tapered box: the cuts either side of each element's section, and their spacing
+TAPER_CUT = 0.01
+
+
+def _cut_points(sec, s):
+    """The box's points ``s`` along the beam: depth growing by 10 % per metre, width shrinking by 5 %."""
+    return {k: (y * (1 - 0.05 * s), z * (1 + 0.10 * s)) for k, (y, z) in sec.points.items()}
+
+
+def _write_tapered_2d(job, sec, elements_along=4):
+    """Section 1 (the elements' own) and the cuts 2 and 3 either side of it, all meshed in 2D
+    from their walls, and ``[Section_Taper_2D]`` giving every element the taper of 2 and 3."""
+    from onedfem.pre_processing.parsing.section_taper_parser import format_section_taper_file
+
+    cuts = {1: sec.points, 2: _cut_points(sec, -TAPER_CUT), 3: _cut_points(sec, TAPER_CUT)}
+    with open(os.path.join(job, "section_geometry.txt"), "w", encoding="utf-8") as f:
+        f.write("[Section_Point]\n[section_id] [point_id] [y] [z]\n")
+        f.writelines(f"{sid} {k} {y!r} {z!r}\n" for sid, pts in cuts.items() for k, (y, z) in pts.items())
+        f.write("[Section_Wall]\n[section_id] [wall_id] [point_start] [point_end] [laminate_id]\n")
+        f.writelines(f"{sid} {w} {a} {b} {lid}\n" for sid in cuts for w, a, b, lid in sec.walls)
+        f.write("[Section_Mesh_2D]\n[section_id] [elements_along] [rows_per_ply]\n")
+        f.writelines(f"{sid} {elements_along} 1\n" for sid in cuts)
+    with open(os.path.join(job, "section_taper.txt"), "w", encoding="utf-8") as f:
+        f.write(format_section_taper_file({}, {e: (2, 3, 2 * TAPER_CUT) for e in range(N_EL)}))
 
 
 def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D", precurvature=None, taper=False, two_d=False,
@@ -173,7 +198,9 @@ def _run(name, sec, kind, element="LinearTimoshenkoBeamElement3D", precurvature=
         os.remove(os.path.join(job, "section_geometry.txt"))
         write_section_mesh_2d(os.path.join(job, "section_mesh_2d.txt"),
                               {1: SectionMesh.from_thin_walled(tw.section, tw.laminates, elements_along=4)})
-    if taper:
+    if taper == "2d":
+        _write_tapered_2d(job, sec)
+    elif taper:
         with open(os.path.join(job, "section_taper.txt"), "w", encoding="utf-8") as f:
             f.write(_taper_file(sec))
     if precurvature is not None:
@@ -264,6 +291,27 @@ def test_tapered_pretwisted_job_sensitivities_match_central_differences(kind):
         h = 1e-3 if prm.kind == "angle" else 1e-8
         rp = _run(f"{tag}_p", _spec((prm, h)), kind, precurvature=curv, taper=True)
         rm = _run(f"{tag}_m", _spec((prm, -h)), kind, precurvature=curv, taper=True)
+        for (label, resp), row in base.items():
+            if label != prm.label:
+                continue
+            fd = (float(rp[label, resp]["response_value"]) - float(rm[label, resp]["response_value"])) / (2 * h)
+            assert float(row["derivative"]) == pytest.approx(fd, rel=2e-5), (label, resp)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("kind", ["static", "eigen", "buckling"])
+def test_tapered_2d_job_sensitivities_match_central_differences(kind):
+    """A tapered box meshed in 2D: the taper coupling of the two cuts either side of each
+    element (``[Section_Taper_2D]``) differentiated through both meshes, ply angles and
+    thicknesses. The box is mitred, so a thickness change moves its meshes without re-placing
+    ties, and the re-solved jobs agree to about 1e-7."""
+    tag = f"tapered_2d_{kind}"
+    base = _run(tag, _spec(mitred=True), kind, taper="2d")
+    assert len(base) == len(JOB_PARAMS) * len(RESPONSES[kind])
+    for prm in JOB_PARAMS:
+        h = 1e-3 if prm.kind == "angle" else 1e-8
+        rp = _run(f"{tag}_p", _spec((prm, h), mitred=True), kind, taper="2d")
+        rm = _run(f"{tag}_m", _spec((prm, -h), mitred=True), kind, taper="2d")
         for (label, resp), row in base.items():
             if label != prm.label:
                 continue
@@ -442,6 +490,14 @@ def test_2d_thickness_needs_node_velocities():
     _check_thickness_velocities([bare], LayupParameter(9, 0, "thickness"))       # a ply it does not use
     with pytest.raises(NotImplementedError, match=r"\[Section_Mesh_2D\]"):
         _check_thickness_velocities([bare], LayupParameter(1, 3, "thickness"))
+    # the two meshes of a 2D taper need them too
+    from anisotropic_section_model.solid.taper import solid_section_taper
+
+    moved = dataclasses.replace(an.mesh, nodes=1.01 * an.mesh.nodes)
+    _check_thickness_velocities([an], LayupParameter(1, 3, "thickness"), [solid_section_taper(an.mesh, moved, 0.1)])
+    with pytest.raises(NotImplementedError, match="Section_Taper_2D"):
+        _check_thickness_velocities([an], LayupParameter(1, 3, "thickness"),
+                                    [solid_section_taper(bare.mesh, moved, 0.1)])
 
 
 def test_section_mesh_2d_block(tmp_path):
@@ -514,9 +570,10 @@ def test_unsupported_elements_are_refused():
         element_derivatives(LinearTimoshenkoBeamElement3D(), None)
 
 
-def test_tapered_2d_sections_are_refused():
-    """The taper coupling of a 2D section is not differentiated: on the tapered box meshed in 2D
-    it was left out, and the tip-deflection angle derivative came out 2.6 % off."""
+def test_tapered_2d_sections_need_their_taper_from_two_meshes():
+    """A 2D section's taper given as numbers (``[Section_Taper]``) has no known derivative: on
+    the tapered box meshed in 2D, leaving it out put the tip-deflection angle derivative 2.6 %
+    off. The coupling of two meshes (``[Section_Taper_2D]``) is differentiated through them."""
     from onedfem.post_processing.sensitivity.layup_sensitivity import _check_element
 
     class LinearTimoshenkoBeamElement3D:
@@ -526,5 +583,13 @@ def test_tapered_2d_sections_are_refused():
         class _assigned_section_analysis:
             tapered, source, taper_parts = True, "solid", {1: None}
 
-    with pytest.raises(NotImplementedError, match="2D section"):
-        _check_element(LinearTimoshenkoBeamElement3D())
+    class Numbers:
+        source = None
+
+    class FromMeshes:
+        source = ("start", "end", 0.02)
+
+    for taper in (None, Numbers()):
+        with pytest.raises(NotImplementedError, match="Section_Taper_2D"):
+            _check_element(LinearTimoshenkoBeamElement3D(), taper)
+    _check_element(LinearTimoshenkoBeamElement3D(), FromMeshes())

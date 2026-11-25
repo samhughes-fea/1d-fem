@@ -83,7 +83,13 @@ def _supported(capability: str = "layup_sensitivity") -> List[str]:
     return [t for t in sorted(ElementFactory.ELEMENT_CLASS_MAP) if ElementFactory.capability(t, capability, None, own=True)]
 
 
-def _check_element(el) -> None:
+def _solid_taper(taper) -> bool:
+    """Whether ``taper`` is a 2D section's coupling that keeps its two meshes (``[Section_Taper_2D]``)."""
+    return taper is not None and getattr(taper, "source", None) is not None
+
+
+def _check_element(el, taper=None) -> None:
+    """Refuse element ``el`` (with its ``SectionTaper`` ``taper``, if any) where its derivative is unknown."""
     name = type(el).__name__
     if _kind(el) is None:
         raise NotImplementedError(
@@ -96,10 +102,13 @@ def _check_element(el) -> None:
         if sa is not None and getattr(sa, "source", "") == "solid":
             raise NotImplementedError(f"element {el.element_id}: layup sensitivities of GBT elements need "
                                       "thin-walled sections")
-    if sa is not None and getattr(sa, "tapered", False) and getattr(sa, "source", "") == "solid":
-        raise NotImplementedError(f"element {el.element_id}: layup sensitivities of a tapered element need a "
-                                  "thin-walled section (the taper coupling of a 2D section is not differentiated)")
-    if sa is not None and getattr(sa, "tapered", False) and getattr(sa, "taper_parts", None) is None:
+    if sa is None or not getattr(sa, "tapered", False) or _solid_taper(taper):
+        return
+    if getattr(sa, "source", "") == "solid":
+        raise NotImplementedError(f"element {el.element_id}: layup sensitivities of a tapered 2D section need its "
+                                  "taper from two 2D meshes ([Section_Taper_2D] in section_taper.txt); a "
+                                  "[Section_Taper] row gives only its numbers, whose derivative is unknown")
+    if getattr(sa, "taper_parts", None) is None:
         raise NotImplementedError(f"element {el.element_id}: layup sensitivities of a tapered element need its "
                                   "taper split by laminate ([Section_Taper_Laminate] in section_taper.txt)")
 
@@ -140,7 +149,7 @@ class _Swapped:
         return False
 
 
-def element_derivatives(el, d_section, mass: bool = False) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+def element_derivatives(el, d_section, mass: bool = False, taper=None) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """``dK_e`` (and ``dM_e``) of element ``el`` for the derivative section ``d_section``.
 
     The element forms its own matrices with the derivative section in place of its own; a
@@ -148,9 +157,9 @@ def element_derivatives(el, d_section, mass: bool = False) -> Tuple[np.ndarray, 
     is formed the same way. A curved element is a chain of straight sub-elements condensed by
     their static shapes ``Phi``: ``K = Phi^T K_c Phi`` is stationary in ``Phi``, so
     ``dK = Phi^T dK_c Phi``, while its mass takes the change of the shapes too,
-    ``dPhi_i = -K_ii^-1 (dK_c Phi)_i``.
+    ``dPhi_i = -K_ii^-1 (dK_c Phi)_i``. ``taper`` is the element's ``SectionTaper``, if it has one.
     """
-    _check_element(el)
+    _check_element(el, taper)
     if _curved(el):
         return _curved_derivatives(el, d_section, mass)
     with _Swapped(el, d_section) as e:
@@ -207,7 +216,7 @@ def _geometric_gradient(el, phi_e) -> np.ndarray:
 def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter], *, K, U=None, F=None,
                         fixed_dofs=(), M=None, frequencies_hz=None, mode_shapes=None,
                         responses: Sequence[Response] = (), dof_index=None, load_factors=None,
-                        prestress=None, laminates=None) -> List[dict]:
+                        prestress=None, laminates=None, tapers=None) -> List[dict]:
     """Rows of ``LAYUP_SENSITIVITY_COLUMNS`` for a solved static (``U``, ``F``), eigen
     (``M``, ``frequencies_hz``, ``mode_shapes``) or linear buckling (``load_factors``,
     ``mode_shapes``, ``prestress`` ``U_0``, ``fixed_dofs``) job.
@@ -215,7 +224,10 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
     ``thin_walled`` is the per-element ``ThinWalledSectionAnalysis`` or ``SolidSectionAnalysis``
     (``None`` where the element has neither); ``dof_index(node_id, dof)`` maps a response DOF to
     its global index. ``laminates`` (``{laminate_id: WallLaminate}``, from ``laminate.txt``)
-    gives the ply thicknesses of parameters that only 2D sections use.
+    gives the ply thicknesses of parameters that only 2D sections use. ``tapers`` is the
+    per-element ``SectionTaper`` (``None`` where the element has none): a 2D section's taper
+    from two meshes (``[Section_Taper_2D]``) is differentiated through them
+    (``solid_section_derivative(taper=)``); a thin-walled one by its split by laminate.
     """
     section_analysis_derivative = section_import("thin_walled.layup_sensitivity", "section_analysis_derivative")
     import scipy.sparse as sp
@@ -225,10 +237,11 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
     n = K.shape[0]
     buckling = load_factors is not None
     eigen = mode_shapes is not None and not buckling
+    tapers = tuple(tapers) if tapers is not None else (None,) * len(elements)
     for p in params:
-        _check_thickness_velocities(thin_walled, p)
-    for el in elements:
-        _check_element(el)
+        _check_thickness_velocities(thin_walled, p, tapers)
+    for el, taper in zip(elements, tapers):
+        _check_element(el, taper)
         if buckling and (not _buckling_ok(el) or _curved(el)):
             raise NotImplementedError(f"buckling-load sensitivities need straight {', '.join(_supported('layup_buckling_sensitivity'))} elements; "
                                       f"element {el.element_id} is {type(el).__name__}"
@@ -295,7 +308,8 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
 
     for p in params:
         dKe, dMe, dGe = [], [], []
-        for el, tw in zip(elements, thin_walled):
+        for el, tw, taper in zip(elements, thin_walled, tapers):
+            taper = taper if _solid_taper(taper) else None   # thin-walled: by taper_parts
             if tw is None:
                 dKe.append(np.zeros((el._n_dof, el._n_dof)))
                 dMe.append(np.zeros((el._n_dof, el._n_dof)))
@@ -304,15 +318,15 @@ def layup_sensitivities(elements, thin_walled, params: Sequence[LayupParameter],
             bens = _kind(el) == "benscoter"
             gbt = _kind(el) == "gbt"
             sa = el.section_analysis
-            key = (id(tw), p, bens, (sa.gbt_modes, sa.gbt_shear_modes) if gbt else None)
+            key = (id(tw), p, bens, (sa.gbt_modes, sa.gbt_shear_modes) if gbt else None, id(taper))
             if key not in cache:
-                d = _section_derivative(tw, p, benscoter=bens, geometric=buckling)
+                d = _section_derivative(tw, p, benscoter=bens, geometric=buckling, taper=taper)
                 if gbt:
                     d = dataclasses.replace(d, **_gbt_derivative(modes_cache, tw, d, sa))
                 cache[key] = d
             dd = section_analysis_derivative(to_engine_section(sa), cache[key])
             dsa = element_section_derivative(sa, dd)
-            a, b = element_derivatives(el, dsa, mass=eigen)
+            a, b = element_derivatives(el, dsa, mass=eigen, taper=taper)
             dKe.append(a)
             dMe.append(b)
             if buckling:
@@ -402,14 +416,15 @@ def _is_solid(an) -> bool:
     return hasattr(an, "mesh")
 
 
-def _section_derivative(an, p: LayupParameter, benscoter: bool, geometric: bool):
-    """``section_derivative`` of a thin-walled section, ``solid_section_derivative`` of a 2D one."""
+def _section_derivative(an, p: LayupParameter, benscoter: bool, geometric: bool, taper=None):
+    """``section_derivative`` of a thin-walled section, ``solid_section_derivative`` of a 2D one,
+    with the derivative of ``taper`` (a ``SectionTaper``) when given."""
     section_derivative = section_import("thin_walled.layup_sensitivity", "section_derivative")
     if _is_solid(an):
         solid_section_derivative = section_import("solid.layup_sensitivity", "solid_section_derivative")
 
-        return solid_section_derivative(an, p, benscoter=benscoter, geometric=geometric)
-    return section_derivative(an, p, benscoter=benscoter, geometric=geometric)
+        return solid_section_derivative(an, p, benscoter=benscoter, geometric=geometric, taper=taper)
+    return section_derivative(an, p, benscoter=benscoter, geometric=geometric, taper=taper)
 
 
 def _uses(an, p: LayupParameter) -> bool:
@@ -417,10 +432,21 @@ def _uses(an, p: LayupParameter) -> bool:
     return any(t is not None and tuple(t) == (p.laminate_id, p.ply) for t in (an.mesh.plies or ()))
 
 
-def _check_thickness_velocities(sections, p: LayupParameter) -> None:
-    """Refuse a thickness ``p`` on a 2D mesh that does not say how its nodes move with it."""
+def _check_thickness_velocities(sections, p: LayupParameter, tapers=()) -> None:
+    """Refuse a thickness ``p`` on a 2D mesh that does not say how its nodes move with it
+    (the elements' sections and the two meshes of each 2D taper)."""
     if p.kind != "thickness":
         return
+    tag = (p.laminate_id, p.ply)
+    for taper in tapers:
+        if not _solid_taper(taper):
+            continue
+        for m in taper.source[:2]:
+            if m.velocities is None and any(t is not None and tuple(t) == tag for t in (m.plies or ())):
+                raise NotImplementedError(
+                    f"{p.label}: section {m.section_id}, one end of a [Section_Taper_2D] row, is meshed in 2D "
+                    "without node velocities, so the taper's ply-thickness derivative is unknown; mesh it with "
+                    "[Section_Mesh_2D] in section_geometry.txt (or write it with its velocities)")
     for an in sections:
         if an is not None and _is_solid(an) and _uses(an, p) and an.mesh.velocities is None:
             sid = an.mesh.section_id
@@ -477,6 +503,7 @@ def write_layup_sensitivity(job_dir: str, job_results_dir: str, element_dictiona
         raise NotImplementedError("layup sensitivities with wall loads on GBT elements: their generalised load "
                                   "moves with the cross-section modes and is not differentiated")
     solid = element_dictionary.get("solid_analysis_per_element")
+    tapers = element_dictionary.get("section_taper_per_element")
     if solid is not None:
         tw = tuple(s if s is not None else t for t, s in zip(tw, solid))
     dpn = mesh_dof_per_node(element_dictionary)
@@ -497,19 +524,19 @@ def write_layup_sensitivity(job_dir: str, job_results_dir: str, element_dictiona
     if solver_type == "static":
         rows = layup_sensitivities(elements, tw, params, K=runner.K_global, U=runner.U_global, F=runner.F_global,
                                    fixed_dofs=runner.fixed_dofs, responses=responses, dof_index=dof_index,
-                                   laminates=laminates)
+                                   laminates=laminates, tapers=tapers)
     elif solver_type == "eigen":
         rows = layup_sensitivities(elements, tw, params, K=runner.K_global, M=runner.M_global,
                                    frequencies_hz=runner.vibration_frequencies_hz,
                                    mode_shapes=runner.vibration_mode_shapes, responses=responses,
-                                   laminates=laminates)
+                                   laminates=laminates, tapers=tapers)
     elif solver_type == "buckling":
         rows = layup_sensitivities(elements, tw, params, K=runner.buckling_stiffness,
                                    fixed_dofs=runner.buckling_constrained_dofs,
                                    load_factors=runner.buckling_load_factors,
                                    mode_shapes=runner.buckling_mode_shapes,
                                    prestress=runner.buckling_prestress_u, responses=responses,
-                                   laminates=laminates)
+                                   laminates=laminates, tapers=tapers)
     else:
         raise ValueError(f"layup sensitivities need a static, eigen or linear buckling job, not {solver_type!r}")
     out_dir = os.path.join(job_results_dir, "secondary_results", "sensitivity")
