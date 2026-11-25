@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- **Layup sensitivities of tapered 2D sections.** A `[Section_Taper_2D]` block in `section_taper.txt` (`[element_id] [section_start] [section_end] [distance]`) gives an element the taper (Resal) coupling of two 2D sections of the job a distance apart, made by the provider's `solid_section_taper`. Its derivative is taken through both meshes (`solid_section_derivative(taper=)`, anisotropic-section-model 0.5.0 and later), so tapered elements on sections meshed in 2D now take ply-angle and ply-thickness parameters in `layup_sensitivity.txt`, for static, eigen and buckling responses. On a tapered, mitred box meshed in 2D every derivative agrees with central differences of re-meshed, re-solved jobs to about 1e-6. A 2D section whose taper is given as numbers (`[Section_Taper]`) is still refused, now with a pointer to the new block. No change to the section contract (#90).
+
 ### Changed
 
 - Follows the shared development standard 0.1.1: the bug form asks for the system libraries the package loads (GEOS) and where they came from (#89).

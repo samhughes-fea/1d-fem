@@ -126,3 +126,88 @@ def test_attach_applies_the_taper(tmp_path):
     (tmp_path / "section_taper.txt").write_text(format_section_taper_file({5: tp}))
     with pytest.raises(ValueError, match="without a section"):
         attach_section_analyses(str(tmp_path), ed)
+
+
+# ------------------------------------------------------------------ sections meshed in 2D
+
+def _two_d_job(tmp_path, rows_2d, along=None):
+    """Sections 1 (0.3 x 0.2), 2 (the same) and 3 (0.3 x 0.19) meshed in 2D from their walls;
+    elements 0 and 1 on section 1, with ``rows_2d`` in ``[Section_Taper_2D]``."""
+    from onedfem.pre_processing.parsing.laminate_parser import format_laminate_file
+    from onedfem.pre_processing.parsing.section_geometry_parser import format_section_geometry
+    from onedfem.pre_processing.parsing.section_taper_parser import format_section_taper_file
+
+    secs = {1: box(0.3, 0.2), 2: box(0.3, 0.2), 3: box(0.3, 0.19)}
+    along = along or {}
+    for sid, s in secs.items():
+        s.section_id = sid
+    (tmp_path / "laminate.txt").write_text(format_laminate_file(LAM))
+    (tmp_path / "section_geometry.txt").write_text(
+        format_section_geometry(secs) + "[Section_Mesh_2D]\n[section_id] [elements_along] [rows_per_ply]\n"
+        + "".join(f"{sid} {along.get(sid, 4)} 1\n" for sid in secs))
+    (tmp_path / "element_section.txt").write_text("[Element_Section]\n[element_id] [section_id]\n0 1\n1 1\n")
+    (tmp_path / "section_taper.txt").write_text(format_section_taper_file({}, rows_2d))
+    return {"ids": np.array([0, 1]), "types": np.array(["LinearTimoshenkoBeamElement3D"] * 2)}
+
+
+def test_section_taper_2d_file_round_trip(tmp_path):
+    from onedfem.pre_processing.parsing.section_taper_parser import (
+        format_section_taper_file,
+        parse_section_taper_2d,
+        parse_section_taper_file,
+    )
+
+    tp = section_taper(box(0.3, 0.2), box(0.28, 0.19), LAM, 0.1)
+    path = tmp_path / "section_taper.txt"
+    path.write_text(format_section_taper_file({3: tp}, {4: (11, 12, 0.02)}))
+    assert set(parse_section_taper_file(str(path))) == {3}
+    assert parse_section_taper_2d(str(path)) == {4: (11, 12, 0.02)}
+    path.write_text(format_section_taper_file({}, {4: (11, 12, 0.02)}))       # the 2D block alone
+    assert parse_section_taper_file(str(path)) == {}
+    assert parse_section_taper_2d(str(path)) == {4: (11, 12, 0.02)}
+    for bad, match in (("4 11 12 0.0", "positive"), ("4 11 11 0.02", "two different"), ("4 11 12", "4 columns")):
+        path.write_text(f"[Section_Taper_2D]\n[element_id] [section_start] [section_end] [distance]\n{bad}\n")
+        with pytest.raises(ValueError, match=match):
+            parse_section_taper_2d(str(path))
+    path.write_text("[Section_Point]\n")
+    with pytest.raises(ValueError):
+        parse_section_taper_file(str(path))
+
+
+def test_attach_applies_a_2d_taper(tmp_path):
+    """``[Section_Taper_2D]``: the provider's ``solid_section_taper`` of the two meshes, kept per
+    element for the layup sensitivities, and close to the thin-walled coupling of the same box."""
+    from anisotropic_section_model.solid.taper import solid_section_taper
+    from onedfem.pre_processing.section_job import SOLID_KEY, TAPER_KEY, attach_section_analyses
+
+    ed = _two_d_job(tmp_path, {1: (2, 3, 0.1)})
+    out = attach_section_analyses(str(tmp_path), ed)
+    sa = out["section_analysis_per_element"]
+    solid = out[SOLID_KEY]
+    assert out[TAPER_KEY][0] is None and out[TAPER_KEY][1].source is not None
+    start, end, d = out[TAPER_KEY][1].source
+    tp = solid_section_taper(start, end, d)
+    assert np.allclose(sa[1].stiffness - sa[0].stiffness, tp.matrix(), rtol=1e-12, atol=0.0)
+    assert sa[1].tapered and not sa[0].tapered and solid[1].mesh is not start
+    thin = section_taper(box(0.3, 0.2), box(0.3, 0.19), LAM, 0.1)
+    assert tp.coupling[1, 1] == pytest.approx(thin.coupling[1, 1], rel=0.02)
+    assert tp.shear[1, 1] == pytest.approx(thin.shear[1, 1], rel=0.02)
+
+
+def test_2d_taper_rows_are_checked(tmp_path):
+    from onedfem.pre_processing.parsing.section_taper_parser import format_section_taper_file
+    from onedfem.pre_processing.section_job import attach_section_analyses
+
+    ed = _two_d_job(tmp_path, {1: (2, 4, 0.1)})
+    with pytest.raises(ValueError, match=r"sections \[4\] that are not meshed in 2D"):
+        attach_section_analyses(str(tmp_path), ed)
+    tp = section_taper(box(0.3, 0.2), box(0.3, 0.19), LAM, 0.1)
+    (tmp_path / "section_taper.txt").write_text(format_section_taper_file({1: tp}, {1: (2, 3, 0.1)}))
+    with pytest.raises(ValueError, match="both"):
+        attach_section_analyses(str(tmp_path), ed)
+    (tmp_path / "section_taper.txt").write_text(format_section_taper_file({}, {5: (2, 3, 0.1)}))
+    with pytest.raises(ValueError, match="without a section"):
+        attach_section_analyses(str(tmp_path), ed)
+    ed = _two_d_job(tmp_path, {1: (2, 3, 0.1)}, along={3: 6})                 # another topology
+    with pytest.raises(ValueError, match="element 1: sections 2 and 3"):
+        attach_section_analyses(str(tmp_path), ed)

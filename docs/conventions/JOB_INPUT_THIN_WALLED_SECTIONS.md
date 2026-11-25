@@ -165,8 +165,27 @@ short step apart.
 
 Every listed element must have a section. The optional `[Section_Taper_Laminate]` block
 splits each row by laminate per unit axial wall stiffness (`C = sum_l A_l C_l`, the same for
-`Q`); layup sensitivities of tapered elements need it. `blade_beam_job(..., taper=True)` (the
-default) writes both blocks from the loft.
+`Q`); layup sensitivities of tapered elements on thin-walled sections need it.
+`blade_beam_job(..., taper=True)` (the default) writes both blocks from the loft.
+
+An element on a section meshed in 2D can take its coupling from two 2D meshes instead:
+
+```
+[Section_Taper_2D]
+[element_id] [section_start] [section_end] [distance]
+0 2 3 0.02
+```
+
+`section_start` and `section_end` are 2D sections of the job (`[Section_Mesh_2D]` in
+`section_geometry.txt`, or `section_mesh_2d.txt`) with the same mesh topology (each node the
+same material point), `distance` apart along the beam, `section_end` further along `x`:
+typically cuts close either side of the element's own section. The coupling is the
+provider's `solid_section_taper` of the section midway between them (the same `C` and `Q`
+with the 2D axial modulus `E_x` in place of `A`). It is differentiated through the two
+meshes (`solid_section_derivative(taper=)`), so layup sensitivities of a tapered 2D section
+need this block, and ply thicknesses need meshes with node velocities. An element takes a
+row in `[Section_Taper]` or `[Section_Taper_2D]`, not both, and the file may hold the 2D
+block alone.
 
 ## Sections from implicit-geometry-kernel, and `region_laminate.txt`
 
