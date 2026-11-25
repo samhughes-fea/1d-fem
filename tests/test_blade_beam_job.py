@@ -245,6 +245,64 @@ def test_two_d_sections(tmp_path):
         assert K2[i, i] == pytest.approx(Kt[i, i], rel=0.015)
 
 
+def _sensitivities(job, tmp_path, tag):
+    from onedfem.workflow_orchestrator.run_job import process_job
+
+    res = str(tmp_path / f"{tag}_results")
+    for sub in ("element_stiffness_matrices", "element_force_vectors", "primary_results", "secondary_results",
+                "logs", "maps", "diagnostics"):
+        os.makedirs(os.path.join(res, sub), exist_ok=True)
+    logging.getLogger().setLevel(logging.WARNING)
+    process_job(job, res, {}, {}, force_serial=True, max_processes_per_job=1)
+    with open(os.path.join(res, "secondary_results", "sensitivity", "layup_sensitivity.csv"), newline="",
+              encoding="utf-8") as f:
+        return {(r["parameter"], r["response"]): r for r in csv.DictReader(f)}
+
+
+def test_two_d_blade_cut_takes_ply_thickness_sensitivities(tmp_path):
+    """A blade cut written to ``section_mesh_2d.txt`` (provider 0.8.0) carries its ply tags and
+    node velocities, so ``layup_sensitivity.txt`` takes thicknesses of its skin, web and cap
+    plies. The web-ply derivative matches central differences of jobs whose meshes are moved
+    by ``+-h V`` (same mesh topology, so the difference is clean)."""
+    import shutil
+
+    from onedfem.pre_processing.parsing.laminate_parser import format_laminate_file
+    from onedfem.pre_processing.parsing.layup_sensitivity_parser import Response, format_layup_sensitivity_file
+    from onedfem.interfaces.blade.solid_sections import write_section_mesh_2d
+    from anisotropic_section_model.solid.mesh import SectionMesh
+    from anisotropic_section_model.thin_walled.layup_sensitivity import LayupParameter
+
+    library = {1: LAMS["skin"], 2: LAMS["web"], 3: LAMS["cap"]}
+    geo = geometry([Station(0.0, 1.0, AF, pitch_axis=0.3), Station(2.0, 1.0, AF, pitch_axis=0.3)])
+    job = blade_beam_job(str(tmp_path / "cut"), geo, {"skin": 1, "web": 2, "cap": 3}, 1, kind="2d",
+                         library=library, taper=False, mesh_options={"element_size": 0.04},
+                         loads={2.0: [0.0, 2e3, 5e3, 1e3, 0.0, 0.0]})
+    mesh = job.sections[1]
+    assert mesh.laminates == library and mesh.velocities is not None
+    with open(os.path.join(job.job_dir, "laminate.txt"), "w", encoding="utf-8") as f:
+        f.write(format_laminate_file(library))
+    params = [LayupParameter(1, 2, "thickness"), LayupParameter(2, 1, "thickness"), LayupParameter(3, 0, "thickness")]
+    with open(os.path.join(job.job_dir, "layup_sensitivity.txt"), "w", encoding="utf-8") as f:
+        f.write(format_layup_sensitivity_file(params, [Response("compliance")]))
+    base = _sensitivities(job.job_dir, tmp_path, "base")
+    assert {label for label, _ in base} == {p.label for p in params}
+    assert all(float(row["derivative"]) < 0.0 for row in base.values())   # thicker plies, stiffer blade
+
+    prm, h = params[1], 1e-7
+    V = mesh.velocities[(prm.laminate_id, prm.ply)]
+    values = []
+    for sign in (1, -1):
+        moved = SectionMesh(mesh.nodes + sign * h * V, mesh.elements, mesh.kinds, mesh.material_ids, mesh.theta,
+                            mesh.alpha, mesh.materials, section_id=1, plies=mesh.plies,
+                            velocities=mesh.velocities, tie_points=mesh.tie_points)
+        d = str(tmp_path / f"moved_{sign}")
+        shutil.copytree(job.job_dir, d)
+        write_section_mesh_2d(os.path.join(d, "section_mesh_2d.txt"), {1: moved})
+        values.append(float(_sensitivities(d, tmp_path, f"moved_{sign}")[prm.label, "compliance"]["response_value"]))
+    fd = (values[0] - values[1]) / (2 * h)
+    assert float(base[prm.label, "compliance"]["derivative"]) == pytest.approx(fd, rel=1e-4)
+
+
 def test_gbt_blade_job_files(tmp_path):
     """GBT on a blade: the modes in ``element_section.txt``, the warping column, and every
     extra DOF held at the root with ``Q*`` (the example runs it; the cross-section modes of
